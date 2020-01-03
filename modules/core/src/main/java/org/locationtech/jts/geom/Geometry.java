@@ -164,6 +164,8 @@ public abstract class Geometry
   static final int SORTINDEX_POLYGON = 5;
   static final int SORTINDEX_MULTIPOLYGON = 6;
   static final int SORTINDEX_GEOMETRYCOLLECTION = 7;
+  static final int SORTINDEX_CIRCLESTRING = 8;
+  static final int SORTINDEX_MULTICIRCLESTRING = 9;
   
   private final static GeometryComponentFilter geometryChangedFilter = new GeometryComponentFilter() {
     public void filter(Geometry geom) {

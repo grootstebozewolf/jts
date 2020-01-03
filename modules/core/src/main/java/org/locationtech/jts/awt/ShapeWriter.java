@@ -18,6 +18,8 @@ import java.awt.geom.Point2D;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.CircularString;
+import org.locationtech.jts.geom.MultiCircularString;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.Point;
@@ -169,6 +171,8 @@ public class ShapeWriter
 	{
 		if (geometry.isEmpty()) return new GeneralPath();
 		if (geometry instanceof Polygon) return toShape((Polygon) geometry);
+		if (geometry instanceof CircularString) 			return toShape((CircularString) geometry);
+		if (geometry instanceof MultiCircularString) 			return toShape((MultiCircularString) geometry);
 		if (geometry instanceof LineString) 			return toShape((LineString) geometry);
 		if (geometry instanceof MultiLineString) 	return toShape((MultiLineString) geometry);
 		if (geometry instanceof Point) 			return toShape((Point) geometry);
@@ -241,6 +245,61 @@ public class ShapeWriter
 		}
 		return shape;
 	}
+	
+	private GeneralPath toShape(MultiCircularString mls)
+	{
+		GeneralPath path = new GeneralPath();
+
+		for (int i = 0; i < mls.getNumGeometries(); i++) {
+			CircularString CircularString = (CircularString) mls.getGeometryN(i);
+			path.append(toShape(CircularString), false);
+		}
+		return path;
+	}
+	private boolean IsColinear(double x1, double y1,
+	double x2, double y2,
+	double x3, double y3)
+	{
+		return y2 - y1 / x2- x1 == y3 - y1 / x3 - x1;
+	}
+
+	private GeneralPath toShape(CircularString CircularString)
+	{
+		GeneralPath shape = new GeneralPath();
+			
+		Coordinate arcStart = CircularString.getCoordinateN(0);
+		transformPoint(arcStart, transPoint);
+		double arcStartX = transPoint.getX();
+		double arcStartY = transPoint.getY();
+		shape.moveTo((float) arcStartX, (float) arcStartY);
+		
+		int n = CircularString.getNumPoints() - 1;
+		//int count = 0;
+		for (int i = 1; i <= n; i = i + 2) {
+			Coordinate arcMid = CircularString.getCoordinateN(i-1);
+			transformPoint(arcMid, transPoint);
+			double arcMidX = transPoint.getX();
+			double arcMidY = transPoint.getY();
+			Coordinate arcEnd = CircularString.getCoordinateN(i);
+			transformPoint(arcEnd, transPoint);
+			double arcEndX = transPoint.getX();
+			double arcEndY = transPoint.getY();
+
+			if(IsColinear(arcStartX, arcStartY, arcMidX, arcMidY, arcEndX, arcEndY))
+			{
+				shape.lineTo((float)arcEndX, (float)arcEndY);
+			}
+			else
+			{
+				//Get center of circle
+				//Calculate best fit of bezier curve from mid point
+				shape.curveTo((float)arcStartX, (float)arcStartY, (float)arcMidX, (float)arcMidY, (float)arcEndX, (float)arcEndY);
+			}			
+			arcStartX = arcEndX;	  
+			arcStartY = arcEndY;	  
+		}
+		return shape;
+	}
 
 	private GeneralPath toShape(MultiLineString mls)
 	{
@@ -259,7 +318,7 @@ public class ShapeWriter
 		
     Coordinate prev = lineString.getCoordinateN(0);
     transformPoint(prev, transPoint);
-		shape.moveTo((float) transPoint.getX(), (float) transPoint.getY());
+	shape.moveTo((float) transPoint.getX(), (float) transPoint.getY());
 
     double prevx = transPoint.getX();
     double prevy = transPoint.getY();
@@ -296,16 +355,16 @@ public class ShapeWriter
 	}
 
 	private Shape toShape(Point point)
-  {
+    {
 		Point2D viewPoint = transformPoint(point.getCoordinate());
 		return pointFactory.createPoint(viewPoint);
 	}
 
-  private Point2D transformPoint(Coordinate model) {
+    private Point2D transformPoint(Coordinate model) {
 		return transformPoint(model, new Point2D.Double());
 	}
   
-  private Point2D transformPoint(Coordinate model, Point2D view) {
+    private Point2D transformPoint(Coordinate model, Point2D view) {
 		pointTransformer.transform(model, view);
 		return view;
 	}

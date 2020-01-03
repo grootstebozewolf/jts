@@ -52,6 +52,11 @@ public class GeometryCombiner
     LineString line = geomFactory.createLineString(pts);
     return combine(orig, line);
   }
+
+  public Geometry addCircularString(Geometry orig, Coordinate[] circle) {
+    CircularString line = geomFactory.createCircularString(circle);
+    return combine(orig, line);
+  }
   
   public Geometry addPoint(Geometry orig, Coordinate pt)
   {

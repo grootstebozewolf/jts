@@ -14,43 +14,43 @@ package org.locationtech.jts.geom;
 import org.locationtech.jts.operation.BoundaryOp;
 
 /**
- * Models a collection of {@link LineString}s.
+ * Models a collection of {@link CircularString}s.
  * <p>
- * Any collection of LineStrings is a valid MultiLineString.
+ * Any collection of CircularStrings is a valid MultiCircularString.
  *
  *@version 1.7
  */
-public class MultiLineString 
+public class MultiCircularString 
 	extends GeometryCollection
-	implements Lineal
+	implements Arc
 	{
   private static final long serialVersionUID = 8166665132445433741L;
   /**
-   *  Constructs a <code>MultiLineString</code>.
+   *  Constructs a <code>MultiCircularString</code>.
    *
-   *@param  lineStrings     the <code>LineString</code>s for this <code>MultiLineString</code>
+   *@param  CircularStrings     the <code>CircularString</code>s for this <code>MultiCircularString</code>
    *      , or <code>null</code> or an empty array to create the empty geometry.
-   *      Elements may be empty <code>LineString</code>s, but not <code>null</code>
+   *      Elements may be empty <code>CircularString</code>s, but not <code>null</code>
    *      s.
    *@param  precisionModel  the specification of the grid of allowable points
-   *      for this <code>MultiLineString</code>
+   *      for this <code>MultiCircularString</code>
    *@param  SRID            the ID of the Spatial Reference System used by this
-   *      <code>MultiLineString</code>
+   *      <code>MultiCircularString</code>
    * @deprecated Use GeometryFactory instead
    */
-  public MultiLineString(LineString[] lineStrings, PrecisionModel precisionModel, int SRID) {
-    super(lineStrings, new GeometryFactory(precisionModel, SRID));
+  public MultiCircularString(CircularString[] CircularStrings, PrecisionModel precisionModel, int SRID) {
+    super(CircularStrings, new GeometryFactory(precisionModel, SRID));
   }
 
   /**
-   * @param lineStrings
-   *            the <code>LineString</code>s for this <code>MultiLineString</code>,
+   * @param CircularStrings
+   *            the <code>CircularString</code>s for this <code>MultiCircularString</code>,
    *            or <code>null</code> or an empty array to create the empty
-   *            geometry. Elements may be empty <code>LineString</code>s,
+   *            geometry. Elements may be empty <code>CircularString</code>s,
    *            but not <code>null</code>s.
    */
-  public MultiLineString(LineString[] lineStrings, GeometryFactory factory) {
-    super(lineStrings, factory);
+  public MultiCircularString(CircularString[] CircularStrings, GeometryFactory factory) {
+    super(CircularStrings, factory);
   }
 
   public int getDimension() {
@@ -65,7 +65,7 @@ public class MultiLineString
   }
 
   public String getGeometryType() {
-    return "MultiLineString";
+    return "MultiCircularString";
   }
 
   public boolean isClosed() {
@@ -73,7 +73,7 @@ public class MultiLineString
       return false;
     }
     for (int i = 0; i < geometries.length; i++) {
-      if (!((LineString) geometries[i]).isClosed()) {
+      if (!((CircularString) geometries[i]).isClosed()) {
         return false;
       }
     }
@@ -82,7 +82,7 @@ public class MultiLineString
 
   /**
    * Gets the boundary of this geometry.
-   * The boundary of a lineal geometry is always a zero-dimensional geometry (which may be empty).
+   * The boundary of a Circularal geometry is always a zero-dimensional geometry (which may be empty).
    *
    * @return the boundary geometry
    * @see Geometry#getBoundary
@@ -93,30 +93,30 @@ public class MultiLineString
   }
 
   /**
-   * Creates a {@link MultiLineString} in the reverse
+   * Creates a {@link MultiCircularString} in the reverse
    * order to this object.
-   * Both the order of the component LineStrings
+   * Both the order of the component CircularStrings
    * and the order of their coordinate sequences
    * are reversed.
    *
-   * @return a {@link MultiLineString} in the reverse order
+   * @return a {@link MultiCircularString} in the reverse order
    */
   public Geometry reverse()
   {
-    int nLines = geometries.length;
-    LineString[] revLines = new LineString[nLines];
+    int nCirculars = geometries.length;
+    CircularString[] revCirculars = new CircularString[nCirculars];
     for (int i = 0; i < geometries.length; i++) {
-      revLines[nLines - 1 - i] = (LineString)geometries[i].reverse();
+      revCirculars[nCirculars - 1 - i] = (CircularString)geometries[i].reverse();
     }
-    return getFactory().createMultiLineString(revLines);
+    return getFactory().createMultiCircularString(revCirculars);
   }
   
-  protected MultiLineString copyInternal() {
-    LineString[] lineStrings = new LineString[this.geometries.length];
-    for (int i = 0; i < lineStrings.length; i++) {
-      lineStrings[i] = (LineString) this.geometries[i].copy();
+  protected MultiCircularString copyInternal() {
+    CircularString[] CircularStrings = new CircularString[this.geometries.length];
+    for (int i = 0; i < CircularStrings.length; i++) {
+      CircularStrings[i] = (CircularString) this.geometries[i].copy();
     }
-    return new MultiLineString(lineStrings, factory);
+    return new MultiCircularString(CircularStrings, factory);
   }
 
   public boolean equalsExact(Geometry other, double tolerance) {
@@ -127,7 +127,7 @@ public class MultiLineString
   }
 
   protected int getSortIndex() {
-    return Geometry.SORTINDEX_MULTILINESTRING;
+    return Geometry.SORTINDEX_MULTICircularSTRING;
   }
 }
 

@@ -26,6 +26,7 @@ import org.locationtech.jtstest.testbuilder.geom.*;
  * Holds the current {@link TestCaseEdit}.
  * 
  * @author Martin Davis
+ * @author Jeroen Bloemscheer
  *
  */
 public class GeometryEditModel 
@@ -260,6 +261,10 @@ public class GeometryEditModel
     case GeometryType.LINESTRING:
       Coordinate[] pts = CoordinateArrays.toCoordinateArray(coordList);
       newGeom = creator.addLineString(getGeometry(), pts);      
+      break;
+    case GeometryType.CIRCULARSTRING:
+      Coordinate[] Circular = CoordinateArrays.toCoordinateArray(coordList);
+      newGeom = creator.addCircularString(getGeometry(), Circular);      
       break;
     case GeometryType.POINT:
       newGeom = creator.addPoint(getGeometry(), (Coordinate) coordList.get(0));      

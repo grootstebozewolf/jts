@@ -22,5 +22,6 @@ public interface GeometryType {
   public final static int POLYGON = 5;
   public final static int LINESTRING = 6;
   public final static int POINT = 7;
+  public final static int CIRCULARSTRING = 8;
 
 }
