@@ -127,7 +127,7 @@ public class MultiCircularString
   }
 
   protected int getSortIndex() {
-    return Geometry.SORTINDEX_MULTICircularSTRING;
+    return Geometry.SORTINDEX_MULTICIRCULARSTRING;
   }
 }
 

@@ -328,7 +328,7 @@ public class CircularString
   }
   
   protected int getSortIndex() {
-    return Geometry.SORTINDEX_CircularSTRING;
+    return Geometry.SORTINDEX_CIRCULARSTRING;
   }
 
 }
