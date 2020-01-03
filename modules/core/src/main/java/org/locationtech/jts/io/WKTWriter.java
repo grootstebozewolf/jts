@@ -22,6 +22,8 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFilter;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.CircularString;
+import org.locationtech.jts.geom.MultiCircularString;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiLineString;
@@ -503,6 +505,10 @@ public class WKTWriter
       appendLinearRingTaggedText((LinearRing) geometry, outputOrdinates, useFormatting,
               level, writer, formatter);
     }
+    else if (geometry instanceof CircularString) {
+      appendCircularStringTaggedText((CircularString) geometry, outputOrdinates, useFormatting,
+              level, writer, formatter);
+    }
     else if (geometry instanceof LineString) {
       appendLineStringTaggedText((LineString) geometry, outputOrdinates, useFormatting,
               level, writer, formatter);
@@ -551,6 +557,28 @@ public class WKTWriter
     writer.write("POINT ");
     appendOrdinateText(outputOrdinates, writer);
     appendSequenceText(point.getCoordinateSequence(), outputOrdinates, useFormatting,
+            level, false, writer, formatter);
+  }
+
+  /**
+   *  Converts a <code>CircularString</code> to &lt;CircularString Tagged Text&gt;
+   *  format, then appends it to the writer.
+   *
+   * @param  CircularString  the <code>CircularString</code> to process
+   * @param  useFormatting      flag indicating that the output should be formatted
+   * @param  level              the indentation level
+   * @param  writer             the output writer to append to
+   * @param  formatter       the <code>DecimalFormatter</code> to use to convert
+   *      from a precise coordinate to an external coordinate
+   */
+  private void appendCircularStringTaggedText(
+          CircularString CircularString, EnumSet<Ordinate> outputOrdinates, boolean useFormatting,
+          int level, Writer writer, OrdinateFormat formatter)
+    throws IOException
+  {
+    writer.write("CIRCULARSTRING ");
+    appendOrdinateText(outputOrdinates, writer);
+    appendSequenceText(CircularString.getCoordinateSequence(), outputOrdinates, useFormatting,
             level, false, writer, formatter);
   }
 

@@ -83,6 +83,9 @@ public class FacetLocater
   	else {
   		CoordinateSequence seq;
   	
+  		if (geom instanceof CircularString) {
+   		 seq = ((CircularString) geom).getCoordinateSequence();
+  		}  	
   		if (geom instanceof LineString) {
    		 seq = ((LineString) geom).getCoordinateSequence();
   		}

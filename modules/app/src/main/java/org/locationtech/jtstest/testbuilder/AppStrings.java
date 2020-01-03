@@ -49,11 +49,11 @@ public class AppStrings {
 
   static final String TIP_INFO = "Show Info on Geometry, Segment, or Point";
 
+  static final String TIP_DRAW_CIRCULAR = "Draw Circular";
   static final String TIP_DRAW_RECTANGLE = "Draw Rectangle";
   static final String TIP_DRAW_POINT = "Draw Point";
   static final String TIP_DRAW_LINE = "<html>Draw LineString<br><br>Add Pt = Left-Click<br>Stream = Left-Drag</html>";
   static final String TIP_DRAW_POLY = "<html>Draw Polygon<br><br>Add Pt = Left-Click<br>Stream = Left-Drag</html>";
-
 
   static final String TIP_EXCHANGE_A_B = "Exchange A & B";
 

@@ -140,6 +140,17 @@ public class GeometryFactory
   /**
    *  Converts the <code>List</code> to an array.
    *
+   *@param  CircularStrings  the <code>List</code> of CircularStrings to convert
+   *@return              the <code>List</code> in array format
+   */
+  public static CircularString[] toCircularStringArray(Collection CircularStrings) {
+    CircularString[] CircularStringArray = new CircularString[CircularStrings.size()];
+    return (CircularString[]) CircularStrings.toArray(CircularStringArray);
+  }
+
+  /**
+   *  Converts the <code>List</code> to an array.
+   *
    *@param  lineStrings  the <code>List</code> of LineStrings to convert
    *@return              the <code>List</code> in array format
    */
@@ -283,6 +294,26 @@ public class GeometryFactory
   	return new Point(coordinates, this);
   }
   
+  /**
+   * Constructs an empty {@link MultiCircularString} geometry.
+   * 
+   * @return an empty MultiCircularString
+   */
+  public MultiCircularString createMultiCircularString() {
+    return new MultiCircularString(null, this);
+  }
+
+  /**
+   * Creates a MultiCircularString using the given CircularStrings; a null or empty
+   * array will create an empty MultiCircularString.
+   * 
+   * @param CircularStrings CircularStrings, each of which may be empty but not null
+   * @return the created MultiCircularString
+   */
+  public MultiCircularString createMultiCircularString(CircularString[] CircularStrings) {
+  	return new MultiCircularString(CircularStrings, this);
+  }
+
   /**
    * Constructs an empty {@link MultiLineString} geometry.
    * 
@@ -583,6 +614,9 @@ public class GeometryFactory
       if (geom0 instanceof Polygon) {
         return createMultiPolygon(toPolygonArray(geomList));
       }
+      else if (geom0 instanceof CircularString) {
+        return createMultiCircularString(toCircularStringArray(geomList));
+      }
       else if (geom0 instanceof LineString) {
         return createMultiLineString(toLineStringArray(geomList));
       }
@@ -620,6 +654,34 @@ public class GeometryFactory
    */
   public LineString createLineString(CoordinateSequence coordinates) {
 	return new LineString(coordinates, this);
+  }
+
+  /**
+   * Constructs an empty {@link CircularString} geometry.
+   * 
+   * @return an empty CircularString
+   */
+  public CircularString createCircularString() {
+    return createCircularString(getCoordinateSequenceFactory().create(new Coordinate[]{}));
+  }
+
+  /**
+   * Creates a CircularString using the given Coordinates.
+   * A null or empty array creates an empty CircularString. 
+   * 
+   * @param coordinates an array without null elements, or an empty array, or null
+   */
+  public CircularString createCircularString(Coordinate[] coordinates) {
+    return createCircularString(coordinates != null ? getCoordinateSequenceFactory().create(coordinates) : null);
+  }
+  /**
+   * Creates a CircularString using the given CoordinateSequence.
+   * A null or empty CoordinateSequence creates an empty CircularString. 
+   * 
+   * @param coordinates a CoordinateSequence (possibly empty), or null
+   */
+  public CircularString createCircularString(CoordinateSequence coordinates) {
+	return new CircularString(coordinates, this);
   }
 
   /**
