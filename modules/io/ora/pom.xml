@@ -37,7 +37,7 @@
     <dependencies>
        <dependency>
           <groupId>com.oracle</groupId>
-          <artifactId>ojdbc7</artifactId>
+          <artifactId>ojdbc6</artifactId>
           <!-- version from dependencyManagment in root pom -->
           <scope>provided</scope>
        </dependency>
