@@ -275,7 +275,7 @@ public class ShapeWriter
 		
 		int n = CircularString.getNumPoints() - 1;
 		//int count = 0;
-		for (int i = 1; i <= n; i = i + 2) {
+		for (int i = 2; i <= n; i = i + 2) {
 			Coordinate arcMid = CircularString.getCoordinateN(i-1);
 			transformPoint(arcMid, transPoint);
 			double arcMidX = transPoint.getX();
@@ -291,9 +291,12 @@ public class ShapeWriter
 			}
 			else
 			{
-				//Get center of circle
-				//Calculate best fit of bezier curve from mid point
-				shape.curveTo((float)arcStartX, (float)arcStartY, (float)arcMidX, (float)arcMidY, (float)arcEndX, (float)arcEndY);
+				double b1x = (arcStartX*((arcStartX - arcEndX)*(arcMidY - arcEndY) - (arcStartY - arcEndY)*(arcMidX - arcEndX)) + 6004799503160661L*(-2*arcStartY*((arcStartX - arcEndX)*(arcMidY - arcEndY) - (arcStartY - arcEndY)*(arcMidX - arcEndX)) + (arcStartX - arcEndX)*(Math.pow(arcMidX,2) + Math.pow(arcMidY,2) - Math.pow(arcEndX,2) - Math.pow(arcEndY,2)) - (arcMidX - arcEndX)*(Math.pow(arcStartX,2) + Math.pow(arcStartY,2) - Math.pow(arcEndX,2) - Math.pow(arcEndY,2)))*Math.tan(1/(4*Math.cos(1)))/9007199254740992L)/((arcStartX - arcEndX)*(arcMidY - arcEndY) - (arcStartY - arcEndY)*(arcMidX - arcEndX));
+				double b1y = (arcStartY*((arcStartX - arcEndX)*(arcMidY - arcEndY) - (arcStartY - arcEndY)*(arcMidX - arcEndX)) + 6004799503160661L*(2*arcStartX*((arcStartX - arcEndX)*(arcMidY - arcEndY) - (arcStartY - arcEndY)*(arcMidX - arcEndX)) + (arcStartY - arcEndY)*(Math.pow(arcMidX,2) + Math.pow(arcMidY,2) - Math.pow(arcEndX,2) - Math.pow(arcEndY,2)) - (arcMidY - arcEndY)*(Math.pow(arcStartX,2) + Math.pow(arcStartY,2) - Math.pow(arcEndX,2) - Math.pow(arcEndY,2)))*Math.tan(1/(4*Math.cos(1)))/9007199254740992L)/((arcStartX - arcEndX)*(arcMidY - arcEndY) - (arcStartY - arcEndY)*(arcMidX - arcEndX));
+				double b2x = (arcEndX*((arcStartX - arcEndX)*(arcMidY - arcEndY) - (arcStartY - arcEndY)*(arcMidX - arcEndX)) + 6004799503160661L*(2*arcEndY*((arcStartX - arcEndX)*(arcMidY - arcEndY) - (arcStartY - arcEndY)*(arcMidX - arcEndX)) - (arcStartX - arcEndX)*(Math.pow(arcMidX,2) + Math.pow(arcMidY,2) - Math.pow(arcEndX,2) - Math.pow(arcEndY,2)) + (arcMidX - arcEndX)*(Math.pow(arcStartX,2) + Math.pow(arcStartY,2) - Math.pow(arcEndX,2) - Math.pow(arcEndY,2)))*Math.tan(1/(4*Math.cos(1)))/9007199254740992L)/((arcStartX - arcEndX)*(arcMidY - arcEndY) - (arcStartY - arcEndY)*(arcMidX - arcEndX));
+				double b2y = (arcEndY*((arcStartX - arcEndX)*(arcMidY - arcEndY) - (arcStartY - arcEndY)*(arcMidX - arcEndX)) + 6004799503160661L*(-2*arcEndX*((arcStartX - arcEndX)*(arcMidY - arcEndY) - (arcStartY - arcEndY)*(arcMidX - arcEndX)) - (arcStartY - arcEndY)*(Math.pow(arcMidX,2) + Math.pow(arcMidY,2) - Math.pow(arcEndX,2) - Math.pow(arcEndY,2)) + (arcMidY - arcEndY)*(Math.pow(arcStartX,2) + Math.pow(arcStartY,2) - Math.pow(arcEndX,2) - Math.pow(arcEndY,2)))*Math.tan(1/(4*Math.cos(1)))/9007199254740992L)/((arcStartX - arcEndX)*(arcMidY - arcEndY) - (arcStartY - arcEndY)*(arcMidX - arcEndX));
+				
+				shape.curveTo((float)b1x, (float)b1y, (float)b2x, (float)b2y, (float)arcEndX, (float)arcEndY);
 			}			
 			arcStartX = arcEndX;	  
 			arcStartY = arcEndY;	  
