@@ -185,10 +185,7 @@ public class CircularString
    */
   public Geometry reverse()
   {
-    CoordinateSequence seq = points.copy();
-    CoordinateSequences.reverse(seq);
-    CircularString revLine = getFactory().createCircularString(seq);
-    return revLine;
+    return reverseInternal();
   }
 
   /**
@@ -327,8 +324,17 @@ public class CircularString
     return comp.compare(this.points, line.points);
   }
   
-  protected int getSortIndex() {
-    return Geometry.SORTINDEX_CircularSTRING;
+  @Override
+  protected Geometry reverseInternal() {    
+    CoordinateSequence seq = points.copy();
+    CoordinateSequences.reverse(seq);
+    CircularString revLine = getFactory().createCircularString(seq);
+    return revLine;
+  }
+
+  @Override
+  protected int getTypeCode() {
+    return Geometry.TYPECODE_CIRCLESTRING;
   }
 
 }
