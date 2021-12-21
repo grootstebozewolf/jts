@@ -1,0 +1,1631 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Debug (Launch) - Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TestBuilderTest<jts-app>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtstest.TestBuilderTest",
+            "projectName": "jts-app"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TestFileGeometryExtractor<jts-app>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtstest.TestFileGeometryExtractor",
+            "projectName": "jts-app"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TestReaderTest<jts-app>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtstest.TestReaderTest",
+            "projectName": "jts-app"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-JTSOpCmd<jts-app>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtstest.cmd.JTSOpCmd",
+            "projectName": "jts-app"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-JTSOpCmdTest<jts-app>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtstest.cmd.JTSOpCmdTest",
+            "projectName": "jts-app"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-JTSTestBuilder<jts-app>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtstest.testbuilder.JTSTestBuilder",
+            "projectName": "jts-app"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-ConstrainedInteriorPointTest<jts-app>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtstest.testbuilder.geom.ConstrainedInteriorPointTest",
+            "projectName": "jts-app"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SegmentClipperTest<jts-app>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtstest.testbuilder.geom.SegmentClipperTest",
+            "projectName": "jts-app"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-FileDrop<jts-app>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtstest.testbuilder.ui.dnd.FileDrop",
+            "projectName": "jts-app"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-CommandRunnerTester<jts-app>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtstest.util.CommandRunnerTester",
+            "projectName": "jts-app"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-JTSVersion<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.JTSVersion",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-AngleTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.AngleTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-AreaTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.AreaTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-CGAlgorithmsDDTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.CGAlgorithmsDDTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-ConvexHullTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.ConvexHullTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DistanceTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.DistanceTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-InteriorPointTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.InteriorPointTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IntersectionTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.IntersectionTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IsCCWTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.IsCCWTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LengthTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.LengthTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LocatePointInRingTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.LocatePointInRingTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-MinimumBoundingCircleTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.MinimumBoundingCircleTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-MinimumDiameterTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.MinimumDiameterTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-NonRobustLineIntersectorTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.NonRobustLineIntersectorTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-OrientationIndexFailureTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.OrientationIndexFailureTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-OrientationIndexTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.OrientationIndexTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PointInRingTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.PointInRingTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PointLocationOn4DLineTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.PointLocationOn4DLineTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PointLocationOnLineTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.PointLocationOnLineTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PointLocatorTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.PointLocatorTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-RayCrossingCounterTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.RayCrossingCounterTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-RectangleLineIntersectorTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.RectangleLineIntersectorTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-RobustLineIntersectionTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.RobustLineIntersectionTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-RobustLineIntersectorTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.RobustLineIntersectorTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DiscreteHausdorffDistanceTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistanceTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IndexedPointInAreaLocatorTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocatorTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SimplePointInAreaLocatorTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.algorithm.locate.SimplePointInAreaLocatorTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PolygonShapeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.awt.PolygonShapeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LineDissolverTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.dissolve.LineDissolverTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-EdgeGraphTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.edgegraph.EdgeGraphTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-AreaLengthTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.AreaLengthTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-BidirectionalComparatorTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.BidirectionalComparatorTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-CoordinateArraysTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.CoordinateArraysTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-CoordinateListTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.CoordinateListTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-CoordinateSequencesTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.CoordinateSequencesTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-CoordinateTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.CoordinateTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-EnvelopeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.EnvelopeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-GeometryCollectionImplTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.GeometryCollectionImplTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-GeometryCollectionIteratorTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.GeometryCollectionIteratorTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-GeometryCopyTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.GeometryCopyTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-GeometryFactoryTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.GeometryFactoryTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-GeometryImplTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.GeometryImplTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-GeometryOpGCUnsupportedTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.GeometryOpGCUnsupportedTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IsRectangleTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.IsRectangleTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LineSegmentTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.LineSegmentTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LineStringImplTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.LineStringImplTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-MiscellaneousTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.MiscellaneousTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-MultiPointImplTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.MultiPointImplTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-NormalizeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.NormalizeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PointImplTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.PointImplTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PredicateShortCircuitTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.PredicateShortCircuitTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-RectanglePredicateSyntheticTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.RectanglePredicateSyntheticTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-RectanglePredicateTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.RectanglePredicateTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TriangleCircumcentreTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.TriangleCircumcentreTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TriangleTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.TriangleTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-BasicCoordinateSequenceTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.impl.BasicCoordinateSequenceTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-CoordinateArraySequenceTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.impl.CoordinateArraySequenceTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-CoordinateSequenceTestBase<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.impl.CoordinateSequenceTestBase",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PackedCoordinateSequenceDoubleTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.impl.PackedCoordinateSequenceDoubleTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PackedCoordinateSequenceFloatTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.impl.PackedCoordinateSequenceFloatTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PackedCoordinateSequenceTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.impl.PackedCoordinateSequenceTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PreparedPolygonIntersectsStressTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.prep.PreparedPolygonIntersectsStressTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PreparedPolygonPredicateStressTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.geom.prep.PreparedPolygonPredicateStressTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-BinTreeCorrectTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.index.bintree.BinTreeCorrectTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-HPRtreeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.index.hprtree.HPRtreeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SortedPackedIntervalRTreeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.index.intervalrtree.SortedPackedIntervalRTreeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-KdTreeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.index.kdtree.KdTreeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DoubleBitsTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.index.quadtree.DoubleBitsTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IsEmptyTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.index.quadtree.IsEmptyTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-QuadtreeCorrectTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.index.quadtree.QuadtreeCorrectTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-QuadtreeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.index.quadtree.QuadtreeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-EnvelopeDistanceTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.index.strtree.EnvelopeDistanceTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IntervalTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.index.strtree.IntervalTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SIRtreeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.index.strtree.SIRtreeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-STRtreeNearestNeighbourTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.index.strtree.STRtreeNearestNeighbourTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-STRtreeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.index.strtree.STRtreeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-OrdinateFormatTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.io.OrdinateFormatTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SerializabilityTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.io.SerializabilityTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-WKBReaderTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.io.WKBReaderTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-WKBTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.io.WKBTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-WKTReadWriteTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.io.WKTReadWriteTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-WKTReaderExpTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.io.WKTReaderExpTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-WKTReaderParseErrorTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.io.WKTReaderParseErrorTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-WKTReaderTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.io.WKTReaderTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-WKTWriterStaticFnTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.io.WKTWriterStaticFnTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-WKTWriterTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.io.WKTWriterTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-KMLWriterTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.io.kml.KMLWriterTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LengthIndexedLineTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.linearref.LengthIndexedLineTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LinearLocationTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.linearref.LinearLocationTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LocationIndexedLineTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.linearref.LocationIndexedLineTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DDBasicTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.math.DDBasicTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DDComputeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.math.DDComputeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DDIOTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.math.DDIOTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DDTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.math.DDTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-Vector2DTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.math.Vector2DTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-FastNodingValidatorTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.noding.FastNodingValidatorTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SegmentPointComparatorFullTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.noding.SegmentPointComparatorFullTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SegmentPointComparatorTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.noding.SegmentPointComparatorTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SegmentStringNodingTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.noding.snapround.SegmentStringNodingTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SnapRoundingTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.noding.snapround.SnapRoundingTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-BoundaryTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.BoundaryTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IsSimpleTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.IsSimpleTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-BufferResultValidatorTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.buffer.BufferResultValidatorTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-BufferTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.buffer.BufferTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-BufferValidator<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.buffer.BufferValidator",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DepthSegmentTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.buffer.DepthSegmentTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-VariableBufferTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.buffer.VariableBufferTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DistanceTest<jts-core>(1)",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.distance.DistanceTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IndexedFacetDistanceTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.distance.IndexedFacetDistanceTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-Distance3DOpTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.distance3d.Distance3DOpTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-WithinDistance3DTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.distance3d.WithinDistance3DTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LineMergerTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.linemerge.LineMergerTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LineSequencerTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.linemerge.LineSequencerTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-FixedPrecisionSnappingTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.overlay.FixedPrecisionSnappingTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-OverlayMiscTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.overlay.OverlayMiscTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PolygonizeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.polygonize.PolygonizeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-ContainsTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.relate.ContainsTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-RelateBoundaryNodeRuleTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.relate.RelateBoundaryNodeRuleTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-RelateTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.relate.RelateTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-CascadedPolygonUnionFileTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.union.CascadedPolygonUnionFileTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-CascadedPolygonUnionTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.union.CascadedPolygonUnionTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-OverlapUnionTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.union.OverlapUnionTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-UnaryUnionTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.union.UnaryUnionTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IsValidTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.valid.IsValidTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-ValidClosedRingTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.valid.ValidClosedRingTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-ValidSelfTouchingRingFormingHoleTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.operation.valid.ValidSelfTouchingRingFormingHoleTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DirectedEdgeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.planargraph.DirectedEdgeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-GeometryPrecisionReducerTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.precision.GeometryPrecisionReducerTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-MinimumClearanceTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.precision.MinimumClearanceTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SimpleGeometryPrecisionReducerTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.precision.SimpleGeometryPrecisionReducerTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-HilbertCodeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.shape.fractal.HilbertCodeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-MortonCodeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.shape.fractal.MortonCodeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DouglasPeuckerSimplifierTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.simplify.DouglasPeuckerSimplifierTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TopologyPreservingSimplifierTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.simplify.TopologyPreservingSimplifierTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-VWSimplifierTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.simplify.VWSimplifierTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-ConformingDelaunayTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.triangulate.ConformingDelaunayTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DelaunayTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.triangulate.DelaunayTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-VoronoiDiagramBuilderTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.triangulate.VoronoiDiagramBuilderTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-VoronoiTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.triangulate.VoronoiTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-Debug<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.util.Debug",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IntArrayListTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.util.IntArrayListTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PriorityQueueTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.util.PriorityQueueTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-UniqueCoordinateArrayFilterTest<jts-core>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.util.UniqueCoordinateArrayFilterTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IsValidTester<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.IsValidTester",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-CoordinateSequenceExperiment2<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.geom.CoordinateSequenceExperiment2",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TestSerializable<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.geom.TestSerializable",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-STRtreeDemo<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.index.STRtreeDemo",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-ExamplePerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.ExamplePerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-AreaPrecisionPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.algorithm.AreaPrecisionPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DDOrientationIndexAccuracyTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.algorithm.DDOrientationIndexAccuracyTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DDOrientationIndexCorrectTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.algorithm.DDOrientationIndexCorrectTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DistanceLineLineStressTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.algorithm.DistanceLineLineStressTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IndexedPointInAreaStressTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.algorithm.IndexedPointInAreaStressTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-InteriorPointAreaPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.algorithm.InteriorPointAreaPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IntersectionPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.algorithm.IntersectionPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IntersectionStressTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.algorithm.IntersectionStressTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LineIntersectorBenchmark<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.algorithm.LineIntersectorBenchmark",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-MinimumBoundingCircleStressTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.algorithm.MinimumBoundingCircleStressTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PointInAreaPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.algorithm.PointInAreaPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PointInRingRobustnessTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.algorithm.PointInRingRobustnessTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-RectangleLineIntersectorPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.algorithm.RectangleLineIntersectorPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SimpleRayCrossingStressTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.algorithm.SimpleRayCrossingStressTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LineDissolvePerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.dissolve.LineDissolvePerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PackedCoordinateSequenceMemoryTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.geom.impl.PackedCoordinateSequenceMemoryTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PreparedGeometryThreadSafeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.geom.prep.PreparedGeometryThreadSafeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PreparedLineIntersectsPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.geom.prep.PreparedLineIntersectsPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PreparedPolygonIntersectsPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.geom.prep.PreparedPolygonIntersectsPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-HPRtreePerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.index.HPRtreePerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-RtreeStressTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.index.RtreeStressTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-STRtreePerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.index.STRtreePerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TreeTimeTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.index.TreeTimeTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DDExpressionPerf<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.math.DDExpressionPerf",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-InCirclePerf<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.math.InCirclePerf",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-BufferCorrectnessTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.buffer.BufferCorrectnessTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DepthSegmentStressTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.buffer.DepthSegmentStressTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-FileBufferPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.buffer.FileBufferPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-FileBufferResultValidatorTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.buffer.FileBufferResultValidatorTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-IteratedBufferStressTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.buffer.IteratedBufferStressTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-OffsetCurveCorrectnessTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.buffer.OffsetCurveCorrectnessTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PolygonBufferStressTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.buffer.PolygonBufferStressTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-RandomLineBufferStressTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.buffer.RandomLineBufferStressTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TestPerfDistanceGeomPair<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.distance.TestPerfDistanceGeomPair",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TestPerfDistanceGeomSet<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.distance.TestPerfDistanceGeomSet",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TestPerfDistanceLinesPoints<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.distance.TestPerfDistanceLinesPoints",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TestPerfFastDistanceFile<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.distance.TestPerfFastDistanceFile",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TestStressEnvelopeMinMaxDistance<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.distance.TestStressEnvelopeMinMaxDistance",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-OverlayNodingStressTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.overlay.OverlayNodingStressTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PolygonizerPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.polygonize.PolygonizerPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-RectangleIntersectsPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.predicate.RectangleIntersectsPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-RelateMonotoneLinesPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.relate.RelateMonotoneLinesPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-FileUnionPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.union.FileUnionPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PolygonUnionPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.union.PolygonUnionPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-ValidStressTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.operation.valid.ValidStressTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DelaunayPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.triangulate.DelaunayPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-DelaunayRobustTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.triangulate.DelaunayRobustTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-VoronoiPerfTest<jts-core>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.triangulate.VoronoiPerfTest",
+            "projectName": "jts-core"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-BasicExample<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.geom.BasicExample",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-ConstructionExample<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.geom.ConstructionExample",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-ExtendedCoordinateExample<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.geom.ExtendedCoordinateExample",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PrecisionModelExample<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.geom.PrecisionModelExample",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SimpleMethodsExample<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.geom.SimpleMethodsExample",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PreparedGeometryExample<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.geom.prep.PreparedGeometryExample",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-KMLReaderExample<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.io.gml2.KMLReaderExample",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LinearRefExample<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.linearref.LinearRefExample",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-ClosestPointExample<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.operation.distance.ClosestPointExample",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LineMergeExample<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.operation.linemerge.LineMergeExample",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PolygonizeExample<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.operation.polygonize.PolygonizeExample",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-EnhancedPrecisionOpExample<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.precision.EnhancedPrecisionOpExample",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-LineStringSelfIntersections<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.technique.LineStringSelfIntersections",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-PolygonUnionUsingBuffer<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.technique.PolygonUnionUsingBuffer",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SearchUsingPreparedGeometryIndex<jts-example>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtsexample.technique.SearchUsingPreparedGeometryIndex",
+            "projectName": "jts-example"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-OraReaderCreateTest<jts-io-ora>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.io.oracle.OraReaderCreateTest",
+            "projectName": "jts-io-ora"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-OraWriterCreateTest<jts-io-ora>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.io.oracle.OraWriterCreateTest",
+            "projectName": "jts-io-ora"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-OraWriterSQLTest<jts-io-ora>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.io.oracle.OraWriterSQLTest",
+            "projectName": "jts-io-ora"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-ConcaveHullTest<jts-lab>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jts.hull.ConcaveHullTest",
+            "projectName": "jts-lab"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-InvalidHoleRemoverTest<jts-lab>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtslab.clean.InvalidHoleRemoverTest",
+            "projectName": "jts-lab"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-SmallHoleRemoverTest<jts-lab>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtslab.clean.SmallHoleRemoverTest",
+            "projectName": "jts-lab"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-RectangleClipPolygonTest<jts-lab>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtslab.clip.RectangleClipPolygonTest",
+            "projectName": "jts-lab"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TestPerfRectangleClipPolygon<jts-lab>",
+            "request": "launch",
+            "mainClass": "test.jts.perf.clip.TestPerfRectangleClipPolygon",
+            "projectName": "jts-lab"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-JTSTestRunnerCmd<jts-tests>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtstest.testrunner.JTSTestRunnerCmd",
+            "projectName": "jts-tests"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-TopologyTestApp<jts-tests>",
+            "request": "launch",
+            "mainClass": "org.locationtech.jtstest.testrunner.TopologyTestApp",
+            "projectName": "jts-tests"
+        }
+    ]
+}
