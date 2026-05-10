@@ -11,6 +11,11 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -45,6 +50,36 @@ public class CircularString extends LineString implements Linearizable {
 
   @Override
   public Geometry toLinear(double tolerance) {
-    return getFactory().createLineString(getCoordinateSequence().copy());
+    return toLinear(tolerance, Collections.<Coordinate>emptyList());
+  }
+
+  @Override
+  public Geometry toLinear(double tolerance, List<Coordinate> mustInclude) {
+    if (isEmpty()) {
+      return getFactory().createLineString();
+    }
+    CoordinateSequence seq = getCoordinateSequence();
+    int n = seq.size();
+    if (n < 3) {
+      // Degenerate: no arc structure available, return whatever points we have.
+      return getFactory().createLineString(seq.copy());
+    }
+    List<Coordinate> include = mustInclude == null
+        ? Collections.<Coordinate>emptyList() : mustInclude;
+
+    List<Coordinate> out = new ArrayList<Coordinate>();
+    for (int i = 0; i + 2 < n; i += 2) {
+      Coordinate start = seq.getCoordinate(i);
+      Coordinate mid   = seq.getCoordinate(i + 1);
+      Coordinate end   = seq.getCoordinate(i + 2);
+      List<Coordinate> chord = CircularArcDensifier.densifyArc(start, mid, end, tolerance, include);
+      // The first arc contributes its start; subsequent arcs share an
+      // endpoint with the previous arc — drop the duplicate.
+      int from = out.isEmpty() ? 0 : 1;
+      for (int k = from; k < chord.size(); k++) {
+        out.add(chord.get(k));
+      }
+    }
+    return getFactory().createLineString(out.toArray(new Coordinate[0]));
   }
 }
