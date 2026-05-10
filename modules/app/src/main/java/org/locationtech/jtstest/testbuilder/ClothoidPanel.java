@@ -300,33 +300,45 @@ public class ClothoidPanel extends JPanel {
       ClothoidSegment newSeg = new ClothoidSegment(
           new Coordinate(x0, y0), Math.toRadians(thetaDeg), k0, k1, L, gf);
 
-      // Cascade-translate: if the new clothoid's end has moved relative to
-      // the old clothoid's end, translate all subsequent members by the
-      // same delta so the chain stays connected. The relative shape of
-      // downstream members is preserved -- a CAD-style edit. Tangent
-      // continuity at the next junction is *not* restored automatically;
-      // if a κ change rotates the end tangent, the user can fix the next
-      // junction with auto-derive on the next clothoid.
+      // Cascade rigid-frame transform: translate-only leaves a tangent
+      // kink at the next junction whenever a κ or L change rotates the
+      // clothoid's end tangent. We instead apply the rigid frame map
+      //   T(p) = newEnd + R(Δθ) · (p − oldEnd)
+      // to every downstream member, so position *and* heading match at
+      // the junction. Members keep their subtype: ClothoidSegment moves
+      // its start state and rotates startTangent by Δθ; CircularString
+      // and plain LineString translate-and-rotate every coord (rigid
+      // map preserves circle radius and chord lengths, so the type
+      // stays valid).
       Coordinate oldEnd = ref.segment.getEndCoordinate();
+      double oldTheta = ref.segment.getEndTangent();
       Coordinate newEndPt = newSeg.getEndCoordinate();
+      double newTheta = newSeg.getEndTangent();
       double dx = newEndPt.x - oldEnd.x;
       double dy = newEndPt.y - oldEnd.y;
+      double dTheta = newTheta - oldTheta;
 
       LineString[] members = cc.getMembers();
       members[ref.memberIndex] = newSeg;
-      int translated = 0;
-      if (dx != 0.0 || dy != 0.0) {
+      int transformed = 0;
+      boolean shifted = dx != 0.0 || dy != 0.0 || dTheta != 0.0;
+      if (shifted) {
+        double cos = Math.cos(dTheta);
+        double sin = Math.sin(dTheta);
         for (int i = ref.memberIndex + 1; i < members.length; i++) {
-          members[i] = translateMember(members[i], dx, dy, gf);
-          translated++;
+          members[i] = transformMember(members[i], oldEnd, newEndPt,
+              cos, sin, dTheta, gf);
+          transformed++;
         }
       }
       CompoundCurve newCc = new CompoundCurve(members, gf);
       tbModel.getGeometryEditModel().setGeometry(ref.geomIndex, newCc);
-      String shiftSuffix = translated == 0
+      String shiftSuffix = transformed == 0
           ? ""
-          : String.format(Locale.ROOT, "  (cascaded shift Δ=%.3f m to %d downstream member%s)",
-              Math.hypot(dx, dy), translated, translated == 1 ? "" : "s");
+          : String.format(Locale.ROOT,
+              "  (cascade Δ=%.3f m, Δθ=%.3f° to %d downstream member%s)",
+              Math.hypot(dx, dy), Math.toDegrees(dTheta),
+              transformed, transformed == 1 ? "" : "s");
       lblStatus.setText(String.format(Locale.ROOT,
           "Applied. End: (%.6f, %.6f) θ_end=%.4f°%s",
           newSeg.getEndCoordinate().x, newSeg.getEndCoordinate().y,
@@ -418,31 +430,46 @@ public class ClothoidPanel extends JPanel {
     return (cross >= 0 ? +1.0 : -1.0) / r;
   }
 
-  /** Translates a CompoundCurve member by (dx, dy), preserving subtype.
-   *  ClothoidSegment moves only its start state -- the integration
-   *  recomputes a new end at the corresponding offset. CircularString
-   *  and LineString move every coord. No-op if the delta is zero. */
-  private static LineString translateMember(LineString m, double dx, double dy,
-                                            GeometryFactory gf) {
-    if (dx == 0.0 && dy == 0.0) return m;
+  /** Applies the rigid frame map {@code T(p) = newEnd + R(Δθ)·(p−oldEnd)}
+   *  to a CompoundCurve member, preserving subtype. ClothoidSegment moves
+   *  its start state and rotates {@code startTangent} by Δθ; CircularString
+   *  and LineString transform every coord. The map is a rigid motion so
+   *  arc radii and chord lengths are preserved (the subtype stays valid).
+   *  cos/sin are precomputed by the caller -- one trig pair per Apply, not
+   *  per member. */
+  private static LineString transformMember(LineString m,
+      Coordinate oldEnd, Coordinate newEnd,
+      double cos, double sin, double dTheta,
+      GeometryFactory gf) {
     if (m instanceof ClothoidSegment) {
       ClothoidSegment cs = (ClothoidSegment) m;
-      Coordinate sp = cs.getStartCoordinate();
+      Coordinate np = mapPoint(cs.getStartCoordinate(), oldEnd, newEnd, cos, sin);
       return new ClothoidSegment(
-          new Coordinate(sp.x + dx, sp.y + dy),
-          cs.getStartTangent(), cs.getStartKappa(), cs.getEndKappa(),
+          np, cs.getStartTangent() + dTheta,
+          cs.getStartKappa(), cs.getEndKappa(),
           cs.getLength(), gf);
     }
     Coordinate[] cc = m.getCoordinates();
     Coordinate[] r = new Coordinate[cc.length];
     for (int i = 0; i < cc.length; i++) {
-      r[i] = new Coordinate(cc[i].x + dx, cc[i].y + dy);
+      r[i] = mapPoint(cc[i], oldEnd, newEnd, cos, sin);
     }
     if (m instanceof CircularString && gf instanceof CurvedGeometryFactory) {
       CoordinateSequence seq = gf.getCoordinateSequenceFactory().create(r);
       return ((CurvedGeometryFactory) gf).createCircularString(seq);
     }
     return gf.createLineString(r);
+  }
+
+  /** Single-point rigid frame map. Centralised so {@link #transformMember}
+   *  and any future callers stay consistent. */
+  private static Coordinate mapPoint(Coordinate p, Coordinate oldEnd, Coordinate newEnd,
+                                     double cos, double sin) {
+    double rx = p.x - oldEnd.x;
+    double ry = p.y - oldEnd.y;
+    return new Coordinate(
+        newEnd.x + cos * rx - sin * ry,
+        newEnd.y + sin * rx + cos * ry);
   }
 
   /** Locale-independent numeric format that round-trips through
