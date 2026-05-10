@@ -272,7 +272,11 @@ public class GeometryEditModel
       break;
     case GeometryType.LINESTRING:
       Coordinate[] pts = CoordinateArrays.toCoordinateArray(coordList);
-      newGeom = creator.addLineString(getGeometry(), pts);      
+      newGeom = creator.addLineString(getGeometry(), pts);
+      break;
+    case GeometryType.CIRCULARSTRING:
+      Coordinate[] arcPts = CoordinateArrays.toCoordinateArray(coordList);
+      newGeom = creator.addCircularString(getGeometry(), arcPts);
       break;
     case GeometryType.POINT:
       newGeom = creator.addPoint(getGeometry(), (Coordinate) coordList.get(0));      
