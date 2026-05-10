@@ -79,6 +79,26 @@ public class CompoundCurve extends LineString implements Linearizable {
     return "CompoundCurve";
   }
 
+  /**
+   * Reverses the chain by reversing each member <em>and</em> walking the
+   * resulting member array backward. Each member's own {@code reverse()}
+   * preserves its subtype (CircularString stays a CircularString;
+   * ClothoidSegment flips its κ signs and start state per §3.8 of the
+   * proposal; plain LineStrings reverse normally), so the resulting
+   * CompoundCurve has the same kinds of members in the opposite order.
+   */
+  @Override
+  protected CompoundCurve reverseInternal() {
+    if (members.length == 0) {
+      return new CompoundCurve(new LineString[0], getFactory());
+    }
+    LineString[] reversed = new LineString[members.length];
+    for (int i = 0; i < members.length; i++) {
+      reversed[members.length - 1 - i] = (LineString) members[i].reverse();
+    }
+    return new CompoundCurve(reversed, getFactory());
+  }
+
   @Override
   protected CompoundCurve copyInternal() {
     if (members.length == 0) {
