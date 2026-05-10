@@ -1,7 +1,5 @@
 /*
  * Copyright (c) 2026 grootstebozewolf
- * Portions adapted from a 2020 contribution by Jeroen Bloemscheer
- * to a JTS fork (the `CIRCULARSTRING` branch).
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -11,6 +9,10 @@
  *
  * http://www.eclipse.org/org/documents/edl-v10.php.
  */
+/* Portions of the cubic-Bezier rendering approach were originally
+ * prototyped in 2020 on a JTS fork (the `CIRCULARSTRING` branch) by
+ * Jeroen Bloemscheer; the implementation here is a substantial
+ * rewrite. */
 package org.locationtech.jts.awt.curved;
 
 import java.awt.Shape;
