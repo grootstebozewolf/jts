@@ -24,6 +24,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 import java.awt.Insets;
 import java.util.ArrayList;
 import java.util.List;
@@ -93,6 +94,8 @@ public class ClothoidPanel extends JPanel {
 
   private final JButton   btnApply       = new JButton("Apply");
   private final JButton   btnAutoDerive  = new JButton("Auto-derive κ from neighbours");
+  private final JTextField fldInsertL    = new JTextField("20", 8);
+  private final JButton   btnInsertSpiral = new JButton("Insert spiral before next arc");
   private final JLabel    lblStatus      = new JLabel(" ");
 
   /** Identifies one ClothoidSegment inside the model: which geometry
@@ -125,6 +128,7 @@ public class ClothoidPanel extends JPanel {
     selector.addActionListener(e -> loadFromSelected());
     btnApply.addActionListener(e -> applyChanges());
     btnAutoDerive.addActionListener(e -> autoDeriveAndLoad());
+    btnInsertSpiral.addActionListener(e -> insertSpiralBeforeNextArc());
   }
 
   public void setModel(TestBuilderModel m) {
@@ -171,11 +175,18 @@ public class ClothoidPanel extends JPanel {
 
     // Bottom: actions + status
     JPanel bottom = new JPanel(new BorderLayout(4, 4));
-    JPanel buttons = new JPanel();
-    buttons.add(btnApply);
-    buttons.add(Box.createHorizontalStrut(10));
-    buttons.add(btnAutoDerive);
-    bottom.add(buttons, BorderLayout.NORTH);
+    JPanel actions = new JPanel(new GridLayout(2, 1, 0, 4));
+    JPanel editButtons = new JPanel();
+    editButtons.add(btnApply);
+    editButtons.add(Box.createHorizontalStrut(10));
+    editButtons.add(btnAutoDerive);
+    JPanel insertRow = new JPanel();
+    insertRow.add(new JLabel("Insert spiral L (m):"));
+    insertRow.add(fldInsertL);
+    insertRow.add(btnInsertSpiral);
+    actions.add(editButtons);
+    actions.add(insertRow);
+    bottom.add(actions, BorderLayout.NORTH);
     lblStatus.setForeground(new Color(80, 80, 80));
     lblStatus.setBorder(BorderFactory.createEmptyBorder(4, 4, 0, 4));
     bottom.add(lblStatus, BorderLayout.SOUTH);
@@ -475,6 +486,186 @@ public class ClothoidPanel extends JPanel {
     if (r < 1e-12) return Double.NaN;
     double cross = (p1.x - p0.x) * (p2.y - p1.y) - (p1.y - p0.y) * (p2.x - p1.x);
     return (cross >= 0 ? +1.0 : -1.0) / r;
+  }
+
+  /** Inserts a CLOTHOID transition (spiral easement) at the first
+   *  tangent-continuous {@code LineString → CircularString} junction
+   *  found in geometry A, falling back to B. The straight is retreated
+   *  by the classical tangent distance {@code k = x_e − R·sin(L/(2R))};
+   *  the arc and everything after it are shifted/rotated by the same
+   *  rigid frame transform we use for cascade-on-Apply, so the spiral
+   *  end mates G2 with the (rotated) arc start.
+   *
+   *  <p>Fails gracefully with a status message when: no eligible
+   *  junction exists; the existing junction has a tangent kink (so
+   *  spiral fitting is ill-defined); the requested L is too long for
+   *  the available straight; arc control points are colinear. */
+  private void insertSpiralBeforeNextArc() {
+    if (tbModel == null) return;
+    double L;
+    try {
+      L = parseLocaleTolerant(fldInsertL.getText());
+    } catch (NumberFormatException nfe) {
+      lblStatus.setText("Insert L must be a number.");
+      return;
+    }
+    if (!(L > 0) || !Double.isFinite(L)) {
+      lblStatus.setText("Insert L must be positive and finite.");
+      return;
+    }
+
+    int targetGi = -1;
+    int targetIdx = -1;
+    CompoundCurve targetCc = null;
+    for (int gi = 0; gi < 2; gi++) {
+      Geometry g = tbModel.getGeometryEditModel().getGeometry(gi);
+      if (!(g instanceof CompoundCurve)) continue;
+      CompoundCurve cc = (CompoundCurve) g;
+      int idx = findFirstStraightToArcJunction(cc);
+      if (idx >= 0) { targetGi = gi; targetIdx = idx; targetCc = cc; break; }
+    }
+    if (targetCc == null) {
+      lblStatus.setText("No tangent-continuous LineString → CircularString junction in A or B.");
+      return;
+    }
+
+    LineString prev = targetCc.getMemberN(targetIdx - 1);
+    CircularString arc = (CircularString) targetCc.getMemberN(targetIdx);
+    Coordinate[] pc = prev.getCoordinates();
+    Coordinate P0 = pc[pc.length - 1];
+    Coordinate Pp = pc[pc.length - 2];
+    double sx = P0.x - Pp.x, sy = P0.y - Pp.y;
+    double slen = Math.hypot(sx, sy);
+    double dxh = sx / slen, dyh = sy / slen;
+    double thetaDir = Math.atan2(dyh, dxh);
+
+    Coordinate[] ac = arc.getCoordinates();
+    double[] cir = circumcircle(ac[0], ac[1], ac[2]);
+    if (cir == null) {
+      lblStatus.setText("Arc control points are colinear; cannot fit a circle.");
+      return;
+    }
+    double R = cir[2];
+    double crossDN = dxh * (cir[1] - P0.y) - dyh * (cir[0] - P0.x);
+    int sign = (crossDN >= 0) ? +1 : -1;
+    double kappa1 = sign / R;
+
+    GeometryFactory gf = (targetCc.getFactory() instanceof CurvedGeometryFactory)
+        ? targetCc.getFactory() : new CurvedGeometryFactory();
+
+    // Local-frame end of an L-spiral going κ:0→κ₁ from the origin: read
+    // it off a temporary ClothoidSegment so we don't duplicate the
+    // Simpson-rule integrator. xe is along the start tangent, |θ_e| is
+    // the heading rotation; both are sign-symmetric except for ye which
+    // we don't actually need for the cascade transform.
+    ClothoidSegment temp = new ClothoidSegment(new Coordinate(0, 0), 0, 0, kappa1, L, gf);
+    double xe = temp.getEndCoordinate().x;
+    double thetaeMag = Math.abs(temp.getEndTangent());
+
+    double k = xe - R * Math.sin(thetaeMag);
+    if (k <= 0) {
+      lblStatus.setText(String.format(Locale.ROOT,
+          "L=%.3f gives k=%.4f ≤ 0; pick a larger L (need k > 0).", L, k));
+      return;
+    }
+    if (k >= slen) {
+      lblStatus.setText(String.format(Locale.ROOT,
+          "L=%.3f needs k=%.3f m of straight, but last segment is only %.3f m. Pick smaller L.",
+          L, k, slen));
+      return;
+    }
+
+    Coordinate Ps = new Coordinate(P0.x - k * dxh, P0.y - k * dyh);
+    ClothoidSegment spiral = new ClothoidSegment(Ps, thetaDir, 0, kappa1, L, gf);
+    Coordinate spiralEnd = spiral.getEndCoordinate();
+    double dTheta = spiral.getEndTangent() - thetaDir;
+    double cos = Math.cos(dTheta);
+    double sin = Math.sin(dTheta);
+
+    LineString[] oldMembers = targetCc.getMembers();
+    LineString[] newMembers = new LineString[oldMembers.length + 1];
+    for (int i = 0; i < targetIdx - 1; i++) {
+      newMembers[i] = oldMembers[i];
+    }
+    Coordinate[] newPrevCoords = new Coordinate[pc.length];
+    System.arraycopy(pc, 0, newPrevCoords, 0, pc.length - 1);
+    newPrevCoords[pc.length - 1] = Ps;
+    newMembers[targetIdx - 1] = gf.createLineString(newPrevCoords);
+    newMembers[targetIdx] = spiral;
+    for (int i = targetIdx; i < oldMembers.length; i++) {
+      newMembers[i + 1] = transformMember(oldMembers[i], P0, spiralEnd,
+          cos, sin, dTheta, gf);
+    }
+
+    CompoundCurve newCc = new CompoundCurve(newMembers, gf);
+    tbModel.getGeometryEditModel().setGeometry(targetGi, newCc);
+    refreshSelectorPreservingSelection(targetGi, targetIdx);
+    lblStatus.setText(String.format(Locale.ROOT,
+        "Inserted L=%.3f spiral (κ:0→%s) at member %d on geom %s. k=%.3f, Δθ=%.3f°",
+        L, formatExact(kappa1), targetIdx, targetGi == 0 ? "A" : "B",
+        k, Math.toDegrees(dTheta)));
+  }
+
+  /** Scans for the first index {@code i} where member {@code i-1} is a
+   *  plain LineString and member {@code i} is a CircularString, AND the
+   *  tangent of the straight matches the arc's start tangent within
+   *  ~3°. Returns -1 if nothing eligible is found. */
+  private static int findFirstStraightToArcJunction(CompoundCurve cc) {
+    for (int i = 1; i < cc.getNumMembers(); i++) {
+      LineString cur = cc.getMemberN(i);
+      LineString prev = cc.getMemberN(i - 1);
+      if (cur instanceof ClothoidSegment) continue;
+      if (!(cur instanceof CircularString)) continue;
+      if (prev instanceof CircularString) continue;
+      if (prev instanceof ClothoidSegment) continue;
+      if (isG1Continuous(prev, (CircularString) cur)) return i;
+    }
+    return -1;
+  }
+
+  /** True if {@code prev}'s end tangent matches {@code arc}'s start
+   *  tangent within ~3°. The arc tangent at its start is computed
+   *  analytically from the circumcircle, then disambiguated CCW vs CW
+   *  by checking which sense points toward the second control point.
+   *  Position match is required to within 1 mm. */
+  private static boolean isG1Continuous(LineString prev, CircularString arc) {
+    Coordinate[] pc = prev.getCoordinates();
+    if (pc.length < 2) return false;
+    Coordinate[] ac = arc.getCoordinates();
+    if (ac.length < 3) return false;
+    Coordinate P0 = pc[pc.length - 1];
+    if (Math.hypot(ac[0].x - P0.x, ac[0].y - P0.y) > 1e-3) return false;
+    Coordinate Pp = pc[pc.length - 2];
+    double sx = P0.x - Pp.x, sy = P0.y - Pp.y;
+    double slen = Math.hypot(sx, sy);
+    if (slen == 0) return false;
+    double dx = sx / slen, dy = sy / slen;
+    double[] cir = circumcircle(ac[0], ac[1], ac[2]);
+    if (cir == null) return false;
+    double rxh = (ac[0].x - cir[0]) / cir[2];
+    double ryh = (ac[0].y - cir[1]) / cir[2];
+    double tCcwX = -ryh, tCcwY = rxh;
+    double tCwX  =  ryh, tCwY  = -rxh;
+    double mx = ac[1].x - ac[0].x, my = ac[1].y - ac[0].y;
+    double tx, ty;
+    if (mx * tCcwX + my * tCcwY >= 0) { tx = tCcwX; ty = tCcwY; }
+    else                              { tx = tCwX;  ty = tCwY;  }
+    return dx * tx + dy * ty > 0.999;  // ≈ within 2.6°
+  }
+
+  /** Centre and radius of the circle through three points, or
+   *  {@code null} if the points are colinear. Same formula as in
+   *  {@link org.locationtech.jtstest.testbuilder.ui.GeometryLocationsWriter},
+   *  but exposed here so we don't introduce a UI ↔ UI dependency. */
+  private static double[] circumcircle(Coordinate a, Coordinate b, Coordinate c) {
+    double ax = a.x - c.x, ay = a.y - c.y;
+    double bx = b.x - c.x, by = b.y - c.y;
+    double d = 2.0 * (ax * by - ay * bx);
+    if (Math.abs(d) < 1e-12) return null;
+    double ux = ((ax * ax + ay * ay) * by - (bx * bx + by * by) * ay) / d;
+    double uy = ((bx * bx + by * by) * ax - (ax * ax + ay * ay) * bx) / d;
+    double cx = c.x + ux, cy = c.y + uy;
+    return new double[] { cx, cy, Math.hypot(ux, uy) };
   }
 
   /** Applies the rigid frame map {@code T(p) = newEnd + R(Δθ)·(p−oldEnd)}

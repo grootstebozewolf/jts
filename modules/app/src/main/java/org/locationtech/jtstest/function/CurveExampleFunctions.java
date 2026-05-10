@@ -93,6 +93,24 @@ public class CurveExampleFunctions {
         "COMPOUNDCURVE ((0 0, 50 0), CLOTHOID (-0.02, 0.02, 60))");
   }
 
+  /**
+   * G1-continuous chain {@code straight + R=50 arc + straight} with no
+   * spirals at the two junctions. The straight at (0,0)–(100,0) is
+   * tangent to the 90° CCW arc centred at (100,50), and the second
+   * straight (150,50)–(150,200) is tangent at the arc's end. Used as a
+   * target for the Clothoid panel's "Insert spiral before next arc"
+   * action — the operation upgrades each junction from G1 to G2 by
+   * inserting a properly-fitted CLOTHOID transition.
+   */
+  @Metadata(description="Sample COMPOUNDCURVE: line + R=50 arc + line, G1-only (target for Insert spiral action)")
+  public static Geometry arcChainNoSpirals(Geometry g) {
+    return readCurved(g,
+        "COMPOUNDCURVE ("
+        + "(0 0, 100 0), "
+        + "CIRCULARSTRING (100 0, 135.355 14.645, 150 50), "
+        + "(150 50, 150 200))");
+  }
+
   // ---------------- helpers --------------------------------------
 
   private static Geometry readCurved(Geometry g, String wkt) {
