@@ -26,6 +26,8 @@ import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.curved.CircularString;
+import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
 
 public class GeometryCombiner 
 {
@@ -62,7 +64,16 @@ public class GeometryCombiner
     LineString line = geomFactory.createLineString(pts);
     return combine(orig, line);
   }
-  
+
+  public Geometry addCircularString(Geometry orig, Coordinate[] pts)
+  {
+    CurvedGeometryFactory cgf = (geomFactory instanceof CurvedGeometryFactory)
+        ? (CurvedGeometryFactory) geomFactory
+        : new CurvedGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
+    CircularString line = cgf.createCircularString(geomFactory.getCoordinateSequenceFactory().create(pts));
+    return combine(orig, line);
+  }
+
   public Geometry addPoint(Geometry orig, Coordinate pt)
   {
     Point point = geomFactory.createPoint(pt);
