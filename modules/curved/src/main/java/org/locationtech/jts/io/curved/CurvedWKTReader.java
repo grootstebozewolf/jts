@@ -188,7 +188,14 @@ public class CurvedWKTReader extends WKTReader {
         Coordinate[] cc = m.getCoordinates();
         if (cc.length >= 1) {
           cursorPt = cc[cc.length - 1];
-          if (cc.length >= 2) {
+          if (m instanceof CircularString && cc.length >= 3) {
+            // Analytical arc-tangent at endpoint -- chord direction
+            // (p_{n-2} -> p_{n-1}) under-rotates by half the arc angle
+            // and would feed a downstream CLOTHOID a wrong start
+            // tangent, producing a visible kink at the junction.
+            cursorTangent = arcTangentAtEnd(
+                cc[cc.length - 3], cc[cc.length - 2], cc[cc.length - 1]);
+          } else if (cc.length >= 2) {
             Coordinate prev = cc[cc.length - 2];
             cursorTangent = Math.atan2(cursorPt.y - prev.y, cursorPt.x - prev.x);
           }
@@ -234,6 +241,39 @@ public class CurvedWKTReader extends WKTReader {
     if (!c.equals(COMMA)) {
       throw parseErrorWithLine(tokenizer, "Expected ',' inside CLOTHOID body, got " + c);
     }
+  }
+
+  /**
+   * Analytical tangent at the end of a 3-point circular arc. Computes the
+   * circumcentre of {@code (p0, p1, p2)} and returns the heading of the
+   * tangent at {@code p2} in the traversal direction implied by the
+   * triple. Falls back to the chord direction if the points are collinear.
+   */
+  private static double arcTangentAtEnd(Coordinate p0, Coordinate p1, Coordinate p2) {
+    double ax = (p0.x + p1.x) * 0.5;
+    double ay = (p0.y + p1.y) * 0.5;
+    double bx = (p1.x + p2.x) * 0.5;
+    double by = (p1.y + p2.y) * 0.5;
+    double dax = p1.y - p0.y;          // perpendicular to p0->p1
+    double day = p0.x - p1.x;
+    double dbx = p2.y - p1.y;          // perpendicular to p1->p2
+    double dby = p1.x - p2.x;
+    double det = dax * dby - day * dbx;
+    if (Math.abs(det) < 1e-12) {
+      return Math.atan2(p2.y - p1.y, p2.x - p1.x);
+    }
+    double t = ((bx - ax) * dby - (by - ay) * dbx) / det;
+    double cx = ax + t * dax;
+    double cy = ay + t * day;
+    double rx = p2.x - cx;
+    double ry = p2.y - cy;
+    double cross = (p1.x - p0.x) * (p2.y - p1.y) - (p1.y - p0.y) * (p2.x - p1.x);
+    if (cross >= 0) {
+      // CCW traversal -- tangent rotated 90° CCW from outward radius
+      return Math.atan2(rx, -ry);
+    }
+    // CW traversal -- tangent rotated 90° CW from outward radius
+    return Math.atan2(-rx, ry);
   }
 
   private CurvePolygon readCurvePolygonText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
