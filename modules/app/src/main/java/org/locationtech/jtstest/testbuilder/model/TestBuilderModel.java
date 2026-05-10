@@ -56,7 +56,7 @@ public class TestBuilderModel
   private LayerList layerListBase = new LayerList();
   private Layer layerSelect = new Layer(AppStrings.LYR_LABEL_SELECTION, false);
   
-  private WKTWriter writer = new WKTWriter();
+  private WKTWriter writer = new org.locationtech.jts.io.curved.CurvedWKTWriter();
   private Object currResult = null;
   private String opName = "";
 
