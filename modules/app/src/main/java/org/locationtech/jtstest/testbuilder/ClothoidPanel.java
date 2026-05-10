@@ -41,9 +41,11 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.curved.CircularString;
 import org.locationtech.jts.geom.curved.ClothoidSegment;
 import org.locationtech.jts.geom.curved.CompoundCurve;
 import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
@@ -297,12 +299,38 @@ public class ClothoidPanel extends JPanel {
           ? cc.getFactory() : new CurvedGeometryFactory();
       ClothoidSegment newSeg = new ClothoidSegment(
           new Coordinate(x0, y0), Math.toRadians(thetaDeg), k0, k1, L, gf);
-      CompoundCurve newCc = cc.withMemberReplaced(ref.memberIndex, newSeg);
+
+      // Cascade-translate: if the new clothoid's end has moved relative to
+      // the old clothoid's end, translate all subsequent members by the
+      // same delta so the chain stays connected. The relative shape of
+      // downstream members is preserved -- a CAD-style edit. Tangent
+      // continuity at the next junction is *not* restored automatically;
+      // if a κ change rotates the end tangent, the user can fix the next
+      // junction with auto-derive on the next clothoid.
+      Coordinate oldEnd = ref.segment.getEndCoordinate();
+      Coordinate newEndPt = newSeg.getEndCoordinate();
+      double dx = newEndPt.x - oldEnd.x;
+      double dy = newEndPt.y - oldEnd.y;
+
+      LineString[] members = cc.getMembers();
+      members[ref.memberIndex] = newSeg;
+      int translated = 0;
+      if (dx != 0.0 || dy != 0.0) {
+        for (int i = ref.memberIndex + 1; i < members.length; i++) {
+          members[i] = translateMember(members[i], dx, dy, gf);
+          translated++;
+        }
+      }
+      CompoundCurve newCc = new CompoundCurve(members, gf);
       tbModel.getGeometryEditModel().setGeometry(ref.geomIndex, newCc);
+      String shiftSuffix = translated == 0
+          ? ""
+          : String.format(Locale.ROOT, "  (cascaded shift Δ=%.3f m to %d downstream member%s)",
+              Math.hypot(dx, dy), translated, translated == 1 ? "" : "s");
       lblStatus.setText(String.format(Locale.ROOT,
-          "Applied. End: (%.6f, %.6f) θ_end=%.4f°",
+          "Applied. End: (%.6f, %.6f) θ_end=%.4f°%s",
           newSeg.getEndCoordinate().x, newSeg.getEndCoordinate().y,
-          Math.toDegrees(newSeg.getEndTangent())));
+          Math.toDegrees(newSeg.getEndTangent()), shiftSuffix));
     } catch (NumberFormatException nfe) {
       lblStatus.setText("Number format error: " + nfe.getMessage());
     } catch (IllegalArgumentException iae) {
@@ -388,6 +416,33 @@ public class ClothoidPanel extends JPanel {
     if (r < 1e-12) return Double.NaN;
     double cross = (p1.x - p0.x) * (p2.y - p1.y) - (p1.y - p0.y) * (p2.x - p1.x);
     return (cross >= 0 ? +1.0 : -1.0) / r;
+  }
+
+  /** Translates a CompoundCurve member by (dx, dy), preserving subtype.
+   *  ClothoidSegment moves only its start state -- the integration
+   *  recomputes a new end at the corresponding offset. CircularString
+   *  and LineString move every coord. No-op if the delta is zero. */
+  private static LineString translateMember(LineString m, double dx, double dy,
+                                            GeometryFactory gf) {
+    if (dx == 0.0 && dy == 0.0) return m;
+    if (m instanceof ClothoidSegment) {
+      ClothoidSegment cs = (ClothoidSegment) m;
+      Coordinate sp = cs.getStartCoordinate();
+      return new ClothoidSegment(
+          new Coordinate(sp.x + dx, sp.y + dy),
+          cs.getStartTangent(), cs.getStartKappa(), cs.getEndKappa(),
+          cs.getLength(), gf);
+    }
+    Coordinate[] cc = m.getCoordinates();
+    Coordinate[] r = new Coordinate[cc.length];
+    for (int i = 0; i < cc.length; i++) {
+      r[i] = new Coordinate(cc[i].x + dx, cc[i].y + dy);
+    }
+    if (m instanceof CircularString && gf instanceof CurvedGeometryFactory) {
+      CoordinateSequence seq = gf.getCoordinateSequenceFactory().create(r);
+      return ((CurvedGeometryFactory) gf).createCircularString(seq);
+    }
+    return gf.createLineString(r);
   }
 
   /** Locale-independent numeric format that round-trips through
