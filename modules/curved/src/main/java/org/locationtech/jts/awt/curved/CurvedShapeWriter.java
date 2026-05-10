@@ -27,6 +27,7 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.curved.CircularString;
+import org.locationtech.jts.geom.curved.ClothoidSegment;
 import org.locationtech.jts.geom.curved.CompoundCurve;
 import org.locationtech.jts.geom.curved.MultiCurve;
 
@@ -95,7 +96,9 @@ public class CurvedShapeWriter extends ShapeWriter {
         moveToView(path, seq.getCoordinate(0));
         started = true;
       }
-      if (member instanceof CircularString) {
+      if (member instanceof ClothoidSegment) {
+        appendClothoidSegments(path, (ClothoidSegment) member);
+      } else if (member instanceof CircularString) {
         appendCircularStringSegments(path, seq);
       } else {
         for (int j = 1; j < seq.size(); j++) {
@@ -104,6 +107,15 @@ public class CurvedShapeWriter extends ShapeWriter {
       }
     }
     return path;
+  }
+
+  private void appendClothoidSegments(GeneralPath path, ClothoidSegment cs) {
+    Coordinate[] dense = cs.toLinear(0.5).getCoordinates();
+    // dense[0] equals the segment start; pen is already there from the
+    // CompoundCurve walker's moveToView / preceding-member tail.
+    for (int i = 1; i < dense.length; i++) {
+      lineToView(path, dense[i]);
+    }
   }
 
   private void appendCircularStringSegments(GeneralPath path, CoordinateSequence seq) {
