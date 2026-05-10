@@ -203,7 +203,21 @@ public class ClothoidSegment extends LineString implements Linearizable {
   /**
    * Densify via composite Simpson's rule on the heading integral.
    * Step count is derived from the requested tolerance and the
-   * maximum curvature on the segment; clamped to [16, 1024].
+   * maximum curvature on the segment so that the perpendicular
+   * distance from any point on the analytical curve to its
+   * containing chord segment is bounded by {@code tolerance}.
+   *
+   * <p>Derivation: the chord-to-arc sagitta of a piece of curve of
+   * arc-length {@code δs} at local curvature {@code κ} is
+   * approximately {@code δs²·κ/8}. For sagitta ≤ ε this gives
+   * {@code δs ≤ √(8ε/κ)}, so {@code N ≥ L·√(κ/(8ε))}. We use
+   * {@code max(|κ₀|, |κ₁|)} as a conservative upper bound on
+   * curvature along the segment.
+   *
+   * <p>Clamped to {@code [16, 8192]} — the floor avoids
+   * under-densification on near-straight inputs, and the ceiling
+   * caps memory for absurd tolerances. Tolerance below ~1e-9
+   * hits the cap on tight-radius inputs.
    */
   @Override
   public Geometry toLinear(double tolerance) {
@@ -215,8 +229,8 @@ public class ClothoidSegment extends LineString implements Linearizable {
       n = 1;
     } else {
       double err = Math.max(tolerance, 1e-9);
-      n = (int) Math.ceil(length * maxKappa * Math.sqrt(8.0 / err));
-      n = Math.max(16, Math.min(1024, n));
+      n = (int) Math.ceil(length * Math.sqrt(maxKappa / (8.0 * err)));
+      n = Math.max(16, Math.min(8192, n));
     }
     Coordinate[] pts = densifyByN(startPoint, startTangent, startKappa, endKappa, length, n);
     // Snap final point to the canonical end so toLinear is consistent
