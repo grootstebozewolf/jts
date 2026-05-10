@@ -27,6 +27,7 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -103,7 +104,7 @@ public class ClothoidPanel extends JPanel {
       this.geomIndex = g; this.memberIndex = m; this.segment = s;
     }
     @Override public String toString() {
-      return String.format("Geom %s · member %d  κ:%s→%s L=%s",
+      return String.format(Locale.ROOT, "Geom %s · member %d  κ:%s→%s L=%s",
           geomIndex == 0 ? "A" : "B", memberIndex,
           fmt(segment.getStartKappa()), fmt(segment.getEndKappa()),
           fmt(segment.getLength()));
@@ -111,8 +112,8 @@ public class ClothoidPanel extends JPanel {
     private static String fmt(double v) {
       if (v == 0.0) return "0";
       double abs = Math.abs(v);
-      if (abs >= 0.001 && abs < 1e6) return String.format("%.4g", v);
-      return String.format("%.3e", v);
+      if (abs >= 0.001 && abs < 1e6) return String.format(Locale.ROOT, "%.4g", v);
+      return String.format(Locale.ROOT, "%.3e", v);
     }
   }
 
@@ -257,7 +258,7 @@ public class ClothoidPanel extends JPanel {
     lblA.setText(formatExact(cs.getClothoidConstantA()));
     lblEndX.setText(formatExact(cs.getEndCoordinate().x));
     lblEndY.setText(formatExact(cs.getEndCoordinate().y));
-    lblEndTheta.setText(String.format("%.6f", Math.toDegrees(cs.getEndTangent())));
+    lblEndTheta.setText(String.format(Locale.ROOT, "%.6f", Math.toDegrees(cs.getEndTangent())));
     btnAutoDerive.setEnabled(canAutoDerive(ref));
     lblStatus.setText("Editing " + ref.toString());
   }
@@ -278,12 +279,12 @@ public class ClothoidPanel extends JPanel {
     ClothoidRef ref = (ClothoidRef) selector.getSelectedItem();
     if (ref == null || tbModel == null) return;
     try {
-      double k0 = Double.parseDouble(fldStartKappa.getText().trim());
-      double k1 = Double.parseDouble(fldEndKappa.getText().trim());
-      double L  = Double.parseDouble(fldLength.getText().trim());
-      double thetaDeg = Double.parseDouble(fldStartTheta.getText().trim());
-      double x0 = Double.parseDouble(fldStartX.getText().trim());
-      double y0 = Double.parseDouble(fldStartY.getText().trim());
+      double k0 = parseLocaleTolerant(fldStartKappa.getText());
+      double k1 = parseLocaleTolerant(fldEndKappa.getText());
+      double L  = parseLocaleTolerant(fldLength.getText());
+      double thetaDeg = parseLocaleTolerant(fldStartTheta.getText());
+      double x0 = parseLocaleTolerant(fldStartX.getText());
+      double y0 = parseLocaleTolerant(fldStartY.getText());
 
       Geometry g = tbModel.getGeometryEditModel().getGeometry(ref.geomIndex);
       if (!(g instanceof CompoundCurve)) {
@@ -298,7 +299,7 @@ public class ClothoidPanel extends JPanel {
           new Coordinate(x0, y0), Math.toRadians(thetaDeg), k0, k1, L, gf);
       CompoundCurve newCc = cc.withMemberReplaced(ref.memberIndex, newSeg);
       tbModel.getGeometryEditModel().setGeometry(ref.geomIndex, newCc);
-      lblStatus.setText(String.format(
+      lblStatus.setText(String.format(Locale.ROOT,
           "Applied. End: (%.6f, %.6f) θ_end=%.4f°",
           newSeg.getEndCoordinate().x, newSeg.getEndCoordinate().y,
           Math.toDegrees(newSeg.getEndTangent())));
@@ -342,7 +343,7 @@ public class ClothoidPanel extends JPanel {
     }
     fldStartKappa.setText(formatExact(k0));
     fldEndKappa.setText(formatExact(k1));
-    lblStatus.setText(String.format(
+    lblStatus.setText(String.format(Locale.ROOT,
         "Auto-derived from neighbours: κ₀ = %s, κ₁ = %s. Adjust L and click Apply.",
         formatExact(k0), formatExact(k1)));
   }
@@ -389,12 +390,27 @@ public class ClothoidPanel extends JPanel {
     return (cross >= 0 ? +1.0 : -1.0) / r;
   }
 
-  /** 16-significant-digit numeric format that round-trips through
-   *  {@code Double.parseDouble}; trailing zeros are intentionally
-   *  retained when they happen to fall in the rounded representation. */
+  /** Locale-independent numeric format that round-trips through
+   *  {@link Double#parseDouble}. Always uses dot decimal separator
+   *  (so editing in nl_NL / de_DE / fr_FR locales doesn't produce
+   *  comma output that {@code parseDouble} would reject). 12
+   *  significant digits is enough to capture the analytical-end
+   *  precision of a clothoid's parameters with float-noise margin. */
   private static String formatExact(double v) {
     if (v == 0.0) return "0";
     if (v == (long) v && Math.abs(v) < 1e15) return Long.toString((long) v);
-    return String.format("%.12g", v).replaceAll("0+$", "").replaceAll("\\.$", "");
+    return String.format(Locale.ROOT, "%.12g", v)
+        .replaceAll("0+$", "")
+        .replaceAll("\\.$", "");
+  }
+
+  /** Locale-tolerant parse: accepts dot or comma as decimal separator,
+   *  trims whitespace. We always WRITE with dot via
+   *  {@link #formatExact}, but a user typing in their system locale
+   *  on a Dutch / German / French machine may habitually use comma —
+   *  accept that gracefully on the read side. */
+  private static double parseLocaleTolerant(String s) {
+    if (s == null) throw new NumberFormatException("null");
+    return Double.parseDouble(s.trim().replace(',', '.'));
   }
 }

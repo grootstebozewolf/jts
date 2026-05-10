@@ -14,6 +14,7 @@ package org.locationtech.jtstest.testbuilder.ui;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
@@ -251,7 +252,7 @@ public class GeometryLocationsWriter
   /** Clothoid label: {@code "Clothoid κ:κ₀→κ₁ L=… θ₀=…° "}. Compact but
    *  carries the four parameters that uniquely identify the segment. */
   private static String clothoidLabel(ClothoidSegment cs) {
-    return String.format("Clothoid κ:%s→%s L=%s θ₀=%.2f° ",
+    return String.format(Locale.ROOT, "Clothoid κ:%s→%s L=%s θ₀=%.2f° ",
         fmtKappa(cs.getStartKappa()),
         fmtKappa(cs.getEndKappa()),
         fmtLen(cs.getLength()),
@@ -266,7 +267,7 @@ public class GeometryLocationsWriter
     if (cs.getNumPoints() >= 3) {
       double r = circumcircleRadius(cs.getCoordinateN(0), cs.getCoordinateN(1), cs.getCoordinateN(2));
       if (!Double.isNaN(r) && Double.isFinite(r)) {
-        return String.format("Arc R=%s ", fmtLen(r));
+        return String.format(Locale.ROOT, "Arc R=%s ", fmtLen(r));
       }
     }
     return "Arc   ";
@@ -303,13 +304,13 @@ public class GeometryLocationsWriter
   private static String fmtKappa(double k) {
     if (k == 0.0) return "0";
     double abs = Math.abs(k);
-    if (abs >= 0.001 && abs < 1) return String.format("%.4f", k);
-    return String.format("%.3e", k);
+    if (abs >= 0.001 && abs < 1) return String.format(Locale.ROOT, "%.4f", k);
+    return String.format(Locale.ROOT, "%.3e", k);
   }
 
   private static String fmtLen(double len) {
-    if (len >= 1.0 && len < 1e6) return String.format("%.3f", len);
-    return String.format("%.3e", len);
+    if (len >= 1.0 && len < 1e6) return String.format(Locale.ROOT, "%.3f", len);
+    return String.format(Locale.ROOT, "%.3e", len);
   }
 
   public String OLDwriteLocation(Geometry geom, Coordinate p, double tolerance)
