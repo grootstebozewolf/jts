@@ -161,15 +161,12 @@ public class CurvedWKTReader extends WKTReader {
       } while (getNextCloserOrComma(tokenizer).equals(","));
       return new CompoundCurve(csFactory.create(coords.toArray(new Coordinate[0])), geometryFactory);
     }
-    List<Coordinate> all = new ArrayList<Coordinate>();
+    List<LineString> mems = new ArrayList<LineString>();
     do {
-      Coordinate[] cc = readCurveMember(tokenizer, ordinateFlags).getCoordinates();
-      int start = all.isEmpty() ? 0 : 1;
-      for (int i = start; i < cc.length; i++) all.add(cc[i]);
+      mems.add(readCurveMember(tokenizer, ordinateFlags));
       tok = getNextCloserOrComma(tokenizer);
     } while (tok.equals(","));
-    CoordinateSequence seq = csFactory.create(all.toArray(new Coordinate[0]));
-    return new CompoundCurve(seq, geometryFactory);
+    return new CompoundCurve(mems.toArray(new LineString[0]), geometryFactory);
   }
 
   private CurvePolygon readCurvePolygonText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
