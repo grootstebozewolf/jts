@@ -56,6 +56,7 @@ public class AppStrings {
   static final String TIP_DRAW_POINT = "Draw Point";
   static final String TIP_DRAW_LINE = "<html>Draw LineString<br><br>Add Pt: Left-Click<br>Stream: Left-Drag</html>";
   static final String TIP_DRAW_CIRCULAR = "<html>Draw CircularString<br><br>Each triple of points becomes one arc.<br>Add Pt: Left-Click<br>Stream: Left-Drag</html>";
+  static final String TIP_DRAW_TRIANGLE = "<html>Draw Triangle<br><br>Click the three corners; the tool auto-finishes on the third click.</html>";
   static final String TIP_DRAW_POLY = "<html>Draw Polygon<br><br>Add Pt: Left-Click<br>Stream: Left-Drag</html>";
 
 

@@ -23,5 +23,6 @@ public interface GeometryType {
   public final static int LINESTRING = 6;
   public final static int POINT = 7;
   public final static int CIRCULARSTRING = 8;
+  public final static int TRIANGLE = 9;
 
 }
