@@ -38,11 +38,20 @@ public class WKTCompoundCurveTest extends GeometryTestCase {
 
   public void testReadXY() throws Exception {
     Geometry g = new WKTReader().read(
-        "COMPOUNDCURVE((5 3, 5 13), CIRCULARSTRING(5 13, 7 15, 9 13), (9 13, 9 3), CIRCULARSTRING(9 3, 7 1, 5 3))");
+        "COMPOUNDCURVE((5 3, 5 13), CIRCULARSTRING(5 13, 7 15, 9 13), (9 13, 9 3))");
     assertEquals(TYPENAME_COMPOUNDCURVE, g.getGeometryType());
     assertFalse(g.isEmpty());
     assertEquals(1, g.getDimension());
+    // open curve: boundary is its 2 endpoints (dim 0)
     assertEquals(0, g.getBoundaryDimension());
+  }
+
+  public void testReadClosedXY() throws Exception {
+    Geometry g = new WKTReader().read(
+        "COMPOUNDCURVE((5 3, 5 13), CIRCULARSTRING(5 13, 7 15, 9 13), (9 13, 9 3), CIRCULARSTRING(9 3, 7 1, 5 3))");
+    assertEquals(TYPENAME_COMPOUNDCURVE, g.getGeometryType());
+    // closed curve: empty boundary (dim FALSE / -1)
+    assertEquals(-1, g.getBoundaryDimension());
   }
 
   public void testReadXYZ() throws Exception {

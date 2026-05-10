@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.EnumSet;
+import java.util.Locale;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -519,7 +520,7 @@ public class WKTWriter
           int level, Writer writer, OrdinateFormat formatter)
     throws IOException
   {
-    writer.write(WKTConstants.LINESTRING);
+    writer.write(lineString.getGeometryType().toUpperCase(Locale.ROOT));
     writer.write(" ");
     appendOrdinateText(outputOrdinates, writer);
     appendSequenceText(lineString.getCoordinateSequence(), outputOrdinates, useFormatting,
@@ -565,7 +566,7 @@ public class WKTWriter
           int level, Writer writer, OrdinateFormat formatter)
     throws IOException
   {
-    writer.write(WKTConstants.POLYGON);
+    writer.write(polygon.getGeometryType().toUpperCase(Locale.ROOT));
     writer.write(" ");
     appendOrdinateText(outputOrdinates, writer);
     appendPolygonText(polygon, outputOrdinates, useFormatting,
@@ -610,7 +611,7 @@ public class WKTWriter
           int level, Writer writer, OrdinateFormat formatter)
     throws IOException
   {
-    writer.write(WKTConstants.MULTILINESTRING);
+    writer.write(multiLineString.getGeometryType().toUpperCase(Locale.ROOT));
     writer.write(" ");
     appendOrdinateText(outputOrdinates, writer);
     appendMultiLineStringText(multiLineString, outputOrdinates, useFormatting,
@@ -633,7 +634,7 @@ public class WKTWriter
           int level, Writer writer, OrdinateFormat formatter)
     throws IOException
   {
-    writer.write(WKTConstants.MULTIPOLYGON);
+    writer.write(multiPolygon.getGeometryType().toUpperCase(Locale.ROOT));
     writer.write(" ");
     appendOrdinateText(outputOrdinates, writer);
     appendMultiPolygonText(multiPolygon, outputOrdinates, useFormatting,

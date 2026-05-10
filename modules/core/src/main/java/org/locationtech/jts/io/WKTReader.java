@@ -38,6 +38,14 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.ext.CircularString;
+import org.locationtech.jts.geom.ext.CompoundCurve;
+import org.locationtech.jts.geom.ext.CurvePolygon;
+import org.locationtech.jts.geom.ext.MultiCurve;
+import org.locationtech.jts.geom.ext.MultiSurface;
+import org.locationtech.jts.geom.ext.PolyhedralSurface;
+import org.locationtech.jts.geom.ext.Tin;
+import org.locationtech.jts.geom.ext.Triangle;
 import org.locationtech.jts.geom.impl.CoordinateArraySequenceFactory;
 import org.locationtech.jts.util.Assert;
 import org.locationtech.jts.util.AssertionFailedException;
@@ -798,6 +806,30 @@ S  */
     else if (isTypeName(tokenizer, type, WKTConstants.GEOMETRYCOLLECTION)) {
       return readGeometryCollectionText(tokenizer, ordinateFlags);
     }
+    else if (isTypeName(tokenizer, type, WKTConstants.TRIANGLE)) {
+      return readTriangleText(tokenizer, ordinateFlags);
+    }
+    else if (isTypeName(tokenizer, type, WKTConstants.POLYHEDRALSURFACE)) {
+      return readPolyhedralSurfaceText(tokenizer, ordinateFlags);
+    }
+    else if (isTypeName(tokenizer, type, WKTConstants.TIN)) {
+      return readTinText(tokenizer, ordinateFlags);
+    }
+    else if (isTypeName(tokenizer, type, WKTConstants.CIRCULARSTRING)) {
+      return readCircularStringText(tokenizer, ordinateFlags);
+    }
+    else if (isTypeName(tokenizer, type, WKTConstants.COMPOUNDCURVE)) {
+      return readCompoundCurveText(tokenizer, ordinateFlags);
+    }
+    else if (isTypeName(tokenizer, type, WKTConstants.CURVEPOLYGON)) {
+      return readCurvePolygonText(tokenizer, ordinateFlags);
+    }
+    else if (isTypeName(tokenizer, type, WKTConstants.MULTICURVE)) {
+      return readMultiCurveText(tokenizer, ordinateFlags);
+    }
+    else if (isTypeName(tokenizer, type, WKTConstants.MULTISURFACE)) {
+      return readMultiSurfaceText(tokenizer, ordinateFlags);
+    }
     throw parseErrorWithLine(tokenizer, "Unknown geometry type: " + type);
   }
 
@@ -1016,6 +1048,156 @@ S  */
 
     Geometry[] array = new Geometry[geometries.size()];
     return geometryFactory.createGeometryCollection((Geometry[]) geometries.toArray(array));
+  }
+
+  /* ----- Extended OGC SFA / ISO 19125-2 readers (dumb stand-ins) ----- */
+
+  private Triangle readTriangleText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    Polygon p = readPolygonText(tokenizer, ordinateFlags);
+    if (p.isEmpty()) return new Triangle(geometryFactory);
+    return new Triangle((LinearRing) p.getExteriorRing(), geometryFactory);
+  }
+
+  private PolyhedralSurface readPolyhedralSurfaceText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    Polygon[] patches = readPolygonArray(tokenizer, ordinateFlags);
+    return new PolyhedralSurface(patches, geometryFactory);
+  }
+
+  private Tin readTinText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    Polygon[] patches = readPolygonArray(tokenizer, ordinateFlags);
+    return new Tin(patches, geometryFactory);
+  }
+
+  private Polygon[] readPolygonArray(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    String nextToken = getNextEmptyOrOpener(tokenizer);
+    if (nextToken.equals(WKTConstants.EMPTY)) {
+      return new Polygon[0];
+    }
+    List<Polygon> polygons = new ArrayList<Polygon>();
+    do {
+      polygons.add(readPolygonText(tokenizer, ordinateFlags));
+      nextToken = getNextCloserOrComma(tokenizer);
+    } while (nextToken.equals(COMMA));
+    return polygons.toArray(new Polygon[0]);
+  }
+
+  private CircularString readCircularStringText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    LineString ls = readLineStringText(tokenizer, ordinateFlags);
+    return new CircularString(ls.getCoordinateSequence(), geometryFactory);
+  }
+
+  private CompoundCurve readCompoundCurveText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    String nextToken = getNextEmptyOrOpener(tokenizer);
+    if (nextToken.equals(WKTConstants.EMPTY)) {
+      return new CompoundCurve(createCoordinateSequenceEmpty(ordinateFlags), geometryFactory);
+    }
+    // Peek to choose between SFA-structured form `((...), CIRCULARSTRING(...), ...)`
+    // and the dumb writer's flat form `(p, p, p, ...)` produced by round-tripping.
+    String w = lookAheadWord(tokenizer);
+    if (!w.equals(L_PAREN) && !isCurveMemberTag(w)) {
+      List<Coordinate> coords = new ArrayList<Coordinate>();
+      do {
+        coords.add(getCoordinate(tokenizer, ordinateFlags, false));
+      } while (getNextCloserOrComma(tokenizer).equals(COMMA));
+      CoordinateSequence seq = csFactory.create(coords.toArray(new Coordinate[0]));
+      return new CompoundCurve(seq, geometryFactory);
+    }
+    List<Coordinate> all = new ArrayList<Coordinate>();
+    do {
+      Coordinate[] coords = readCurveMember(tokenizer, ordinateFlags).getCoordinates();
+      int start = all.isEmpty() ? 0 : 1;
+      for (int i = start; i < coords.length; i++) all.add(coords[i]);
+      nextToken = getNextCloserOrComma(tokenizer);
+    } while (nextToken.equals(COMMA));
+    CoordinateSequence seq = csFactory.create(all.toArray(new Coordinate[0]));
+    return new CompoundCurve(seq, geometryFactory);
+  }
+
+  private static boolean isCurveMemberTag(String w) {
+    return w.equalsIgnoreCase(WKTConstants.CIRCULARSTRING)
+        || w.equalsIgnoreCase(WKTConstants.COMPOUNDCURVE);
+  }
+
+  private CurvePolygon readCurvePolygonText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    String nextToken = getNextEmptyOrOpener(tokenizer);
+    if (nextToken.equals(WKTConstants.EMPTY)) {
+      return new CurvePolygon(geometryFactory);
+    }
+    List<LinearRing> rings = new ArrayList<LinearRing>();
+    do {
+      Coordinate[] coords = readCurveMember(tokenizer, ordinateFlags).getCoordinates();
+      rings.add(geometryFactory.createLinearRing(coords));
+      nextToken = getNextCloserOrComma(tokenizer);
+    } while (nextToken.equals(COMMA));
+    LinearRing shell = rings.remove(0);
+    LinearRing[] holes = rings.toArray(new LinearRing[0]);
+    return new CurvePolygon(shell, holes, geometryFactory);
+  }
+
+  private MultiCurve readMultiCurveText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    String nextToken = getNextEmptyOrOpener(tokenizer);
+    if (nextToken.equals(WKTConstants.EMPTY)) {
+      return new MultiCurve(new LineString[0], geometryFactory);
+    }
+    List<LineString> members = new ArrayList<LineString>();
+    do {
+      members.add(readCurveMember(tokenizer, ordinateFlags));
+      nextToken = getNextCloserOrComma(tokenizer);
+    } while (nextToken.equals(COMMA));
+    return new MultiCurve(members.toArray(new LineString[0]), geometryFactory);
+  }
+
+  private MultiSurface readMultiSurfaceText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    String nextToken = getNextEmptyOrOpener(tokenizer);
+    if (nextToken.equals(WKTConstants.EMPTY)) {
+      return new MultiSurface(new Polygon[0], geometryFactory);
+    }
+    List<Polygon> members = new ArrayList<Polygon>();
+    do {
+      members.add(readSurfaceMember(tokenizer, ordinateFlags));
+      nextToken = getNextCloserOrComma(tokenizer);
+    } while (nextToken.equals(COMMA));
+    return new MultiSurface(members.toArray(new Polygon[0]), geometryFactory);
+  }
+
+  /** Reads a member of a curve aggregate: untagged ({@code (...)}), tagged
+   *  CIRCULARSTRING / COMPOUNDCURVE, or EMPTY. Returns a LineString-typed value. */
+  private LineString readCurveMember(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    String w = lookAheadWord(tokenizer);
+    if (w.equals(L_PAREN)) {
+      return readLineStringText(tokenizer, ordinateFlags);
+    }
+    if (w.equals(WKTConstants.EMPTY)) {
+      getNextWord(tokenizer);
+      return geometryFactory.createLineString(createCoordinateSequenceEmpty(ordinateFlags));
+    }
+    String type = getNextWord(tokenizer).toUpperCase(Locale.ROOT);
+    Geometry g = readGeometryTaggedText(tokenizer, type, ordinateFlags);
+    if (g instanceof LineString) return (LineString) g;
+    throw parseErrorWithLine(tokenizer, "Expected curve member but got " + type);
+  }
+
+  /** Reads a member of a surface aggregate: untagged polygon body or tagged CURVEPOLYGON. */
+  private Polygon readSurfaceMember(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    String w = lookAheadWord(tokenizer);
+    if (w.equals(L_PAREN)) {
+      return readPolygonText(tokenizer, ordinateFlags);
+    }
+    String type = getNextWord(tokenizer).toUpperCase(Locale.ROOT);
+    Geometry g = readGeometryTaggedText(tokenizer, type, ordinateFlags);
+    if (g instanceof Polygon) return (Polygon) g;
+    throw parseErrorWithLine(tokenizer, "Expected surface member but got " + type);
   }
 
 }
