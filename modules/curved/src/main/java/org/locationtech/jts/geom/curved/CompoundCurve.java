@@ -74,6 +74,21 @@ public class CompoundCurve extends LineString implements Linearizable {
     return members.clone();
   }
 
+  /**
+   * Returns a new CompoundCurve with member {@code index} replaced by
+   * {@code replacement}. Other members are reused (immutable). Used by
+   * editors that mutate a single segment without rebuilding the whole
+   * compound curve from scratch.
+   */
+  public CompoundCurve withMemberReplaced(int index, LineString replacement) {
+    if (index < 0 || index >= members.length) {
+      throw new IndexOutOfBoundsException("index=" + index + " size=" + members.length);
+    }
+    LineString[] copy = members.clone();
+    copy[index] = replacement;
+    return new CompoundCurve(copy, getFactory());
+  }
+
   @Override
   public String getGeometryType() {
     return "CompoundCurve";
