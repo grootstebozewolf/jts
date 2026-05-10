@@ -42,6 +42,7 @@ import org.locationtech.jtstest.testbuilder.ui.tools.ExtractComponentTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.CircularStringTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.InfoTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.LineStringTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.TINTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.TriangleTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.MoveTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.PanTool;
@@ -304,6 +305,10 @@ public class JTSTestBuilderController
 
   public void modeDrawTriangle() {
     setTool(TriangleTool.getInstance());
+  }
+
+  public void modeDrawTin() {
+    setTool(TINTool.getInstance());
   }
 
   public void modeDrawPoint() {
