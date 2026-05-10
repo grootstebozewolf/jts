@@ -54,6 +54,38 @@ public class CircularStringTool extends AbstractStreamDrawTool {
   }
 
   /**
+   * Per OGC SFA, a CIRCULARSTRING must contain an odd number of points
+   * &ge; 3 (each consecutive (start, mid, end) triple defines one arc).
+   * If the user releases on an even count, the trailing point is not
+   * anchored to a complete arc, so we drop it before committing rather
+   * than emit an invalid geometry. If fewer than 3 points were captured
+   * we abort without committing — the geometry would be degenerate.
+   *
+   * <p>This complements the rubber-band preview, which already renders
+   * a complete triple as an arc and any trailing odd point as a straight
+   * "what comes next" hint, so the visual cue and the commit semantics
+   * agree.
+   */
+  @Override
+  protected void bandFinished() throws Exception {
+    if (panel().getModel() == null) return;
+    panel().getGeomModel().setGeometryType(getGeometryType());
+
+    java.util.List<org.locationtech.jts.geom.Coordinate> coords =
+        new java.util.ArrayList<org.locationtech.jts.geom.Coordinate>();
+    for (Object o : getCoordinates()) {
+      coords.add((org.locationtech.jts.geom.Coordinate) o);
+    }
+    if (coords.size() >= 3 && coords.size() % 2 == 0) {
+      coords.remove(coords.size() - 1);
+    }
+    if (coords.size() < 3) return;
+
+    geomModel().addComponent(coords);
+    panel().updateGeom();
+  }
+
+  /**
    * Renders the in-progress band as cubic-Bezier arcs through every
    * complete (start, mid, end) triple of captured control points,
    * with a straight-line "what-comes-next" hint for any trailing
