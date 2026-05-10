@@ -27,6 +27,7 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.curved.CircularString;
+import org.locationtech.jts.geom.curved.CompoundCurve;
 import org.locationtech.jts.geom.curved.MultiCurve;
 
 /**
@@ -62,6 +63,7 @@ public class CurvedShapeWriter extends ShapeWriter {
   @Override
   protected Shape toShapeOther(Geometry geometry) {
     if (geometry instanceof CircularString) return toShape((CircularString) geometry);
+    if (geometry instanceof CompoundCurve) return toShape((CompoundCurve) geometry);
     if (geometry instanceof MultiCurve) return toShape((MultiCurve) geometry);
     return null;
   }
@@ -72,6 +74,8 @@ public class CurvedShapeWriter extends ShapeWriter {
       Geometry member = mc.getGeometryN(i);
       if (member instanceof CircularString) {
         path.append(toShape((CircularString) member), false);
+      } else if (member instanceof CompoundCurve) {
+        path.append(toShape((CompoundCurve) member), false);
       } else if (member instanceof LineString) {
         path.append(toShape(member), false);
       }
@@ -79,19 +83,35 @@ public class CurvedShapeWriter extends ShapeWriter {
     return path;
   }
 
-  private Shape toShape(CircularString cs) {
+  private Shape toShape(CompoundCurve cc) {
     GeneralPath path = new GeneralPath();
-    if (cs.isEmpty()) return path;
+    if (cc.isEmpty()) return path;
+    boolean started = false;
+    for (int i = 0; i < cc.getNumMembers(); i++) {
+      LineString member = cc.getMemberN(i);
+      if (member.isEmpty()) continue;
+      CoordinateSequence seq = member.getCoordinateSequence();
+      if (!started) {
+        moveToView(path, seq.getCoordinate(0));
+        started = true;
+      }
+      if (member instanceof CircularString) {
+        appendCircularStringSegments(path, seq);
+      } else {
+        for (int j = 1; j < seq.size(); j++) {
+          lineToView(path, seq.getCoordinate(j));
+        }
+      }
+    }
+    return path;
+  }
 
-    CoordinateSequence seq = cs.getCoordinateSequence();
+  private void appendCircularStringSegments(GeneralPath path, CoordinateSequence seq) {
     int n = seq.size();
     if (n < 3) {
-      moveToView(path, seq.getCoordinate(0));
       for (int i = 1; i < n; i++) lineToView(path, seq.getCoordinate(i));
-      return path;
+      return;
     }
-
-    moveToView(path, seq.getCoordinate(0));
     for (int i = 0; i + 2 < n; i += 2) {
       CircularArcRenderer.appendArc(path,
           seq.getCoordinate(i),
@@ -99,6 +119,14 @@ public class CurvedShapeWriter extends ShapeWriter {
           seq.getCoordinate(i + 2),
           transformer);
     }
+  }
+
+  private Shape toShape(CircularString cs) {
+    GeneralPath path = new GeneralPath();
+    if (cs.isEmpty()) return path;
+    CoordinateSequence seq = cs.getCoordinateSequence();
+    moveToView(path, seq.getCoordinate(0));
+    appendCircularStringSegments(path, seq);
     return path;
   }
 
