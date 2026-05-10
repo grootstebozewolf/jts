@@ -12,6 +12,7 @@
 package org.locationtech.jts.geom.curved;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.locationtech.jts.geom.Coordinate;
@@ -97,9 +98,22 @@ public class CompoundCurve extends LineString implements Linearizable {
     List<Coordinate> all = new ArrayList<Coordinate>();
     for (int i = 0; i < members.length; i++) {
       LineString m = members[i];
-      Geometry linMember = (m instanceof Linearizable)
-          ? ((Linearizable) m).toLinear(tolerance)
-          : m;
+      Geometry linMember;
+      if (m instanceof Linearizable) {
+        // Pin the member's own control points as must-include anchors so
+        // the densified chord polyline passes exactly through every input
+        // keypoint (start, mid and end of each 3-point arc, plus the
+        // shared transition points in a multi-arc CircularString). Without
+        // this, the densifier may sample around the arc and emit a chord
+        // vertex that drifts a few epsilons off the input control point.
+        List<Coordinate> anchors = Arrays.asList(m.getCoordinates());
+        linMember = ((Linearizable) m).toLinear(tolerance, anchors);
+      } else {
+        // Plain LineString member: include every coordinate as-is, in
+        // order — same walk we use for MultiLineString-style member
+        // iteration so no straight segment ever gets orphaned.
+        linMember = m;
+      }
       Coordinate[] cc = linMember.getCoordinates();
       int start = (i == 0) ? 0 : 1;
       for (int j = start; j < cc.length; j++) {

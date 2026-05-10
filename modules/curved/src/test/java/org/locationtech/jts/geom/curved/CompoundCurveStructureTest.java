@@ -11,6 +11,8 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import java.util.Arrays;
+
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
@@ -108,6 +110,48 @@ public class CompoundCurveStructureTest extends GeometryTestCase {
     assertEquals(0, copy.getNumMembers());
     assertTrue(copy.isEmpty());
     assertTrue(cc.toLinear(0.5).isEmpty());
+  }
+
+  public void testToLinearPinsMemberControlPointsAsAnchors() {
+    CurvedGeometryFactory f = cgf();
+    // Multi-arc CircularString: 5 points = 2 arcs sharing (200, 260)
+    CircularString arc = f.createCircularString(f.getCoordinateSequenceFactory().create(new Coordinate[] {
+        new Coordinate(90, 260),
+        new Coordinate(200, 260),
+        new Coordinate(200, 100),
+        new Coordinate(200, 0),
+        new Coordinate(100, 0)
+    }));
+    LineString tail = f.createLineString(new Coordinate[] {
+        new Coordinate(100, 0), new Coordinate(0, 0)
+    });
+    CompoundCurve cc = new CompoundCurve(new LineString[] { arc, tail }, f);
+
+    Coordinate[] dense = cc.toLinear(1.0).getCoordinates();
+
+    // Every input control point of every member must appear in the
+    // densified output exactly (2D equality).
+    Coordinate[] required = new Coordinate[] {
+        new Coordinate(90, 260),
+        new Coordinate(200, 260),
+        new Coordinate(200, 100),
+        new Coordinate(200, 0),
+        new Coordinate(100, 0),
+        new Coordinate(0, 0)
+    };
+    for (Coordinate r : required) {
+      boolean found = false;
+      for (Coordinate d : dense) {
+        if (d.equals2D(r)) { found = true; break; }
+      }
+      assertTrue("densified CompoundCurve should anchor input control point " + r
+          + " but didn't; output = " + Arrays.toString(dense), found);
+    }
+    // And the LineString member's contribution must not be orphaned —
+    // the chain ends at the LineString's far endpoint.
+    Coordinate end = dense[dense.length - 1];
+    assertEquals(0.0, end.x, 0.0);
+    assertEquals(0.0, end.y, 0.0);
   }
 
   public void testLegacyFlatConstructorWrapsAsSingleMember() {
