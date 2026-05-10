@@ -12,8 +12,8 @@
 >
 > ```
 > SPDX-License-Identifier: (EPL-2.0 OR EDL-1.0) AND CC0-1.0
-> Assisted-by: Anthropic Claude Opus 4.7
-> Assisted-by: xAI Grok
+> Assisted-by: xAI Grok (grok-4.3)
+> Assisted-by: Claude (Opus-4.7)
 > ```
 
 **Status:** Draft v3.
