@@ -11,6 +11,10 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -18,14 +22,55 @@ import org.locationtech.jts.geom.LineString;
 
 /**
  * A connected sequence of {@link LineString} and {@link CircularString}
- * segments. Phase-1 stand-in: member structure is collapsed to a flat
- * concatenation of control points. A future phase will preserve segments.
+ * segments per OGC SFA / ISO 19125-2.
+ *
+ * <p>Members are preserved as-is so consumers (renderer, densifier,
+ * WKT writer) can walk segment-by-segment instead of treating the
+ * geometry as a flat polyline. The parent {@link LineString}'s
+ * coordinate sequence is the concatenation of member coordinates
+ * with shared junction points deduplicated, so existing JTS algorithms
+ * that walk {@code getCoordinates()} still see a continuous polyline.
  */
 public class CompoundCurve extends LineString implements Linearizable {
   private static final long serialVersionUID = 1L;
 
+  private final LineString[] members;
+
+  /**
+   * Constructs a CompoundCurve from an explicit member list. Each
+   * member's last coordinate must equal the next member's first
+   * coordinate; this is not enforced here (the WKT reader and
+   * geometryJoin function are the producers and already maintain it).
+   */
+  public CompoundCurve(LineString[] members, GeometryFactory factory) {
+    super(concatMembers(members, factory), factory);
+    this.members = members == null ? new LineString[0] : members.clone();
+  }
+
+  /**
+   * Legacy flat-coordinate constructor. Wraps the input as a single
+   * LineString member. Kept so existing callers (and the WKT reader's
+   * fallback path for the writer's flat round-trip form) keep working.
+   */
   public CompoundCurve(CoordinateSequence points, GeometryFactory factory) {
     super(points, factory);
+    if (points == null || points.size() == 0) {
+      this.members = new LineString[0];
+    } else {
+      this.members = new LineString[] { factory.createLineString(points.copy()) };
+    }
+  }
+
+  public int getNumMembers() {
+    return members.length;
+  }
+
+  public LineString getMemberN(int i) {
+    return members[i];
+  }
+
+  public LineString[] getMembers() {
+    return members.clone();
   }
 
   @Override
@@ -35,11 +80,47 @@ public class CompoundCurve extends LineString implements Linearizable {
 
   @Override
   protected CompoundCurve copyInternal() {
-    return new CompoundCurve(getCoordinateSequence().copy(), getFactory());
+    if (members.length == 0) {
+      return new CompoundCurve(new LineString[0], getFactory());
+    }
+    LineString[] copies = new LineString[members.length];
+    for (int i = 0; i < members.length; i++) {
+      copies[i] = (LineString) members[i].copy();
+    }
+    return new CompoundCurve(copies, getFactory());
   }
 
   @Override
   public Geometry toLinear(double tolerance) {
-    return getFactory().createLineString(getCoordinateSequence().copy());
+    GeometryFactory f = getFactory();
+    if (members.length == 0) return f.createLineString();
+    List<Coordinate> all = new ArrayList<Coordinate>();
+    for (int i = 0; i < members.length; i++) {
+      LineString m = members[i];
+      Geometry linMember = (m instanceof Linearizable)
+          ? ((Linearizable) m).toLinear(tolerance)
+          : m;
+      Coordinate[] cc = linMember.getCoordinates();
+      int start = (i == 0) ? 0 : 1;
+      for (int j = start; j < cc.length; j++) {
+        all.add(cc[j]);
+      }
+    }
+    return f.createLineString(all.toArray(new Coordinate[0]));
+  }
+
+  private static CoordinateSequence concatMembers(LineString[] members, GeometryFactory factory) {
+    if (members == null || members.length == 0) {
+      return factory.getCoordinateSequenceFactory().create(new Coordinate[0]);
+    }
+    List<Coordinate> all = new ArrayList<Coordinate>();
+    for (int i = 0; i < members.length; i++) {
+      Coordinate[] cc = members[i].getCoordinates();
+      int start = (i == 0) ? 0 : 1;
+      for (int j = start; j < cc.length; j++) {
+        all.add(cc[j]);
+      }
+    }
+    return factory.getCoordinateSequenceFactory().create(all.toArray(new Coordinate[0]));
   }
 }
