@@ -168,6 +168,13 @@ public class ShapeWriter
 	public Shape toShape(Geometry geometry)
 	{
 		if (geometry.isEmpty()) return new GeneralPath();
+		// Extension hook for SFA / ISO 19125-2 geometries (CircularString,
+		// CompoundCurve, etc.). Called before the instanceof ladder so that
+		// subclasses extending LineString or Polygon can render with their
+		// own semantics (e.g. arcs as Bezier curves) instead of being routed
+		// to the parent's straight-line / straight-edge handler.
+		Shape ext = toShapeOther(geometry);
+		if (ext != null) return ext;
 		if (geometry instanceof Polygon) return toShape((Polygon) geometry);
 		if (geometry instanceof LineString) 			return toShape((LineString) geometry);
 		if (geometry instanceof MultiLineString) 	return toShape((MultiLineString) geometry);
@@ -176,6 +183,21 @@ public class ShapeWriter
 
 		throw new IllegalArgumentException(
 			"Unrecognized Geometry class: " + geometry.getClass());
+	}
+
+	/**
+	 * Hook for subclasses to render geometry types that the core dispatch
+	 * does not recognise (e.g. arc-bearing curves). Called early in
+	 * {@link #toShape(Geometry)} so that subclasses can intercept geometries
+	 * that would otherwise be routed to a parent-class handler by the
+	 * {@code instanceof} ladder. Implementations should return {@code null}
+	 * if the geometry should fall through to the default dispatch.
+	 *
+	 * @param geometry the geometry to render
+	 * @return the rendered {@link Shape}, or {@code null} to fall through
+	 */
+	protected Shape toShapeOther(Geometry geometry) {
+		return null;
 	}
 
 	private Shape toShape(Polygon p) 
@@ -301,11 +323,11 @@ public class ShapeWriter
 		return pointFactory.createPoint(viewPoint);
 	}
 
-  private Point2D transformPoint(Coordinate model) {
+  protected Point2D transformPoint(Coordinate model) {
 		return transformPoint(model, new Point2D.Double());
 	}
-  
-  private Point2D transformPoint(Coordinate model, Point2D view) {
+
+  protected Point2D transformPoint(Coordinate model, Point2D view) {
 		pointTransformer.transform(model, view);
 		return view;
 	}
