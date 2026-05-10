@@ -1,6 +1,20 @@
 # Epic: SFA / ISO 19125-2 Curve Awareness in JTS
 
-> **AI assistance disclosure:** Drafted with AI assistance (multiple models across iterations), structurally rewritten and reviewed by the author. All claims, scope decisions, and risks are author-owned. The companion red-test class (`CurveAwarenessSpecTest`) is likewise AI-drafted and author-reviewed. This disclosure is per the [Eclipse Foundation Generative AI Usage Guidelines for Committers](https://www.eclipse.org/projects/guidelines/genai/).
+> **AI Disclosure** *(per the [Eclipse Foundation Generative AI Usage Guidelines for Committers](https://www.eclipse.org/projects/guidelines/genai/))*
+>
+> This document and the companion red-test class
+> `modules/curved/src/test/java/org/locationtech/jts/spec/curveawareness/CurveAwarenessSpecTest.java`
+> were largely AI-generated. The human contributor has reviewed and verified the
+> technical content (cross-module impact, risk register, phase dependencies, TAG
+> scope) for correctness. The AI-generated portions are made available under
+> **CC0-1.0** (public domain dedication) and are *not* subject to the project's
+> licence; human curation and edits are subject to the JTS dual licence.
+>
+> ```
+> SPDX-License-Identifier: (EPL-2.0 OR EDL-1.0) AND CC0-1.0
+> Assisted-by: Anthropic Claude Opus 4.7
+> Assisted-by: xAI Grok
+> ```
 
 **Status:** Draft v3.
 **Source branch:** [`feature/sfa-curve-buffer-spike`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-buffer-spike) on `grootstebozewolf/jts`.
