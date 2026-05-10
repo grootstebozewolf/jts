@@ -40,19 +40,32 @@ import org.locationtech.jtstest.geomfunction.Metadata;
 public class CurveExampleFunctions {
 
   /**
-   * Highway entry-and-exit spiral pattern from §4.1 of the proposal:
-   * straight → entry clothoid → circular arc → exit clothoid → straight.
-   * Two transition curves bracket a 200-unit-radius arc.
+   * Real-world example from the
+   * <a href="https://maps.prorail.nl/arcgis/rest/services/Spoorgeometrie/FeatureServer/11">ProRail
+   * Spoorgeometrie</a> open dataset (CC BY 4.0): track {@code 823_12V_4.3},
+   * {@code SIGMATRAJECT_GUID = 510603bc-fef6-4d29-9a01-2bad891057ca},
+   * elements at {@code VOLGNUMMER 33–37}.
+   *
+   * <p>The canonical Dutch railway alignment pattern that motivates the
+   * proposal — *Rechtstand → Overgangsboog → Boog → Overgangsboog →
+   * Rechtstand*: a 12.18 m straight, a 48 m entry clothoid taking
+   * curvature from 0 to 1/200 (R = 200 m inside the bend, CCW), a
+   * 311.4 m circular arc at R = 200 m, a 42 m exit clothoid back to
+   * straight, and a 290.8 m final straight. Total bend ≈ 102°.
+   *
+   * <p>Coordinates are in EPSG:28992 (Dutch Rijksdriehoek), so values
+   * are in the (115000, 412000) range. Use TestBuilder's <em>Zoom to
+   * A</em> after loading.
    */
-  @Metadata(description="Sample COMPOUNDCURVE: highway entry/exit spiral (line → CLOTHOID → arc → CLOTHOID → line)")
+  @Metadata(description="Real-world ProRail track 823_12V_4.3: line → CLOTHOID → R=200 arc → CLOTHOID → line (RD coords; Zoom to A)")
   public static Geometry clothoidHighwayBend(Geometry g) {
     String wkt =
         "COMPOUNDCURVE ("
-        + "(0 0, 100 0), "
-        + "CLOTHOID (0, 0.005, 80), "
-        + "CIRCULARSTRING (179.68 5.32, 196.7 14.4, 195.0 32.5), "
-        + "CLOTHOID (0.005, 0, 80), "
-        + "(231 75, 300 75)"
+        + "(116414.353 411964.758, 116410.740 411976.388), "
+        + "CLOTHOID (0, 0.005, 48), "
+        + "CIRCULARSTRING (116394.687 412021.591, 116284.527 412126.266, 116132.940 412123.450), "
+        + "CLOTHOID (0.005, 0, 42), "
+        + "(116095.653 412104.165, 115842.170 411961.603)"
         + ")";
     return readCurved(g, wkt);
   }
