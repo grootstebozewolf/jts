@@ -20,10 +20,18 @@ import org.locationtech.jts.algorithm.construct.LargestEmptyCircle;
 import org.locationtech.jts.algorithm.construct.MaximumInscribedCircle;
 import org.locationtech.jts.algorithm.hull.ConcaveHull;
 import org.locationtech.jts.densify.Densifier;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.OctagonalEnvelope;
+import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
+import org.locationtech.jts.geom.curved.MultiSurface;
 import org.locationtech.jtstest.geomfunction.Metadata;
 
 public class ConstructionFunctions {
@@ -183,5 +191,77 @@ public class ConstructionFunctions {
     double convexLen = geom.convexHull().getLength();
     return (geom.getLength() - convexLen) / convexLen;
   }
-  
+
+  // ===========================================================================
+  // OGC SFA / ISO 19125-2 surface aggregation
+  // ===========================================================================
+
+  /**
+   * Wraps the surface members of {@code geom} as an OGC SFA / ISO 19125-2
+   * {@link MultiSurface}. Accepts a Polygon, a CurvePolygon, an existing
+   * MultiPolygon / MultiSurface, or a heterogeneous GeometryCollection of
+   * surfaces. Non-surface members (LineString, Point, …) cause an
+   * {@link IllegalArgumentException}.
+   *
+   * <p>This function exists because {@code MultiSurface} is fundamentally a
+   * heterogeneous container — drawing tools produce individual members, and
+   * the standard GeometryCombiner flattens them to a MultiPolygon (losing
+   * the MultiSurface type). Use this after drawing the parts to package
+   * them as a real MultiSurface.
+   */
+  @Metadata(description = "Wraps surface members as an OGC SFA / ISO 19125-2 MultiSurface")
+  public static Geometry toMultiSurface(Geometry geom) {
+    return toMultiSurfaceFromArray(extractSurfaces(geom), geom.getFactory());
+  }
+
+  /** Two-input convenience: combines the surfaces from inputs A and B
+   *  into a single MultiSurface. */
+  @Metadata(description = "Combines surface members from inputs A and B as a MultiSurface")
+  public static Geometry toMultiSurfaceAB(Geometry a, Geometry b) {
+    List<Polygon> all = new ArrayList<Polygon>();
+    if (a != null) all.addAll(extractSurfaces(a));
+    if (b != null) all.addAll(extractSurfaces(b));
+    return toMultiSurfaceFromArray(all, a != null ? a.getFactory() : b.getFactory());
+  }
+
+  // ---- helpers --------------------------------------------------------------
+
+  private static List<Polygon> extractSurfaces(Geometry geom) {
+    List<Polygon> out = new ArrayList<Polygon>();
+    collectSurfaces(geom, out);
+    return out;
+  }
+
+  private static void collectSurfaces(Geometry geom, List<Polygon> sink) {
+    if (geom == null || geom.isEmpty()) return;
+    if (geom instanceof MultiPolygon || geom instanceof GeometryCollection) {
+      // Walk children. Includes MultiSurface (which extends MultiPolygon),
+      // PolyhedralSurface, Tin, plain GeometryCollection, etc.
+      for (int i = 0; i < geom.getNumGeometries(); i++) {
+        collectSurfaces(geom.getGeometryN(i), sink);
+      }
+      return;
+    }
+    if (geom instanceof Polygon) {
+      sink.add((Polygon) geom);
+      return;
+    }
+    throw new IllegalArgumentException(
+        "toMultiSurface: expected a surface (Polygon / CurvePolygon / Triangle / "
+        + "MultiPolygon / MultiSurface / PolyhedralSurface / Tin / "
+        + "GeometryCollection of these), got: " + geom.getGeometryType());
+  }
+
+  private static Geometry toMultiSurfaceFromArray(List<Polygon> surfaces,
+                                                   org.locationtech.jts.geom.GeometryFactory hintFactory) {
+    if (surfaces.isEmpty()) {
+      return new CurvedGeometryFactory().createMultiPolygon();
+    }
+    CurvedGeometryFactory cgf = (hintFactory instanceof CurvedGeometryFactory)
+        ? (CurvedGeometryFactory) hintFactory
+        : new CurvedGeometryFactory(hintFactory.getPrecisionModel(), hintFactory.getSRID());
+    MultiSurface ms = cgf.createMultiSurface(surfaces.toArray(new Polygon[0]));
+    return ms;
+  }
+
 }
