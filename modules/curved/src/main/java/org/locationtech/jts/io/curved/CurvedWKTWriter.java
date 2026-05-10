@@ -11,23 +11,37 @@
  */
 package org.locationtech.jts.io.curved;
 
+import java.io.IOException;
+import java.io.Writer;
+import java.util.EnumSet;
+import java.util.Locale;
+
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.curved.CircularString;
+import org.locationtech.jts.geom.curved.CompoundCurve;
+import org.locationtech.jts.io.Ordinate;
+import org.locationtech.jts.io.OrdinateFormat;
+import org.locationtech.jts.io.WKTConstants;
 import org.locationtech.jts.io.WKTWriter;
 
 /**
  * A {@link WKTWriter} subclass for the OGC SFA / ISO 19125-2 extended
  * geometry types.
- * <p>
- * In the current phase-1 implementation this class is a no-op marker:
- * the curve geometry classes ({@code CircularString}, {@code Triangle},
- * {@code CurvePolygon}, etc.) extend their nearest core counterparts
- * and the core {@code WKTWriter} already emits each subclass's keyword
- * via {@code Geometry.getGeometryType().toUpperCase(Locale.ROOT)}.
- * <p>
- * The class is provided here so that callers can pair {@code
- * CurvedWKTReader} with {@code CurvedWKTWriter} symmetrically, and so
- * that future enhancements (member-structured emission for
- * {@code CompoundCurve}, etc.) can land here without changing caller
- * code.
+ *
+ * <p>For most curve subclasses the inherited {@link WKTWriter} already
+ * does the right thing — it dispatches by parent type and uses
+ * {@code Geometry.getGeometryType().toUpperCase(Locale.ROOT)} as the
+ * keyword, so e.g. {@code CircularString (1 2, 3 4, 5 6)} comes out
+ * correctly via the {@code LineString} formatter.
+ *
+ * <p>{@link CompoundCurve} is the exception: emitting its concatenated
+ * coordinate sequence as a flat {@code COMPOUNDCURVE (x1 y1, …)} loses
+ * the segment structure. This writer overrides
+ * {@link #appendOtherGeometryTaggedText} to walk
+ * {@code CompoundCurve.getMembers()} and emit each member tagged
+ * (CIRCULARSTRING) or untagged (raw {@code (…)} for LineString),
+ * round-tripping cleanly through {@link CurvedWKTReader}.
  */
 public class CurvedWKTWriter extends WKTWriter {
 
@@ -37,5 +51,42 @@ public class CurvedWKTWriter extends WKTWriter {
 
   public CurvedWKTWriter(int outputDimension) {
     super(outputDimension);
+  }
+
+  @Override
+  protected boolean appendOtherGeometryTaggedText(
+      Geometry geometry, EnumSet<Ordinate> outputOrdinates, boolean useFormatting,
+      int level, Writer writer, OrdinateFormat formatter) throws IOException {
+    if (geometry instanceof CompoundCurve) {
+      appendCompoundCurveTaggedText(
+          (CompoundCurve) geometry, outputOrdinates, useFormatting, level, writer, formatter);
+      return true;
+    }
+    return false;
+  }
+
+  private void appendCompoundCurveTaggedText(
+      CompoundCurve cc, EnumSet<Ordinate> outputOrdinates, boolean useFormatting,
+      int level, Writer writer, OrdinateFormat formatter) throws IOException {
+    writer.write(cc.getGeometryType().toUpperCase(Locale.ROOT));
+    writer.write(" ");
+    appendOrdinateText(outputOrdinates, writer);
+    if (cc.isEmpty()) {
+      writer.write(WKTConstants.EMPTY);
+      return;
+    }
+    writer.write("(");
+    int n = cc.getNumMembers();
+    for (int i = 0; i < n; i++) {
+      if (i > 0) writer.write(", ");
+      LineString m = cc.getMemberN(i);
+      if (m instanceof CircularString) {
+        writer.write(WKTConstants.CIRCULARSTRING);
+        writer.write(" ");
+      }
+      appendSequenceText(m.getCoordinateSequence(), outputOrdinates, useFormatting,
+          level, false, writer, formatter);
+    }
+    writer.write(")");
   }
 }
