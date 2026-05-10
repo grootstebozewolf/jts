@@ -282,6 +282,10 @@ public class GeometryEditModel
       Coordinate[] triPts = CoordinateArrays.toCoordinateArray(coordList);
       newGeom = creator.addTriangle(getGeometry(), triPts);
       break;
+    case GeometryType.TIN:
+      Coordinate[] tinPts = CoordinateArrays.toCoordinateArray(coordList);
+      newGeom = creator.addTin(getGeometry(), tinPts);
+      break;
     case GeometryType.POINT:
       newGeom = creator.addPoint(getGeometry(), (Coordinate) coordList.get(0));      
       break;
