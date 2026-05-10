@@ -114,19 +114,42 @@ public class IOUtil
     return readWKTString(wkt, geomFact, true);
   }
   
-  public static Geometry readWKTString(String wkt, GeometryFactory geomFact, 
+  public static Geometry readWKTString(String wkt, GeometryFactory geomFact,
       boolean isStrict)
-  throws ParseException, IOException 
+  throws ParseException, IOException
   {
+    String stripped = stripComments(wkt);
     WKTReader reader = new CurvedWKTReader(geomFact);
-    WKTFileReader fileReader = new WKTFileReader(new StringReader(wkt), reader);
+    WKTFileReader fileReader = new WKTFileReader(new StringReader(stripped), reader);
     fileReader.setStrictParsing(isStrict);
     List geomList = fileReader.read();
-    
+
     if (geomList.size() == 1)
       return (Geometry) geomList.get(0);
-    
+
     return geomFact.createGeometryCollection(GeometryFactory.toGeometryArray(geomList));
+  }
+
+  /**
+   * Strips SQL-style {@code -- line} comments and C-style
+   * {@code /* block *}{@code /} comments from a WKT input string.
+   * <p>
+   * This is a TestBuilder convenience only and is <em>not</em> applied
+   * by the underlying {@code WKTReader} / {@code CurvedWKTReader}: the
+   * core readers stay strict per OGC SFA / ISO 19125, so any geometry
+   * round-tripped out of JTS remains spec-compliant. Comments are only
+   * tolerated on the way in, when a human is pasting WKT into the app.
+   * <p>
+   * Both forms are unambiguous against valid WKT: no token starts with
+   * {@code --}, and {@code /} is not a valid WKT character.
+   */
+  static String stripComments(String wkt) {
+    if (wkt == null) return null;
+    // Block comments first: /* ... */, multi-line, non-greedy.
+    String s = wkt.replaceAll("(?s)/\\*.*?\\*/", "");
+    // Line comments: -- to end of line (or EOF).
+    s = s.replaceAll("--[^\r\n]*", "");
+    return s;
   }
   
   public static Geometry readWKBHexString(String wkb, GeometryFactory geomFact)
