@@ -28,6 +28,7 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.curved.CircularString;
 import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
+import org.locationtech.jts.geom.curved.Triangle;
 
 public class GeometryCombiner 
 {
@@ -72,6 +73,29 @@ public class GeometryCombiner
         : new CurvedGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
     CircularString line = cgf.createCircularString(geomFactory.getCoordinateSequenceFactory().create(pts));
     return combine(orig, line);
+  }
+
+  /**
+   * Builds a Triangle (Polygon with a single closed 4-point ring,
+   * no holes) from the three captured corner coordinates and combines
+   * it with {@code orig}. The closing point (== first) is appended
+   * automatically.
+   */
+  public Geometry addTriangle(Geometry orig, Coordinate[] corners)
+  {
+    if (corners.length < 3) {
+      // Defensive: degrade to nothing rather than throw.
+      return orig == null ? geomFactory.createGeometryCollection() : orig;
+    }
+    CurvedGeometryFactory cgf = (geomFactory instanceof CurvedGeometryFactory)
+        ? (CurvedGeometryFactory) geomFactory
+        : new CurvedGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
+    Coordinate[] ring = new Coordinate[] {
+        corners[0], corners[1], corners[2], new Coordinate(corners[0])
+    };
+    LinearRing shell = geomFactory.createLinearRing(ring);
+    Triangle tri = cgf.createTriangle(shell);
+    return combine(orig, tri);
   }
 
   public Geometry addPoint(Geometry orig, Coordinate pt)
