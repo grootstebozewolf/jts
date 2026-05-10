@@ -25,6 +25,7 @@ import java.util.List;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
@@ -182,6 +183,84 @@ public class ClothoidSegment extends LineString implements Linearizable {
     // different value depending on step count.
     pts[pts.length - 1] = new Coordinate(endPoint);
     return getFactory().createLineString(pts);
+  }
+
+  /**
+   * Analytical envelope per §3.9 of the proposal. The chord-only bbox
+   * inherited from {@link LineString} under-represents the curve's actual
+   * extent — a clothoid bulges outside the chord between its endpoints.
+   *
+   * <p>Approach: extreme x values occur where {@code dx/ds = cos(θ(s)) = 0},
+   * i.e. where {@code θ(s) = π/2 + nπ}. Extreme y values occur where
+   * {@code θ(s) = nπ}. With {@code θ(s) = θ₀ + κ₀·s + ½·(κ₁−κ₀)/L · s²}
+   * each equation reduces to a quadratic in {@code s}, with at most two
+   * roots, clipped to {@code [0, L]}. For each root we Simpson-integrate
+   * up to that arc length and expand the envelope by the resulting
+   * (x, y). Endpoints are always included.
+   */
+  @Override
+  protected Envelope computeEnvelopeInternal() {
+    if (isEmpty()) return new Envelope();
+    Envelope env = new Envelope(startPoint);
+    env.expandToInclude(endPoint.x, endPoint.y);
+    expandByExtremes(env, Math.PI / 2.0);  // dx/ds = 0
+    expandByExtremes(env, 0.0);            // dy/ds = 0
+    return env;
+  }
+
+  /** Add to {@code env} every position along the curve where the heading
+   *  hits {@code phaseOffset + nπ} for some integer {@code n}, restricted
+   *  to {@code s ∈ [0, L]}. */
+  private void expandByExtremes(Envelope env, double phaseOffset) {
+    double thetaMin = Math.min(startTangent, endTangent);
+    double thetaMax = Math.max(startTangent, endTangent);
+    int nMin = (int) Math.floor((thetaMin - phaseOffset) / Math.PI);
+    int nMax = (int) Math.ceil((thetaMax - phaseOffset) / Math.PI);
+    double alpha = (endKappa - startKappa) / (2.0 * length);
+    for (int n = nMin; n <= nMax; n++) {
+      double thetaTarget = phaseOffset + n * Math.PI;
+      if (thetaTarget < thetaMin - 1e-12 || thetaTarget > thetaMax + 1e-12) continue;
+      // alpha·s² + κ₀·s + (θ₀ - thetaTarget) = 0
+      double[] roots = solveQuadratic(alpha, startKappa, startTangent - thetaTarget);
+      for (double s : roots) {
+        if (Double.isNaN(s) || s < 0 || s > length) continue;
+        double[] xy = integrateTo(s);
+        env.expandToInclude(xy[0], xy[1]);
+      }
+    }
+  }
+
+  private double[] integrateTo(double s) {
+    if (s <= 0) return new double[] { startPoint.x, startPoint.y };
+    if (s >= length) return new double[] { endPoint.x, endPoint.y };
+    int n = 128;
+    double ds = s / n;
+    double x = startPoint.x;
+    double y = startPoint.y;
+    for (int i = 1; i <= n; i++) {
+      double sa = (i - 1) * ds;
+      double sb = i * ds;
+      double sm = 0.5 * (sa + sb);
+      double ta = headingAt(startTangent, startKappa, endKappa, length, sa);
+      double tm = headingAt(startTangent, startKappa, endKappa, length, sm);
+      double tb = headingAt(startTangent, startKappa, endKappa, length, sb);
+      x += (Math.cos(ta) + 4.0 * Math.cos(tm) + Math.cos(tb)) * ds / 6.0;
+      y += (Math.sin(ta) + 4.0 * Math.sin(tm) + Math.sin(tb)) * ds / 6.0;
+    }
+    return new double[] { x, y };
+  }
+
+  /** Real roots of {@code a·x² + b·x + c = 0}; degenerates correctly when
+   *  {@code a → 0}. Returns 0, 1, or 2 roots. */
+  private static double[] solveQuadratic(double a, double b, double c) {
+    if (Math.abs(a) < 1e-15) {
+      if (Math.abs(b) < 1e-15) return new double[0];
+      return new double[] { -c / b };
+    }
+    double disc = b * b - 4.0 * a * c;
+    if (disc < 0) return new double[0];
+    double sq = Math.sqrt(disc);
+    return new double[] { (-b + sq) / (2.0 * a), (-b - sq) / (2.0 * a) };
   }
 
   // -------- integration helpers -----------------------------------
