@@ -235,6 +235,34 @@ public class ClothoidPanel extends JPanel {
     }
   }
 
+  /** Rebuild the dropdown after a mutation, then re-select the item
+   *  matching {@code (geomIndex, memberIndex)} so iterative editing on
+   *  the same segment is uninterrupted. Falls back to index 0 if the
+   *  segment no longer exists (e.g. user replaced the geometry). */
+  private void refreshSelectorPreservingSelection(int geomIndex, int memberIndex) {
+    DefaultComboBoxModel<ClothoidRef> model = new DefaultComboBoxModel<ClothoidRef>();
+    if (tbModel != null) {
+      GeometryEditModel gem = tbModel.getGeometryEditModel();
+      addClothoidsFromTopLevel(model, 0, gem.getGeometry(0));
+      addClothoidsFromTopLevel(model, 1, gem.getGeometry(1));
+    }
+    selector.setModel(model);
+    if (model.getSize() == 0) {
+      clearFields();
+      return;
+    }
+    int restored = -1;
+    for (int i = 0; i < model.getSize(); i++) {
+      ClothoidRef r = model.getElementAt(i);
+      if (r.geomIndex == geomIndex && r.memberIndex == memberIndex) {
+        restored = i;
+        break;
+      }
+    }
+    selector.setSelectedIndex(restored >= 0 ? restored : 0);
+    loadFromSelected();
+  }
+
   private static void addClothoidsFromTopLevel(DefaultComboBoxModel<ClothoidRef> model,
                                                int geomIdx, Geometry g) {
     if (!(g instanceof CompoundCurve)) return;
@@ -295,6 +323,19 @@ public class ClothoidPanel extends JPanel {
         return;
       }
       CompoundCurve cc = (CompoundCurve) g;
+      // Read the *current* segment from the live geometry, not the
+      // ClothoidRef's cached snapshot. ref.segment is only valid at the
+      // moment the dropdown was built; after each Apply we replace the
+      // member, so on the second Apply ref.segment.getEnd* would be the
+      // *original* segment's state and the cascade would be computed
+      // from the wrong reference frame.
+      LineString currentMember = cc.getMemberN(ref.memberIndex);
+      if (!(currentMember instanceof ClothoidSegment)) {
+        lblStatus.setText("Selected member is no longer a Clothoid; reselect.");
+        rebuildSelector();
+        return;
+      }
+      ClothoidSegment current = (ClothoidSegment) currentMember;
       GeometryFactory gf = (cc.getFactory() instanceof CurvedGeometryFactory)
           ? cc.getFactory() : new CurvedGeometryFactory();
       ClothoidSegment newSeg = new ClothoidSegment(
@@ -310,8 +351,8 @@ public class ClothoidPanel extends JPanel {
       // and plain LineString translate-and-rotate every coord (rigid
       // map preserves circle radius and chord lengths, so the type
       // stays valid).
-      Coordinate oldEnd = ref.segment.getEndCoordinate();
-      double oldTheta = ref.segment.getEndTangent();
+      Coordinate oldEnd = current.getEndCoordinate();
+      double oldTheta = current.getEndTangent();
       Coordinate newEndPt = newSeg.getEndCoordinate();
       double newTheta = newSeg.getEndTangent();
       double dx = newEndPt.x - oldEnd.x;
@@ -333,6 +374,12 @@ public class ClothoidPanel extends JPanel {
       }
       CompoundCurve newCc = new CompoundCurve(members, gf);
       tbModel.getGeometryEditModel().setGeometry(ref.geomIndex, newCc);
+      // Refresh the dropdown so its label reflects the new κ / L (the
+      // toString() formatter snapshots from the cached ClothoidSegment),
+      // and so the form fields show the freshly applied values rather
+      // than stale text. We restore the user's selection by index so
+      // they can keep iterating on the same segment.
+      refreshSelectorPreservingSelection(ref.geomIndex, ref.memberIndex);
       String shiftSuffix = transformed == 0
           ? ""
           : String.format(Locale.ROOT,
