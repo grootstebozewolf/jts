@@ -39,6 +39,7 @@ public class JTSTestBuilderToolBar {
   JToggleButton drawLineStringButton;
   JToggleButton drawCircularStringButton;
   JToggleButton drawTriangleButton;
+  JToggleButton drawTinButton;
   JToggleButton drawPointButton;
   JToggleButton zoomButton;
   JToggleButton infoButton;
@@ -64,6 +65,8 @@ public class JTSTestBuilderToolBar {
   private final ImageIcon drawCircularStringBIcon = new ImageIcon(this.getClass().getResource("DrawCircularStringB.png"));
   private final ImageIcon drawTriangleIcon = new ImageIcon(this.getClass().getResource("DrawTriangle.png"));
   private final ImageIcon drawTriangleBIcon = new ImageIcon(this.getClass().getResource("DrawTriangleB.png"));
+  private final ImageIcon drawTinIcon = new ImageIcon(this.getClass().getResource("DrawTin.png"));
+  private final ImageIcon drawTinBIcon = new ImageIcon(this.getClass().getResource("DrawTinB.png"));
   private final ImageIcon drawPointIcon = new ImageIcon(this.getClass().getResource("DrawPoint.png"));
   private final ImageIcon drawPointBIcon = new ImageIcon(this.getClass().getResource("DrawPointB.png"));
   private final ImageIcon infoIcon = new ImageIcon(this.getClass().getResource("Info.png"));
@@ -222,6 +225,13 @@ public class JTSTestBuilderToolBar {
               controller().modeDrawTriangle();
             }
           });
+      drawTinButton = createToggleButton(
+          AppStrings.TIP_DRAW_TIN, drawTinIcon,
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+              controller().modeDrawTin();
+            }
+          });
       drawPointButton = createToggleButton(
           AppStrings.TIP_DRAW_POINT, drawPointIcon,
           new java.awt.event.ActionListener() {
@@ -301,6 +311,7 @@ public class JTSTestBuilderToolBar {
           ,drawLineStringButton
           ,drawCircularStringButton
           ,drawTriangleButton
+          ,drawTinButton
           ,drawPointButton
           ,panButton
           ,zoomButton
@@ -327,7 +338,7 @@ public class JTSTestBuilderToolBar {
         extractComponentButton,
         
         strut(20),
-        drawRectangleButton,drawPolygonButton,drawLineStringButton,drawCircularStringButton,drawTriangleButton,
+        drawRectangleButton,drawPolygonButton,drawLineStringButton,drawCircularStringButton,drawTriangleButton,drawTinButton,
         drawPointButton,
         strut(20),
         btnMove, btnEditVertex,
@@ -360,6 +371,7 @@ public class JTSTestBuilderToolBar {
     drawLineStringButton.setIcon(index == 0 ? drawLineStringIcon : drawLineStringBIcon);
     drawCircularStringButton.setIcon(index == 0 ? drawCircularStringIcon : drawCircularStringBIcon);
     drawTriangleButton.setIcon(index == 0 ? drawTriangleIcon : drawTriangleBIcon);
+    drawTinButton.setIcon(index == 0 ? drawTinIcon : drawTinBIcon);
     drawPointButton.setIcon(index == 0 ? drawPointIcon : drawPointBIcon);
   }
   
