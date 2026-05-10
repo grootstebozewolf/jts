@@ -58,7 +58,7 @@ public class CurveExampleFunctions {
    * A</em> after loading.
    */
   @Metadata(description="Real-world ProRail track 823_12V_4.3: line → CLOTHOID → R=200 arc → CLOTHOID → line (RD coords; Zoom to A)")
-  public static Geometry clothoidHighwayBend(Geometry g) {
+  public static Geometry clothoidRailBend(Geometry g) {
     String wkt =
         "COMPOUNDCURVE ("
         + "(116414.353 411964.758, 116410.740 411976.388), "
