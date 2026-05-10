@@ -11,23 +11,31 @@
  */
 package org.locationtech.jts.io.curved;
 
+import java.io.IOException;
+import java.io.Writer;
+import java.util.EnumSet;
+import java.util.Locale;
+
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.curved.CircularString;
+import org.locationtech.jts.geom.curved.CompoundCurve;
+import org.locationtech.jts.io.Ordinate;
+import org.locationtech.jts.io.OrdinateFormat;
+import org.locationtech.jts.io.WKTConstants;
 import org.locationtech.jts.io.WKTWriter;
 
 /**
  * A {@link WKTWriter} subclass for the OGC SFA / ISO 19125-2 extended
  * geometry types.
- * <p>
- * In the current phase-1 implementation this class is a no-op marker:
- * the curve geometry classes ({@code CircularString}, {@code Triangle},
- * {@code CurvePolygon}, etc.) extend their nearest core counterparts
- * and the core {@code WKTWriter} already emits each subclass's keyword
- * via {@code Geometry.getGeometryType().toUpperCase(Locale.ROOT)}.
- * <p>
- * The class is provided here so that callers can pair {@code
- * CurvedWKTReader} with {@code CurvedWKTWriter} symmetrically, and so
- * that future enhancements (member-structured emission for
- * {@code CompoundCurve}, etc.) can land here without changing caller
- * code.
+ *
+ * <p>For most types the core writer already emits the right keyword
+ * (because keyword emission was parameterised by
+ * {@code Geometry.getGeometryType().toUpperCase()} in the extension-points
+ * commit). This subclass intercepts the cases where the structural body
+ * differs from the parent type — currently {@link CompoundCurve}, whose
+ * SFA emission is a list of <em>tagged</em> members rather than a flat
+ * coordinate sequence.
  */
 public class CurvedWKTWriter extends WKTWriter {
 
@@ -37,5 +45,48 @@ public class CurvedWKTWriter extends WKTWriter {
 
   public CurvedWKTWriter(int outputDimension) {
     super(outputDimension);
+  }
+
+  @Override
+  protected boolean appendOtherGeometryTaggedText(Geometry geometry, EnumSet<Ordinate> outputOrdinates,
+      boolean useFormatting, int level, Writer writer, OrdinateFormat formatter) throws IOException {
+    if (geometry instanceof CompoundCurve) {
+      appendCompoundCurveTaggedText((CompoundCurve) geometry, outputOrdinates, useFormatting,
+          level, writer, formatter);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Emits {@code COMPOUNDCURVE [Z|M|ZM] (member, member, ...)} where
+   * each member is either an untagged {@code (...)} for a plain
+   * {@link LineString} or a tagged {@code CIRCULARSTRING(...)} for a
+   * {@link CircularString}. Inner ordinate text is omitted on each
+   * member; the dimension flag is carried by the outer keyword only,
+   * per OGC SFA convention.
+   */
+  private void appendCompoundCurveTaggedText(CompoundCurve cc, EnumSet<Ordinate> outputOrdinates,
+      boolean useFormatting, int level, Writer writer, OrdinateFormat formatter) throws IOException {
+    writer.write(cc.getGeometryType().toUpperCase(Locale.ROOT));
+    writer.write(" ");
+    appendOrdinateText(outputOrdinates, writer);
+    if (cc.isEmpty()) {
+      writer.write(WKTConstants.EMPTY);
+      return;
+    }
+    writer.write("(");
+    for (int i = 0; i < cc.getNumCurves(); i++) {
+      if (i > 0) writer.write(", ");
+      LineString member = cc.getCurveN(i);
+      if (member instanceof CircularString) {
+        writer.write("CIRCULARSTRING ");
+      }
+      // Body only: no per-member ordinate modifier, no nested keyword
+      // for plain LineStrings.
+      appendSequenceText(member.getCoordinateSequence(), outputOrdinates,
+          useFormatting, level, false, writer, formatter);
+    }
+    writer.write(")");
   }
 }
