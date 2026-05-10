@@ -28,6 +28,7 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.curved.CircularString;
 import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
+import org.locationtech.jts.geom.curved.Tin;
 import org.locationtech.jts.geom.curved.Triangle;
 
 public class GeometryCombiner 
@@ -96,6 +97,39 @@ public class GeometryCombiner
     LinearRing shell = geomFactory.createLinearRing(ring);
     Triangle tri = cgf.createTriangle(shell);
     return combine(orig, tri);
+  }
+
+  /**
+   * Builds a Tin from {@code coords} interpreted as consecutive groups
+   * of three corner coordinates (one triangular patch per triple). If
+   * {@code orig} is null, the Tin is returned directly so the
+   * subclass survives the "first geometry in the model" path; otherwise
+   * the Tin is run through {@link #combine(Geometry, Geometry)} which
+   * may degrade it to a {@link org.locationtech.jts.geom.MultiPolygon}
+   * (a known phase-1 limitation tied to
+   * {@link #extractElements(Geometry, boolean)} flattening collections).
+   */
+  public Geometry addTin(Geometry orig, Coordinate[] coords)
+  {
+    int n = coords.length / 3;
+    if (n < 1) {
+      return orig == null ? geomFactory.createGeometryCollection() : orig;
+    }
+    CurvedGeometryFactory cgf = (geomFactory instanceof CurvedGeometryFactory)
+        ? (CurvedGeometryFactory) geomFactory
+        : new CurvedGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
+    Polygon[] patches = new Polygon[n];
+    for (int i = 0; i < n; i++) {
+      Coordinate a = coords[3 * i];
+      Coordinate b = coords[3 * i + 1];
+      Coordinate c = coords[3 * i + 2];
+      Coordinate[] ring = new Coordinate[] { a, b, c, new Coordinate(a) };
+      LinearRing shell = geomFactory.createLinearRing(ring);
+      patches[i] = cgf.createTriangle(shell);
+    }
+    Tin tin = cgf.createTin(patches);
+    if (orig == null || orig.isEmpty()) return tin;
+    return combine(orig, tin);
   }
 
   public Geometry addPoint(Geometry orig, Coordinate pt)
