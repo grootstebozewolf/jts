@@ -130,6 +130,47 @@ public class ClothoidSegment extends LineString implements Linearizable {
   }
 
   /**
+   * §3.7 — type identity is required for {@code equalsExact}. Without this
+   * override the inherited {@link LineString#isEquivalentClass(Geometry)}
+   * accepts any {@code LineString} subclass, so a plain LineString with
+   * the same start/end coords would compare equal to a ClothoidSegment.
+   */
+  @Override
+  protected boolean isEquivalentClass(Geometry other) {
+    return other instanceof ClothoidSegment;
+  }
+
+  /**
+   * §3.7 — compare parameters and start state, not the parent's 2-point
+   * coord sequence. Two ClothoidSegments with identical {@code (κ₀, κ₁, L)}
+   * but different start state (point or tangent) are different geometries.
+   * The end coordinate is derived analytically from the parameters and is
+   * therefore not compared separately.
+   *
+   * <p><strong>Asymmetry caveat.</strong> {@code Geometry.equalsExact} is
+   * single-dispatched on the receiver. {@code clothoid.equalsExact(plain)}
+   * correctly returns false because of this override, but
+   * {@code plain.equalsExact(clothoid)} dispatches to
+   * {@link LineString#equalsExact(Geometry, double)} which only sees the
+   * 2-point coord sequence and may return true. Curve-aware code should
+   * always have a curve-typed reference on the receiver side of the call,
+   * or use the {@link #equals(Object)} alternative which is type-strict by
+   * default.
+   */
+  @Override
+  public boolean equalsExact(Geometry other, double tolerance) {
+    if (this == other) return true;
+    if (!isEquivalentClass(other)) return false;
+    ClothoidSegment o = (ClothoidSegment) other;
+    return Math.abs(length      - o.length)       <= tolerance
+        && Math.abs(startKappa  - o.startKappa)   <= tolerance
+        && Math.abs(endKappa    - o.endKappa)     <= tolerance
+        && Math.abs(startTangent - o.startTangent) <= tolerance
+        && Math.abs(startPoint.x - o.startPoint.x) <= tolerance
+        && Math.abs(startPoint.y - o.startPoint.y) <= tolerance;
+  }
+
+  /**
    * Reverses the traversal direction of the clothoid (§3.8 of the proposal).
    * <p>
    * Curvature is the rate of change of heading with respect to arc length,
