@@ -19,6 +19,7 @@ import java.util.Locale;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.curved.CircularString;
+import org.locationtech.jts.geom.curved.ClothoidSegment;
 import org.locationtech.jts.geom.curved.CompoundCurve;
 import org.locationtech.jts.io.Ordinate;
 import org.locationtech.jts.io.OrdinateFormat;
@@ -80,6 +81,10 @@ public class CurvedWKTWriter extends WKTWriter {
     for (int i = 0; i < n; i++) {
       if (i > 0) writer.write(", ");
       LineString m = cc.getMemberN(i);
+      if (m instanceof ClothoidSegment) {
+        appendClothoidSegmentText((ClothoidSegment) m, formatter, writer);
+        continue;
+      }
       if (m instanceof CircularString) {
         writer.write(WKTConstants.CIRCULARSTRING);
         writer.write(" ");
@@ -87,6 +92,18 @@ public class CurvedWKTWriter extends WKTWriter {
       appendSequenceText(m.getCoordinateSequence(), outputOrdinates, useFormatting,
           level, false, writer, formatter);
     }
+    writer.write(")");
+  }
+
+  /** JTS extension: {@code CLOTHOID(k0, k1, L)}. See grammars-v4 #4847. */
+  private void appendClothoidSegmentText(ClothoidSegment cs,
+      OrdinateFormat formatter, Writer writer) throws IOException {
+    writer.write("CLOTHOID (");
+    writer.write(formatter.format(cs.getStartKappa()));
+    writer.write(", ");
+    writer.write(formatter.format(cs.getEndKappa()));
+    writer.write(", ");
+    writer.write(formatter.format(cs.getLength()));
     writer.write(")");
   }
 }

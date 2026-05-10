@@ -26,6 +26,7 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curved.CircularString;
+import org.locationtech.jts.geom.curved.ClothoidSegment;
 import org.locationtech.jts.geom.curved.CompoundCurve;
 import org.locationtech.jts.geom.curved.CurvePolygon;
 import org.locationtech.jts.geom.curved.MultiCurve;
@@ -63,6 +64,10 @@ import org.locationtech.jts.io.WKTReader;
 public class CurvedWKTReader extends WKTReader {
 
   private static final String L_PAREN = "(";
+  private static final String R_PAREN = ")";
+  private static final String COMMA   = ",";
+  /** JTS extension keyword (proposal: grammars-v4 #4847). Not in OGC SFA. */
+  private static final String CLOTHOID = "CLOTHOID";
 
   public CurvedWKTReader() {
     super();
@@ -162,11 +167,73 @@ public class CurvedWKTReader extends WKTReader {
       return new CompoundCurve(csFactory.create(coords.toArray(new Coordinate[0])), geometryFactory);
     }
     List<LineString> mems = new ArrayList<LineString>();
+    Coordinate cursorPt = null;
+    double cursorTangent = 0.0;
     do {
-      mems.add(readCurveMember(tokenizer, ordinateFlags));
+      String peek = lookAheadWord(tokenizer);
+      if (peek.equalsIgnoreCase(CLOTHOID)) {
+        if (cursorPt == null) {
+          throw parseErrorWithLine(tokenizer,
+              "CLOTHOID may not be the first member of a COMPOUNDCURVE; "
+              + "needs a preceding segment for start state");
+        }
+        getNextWord(tokenizer); // consume CLOTHOID keyword
+        ClothoidSegment cs = readClothoidSegmentText(tokenizer, cursorPt, cursorTangent);
+        mems.add(cs);
+        cursorPt = cs.getEndCoordinate();
+        cursorTangent = cs.getEndTangent();
+      } else {
+        LineString m = readCurveMember(tokenizer, ordinateFlags);
+        mems.add(m);
+        Coordinate[] cc = m.getCoordinates();
+        if (cc.length >= 1) {
+          cursorPt = cc[cc.length - 1];
+          if (cc.length >= 2) {
+            Coordinate prev = cc[cc.length - 2];
+            cursorTangent = Math.atan2(cursorPt.y - prev.y, cursorPt.x - prev.x);
+          }
+        }
+      }
       tok = getNextCloserOrComma(tokenizer);
     } while (tok.equals(","));
     return new CompoundCurve(mems.toArray(new LineString[0]), geometryFactory);
+  }
+
+  /** Reads {@code (k0, k1, L)} body of a CLOTHOID segment. */
+  private ClothoidSegment readClothoidSegmentText(StreamTokenizer tokenizer,
+      Coordinate startPt, double startTangent) throws IOException, ParseException {
+    String tok = getNextWord(tokenizer);
+    if (!tok.equals(L_PAREN)) {
+      throw parseErrorWithLine(tokenizer, "Expected '(' after CLOTHOID, got " + tok);
+    }
+    double k0 = readScalar(tokenizer);
+    expectComma(tokenizer);
+    double k1 = readScalar(tokenizer);
+    expectComma(tokenizer);
+    double len = readScalar(tokenizer);
+    String close = getNextWord(tokenizer);
+    if (!close.equals(R_PAREN)) {
+      throw parseErrorWithLine(tokenizer, "Expected ')' to close CLOTHOID, got " + close);
+    }
+    return new ClothoidSegment(startPt, startTangent, k0, k1, len, geometryFactory);
+  }
+
+  private double readScalar(StreamTokenizer tokenizer) throws IOException, ParseException {
+    String s = getNextWord(tokenizer);
+    if (s.equalsIgnoreCase("INF") || s.equalsIgnoreCase("INFINITY")) return Double.POSITIVE_INFINITY;
+    if (s.equalsIgnoreCase("-INF") || s.equalsIgnoreCase("-INFINITY")) return Double.NEGATIVE_INFINITY;
+    if (s.equalsIgnoreCase("NAN")) return Double.NaN;
+    try { return Double.parseDouble(s); }
+    catch (NumberFormatException e) {
+      throw parseErrorWithLine(tokenizer, "Invalid scalar: " + s);
+    }
+  }
+
+  private void expectComma(StreamTokenizer tokenizer) throws IOException, ParseException {
+    String c = getNextWord(tokenizer);
+    if (!c.equals(COMMA)) {
+      throw parseErrorWithLine(tokenizer, "Expected ',' inside CLOTHOID body, got " + c);
+    }
   }
 
   private CurvePolygon readCurvePolygonText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
