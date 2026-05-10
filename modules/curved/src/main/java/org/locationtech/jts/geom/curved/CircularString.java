@@ -48,6 +48,25 @@ public class CircularString extends LineString implements Linearizable {
     return new CircularString(getCoordinateSequence().copy(), getFactory());
   }
 
+  /**
+   * Reversing a CircularString preserves the type — a 3-point arc traversed
+   * in the opposite direction is still a 3-point arc on the same circle.
+   * Without this override the inherited {@link LineString#reverseInternal()}
+   * would return a plain LineString and lose the arc identity (which would
+   * also break {@link CompoundCurve#reverseInternal()}).
+   */
+  @Override
+  protected CircularString reverseInternal() {
+    CoordinateSequence seq = getCoordinateSequence();
+    int n = seq.size();
+    Coordinate[] reversed = new Coordinate[n];
+    for (int i = 0; i < n; i++) {
+      reversed[i] = new Coordinate(seq.getCoordinate(n - 1 - i));
+    }
+    GeometryFactory f = getFactory();
+    return new CircularString(f.getCoordinateSequenceFactory().create(reversed), f);
+  }
+
   @Override
   public Geometry toLinear(double tolerance) {
     return toLinear(tolerance, Collections.<Coordinate>emptyList());

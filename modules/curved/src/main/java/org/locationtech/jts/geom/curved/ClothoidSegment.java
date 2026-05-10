@@ -129,6 +129,36 @@ public class ClothoidSegment extends LineString implements Linearizable {
   }
 
   /**
+   * Reverses the traversal direction of the clothoid (§3.8 of the proposal).
+   * <p>
+   * Curvature is the rate of change of heading with respect to arc length,
+   * {@code κ = dθ/ds}. Reversing flips both: the new heading at any
+   * physical point is the old heading + π, and the arc length runs the
+   * other way ({@code ds' = −ds}). So the new curvature at any physical
+   * point is the negation of the old one, which gives the endpoint
+   * transformation:
+   * <ul>
+   *   <li>new {@code κ₀ = −old κ₁}</li>
+   *   <li>new {@code κ₁ = −old κ₀}</li>
+   * </ul>
+   * Start state moves to the old end point, tangent rotated 180°. Length
+   * is unchanged. Twice-reversing is the identity within float noise.
+   */
+  @Override
+  protected ClothoidSegment reverseInternal() {
+    Coordinate newStart = new Coordinate(endPoint);
+    double newTangent = normaliseAngle(endTangent + Math.PI);
+    return new ClothoidSegment(newStart, newTangent,
+        -endKappa, -startKappa, length, getFactory());
+  }
+
+  private static double normaliseAngle(double theta) {
+    while (theta >   Math.PI) theta -= 2.0 * Math.PI;
+    while (theta <= -Math.PI) theta += 2.0 * Math.PI;
+    return theta;
+  }
+
+  /**
    * Densify via composite Simpson's rule on the heading integral.
    * Step count is derived from the requested tolerance and the
    * maximum curvature on the segment; clamped to [16, 1024].
