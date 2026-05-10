@@ -1,7 +1,5 @@
 /*
  * Copyright (c) 2026 grootstebozewolf
- * Adapted from a 2020 contribution by Jeroen Bloemscheer to a JTS fork
- * (the `CIRCULARSTRING` branch).
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -11,6 +9,8 @@
  *
  * http://www.eclipse.org/org/documents/edl-v10.php.
  */
+/* Adapted from a 2020 contribution by Jeroen Bloemscheer to a JTS fork
+ * (the `CIRCULARSTRING` branch). */
 package org.locationtech.jtstest.testbuilder.ui.tools;
 
 import java.awt.Shape;
