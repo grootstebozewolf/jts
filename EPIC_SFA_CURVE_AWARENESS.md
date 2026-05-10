@@ -1,6 +1,6 @@
 # Epic: SFA / ISO 19125-2 Curve Awareness in JTS
 
-> **AI assistance disclosure:** Drafted with AI assistance (multiple models across iterations), structurally rewritten and reviewed by the author. All claims, scope decisions, and risks are author-owned. The companion red-test class (`CurveAwarenessSpecTest`) is likewise AI-drafted and author-reviewed. This disclosure is per the [Eclipse Foundation Generative AI Usage Guidelines](https://www.eclipse.org/projects/guidelines/genai-usage.php).
+> **AI assistance disclosure:** Drafted with AI assistance (multiple models across iterations), structurally rewritten and reviewed by the author. All claims, scope decisions, and risks are author-owned. The companion red-test class (`CurveAwarenessSpecTest`) is likewise AI-drafted and author-reviewed. This disclosure is per the [Eclipse Foundation Generative AI Usage Guidelines for Committers](https://www.eclipse.org/projects/guidelines/genai/).
 
 **Status:** Draft v3.
 **Source branch:** [`feature/sfa-curve-buffer-spike`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-buffer-spike) on `grootstebozewolf/jts`.
