@@ -43,6 +43,20 @@ public class CircularString extends LineString implements Linearizable {
     return new CircularString(getCoordinateSequence().copy(), getFactory());
   }
 
+  /**
+   * Option-A spike (R-EQ): override LineString's lenient
+   * {@code isEquivalentClass} so {@code circularString.equalsExact(lineString)}
+   * returns {@code false} per spec. The reverse direction
+   * ({@code lineString.equalsExact(circularString)}) still returns
+   * {@code true} because {@code LineString.isEquivalentClass} stays
+   * lenient to preserve {@code LinearRing ↔ LineString} equivalence
+   * — see {@code SPEC_R_EQ.md} "asymmetry trap" for the rationale.
+   */
+  @Override
+  protected boolean isEquivalentClass(Geometry other) {
+    return other instanceof CircularString;
+  }
+
   @Override
   public Geometry toLinear(double tolerance) {
     return getFactory().createLineString(getCoordinateSequence().copy());

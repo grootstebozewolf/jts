@@ -38,6 +38,15 @@ public class CompoundCurve extends LineString implements Linearizable {
     return new CompoundCurve(getCoordinateSequence().copy(), getFactory());
   }
 
+  /**
+   * Option-A spike (R-EQ): see {@code CircularString.isEquivalentClass}
+   * and {@code SPEC_R_EQ.md} for the asymmetry rationale.
+   */
+  @Override
+  protected boolean isEquivalentClass(Geometry other) {
+    return other instanceof CompoundCurve;
+  }
+
   @Override
   public Geometry toLinear(double tolerance) {
     return getFactory().createLineString(getCoordinateSequence().copy());
