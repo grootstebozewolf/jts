@@ -206,7 +206,17 @@ public class Polygon
     return true;
   }
 
-  public LinearRing getExteriorRing() {
+  /**
+   * Option-B spike (F-CP / FCP-DOVE): return type widened from
+   * {@code LinearRing} to {@code LineString}, so a {@code CurvePolygon}
+   * override can return a {@code CompoundCurve} or {@code CircularString}
+   * shell without violating the inherited contract. The default
+   * {@code Polygon} implementation still stores and returns a
+   * {@code LinearRing}; callers that need the narrow type must cast,
+   * accepting a {@code ClassCastException} if a curved subclass is
+   * exposed via the {@code Polygon} reference.
+   */
+  public LineString getExteriorRing() {
     return shell;
   }
 
@@ -214,7 +224,8 @@ public class Polygon
     return holes.length;
   }
 
-  public LinearRing getInteriorRingN(int n) {
+  /** See {@link #getExteriorRing()} for the Option-B return-type widening. */
+  public LineString getInteriorRingN(int n) {
     return holes[n];
   }
 
