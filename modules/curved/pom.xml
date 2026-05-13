@@ -39,6 +39,18 @@
                   </archive>
                 </configuration>
             </plugin>
+            <plugin>
+                <!-- Spec / red-test + probe suites under spec/curveawareness/
+                     are intentionally red or print-only (see issue #1195 §11).
+                     They run on demand with
+                     `mvn -pl modules/curved test -Dtest=<SpecOrProbeClass>`. -->
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>**/spec/curveawareness/*.java</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
