@@ -20,10 +20,16 @@ import org.locationtech.jts.geom.util.GeometryEditor;
 
 public class GeometryVertexDeleter 
 {
-  public static Geometry delete(Geometry geom, 
-      LineString line, 
+  public static Geometry delete(Geometry geom,
+      LineString line,
       int vertexIndex)
   {
+    // Curve-aware path refuses to delete junction vertices of a
+    // CompoundCurve (would tear the chain) or any control point of a
+    // CircularString / ClothoidSegment (degenerates the analytic
+    // definition). Plain geometries take the generic editor path.
+    Geometry curveAware = CurveAwareVertexOps.delete(geom, line, vertexIndex);
+    if (curveAware != null) return curveAware;
     GeometryEditor editor = new GeometryEditor();
     editor.setCopyUserData(true);
     return editor.edit(geom, new DeleteVertexOperation(line, vertexIndex));
