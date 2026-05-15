@@ -20,18 +20,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.locationtech.jts.awt.PointTransformation;
-import org.locationtech.jts.awt.curved.CircularArcRenderer;
+import org.locationtech.jts.awt.curve.CircularArcRenderer;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jtstest.testbuilder.model.GeometryType;
 
 /**
  * Stream-style mouse-draw tool for {@link
- * org.locationtech.jts.geom.curved.CircularString} geometries. Each
+ * org.locationtech.jts.geom.curve.CircularString} geometries. Each
  * captured triple of points becomes one circular arc.
  *
  * <p>Overrides {@link #getShape()} so that the in-progress preview is
  * rendered as actual arcs — using the same {@link CircularArcRenderer}
- * that {@link org.locationtech.jts.awt.curved.CurvedShapeWriter} uses
+ * that {@link org.locationtech.jts.awt.curve.CurveShapeWriter} uses
  * for finished geometry — instead of straight line segments between
  * control points.
  */

@@ -12,7 +12,7 @@
 package org.locationtech.jtstest.util;
 
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jtstest.util.io.MultiFormatReader;
 
 import junit.framework.Test;
@@ -91,7 +91,7 @@ public class GeometryTextCleanerTest extends TestCase {
         "  MULTIPOINT ((10 20), (30 40))\n" +
         ")";
     String cleaned = GeometryTextCleaner.cleanWKT(pasted);
-    Geometry g = new MultiFormatReader(new CurvedGeometryFactory()).read(cleaned);
+    Geometry g = new MultiFormatReader(new CurveGeometryFactory()).read(cleaned);
     assertNotNull(g);
     assertEquals("GeometryCollection", g.getGeometryType());
     assertEquals(3, g.getNumGeometries());

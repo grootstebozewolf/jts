@@ -26,7 +26,7 @@ import org.locationtech.jts.io.WKBHexFileReader;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.io.WKTFileReader;
 import org.locationtech.jts.io.WKTReader;
-import org.locationtech.jts.io.curved.CurvedWKTReader;
+import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jts.io.gml2.GMLReader;
 import org.locationtech.jtstest.testbuilder.io.shapefile.Shapefile;
 import org.locationtech.jtstest.util.FileUtil;
@@ -119,7 +119,7 @@ public class IOUtil
   throws ParseException, IOException
   {
     String stripped = stripComments(wkt);
-    WKTReader reader = new CurvedWKTReader(geomFact);
+    WKTReader reader = new CurveWKTReader(geomFact);
     WKTFileReader fileReader = new WKTFileReader(new StringReader(stripped), reader);
     fileReader.setStrictParsing(isStrict);
     List geomList = fileReader.read();
@@ -135,7 +135,7 @@ public class IOUtil
    * {@code /* block *}{@code /} comments from a WKT input string.
    * <p>
    * This is a TestBuilder convenience only and is <em>not</em> applied
-   * by the underlying {@code WKTReader} / {@code CurvedWKTReader}: the
+   * by the underlying {@code WKTReader} / {@code CurveWKTReader}: the
    * core readers stay strict per OGC SFA / ISO 19125, so any geometry
    * round-tripped out of JTS remains spec-compliant. Comments are only
    * tolerated on the way in, when a human is pasting WKT into the app.

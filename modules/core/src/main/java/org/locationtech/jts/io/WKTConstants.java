@@ -30,7 +30,7 @@ public class WKTConstants {
 
   /* Extended OGC SFA / ISO 19125-2 type keywords. The core JTS readers and
    * writers do not handle these directly; they are exposed here so that
-   * extension modules (e.g. {@code jts-curved}) and downstream tooling can
+   * extension modules (e.g. {@code jts-curve}) and downstream tooling can
    * share a single canonical set of strings. */
   public static final String CIRCULARSTRING = "CIRCULARSTRING";
   public static final String COMPOUNDCURVE = "COMPOUNDCURVE";
