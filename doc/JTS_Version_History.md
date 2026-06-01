@@ -66,6 +66,10 @@ Distributions for older JTS versions can be obtained at the
 * Improve `LineStringSnapper` performance by using squared distance (#1111)
 * Add spatial index to OverlayNG `PolygonBuilder.placeFreeHoles` (#1173)
 
+### Robustness / Testing
+
+* Add robustness characterization tests for the DD orientation predicate (#1106)
+
 ## JTS TestBuilder
 
 ### Functionality Improvements
