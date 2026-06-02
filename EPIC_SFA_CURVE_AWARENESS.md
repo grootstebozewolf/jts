@@ -1,4 +1,4 @@
-# Epic: SFA / ISO 19125-2 Curve Awareness in JTS
+# Epic: Curve and Extended-Geometry Awareness in JTS (OGC SFA + ISO 13249-3 SQL/MM)
 
 > **AI Disclosure** *(per the [Eclipse Foundation Generative AI Usage Guidelines for Committers](https://www.eclipse.org/projects/guidelines/genai/))*
 >
@@ -22,7 +22,9 @@
 
 ## 1. Goal
 
-Make JTS preserve OGC SFA / ISO 19125-2 curve geometries — `CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON`, `MULTICURVE`, `MULTISURFACE`, `TRIANGLE` — through every algorithm where the math is sound, instead of silently linearising to flat parents on the way in.
+Make JTS preserve curved and extended geometry types — `CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON`, `MULTICURVE`, `MULTISURFACE`, `TRIANGLE` — through every algorithm where the math is sound, instead of silently linearising to flat parents on the way in.
+
+> **Standards provenance.** OGC Simple Feature Access (ISO 19125-1) defines a geometry model with *linear* interpolation between vertices. Of the types above, SFA 1.2.1 (OGC 06-103r4) defines only the abstract `MULTICURVE` / `MULTISURFACE` supertypes and the `TRIANGLE` surface; the concrete *curved* types — `CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON` — and circular interpolation come from **ISO/IEC 13249-3 (SQL/MM Spatial)**, not from SFA. (In OGC 06-103r4 those curved type names appear only in a type-code table that explicitly notes the entries "are for future use and do not reflect types used here.") ISO 19125-2 is the *SQL-bindings* part of SFA and introduces no curve types, so it is not the source of curve awareness and should not be cited as such.
 
 Today `jts-curved` is a Phase-1 stand-in: types parse, round-trip WKT *coordinates*, and exist in the type hierarchy, but `jts-core` ignores their identity and densifies on contact. This epic tracks the lift, operation by operation.
 
@@ -36,7 +38,7 @@ Today `jts-curved` is a Phase-1 stand-in: types parse, round-trip WKT *coordinat
 ## 3. Scope decisions
 
 **In scope (this epic):**
-- Algorithms operating on the six SFA curve types in 2-D.
+- Algorithms operating on the six curved / extended geometry types in 2-D.
 - WKT round-trip with member structure (already partially landed).
 - TestBuilder rendering and drawing tools.
 
@@ -241,7 +243,8 @@ After Phase 1 finishes, Phases 2 / 3 / 4 / 5 / 7 can run in parallel; Phase 6 wa
 
 ## 12. References
 
-- OGC Simple Feature Access 1.2.1 / ISO 19125-2.
+- OGC Simple Feature Access 1.2.1 (OGC 06-103r4) / ISO 19125-1 — linear geometry model; abstract `MultiCurve` / `MultiSurface`, and `Triangle`.
+- ISO/IEC 13249-3 (SQL/MM Spatial) — circular interpolation and the `CircularString` / `CompoundCurve` / `CurvePolygon` curved types. (ISO 19125-2 is the SQL-bindings part of SFA, not a source of curve types.)
 - `jts-curved` source: `modules/curved/`.
 - Spike branch: `feature/sfa-curve-buffer-spike` on `grootstebozewolf/jts`.
 - `CurveAwarenessSpecTest` (live progress meter).

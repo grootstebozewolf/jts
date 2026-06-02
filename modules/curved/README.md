@@ -1,7 +1,10 @@
 # jts-curved
 
-Opt-in JTS module providing the OGC Simple Features Access (SFA) /
-ISO 19125-2 extended geometry types and a curve-aware WKT reader/writer.
+Opt-in JTS module providing extended geometry types — the abstract
+`MultiCurve` / `MultiSurface` and `Triangle` from OGC Simple Features Access
+(ISO 19125-1), and the curved `CircularString` / `CompoundCurve` /
+`CurvePolygon` types from ISO/IEC 13249-3 (SQL/MM Spatial) — with a
+curve-aware WKT reader/writer.
 
 ## What it adds
 
@@ -110,4 +113,4 @@ classpath users.
 
 - Discussion: <https://github.com/locationtech/jts/discussions/1193>
 - Design template: NetTopologySuite/NetTopologySuite#526
-- Specification: OGC Simple Features Access 1.2.1 / ISO 19125-2
+- Specifications: OGC Simple Features Access 1.2.1 (ISO 19125-1) — linear model, abstract `MultiCurve`/`MultiSurface`, `Triangle`; and ISO/IEC 13249-3 (SQL/MM Spatial) — circular interpolation and the `CircularString`/`CompoundCurve`/`CurvePolygon` curved types. (ISO 19125-2 is the SQL-bindings part of SFA, not a source of curve types.)
