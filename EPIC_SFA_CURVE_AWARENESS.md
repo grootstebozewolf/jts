@@ -30,7 +30,7 @@ Today `jts-curved` is a Phase-1 stand-in: types parse, round-trip WKT *coordinat
 
 ## 2. Why
 
-- **Performance.** Each densification step expands a typical arc to many chord points (≥50 for a half-circle at 1% chord-tolerance); pipelines that buffer → simplify → union compound the cost.
+- **Performance.** Each densification step expands one arc into a chord polyline — about 12 chords (13 vertices) for a half-circle at the default 1% chord-error (sagitta) tolerance used by `CircularArcDensifier`, rising to ~36 at 0.1%; pipelines that buffer → simplify → union compound the cost.
 - **Precision.** Densify → operate → densify drifts control points by ULPs and breaks snap-to-grid round-trips against external SFA producers.
 - **Interop.** PostGIS, Oracle Spatial, NetTopologySuite emit and consume curve geometries; today JTS round-trips them as visibly different shapes after every operation.
 - **Discoverability.** TestBuilder cannot show a curved buffer or a curved boundary today; users of the spec types never see what their input was for.
