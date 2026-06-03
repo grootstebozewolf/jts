@@ -190,6 +190,13 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
    * Green will add minimal override. Verification elsewhere; meter red test left with
    * explicit fail("TAG: B-MS...") per epic (delete only on ship).
    */
+  // B-MS implemented (green verified on branch): MultiSurface.getBoundary() override
+  // (collects from members' boundaries; detects curved via CurvePolygon or !LR pieces;
+  // returns MultiCurve preserving members when any curved, else plain MLS for pure-linear
+  // soundness to match MultiPolygon contract). Green verifs in CurvePolygonStructuralSpec
+  // (test_B_MS_multiSurfaceBoundaryPreservesCurvedRings + pure-linear refactor soundness).
+  // Red kept per RGR. See d264251a on feature/sfa-curve-B-MS-rgr (symmetric to B-CP).
+
   public void test_B_MS_multiSurfaceBoundaryIsMultiCurve() throws Exception {
     Geometry g = read(
         "MULTISURFACE (((0 0, 10 0, 10 10, 0 10, 0 0)), "
