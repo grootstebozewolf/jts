@@ -197,4 +197,27 @@ public class CompoundCurveMembersTest extends GeometryTestCase {
     // For a 3-pt closed (first==last) it will typically be empty under default bnRule.
     assertTrue(bClosedArc.isEmpty() || bClosedArc.getNumGeometries() == 1);
   }
+
+  /** D-PT verification (green alongside red meter marker in
+   *  CurveAwarenessSpecTest). Point-to-arc distance clamps to the arc sweep
+   *  (analytical on circle) rather than chord-polyline approximation. */
+  public void testPointToArcDistance_D_PT() throws Exception {
+    // Exact meter case: half-circle R=5, point at (0,10) dist should be 5.0
+    CircularString arc = (CircularString) new CurvedWKTReader().read(
+        "CIRCULARSTRING (-5 0, 0 5, 5 0)");
+    Geometry pt = new CurvedWKTReader().read("POINT (0 10)");
+    double expected = 5.0;
+    assertEquals(expected, arc.distance(pt), 1e-9);
+    // via Geometry API too (the path the red meter exercises)
+    assertEquals(expected, ((Geometry) arc).distance(pt), 1e-9);
+
+    // CompoundCurve delegates to member arcs
+    CompoundCurve cc = (CompoundCurve) new CurvedWKTReader().read(
+        "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
+    // point whose closest is on the arc part
+    Geometry ptArc = new CurvedWKTReader().read("POINT (15 10)");
+    // rough: dist to (15,5) would be 5, but arc projects near
+    double d = cc.distance(ptArc);
+    assertTrue("CC point-to-arc should be reasonable", d > 4 && d < 6);
+  }
 }

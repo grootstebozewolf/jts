@@ -76,6 +76,24 @@ public class CompoundCurve extends LineString implements Linearizable {
   }
 
   /**
+   * D-PT support: for point queries, delegate to members (CS will use analytical
+   * arc dist; lines use their dist). This avoids densifying the whole CC.
+   * Non-point or other fall to super (control polyline dist).
+   */
+  @Override
+  public double distance(Geometry g) {
+    if (g instanceof org.locationtech.jts.geom.Point && members.length > 0) {
+      double min = Double.POSITIVE_INFINITY;
+      for (int i = 0; i < members.length; i++) {
+        double d = members[i].distance(g);
+        if (d < min) min = d;
+      }
+      return min;
+    }
+    return super.distance(g);
+  }
+
+  /**
    * B-CC guard: explicit override asserting the standard lineal boundary contract
    * for structural CompoundCurve.
    *

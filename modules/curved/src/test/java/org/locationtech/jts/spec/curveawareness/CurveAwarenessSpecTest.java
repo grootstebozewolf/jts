@@ -313,6 +313,11 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Distance
   // ============================================================
 
+  // D-PT implemented: analytical point-to-arc in CircularString (center/r + angle
+  // clamp to sweep; min to ends for safety). CompoundCurve mins over members.
+  // Green verif in CompoundCurveMembersTest#testPointToArcDistance_D_PT (uses meter case).
+  // Red marker kept per RGR. (D-AA etc still open.)
+
   /** D-PT: point-to-arc distance. */
   public void test_D_PT_pointToArcDistanceClampsToSweep() throws Exception {
     // Half-circle (-5,0)..(5,0) through (0,5). Centre (0,0). External point (0, 10).
@@ -321,7 +326,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
     double expected = 5.0;     // 10 - radius 5
     double actual   = arc.distance(pt);
     fail("D-PT: distance from POINT(0 10) to half-arc R=5 should be " + expected
-        + ", got " + actual + " (chord-treated polyline distance).");
+        + ", got " + actual + " (analytical clamp; TAG marker kept per RGR).");
   }
 
   /** D-AA: arc-to-arc distance. */
