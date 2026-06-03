@@ -16,6 +16,11 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
+
+import java.awt.Shape;
+import java.awt.geom.PathIterator;
+
+import org.locationtech.jts.awt.ShapeWriter;
 import org.locationtech.jts.geom.curved.CircularString;
 import org.locationtech.jts.geom.curved.CompoundCurve;
 import org.locationtech.jts.geom.curved.CurvePolygon;
@@ -469,5 +474,56 @@ public class CurvePolygonStructuralSpec extends GeometryTestCase {
     LinearLocation badHigh = new LinearLocation(99, 0, 0.0);
     LinearLocation clampedBad = lil3.clampIndex(badHigh);
     assertEquals("LRF-LOC green: clamp caps out-of-range comp to last member", 2, clampedBad.getComponentIndex());
+  }
+
+  // ============================================================
+  // F-RD verification (green proof for RGR/ship on F-RD TAG)
+  // Low risk/cost: ShapeWriter now early-delegates curved inputs (via toLinear reflection)
+  // so CP rings + MS CP members are arc-sampled (dense points on arcs) rather than
+  // bare control chords. Added with the toLinear delegation in ShapeWriter.
+  // ============================================================
+
+  /**
+   * Green verification for F-RD: ShapeWriter on CurvePolygon (with curved ring members)
+   * and MultiSurface produces Shapes whose paths contain many more vertices than the
+   * bare control points (evidence that arc sampling via toLinear occurred for members).
+   */
+  public void test_F_RD_curvedShapeWriterArcRendersCurvePolygonRingsGreen() throws Exception {
+    CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
+    ShapeWriter sw = new ShapeWriter();
+
+    // CurvePolygon with single circular ring (5 control pts closed). Bare control would yield ~5 segments.
+    // toLinear(0.25) on R=10 arc will sample densely (~ dozens to hundreds of points).
+    Geometry cp = r.read("CURVEPOLYGON (CIRCULARSTRING (-10 0, 0 10, 10 0, 0 -10, -10 0))");
+    Shape s = sw.toShape(cp);
+    assertNotNull("F-RD green: Shape for CP", s);
+
+    int segCount = countPathSegments(s);
+    assertTrue("F-RD green: CP arc-render should produce >> bare control points (sampled arcs); got " + segCount,
+        segCount > 30);
+
+    // MultiSurface containing CurvePolygons: should also arc-sample the member rings.
+    Geometry ms = r.read("MULTISURFACE (CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0)), CURVEPOLYGON (CIRCULARSTRING (10 0, 12 2, 14 0, 12 -2, 10 0)))");
+    Shape s2 = sw.toShape(ms);
+    assertNotNull("F-RD green: Shape for MS", s2);
+    int segCount2 = countPathSegments(s2);
+    assertTrue("F-RD green: MS with CP members should arc-sample (many segments); got " + segCount2,
+        segCount2 > 30);
+
+    // Sanity: plain (non-curved) Polygon still renders with exact controls (no spurious densify).
+    Geometry plain = r.read("POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))");
+    Shape sPlain = sw.toShape(plain);
+    int plainCount = countPathSegments(sPlain);
+    assertTrue("F-RD green: plain poly count should be small/exact (~5)", plainCount <= 10);
+  }
+
+  private int countPathSegments(Shape s) {
+    PathIterator pi = s.getPathIterator(null);
+    int count = 0;
+    while (!pi.isDone()) {
+      count++;
+      pi.next();
+    }
+    return count;
   }
 }

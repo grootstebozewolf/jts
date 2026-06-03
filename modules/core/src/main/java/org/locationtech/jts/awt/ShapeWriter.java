@@ -168,6 +168,26 @@ public class ShapeWriter
 	public Shape toShape(Geometry geometry)
 	{
 		if (geometry.isEmpty()) return new GeneralPath();
+
+		// F-RD (low risk/cost RGR): arc-render curved types (CurvePolygon rings + MultiSurface members,
+		// and improves CS/CC/MC too) by delegating to toLinear(small tol) which walks structural members
+		// (e.g. CircularString/CompoundCurve in rings) and produces dense samples along true arcs.
+		// The resulting linear geometry is then rendered with many vertices (smooth "arc" look) instead of
+		// sparse control-point chords. Uses reflection only (no curved-module dependency; matches DSF + LRF-*
+		// + Densifier.toLinear delegation pattern exactly). Non-curved types have no toLinear method and
+		// render exactly as before (no unwanted densification of straight lines).
+		// Tol is a fixed small value for typical rendering quality (future: could be viewport-derived).
+		try {
+			java.lang.reflect.Method toLinearM = geometry.getClass().getMethod("toLinear", double.class);
+			Object res = toLinearM.invoke(geometry, 0.25);
+			if (res instanceof Geometry) {
+				geometry = (Geometry) res;
+			}
+		} catch (NoSuchMethodException | IllegalAccessException | java.lang.reflect.InvocationTargetException e) {
+			// Not Linearizable/curved (or invocation problem) -> fall through to exact control-point rendering
+			// for this geometry (plain LineString/Polygon etc. are unaffected).
+		}
+
 		if (geometry instanceof Polygon) return toShape((Polygon) geometry);
 		if (geometry instanceof LineString) 			return toShape((LineString) geometry);
 		if (geometry instanceof MultiLineString) 	return toShape((MultiLineString) geometry);

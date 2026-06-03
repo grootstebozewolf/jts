@@ -71,7 +71,29 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Next low risk/cost (per triage): F-RD, H-*, S-*, AT-*, TRI-*, etc.
   // State clean on feature/sfa-curve-B-MS-rgr; see RGR + ship commits.
 
-  /** F-RD: renderer arc-walks CurvePolygon rings + MultiCurve+MultiSurface. */
+  /**
+   * F-RD: renderer arc-walks CurvePolygon rings + MultiCurve+MultiSurface.
+   *
+   * <p>RED-FIRST SEAM IDENTIFICATION (for RGR on this TAG; low risk/cost as pure rendering/visual sampling, post structural CC/CP):
+   * <ul>
+   *   <li>Seam: core awt ShapeWriter.toShape(Geometry) + toShape(Polygon/LineString/GC) dispatch and appendRing/toShape(LineString)
+   *       always walk .getCoordinates() or ring coords from the (derived) LinearRing views. For curved surfaces
+   *       (CurvePolygon, MultiSurface) this yields only the construction-time control-point chords (sparse on arcs).
+   *       Lineals (CS/CC/MC) go through LineString path and also get only bare controls (faceted arcs).</li>
+   *   <li>Delegation seam (low risk): early in public toShape(Geometry), after empty check, attempt
+   *       geometry.getClass().getMethod("toLinear", double.class).invoke(geometry, smallTol) via reflection.
+   *       If present (all Linearizable curved types: CS,CC,CP,MC,MS,...), rebind geometry to the dense linear result
+   *       (which walks structural members and samples arcs per the curved toLinear impl). Then fall through to normal
+   *       dispatch (now sees a plain dense poly/line etc). Non-curved have no such method -> exact control-point render (no change).
+   *       Tol ~0.25 for visual arc smoothness; renderer can later make dynamic via viewport.</li>
+   *   <li>Risk/cost: low (isolated addition in ShapeWriter; reflection exactly as in DSF and LRF (toLinear delegation in Densifier);
+   *       no new math/arc approx code; no curved compile dep; improves visuals for all curved without breaking flat;
+   *       rendering is a "sampling" use-case where densify-at-tol is appropriate and expected). Touches core but safe/visual only.</li>
+   *   <li>Verification: green verif uses ShapeWriter on CURVEPOLYGON(CIRCULARSTRING ring) + MultiSurface of them;
+   *       assert resulting Shape path has significantly more vertices than bare control count (evidence of arc sampling).
+   *       Meter red deleted on ship only.</li>
+   * </ul>
+   */
   public void test_F_RD_curvedShapeWriterArcRendersCurvePolygonRings() throws Exception {
     fail("F-RD: CurvedShapeWriter.toShapeOther should arc-render CurvePolygon ring "
         + "members and MultiSurface CurvePolygon members; today only CircularString, "

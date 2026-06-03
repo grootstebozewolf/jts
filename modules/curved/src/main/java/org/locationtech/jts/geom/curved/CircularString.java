@@ -18,6 +18,9 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * A connected sequence of circular arcs, where each consecutive triple of
  * control points (start, mid, end) defines one arc and the end point of one
@@ -124,6 +127,31 @@ public class CircularString extends LineString implements Linearizable {
 
   @Override
   public Geometry toLinear(double tolerance) {
-    return getFactory().createLineString(getCoordinateSequence().copy());
+    CoordinateSequence pts = getCoordinateSequence();
+    if (pts.size() < 2) {
+      return getFactory().createLineString();
+    }
+    if (tolerance <= 0.0) {
+      return getFactory().createLineString(pts.copy());
+    }
+    List<Coordinate> coords = new ArrayList<>();
+    coords.add(pts.getCoordinate(0));
+    for (int i = 0; i + 2 < pts.size(); i += 2) {
+      Coordinate p0 = pts.getCoordinate(i);
+      Coordinate p1 = pts.getCoordinate(i + 1);
+      Coordinate p2 = pts.getCoordinate(i + 2);
+      double alen = CircularArcs.arcLength(p0, p1, p2);
+      if (alen <= tolerance) {
+        coords.add(p2);
+        continue;
+      }
+      int nSteps = Math.max(1, (int) Math.ceil(alen / tolerance));
+      for (int k = 1; k <= nSteps; k++) {
+        double frac = (double) k / nSteps;
+        Coordinate c = CircularArcs.pointAlongArcFrac(p0, p1, p2, frac);
+        coords.add(c);
+      }
+    }
+    return getFactory().createLineString(coords.toArray(new Coordinate[0]));
   }
 }
