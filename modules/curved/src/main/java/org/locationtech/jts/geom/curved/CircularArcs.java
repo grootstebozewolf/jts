@@ -12,6 +12,7 @@
 package org.locationtech.jts.geom.curved;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Triangle;
 
 /**
@@ -116,6 +117,58 @@ public final class CircularArcs {
     double acx = cx + dist * Math.cos(bis);
     double acy = cy + dist * Math.sin(bis);
     return new Coordinate(acx, acy);
+  }
+
+  /**
+   * Returns the point at arc-length distance s (0 <= s <= arc length) along the
+   * circular arc from p0 to p2 via p1.
+   */
+  public static Coordinate pointAlongArc(Coordinate p0, Coordinate p1, Coordinate p2, double s) {
+    double[] p = arcParams(p0, p1, p2);
+    double r = p[0];
+    double theta = p[1];
+    double cx = p[2];
+    double cy = p[3];
+    double a0 = p[4];
+    double sweep = p[5];
+    if (r < 1e-12 || theta < 1e-12) {
+      // degenerate to line
+      double chordLen = Math.hypot(p2.x - p0.x, p2.y - p0.y);
+      double t = chordLen > 0 ? s / chordLen : 0;
+      return new Coordinate(p0.x + t * (p2.x - p0.x), p0.y + t * (p2.y - p0.y));
+    }
+    double arcLen = r * theta;
+    if (s <= 0) return p0;
+    if (s >= arcLen) return p2;
+    double phi = s / r;
+    double angle = a0 + Math.signum(sweep) * phi;
+    return new Coordinate(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
+  }
+
+  /**
+   * Point at arc-length s along a full CircularString (sum of subarcs).
+   */
+  public static Coordinate pointAlongCircularString(CoordinateSequence pts, double s) {
+    if (pts.size() < 2) return pts.getCoordinate(0);
+    double total = 0.0;
+    for (int i = 0; i + 2 < pts.size(); i += 2) {
+      Coordinate a = pts.getCoordinate(i);
+      Coordinate b = pts.getCoordinate(i + 1);
+      Coordinate c = pts.getCoordinate(i + 2);
+      double alen = arcLength(a, b, c);
+      if (total + alen >= s) {
+        double local = s - total;
+        return pointAlongArc(a, b, c, local);
+      }
+      total += alen;
+    }
+    return pts.getCoordinate(pts.size() - 1);
+  }
+
+  /** Point at fraction (0-1) along the arc. */
+  public static Coordinate pointAlongArcFrac(Coordinate p0, Coordinate p1, Coordinate p2, double frac) {
+    double len = arcLength(p0, p1, p2);
+    return pointAlongArc(p0, p1, p2, frac * len);
   }
 
   /**

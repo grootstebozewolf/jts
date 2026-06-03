@@ -11,6 +11,7 @@
  */
 package org.locationtech.jts.spec.curveawareness;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.curved.CircularString;
@@ -63,10 +64,11 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // C-LIN, C-AREA shipped (analytical centroids for lines/polys using arc/segment contribs + getArea/getLength).
   // C-IP shipped (basic arc-aware IP via centroid override in CP; avoids chord-poly scan issues for thin crescents).
   // DSF shipped (Densifier now delegates to toLinear for Linearizable/curved via reflection; no core dep).
+  // LRF-LEN shipped (LengthIndexedLine now interprets s as arc-length for CircularString, using arc interp in location map + getCoordinate).
   // F-RD (CurvedShapeWriter integration) remains for later.
-  // === WORK PAUSED === (per user "pause" command). Current meter: 32 red TAGs (C-IP + DSF shipped).
-  // Last shipped: ... + C-IP (via centroid), DSF (delegation...).
-  // Next low risk/cost candidates (per triage/epic): LRF-LEN/LOC (length+members available), F-RD, H-*, S-*, etc.
+  // === WORK PAUSED === (per user "pause" command). Current meter: 31 red TAGs (LRF-LEN + C-IP + DSF shipped).
+  // Last shipped: ... + LRF-LEN (arc param in Length* for CS).
+  // Next low risk/cost candidates (per triage/epic): LRF-LOC (now with structural CC), F-RD, H-*, S-*, etc.
   // Do not continue "go" or auto-ship without explicit instruction. State is clean on feature/sfa-curve-B-MS-rgr.
 
   /** F-RD: renderer arc-walks CurvePolygon rings + MultiCurve+MultiSurface. */
@@ -321,12 +323,6 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // ============================================================
   // Linear referencing
   // ============================================================
-
-  /** LRF-LEN: LengthIndexedLine arc-length-parameterised on CircularString. */
-  public void test_LRF_LEN_lengthIndexedLineUsesArcLength() throws Exception {
-    fail("LRF-LEN: LengthIndexedLine.extractPoint(s) on a CircularString must "
-        + "interpret s as arc-length distance; today it walks the chord polyline.");
-  }
 
   /** LRF-LOC: LocationIndexedLine member-aware on CompoundCurve. */
   public void test_LRF_LOC_locationIndexedLineMemberAware() throws Exception {

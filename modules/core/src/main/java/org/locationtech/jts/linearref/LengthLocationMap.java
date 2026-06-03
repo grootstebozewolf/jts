@@ -13,7 +13,9 @@
 package org.locationtech.jts.linearref;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LineString;
 
 /**
  * Computes the {@link LinearLocation} for a given length
@@ -128,6 +130,10 @@ public class LengthLocationMap
     if (length <= 0.0)
       return new LinearLocation();
 
+    if (isCircularString(linearGeom)) {
+      return getCircularStringLocationForward(length);
+    }
+
     double totalLength = 0.0;
 
     LinearIterator it = new LinearIterator(linearGeom);
@@ -211,5 +217,46 @@ public class LengthLocationMap
       it.next();
     }
     return totalLength;
+  }
+
+  private boolean isCircularString(Geometry g) {
+    if (g instanceof LineString) {
+      return "CircularString".equals(((LineString) g).getGeometryType());
+    }
+    return false;
+  }
+
+  private LinearLocation getCircularStringLocationForward(double length) {
+    if (length <= 0.0)
+      return new LinearLocation();
+
+    LineString cs = (LineString) linearGeom;
+    CoordinateSequence pts = cs.getCoordinateSequence();
+    if (pts.size() < 2)
+      return new LinearLocation();
+
+    double totalLength = 0.0;
+    int numArcs = (pts.size() - 1) / 2;
+    for (int k = 0; k < numArcs; k++) {
+      int i = k * 2;
+      Coordinate a = pts.getCoordinate(i);
+      Coordinate b = pts.getCoordinate(i + 1);
+      Coordinate c = pts.getCoordinate(i + 2);
+      double alen;
+      try {
+        Class<?> clz = Class.forName("org.locationtech.jts.geom.curved.CircularArcs");
+        java.lang.reflect.Method m = clz.getMethod("arcLength", Coordinate.class, Coordinate.class, Coordinate.class);
+        alen = (Double) m.invoke(null, a, b, c);
+      } catch (Exception e) {
+        alen = c.distance(a); // fallback chord
+      }
+      if (totalLength + alen > length) {
+        double frac = (length - totalLength) / alen;
+        int segIndex = i; // start of arc in control points
+        return new LinearLocation(0, segIndex, frac);
+      }
+      totalLength += alen;
+    }
+    return LinearLocation.getEndLocation(linearGeom);
   }
 }

@@ -13,6 +13,7 @@
 package org.locationtech.jts.linearref;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineSegment;
 import org.locationtech.jts.geom.LineString;
@@ -261,11 +262,33 @@ public class LinearLocation
   public Coordinate getCoordinate(Geometry linearGeom)
   {
     LineString lineComp = (LineString) linearGeom.getGeometryN(componentIndex);
+    if ("CircularString".equals(lineComp.getGeometryType())) {
+      return getCircularStringCoordinate(lineComp, segmentIndex, segmentFraction);
+    }
     Coordinate p0 = lineComp.getCoordinateN(segmentIndex);
     if (segmentIndex >= numSegments(lineComp))
       return p0;
     Coordinate p1 = lineComp.getCoordinateN(segmentIndex + 1);
     return pointAlongSegmentByFraction(p0, p1, segmentFraction);
+  }
+
+  private Coordinate getCircularStringCoordinate(LineString cs, int segIndex, double frac) {
+    CoordinateSequence pts = cs.getCoordinateSequence();
+    int arcBase = (segIndex / 2) * 2;
+    if (arcBase + 2 >= pts.size()) {
+      arcBase = pts.size() - 3;
+    }
+    Coordinate p0 = pts.getCoordinate(arcBase);
+    Coordinate p1 = pts.getCoordinate(arcBase + 1);
+    Coordinate p2 = pts.getCoordinate(arcBase + 2);
+    try {
+      Class<?> clz = Class.forName("org.locationtech.jts.geom.curved.CircularArcs");
+      java.lang.reflect.Method m = clz.getMethod("pointAlongArcFrac", Coordinate.class, Coordinate.class, Coordinate.class, double.class);
+      return (Coordinate) m.invoke(null, p0, p1, p2, frac);
+    } catch (Exception e) {
+      // fallback to chord p0-p2
+      return pointAlongSegmentByFraction(p0, p2, frac);
+    }
   }
 
   /**
