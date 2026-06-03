@@ -11,6 +11,8 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import org.locationtech.jts.algorithm.Orientation;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -74,31 +76,62 @@ public class CircularString extends LineString implements Linearizable {
   private static double exactCircularArcLength(double sx, double sy,
                                                double mx, double my,
                                                double ex, double ey) {
-    double d = 2 * (sx * (my - ey) + mx * (ey - sy) + ex * (sy - my));
-    if (Math.abs(d) < 1e-12) {
+    // Robust, scale-invariant degeneracy test: the three control points
+    // define a genuine arc exactly when the mid point lies off the
+    // start-end chord. Decide that with the exact-sign Orientation
+    // predicate, NOT an absolute determinant threshold. The criterion is
+    // the one proven sound in NetTopologySuite.Proofs ArcOrient.v
+    // (arc_side_chord_mid_nonzero: mid off the chord <=> valid arc). An
+    // absolute |det| < eps test misclassifies valid arcs at small
+    // coordinate magnitudes, since det scales as O(coord^2) -- e.g. a
+    // radius ~5e-8 arc has |det| ~4e-15 and was wrongly treated as a
+    // straight chord (returning ~2e-8 instead of the true ~2.0133e-8).
+    Coordinate s = new Coordinate(sx, sy);
+    Coordinate m = new Coordinate(mx, my);
+    Coordinate e = new Coordinate(ex, ey);
+    if (Orientation.index(s, m, e) == Orientation.COLLINEAR) {
       return Math.hypot(ex - sx, ey - sy);
     }
-    double cx = ((sx * sx + sy * sy) * (my - ey)
-               + (mx * mx + my * my) * (ey - sy)
-               + (ex * ex + ey * ey) * (sy - my)) / d;
-    double cy = ((sx * sx + sy * sy) * (ex - mx)
-               + (mx * mx + my * my) * (sx - ex)
-               + (ex * ex + ey * ey) * (mx - sx)) / d;
-    double r = Math.hypot(sx - cx, sy - cy);
-    if (r < 1e-12) {
+    // Work in a frame translated to the start point. Arc length is
+    // translation-invariant, and computing the circumcentre from the
+    // (small) local offsets instead of the (large) absolute coordinates
+    // avoids catastrophic cancellation for arcs whose extent is tiny
+    // relative to their distance from the origin -- otherwise a genuine
+    // arc can come out shorter than its chord (violating
+    // ArcLength.chord_le_arc_length).
+    double mxL = mx - sx, myL = my - sy;
+    double exL = ex - sx, eyL = ey - sy;
+    double d = 2 * (mxL * eyL - exL * myL);
+    double mSq = mxL * mxL + myL * myL;
+    double eSq = exL * exL + eyL * eyL;
+    double cx = (mSq * eyL - eSq * myL) / d;
+    double cy = (eSq * mxL - mSq * exL) / d;
+    double r = Math.hypot(cx, cy);
+    if (!Double.isFinite(r) || r == 0.0) {
+      // Overflow/underflow at extreme magnitudes: fall back to the chord.
       return Math.hypot(ex - sx, ey - sy);
     }
-    double a0 = Math.atan2(sy - cy, sx - cx);
-    double a1 = Math.atan2(my - cy, mx - cx);
-    double a2 = Math.atan2(ey - cy, ex - cx);
-    double sweep = a2 - a0;
-    sweep = ((sweep + Math.PI) % (2 * Math.PI)) - Math.PI;
-    double aMidRel = a1 - a0;
-    aMidRel = ((aMidRel + Math.PI) % (2 * Math.PI)) - Math.PI;
-    if (Math.signum(sweep) * Math.signum(aMidRel) < 0 && Math.abs(sweep) < Math.PI) {
-      sweep = (sweep > 0 ? sweep - 2 * Math.PI : sweep + 2 * Math.PI);
-    }
-    double theta = Math.abs(sweep);
+    double a0 = Math.atan2(-cy, -cx);
+    double a1 = Math.atan2(myL - cy, mxL - cx);
+    double a2 = Math.atan2(eyL - cy, exL - cx);
+    // Swept angle of start -> mid -> end. Normalise the mid and end offsets
+    // from the start direction into [0, 2*PI). If the mid lies within the
+    // CCW span from start to end, the arc is CCW (sweep = endCcw); otherwise
+    // it is CW (sweep = 2*PI - endCcw). This is the orientation-robust
+    // selection used by CircularArcDensifier and is correct for minor, major
+    // and reflex arcs alike -- unlike a (atan2-difference, mid-sign) test,
+    // whose angle wrapping is fragile once a2 - a0 falls below -PI.
+    double midCcw = normTwoPi(a1 - a0);
+    double endCcw = normTwoPi(a2 - a0);
+    double theta = (midCcw <= endCcw) ? endCcw : (2 * Math.PI - endCcw);
     return r * theta;
+  }
+
+  /** Reduce an angle to {@code [0, 2*PI)}. */
+  private static double normTwoPi(double a) {
+    double twoPi = 2 * Math.PI;
+    a = a % twoPi;
+    if (a < 0) a += twoPi;
+    return a;
   }
 }

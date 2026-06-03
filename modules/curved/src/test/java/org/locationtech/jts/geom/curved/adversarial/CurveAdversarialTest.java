@@ -27,9 +27,12 @@ import org.locationtech.jts.io.curved.CurvedWKTReader;
  * of OrientationDDRobustnessTest + RocqRefRunnerTest from locationtech/jts#1197).
  * <p>
  * Uses the RocqRefRunner / loadProofCases + vector artifact pattern.
- * Curve arc length/sweep oracles from Proofs#64 (ArcLength.v + b64_circular_arc_length
- * with host-atan2 extraction override, matching this file's exactCircularArcLength).
- * See https://github.com/grootstebozewolf/NetTopologySuite.Proofs/issues/64 .
+ * The arc-length reference values come from the NetTopologySuite.Proofs oracle
+ * ARC_LENGTH mode (theories/ArcLength.v: arc_length = r*theta, chord_le_arc_length;
+ * + Atan2.v), with the certifiable per-arc invariants in ARC_LENGTH_INVARIANTS_EXACT.
+ * ARC_LENGTH itself is a sanctioned interface-boundary float (transcendental;
+ * see the vectors file header for the huge-radius accuracy caveat).
+ * See https://github.com/grootstebozewolf/NetTopologySuite.Proofs (issue #64, PR #75).
  * <p>
  * Exercises the analytical length on CircularString (M-LEN-CS) via the
  * CurveRefRunner oracle + hunter. The hunter now finds 0 deviations for CS

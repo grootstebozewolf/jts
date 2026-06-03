@@ -71,63 +71,13 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Metrics
   // ============================================================
 
-  /**
-   * M-LEN-CS: CircularString.getLength returns analytical arc length (r*theta), not
-   * the chord-sum of its control points (current LineString behaviour).
-   *
-   * <p>RED-FIRST SEAM IDENTIFICATION (RGR for M-LEN-CS; low risk/cost after F-CP +
-   * adversarial infra already in place from #1197-style work):
-   * <ul>
-   *   <li>Seam in core: LineString.getLength() does "return Length.ofLine(points);"
-   *       where points = getCoordinateSequence() (the control pts for a CircularString).
-   *       Length.ofLine just sums Euclidean distances between consecutive coords
-   *       (i.e. chords), ignoring the circular interpolation.</li>
-   *   <li>CircularString storage (phase-1): still a flat CoordinateSequence of control
-   *       points (inherited from LineString). For a k-arc CircularString there are
-   *       2 + 2*k points; consecutive triples (i, i+1, i+2 step 2) define each arc.</li>
-   *   <li>Ref oracle: CurveRefRunner.exactCircularArcLength(sx,sy, mx,my, ex,ey)
-   *       (already used by the hunter and vectors for adversarial M-LEN tests;
-   *       implements the same r*theta after circumcenter that the proofs use).</li>
-   *   <li>Override location: only need to override in CircularString (and later
-   *       CompoundCurve once member structure is preserved; see compoundcurve-members
-   *       spike). No core change.</li>
-   *   <li>Multi-arc: the walk must stride by 2 over the control seq and sum the
-   *       per-arc lengths (the red test is single-arc, but infra supports multi).</li>
-   *   <li>Empty/degen: size &lt; 3 -> 0 (or chord of endpoints); collinear controls
-   *       fall back to chord in the exact fn (already in CurveRefRunner).</li>
-   * </ul>
-   * After seams, green adds the override (using the ref we already have). Verification
-   * can live next to the hunter tests; meter red left with fail("TAG: M-LEN-CS...")
-   * (delete on ship).
-   */
-  public void test_M_LEN_CS_circularStringArcLength() throws Exception {
-    // Half-circle radius 10 — arc length = π · 10 ≈ 31.4159
-    Geometry g = read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
-    double expectedArc = Math.PI * 10;
-    double actual = g.getLength();
-    // Red probe: today falls to LineString/Length.ofLine -> chord sum of the 3 pts.
-    fail("M-LEN-CS: half-circle (R=10) length should be ≈ " + expectedArc
-        + " (π·R) but Geometry.getLength() returned " + actual
-        + " (chord-sum of the 3 control points).");
-  }
-
-  /**
-   * M-LEN-CC: CompoundCurve.getLength sums analytical members (arcs via r*theta,
-   * lines via chord length).
-   *
-   * <p>Now green on the impl side (delegates to member.getLength() after structural
-   * members landed); the fail("TAG:...") marker is retained per RGR / epic §5
-   * convention — delete the whole method in the ship commit.
-   */
-  public void test_M_LEN_CC_compoundCurveLengthSumsMembers() throws Exception {
-    Geometry g = read(
-        "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
-    // line: 10. half-circle R=5: π·5 ≈ 15.708. Total ≈ 25.708.
-    double expected = 10.0 + Math.PI * 5.0;
-    double actual = g.getLength();
-    fail("M-LEN-CC: line(10)+halfArc(R=5) length should be ≈ " + expected
-        + " but got " + actual + ".");
-  }
+  // M-LEN-CS shipped: CircularString.getLength() is analytical (r*theta), hardened
+  //   against the NetTopologySuite.Proofs ARC_LENGTH oracle (PR #75). Green coverage:
+  //   CircularArcLengthProofTest (chord_le_arc_length, chord_subtended_sq, oracle
+  //   differential cases) + CurveAdversarialTest + CurveCounterexampleHunter.
+  // M-LEN-CC shipped: CompoundCurve.getLength() sums analytical member lengths.
+  //   Green coverage: CompoundCurveMembersTest (testLengthSumsMemberLengths).
+  // Red meter methods deleted per epic "delete on ship" convention.
 
   /** M-AREA-CP: CurvePolygon area uses circular-segment correction. */
   public void test_M_AREA_CP_curvePolygonAreaWithSegmentCorrection() throws Exception {
