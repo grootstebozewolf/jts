@@ -1,0 +1,13 @@
+# Curve snap / PRC-SN grid-friendly decision vectors (for #66 SnapRounding + curve epic).
+# Format per line: <scale> <x0> <y0> <x1> <y1> <x2> <y2> <DECISION>
+# scale: grid scale for FIXED PM (e.g. 1.0); DECISION: PRESERVE | DENSIFY
+# These are reference cases from proofs oracle (CURVE_SNAP_DECISION mode when added)
+# or hand-curated + hunter. Loaded by CurveSnapRefRunner / tests for isSound().
+# Cross-checks the isGridFriendly + reduce(CS/CC) decision vs exact snap+circum.
+# Integrated oracle-bin-linux artifact (GH run 26880478730 / art 7382810527) for
+# local oracle use + full impl in driver.ml (exact Q version for future vector gen).
+1 0 0 5 5 10 0 PRESERVE
+1 0.1 0.1 0.2 0.5 0.3 0.1 DENSIFY
+1 0 0 1 1 2 0 PRESERVE
+10 0 0 0.5 0.5 1 0 PRESERVE
+1 100000000 0 100000005 5 100000010 0 DENSIFY
