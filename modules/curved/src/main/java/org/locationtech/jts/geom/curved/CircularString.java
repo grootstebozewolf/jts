@@ -38,6 +38,20 @@ public class CircularString extends LineString implements Linearizable {
     return "CircularString";
   }
 
+  /**
+   * Returns the boundary of this CircularString.
+   *
+   * <p>B-CC / lineal boundary (low risk/cost RGR): semantics identical to
+   * LineString (open → 2-pt MultiPoint of control endpoints; closed → empty).
+   * Delegates to super for the same reason as CompoundCurve: explicit guard
+   * point for future changes and to document that arc interpolation does not
+   * affect the boundary (only the two extreme control points matter).
+   */
+  @Override
+  public Geometry getBoundary() {
+    return super.getBoundary();
+  }
+
   @Override
   protected CircularString copyInternal() {
     return new CircularString(getCoordinateSequence().copy(), getFactory());

@@ -33,6 +33,30 @@ public class CompoundCurve extends LineString implements Linearizable {
     return "CompoundCurve";
   }
 
+  /**
+   * Returns the boundary of this CompoundCurve.
+   *
+   * <p>B-CC (low risk/cost RGR pivot): semantics are identical to LineString.
+   * For an open curve: a 2-point MultiPoint of the distinct start and end
+   * control points. For a closed curve (start coord == end coord): an empty
+   * MultiPoint (per BoundaryNodeRule MOD2, closed endpoints have valence 2
+   * and are not on the boundary).
+   *
+   * <p>Implementation delegates to the LineString / BoundaryOp path (which
+   * already handles this via instanceof and isClosed()). The override exists
+   * as an explicit guard / documentation point so that when CompoundCurve
+   * is later reimplemented with member storage (segment-aware copy/toLinear
+   * per epic arch notes), the boundary contract is re-validated here rather
+   * than silently inheriting a flat-seq computation.
+   *
+   * <p>Risk: none (pure delegation of proven logic). Cost: trivial.
+   * See CurveAwarenessSpecTest#test_B_CC_* for seam ID and risk/cost rationale.
+   */
+  @Override
+  public Geometry getBoundary() {
+    return super.getBoundary();
+  }
+
   @Override
   protected CompoundCurve copyInternal() {
     return new CompoundCurve(getCoordinateSequence().copy(), getFactory());

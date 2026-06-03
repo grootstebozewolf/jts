@@ -331,4 +331,46 @@ public class CurvePolygonStructuralSpec extends GeometryTestCase {
     assertEquals("B-MS refactor soundness: pure linear MS boundary must be MultiLineString",
         "MultiLineString", bPure.getGeometryType());
   }
+
+  // ============================================================
+  // B-CC verification (green proof for RGR on B-CC TAG)
+  // Added during green phase of low-risk/cost RGR pivot; exercises the
+  // delegating guards in CompoundCurve / CircularString without editing
+  // the red TAG fail in CurveAwarenessSpecTest (per epic convention).
+  // When B-CC ships, the meter method is deleted (not turned green).
+  // ============================================================
+
+  /**
+   * Green verification that CompoundCurve (and CircularString) boundary
+   * honours the inherited LineString semantics, now with explicit guard
+   * overrides in place.
+   */
+  public void test_B_CC_compoundAndCircularBoundarySemantics() throws Exception {
+    CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
+
+    // open CompoundCurve: 2-pt MultiPoint of endpoints
+    org.locationtech.jts.geom.Geometry openCC = r.read(
+        "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
+    org.locationtech.jts.geom.Geometry bOpen = openCC.getBoundary();
+    assertEquals("B-CC green: open CC boundary type", "MultiPoint", bOpen.getGeometryType());
+    assertEquals("B-CC green: open CC boundary has 2 points", 2, bOpen.getNumGeometries());
+    assertTrue("B-CC green: must be LineString subtype contract", bOpen instanceof org.locationtech.jts.geom.MultiPoint);
+
+    // closed CompoundCurve (overall start==end): empty MP
+    org.locationtech.jts.geom.Geometry closedCC = r.read(
+        "COMPOUNDCURVE ((0 0, 10 0), (10 0, 0 0))");
+    org.locationtech.jts.geom.Geometry bClosed = closedCC.getBoundary();
+    assertEquals("B-CC green: closed CC boundary type", "MultiPoint", bClosed.getGeometryType());
+    assertEquals("B-CC green: closed CC has 0 points", 0, bClosed.getNumGeometries());
+
+    // CircularString open also works (guard + free logic)
+    org.locationtech.jts.geom.Geometry openCS = r.read("CIRCULARSTRING (0 0, 5 5, 10 0)");
+    org.locationtech.jts.geom.Geometry bCS = openCS.getBoundary();
+    assertEquals("B-CC green: open CS boundary type", "MultiPoint", bCS.getGeometryType());
+    assertEquals(2, bCS.getNumGeometries());
+
+    // Also assert dimension contract (inherited, but exercised)
+    assertEquals("B-CC green: open lineal boundary dim", 0, openCC.getBoundaryDimension());
+    assertEquals("B-CC green: closed lineal boundary dim", -1 /*FALSE*/, closedCC.getBoundaryDimension());
+  }
 }

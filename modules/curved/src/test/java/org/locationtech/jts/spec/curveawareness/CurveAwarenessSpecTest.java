@@ -217,11 +217,68 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
         + "ring members; got " + boundary.getGeometryType() + ".");
   }
 
-  /** B-CC: open CompoundCurve boundary = its 2 endpoints; closed = empty. */
+  // B-CC implemented (green verified on branch, low risk/cost pivot after B-CP/B-MS):
+  // CompoundCurve and CircularString now carry explicit delegating getBoundary()
+  // overrides as guards (javadoc + contract for future member-based CC).
+  // Behaviour identical to LineString via BoundaryOp. Green verifs in
+  // CurvePolygonStructuralSpec#test_B_CC_*. Red meter kept per RGR (see
+  // expanded seam ID inside the test method, with explicit risk/cost notes).
+  // No proofs artifact needed (pure delegation, no numeric).
+
+  /**
+   * B-CC: open CompoundCurve boundary = its 2 endpoints (as MultiPoint); closed = empty MultiPoint.
+   *
+   * <p>RED-FIRST SEAM IDENTIFICATION (for RGR on this TAG; low risk/cost pivot post B-CP/B-MS):
+   * <ul>
+   *   <li>Inheritance / routing seam: CompoundCurve extends LineString. BoundaryOp.getBoundary()
+   *       special-cases `instanceof LineString` (see BoundaryOp:137) and delegates to
+   *       boundaryLineString which uses isClosed() + start/end points (or MOD2 rule for closed).
+   *       Curved lineals (CC, CS) therefore get correct boundary geometry for *free*. Noted as
+   *       "good for B-CC" in the B-CP seam analysis. No jts-core change required.</li>
+   *   <li>Explicit guard seam (the original red intent): add a delegating override in
+   *       CompoundCurve (and symmetrically CircularString for consistency) that calls super
+   *       but carries B-CC javadoc + contract comment. This "guards" the semantics so that
+   *       (a) future refactor of CompoundCurve to member-based storage (see epic arch for
+   *       segment-aware CC) cannot accidentally change boundary without touching this method;
+   *       (b) readers see the curve lineal contract explicitly; (c) we can later extend e.g.
+   *       for arc-length parameterised location if wanted (out of scope).</li>
+   *   <li>Closed-curve seam: isClosed() (inherited) compares overall start coord == end coord.
+   *       For compounds built from members this will be first-of-first vs last-of-last.
+   *       Internal junction points of a CC are *never* part of its boundary (they are
+   *       valence-2); same as LineString. When structural CC lands, isClosed and the two
+   *       endpoint accessors must be updated consistently (or boundary override will compute
+   *       from members).</li>
+   *   <li>Multi* collection seam: MultiCurve (which extends MLS) will have its members'
+   *       boundaries collected by the multi-line boundary logic; a CC member contributes
+   *       its 0/2-point boundary just like a LineString would. No special code here.</li>
+   *   <li>Risk / cost assessment (pivot): <b>Lowest-risk / lowest-cost</b> of the three
+   *       B-* TAGs and among remaining post-Phase-1 work. Pure jts-curved. Zero new math.
+   *       Zero API surface change for callers. Cost ≈ 10 LOC + test expansion + verif.
+   *       Risk: effectively zero (behaviour is a no-op delegation of proven LineString path).
+   *       High value as cheap hardening before higher-risk items (N-*, OV, BUF that may
+   *       produce curve lineals whose boundaries are later inspected).</li>
+   *   <li>CS coverage: CircularString shares the exact seam; we add a parallel override
+   *       under this TAG for explicitness (or note "inherits for free" if minimalism wins).</li>
+   *   <li>Verification strategy: green verification test in CurvePolygonStructuralSpec
+   *       (exercises open/closed, dimension, type); meter red-test left with explicit
+   *       fail per epic RGR convention (delete only on ship commit).</li>
+   * </ul>
+   * After green/refactor the red probe in this method stays until the ship-delete commit.
+   */
   public void test_B_CC_openCompoundCurveBoundaryIsTwoEndpoints() throws Exception {
     Geometry g = read("COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
     Geometry boundary = g.getBoundary();
     assertEquals("MultiPoint", boundary.getGeometryType());
+
+    // closed compound (overall start coord == end coord): boundary empty MP per
+    // LineString/ MOD2 rule (closed endpoint valence-2 not emitted).
+    Geometry closed = read("COMPOUNDCURVE ((0 0, 10 0), (10 0, 0 0))");
+    Geometry bClosed = closed.getBoundary();
+    assertEquals("MultiPoint", bClosed.getGeometryType());
+    assertEquals(0, bClosed.getNumGeometries());
+
+    // Red probe: today works via inheritance; after guard we still want the assert
+    // plus explicit contract in the subclass.
     fail("B-CC: explicit guard needed -- existing LineString boundary semantics are "
         + "inherited but not asserted for the new structural CompoundCurve.");
   }
