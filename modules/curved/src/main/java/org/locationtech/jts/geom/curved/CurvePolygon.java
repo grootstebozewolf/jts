@@ -129,6 +129,28 @@ public class CurvePolygon extends Polygon implements Linearizable {
     return "CurvePolygon";
   }
 
+  /**
+   * Area of the curve-bounded polygon (M-AREA-CP). When any structural ring is
+   * curved the area is computed analytically with the circular-segment
+   * correction (so a disk expressed as arcs returns {@code pi*R^2}); a polygon
+   * with only straight rings falls through to the exact flat parent area.
+   */
+  @Override
+  public double getArea() {
+    LineString[] rings = structuralRings();
+    boolean anyCurved = false;
+    for (LineString r : rings) {
+      if (r instanceof CircularString || r instanceof CompoundCurve) {
+        anyCurved = true;
+        break;
+      }
+    }
+    if (!anyCurved) {
+      return super.getArea();
+    }
+    return CurvedArea.ofRings(rings);
+  }
+
   @Override
   public CurvePolygon reverse() {
     return (CurvePolygon) super.reverse();

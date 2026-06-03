@@ -129,17 +129,13 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
         + " but got " + actual + ".");
   }
 
-  /** M-AREA-CP: CurvePolygon area uses circular-segment correction. */
-  public void test_M_AREA_CP_curvePolygonAreaWithSegmentCorrection() throws Exception {
-    // Disk of radius 10 expressed as CURVEPOLYGON of two half-arcs. Area = π · R² ≈ 314.159.
-    Geometry g = read(
-        "CURVEPOLYGON (CIRCULARSTRING (-10 0, 0 10, 10 0, 0 -10, -10 0))");
-    double expected = Math.PI * 100;
-    double actual = g.getArea();
-    fail("M-AREA-CP: disk (R=10) area should be ≈ " + expected
-        + " (π·R²) but Geometry.getArea() returned " + actual
-        + " (treating control points as a flat polygon).");
-  }
+  // M-AREA-CP shipped: CurvePolygon.getArea() applies the analytical
+  //   circular-segment correction (Green's theorem) over its structural rings;
+  //   a disk expressed as arcs returns pi*R^2. Cross-checked against the
+  //   NetTopologySuite.Proofs ARC_AREA oracle (PR #75). Green coverage:
+  //   CurvePolygonAreaProofTest (full disk, orientation independence, compound-
+  //   curve half disk, circular hole, straight-ring parity, empty).
+  // Red meter method deleted per epic "delete on ship" convention.
 
   /** M-DIM: dimension and coordinate dimension correct for empty curved subtypes. */
   public void test_M_DIM_emptyCurvedDimensions() throws Exception {
