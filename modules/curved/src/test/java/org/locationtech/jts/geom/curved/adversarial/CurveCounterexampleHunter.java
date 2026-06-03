@@ -110,8 +110,9 @@ public final class CurveCounterexampleHunter {
 
   /**
    * Run a batch of adversarial searches. Returns mismatches where the
-   * current (linear) length on the CircularString differs from the exact
-   * circular arc length beyond a small relative tol.
+   * CircularString.getLength() (now analytical post M-LEN-CS) differs from
+   * the exact circular arc length beyond a small relative tol.
+   * (Post-ship, expect 0 or tiny fp only.)
    */
   public static List<Mismatch> huntArcLength(int itersPerGenerator) {
     List<Mismatch> bad = new ArrayList<>();
@@ -124,7 +125,7 @@ public final class CurveCounterexampleHunter {
           case "extreme": arc = extremeMagnitude(); break;
           default: arc = randomArc(); break;
         }
-        double lin = arc.getLength(); // current impl = chord polyline
+        double lin = arc.getLength(); // now analytical (M-LEN-CS); was chord
         double ex = CurveRefRunner.exactCircularArcLength(
             arc.getCoordinateN(0).x, arc.getCoordinateN(0).y,
             arc.getCoordinateN(1).x, arc.getCoordinateN(1).y,

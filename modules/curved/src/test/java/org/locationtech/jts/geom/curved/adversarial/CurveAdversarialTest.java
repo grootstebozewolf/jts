@@ -28,13 +28,9 @@ import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
  * See https://github.com/grootstebozewolf/NetTopologySuite.Proofs/issues/64 .
  * Hardened with run 26887314315/art 7385761173 (refines primitives for D-PT/D-AA).
  * <p>
- * Currently demonstrates that the phase-1 linearised CircularString.getLength()
- * deviates from the analytical circular arc length on adversarial inputs
- * (near-flat, extreme magnitude, etc.). This populates concrete counterexamples
- * for the M-LEN-* red TAGs in CurveAwarenessSpecTest.
- * <p>
- * When native arc length / area etc. are implemented, flip the assertions to
- * "no (or bounded) deviations" and add the vector cases as regression.
+ * M-LEN-CS shipped: CircularString.getLength() now analytical via CircularArcs.
+ * The hunter now verifies no (bounded fp) deviations vs exact on adversarial.
+ * (Historical phase-1 chord deviations populated the red TAG before ship.)
  */
 public class CurveAdversarialTest extends TestCase {
 
@@ -53,18 +49,17 @@ public class CurveAdversarialTest extends TestCase {
   }
 
   public void testHunterFindsArcLengthDeviationsOnAdversarialInputs() {
-    // Run a modest search; the phase-1 impl (chord lengths) must deviate on
-    // the generators that produce non-trivial arcs.
+    // Now that CircularString.getLength() is analytical (M-LEN-CS shipped),
+    // the hunter should find zero (or bounded fp) deviations vs exact.
+    // (Previously demonstrated phase-1 chord deviations for the red TAG.)
     List<CurveCounterexampleHunter.Mismatch> bad =
         CurveCounterexampleHunter.huntArcLength(2_000);
-    // We expect to find many (near-flat small-sagitta arcs have chord vs arc
-    // difference; extreme scales stress fp too).
-    assertTrue("hunter should discover counterexamples for linearised length on curves; found " + bad.size(),
-        bad.size() > 0);
-    // Spot-check one
-    CurveCounterexampleHunter.Mismatch m = bad.get(0);
-    assertTrue(m.delta > 0);
-    assertTrue(m.input instanceof CircularString);
+    assertTrue("with native length, hunter should find 0 (or few fp) deviations; found " + bad.size(),
+        bad.size() <= 5);  // allow small fp noise on extreme gens
+    // If any, delta should be tiny
+    for (CurveCounterexampleHunter.Mismatch m : bad) {
+      assertTrue("residual deviation must be negligible", m.delta < 1e-9);
+    }
   }
 
   public void testKnownNearFlatCaseFromVectorsDeviatesUnderLinearImpl() throws Exception {
