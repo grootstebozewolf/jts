@@ -152,12 +152,13 @@ public class LinearLocation
    */
   public void clamp(Geometry linear)
   {
-    if (componentIndex >= linear.getNumGeometries()) {
+    int n = getComponentCount(linear);
+    if (componentIndex >= n) {
       setToEnd(linear);
       return;
     }
-    if (segmentIndex >= linear.getNumPoints()) {
-      LineString line = (LineString) linear.getGeometryN(componentIndex);
+    LineString line = getComponentLine(linear, componentIndex);
+    if (segmentIndex >= line.getNumPoints()) {
       segmentIndex = numSegments(line);
       segmentFraction = 1.0;
     }
@@ -194,7 +195,7 @@ public class LinearLocation
    */
   public double getSegmentLength(Geometry linearGeom)
   {
-    LineString lineComp = (LineString) linearGeom.getGeometryN(componentIndex);
+    LineString lineComp = getComponentLine(linearGeom, componentIndex);
 
     // ensure segment index is valid
     int segIndex = segmentIndex;

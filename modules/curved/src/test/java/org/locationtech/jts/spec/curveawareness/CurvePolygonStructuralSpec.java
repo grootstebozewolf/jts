@@ -455,5 +455,19 @@ public class CurvePolygonStructuralSpec extends GeometryTestCase {
         Math.hypot(exArcMid.x - chordMid.x, exArcMid.y - chordMid.y) > 0.1);
     // And valid
     assertTrue("LRF-LOC green: loc on member1 valid", locArcMid.isValid(cc));
+
+    // Clamp / clampIndex (public API on LocationIndexedLine) must respect members for CC (exercises the clamp fix).
+    // 3-member CC: line, line, arc
+    Geometry cc3 = r.read("COMPOUNDCURVE ((0 0, 5 0), (5 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
+    LocationIndexedLine lil3 = new LocationIndexedLine(cc3);
+    assertEquals("LRF-LOC green: cc3 has 3 members", 3, ((CompoundCurve) cc3).getNumCurves());
+
+    LinearLocation mid = new LinearLocation(1, 0, 0.0);
+    LinearLocation clampedMid = lil3.clampIndex(mid);
+    assertEquals("LRF-LOC green: clamp preserves middle member comp (was broken: used flat numGeoms=1)", 1, clampedMid.getComponentIndex());
+
+    LinearLocation badHigh = new LinearLocation(99, 0, 0.0);
+    LinearLocation clampedBad = lil3.clampIndex(badHigh);
+    assertEquals("LRF-LOC green: clamp caps out-of-range comp to last member", 2, clampedBad.getComponentIndex());
   }
 }

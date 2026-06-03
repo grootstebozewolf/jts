@@ -65,9 +65,8 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // C-IP shipped (basic arc-aware IP via centroid override in CP; avoids chord-poly scan issues for thin crescents).
   // DSF shipped (Densifier now delegates to toLinear for Linearizable/curved via reflection; no core dep).
   // LRF-LEN shipped (LengthIndexedLine now interprets s as arc-length for CircularString, using arc interp in location map + getCoordinate).
-  // LRF-LOC shipped (LocationIndexedLine/Linear* member-aware for CompoundCurve via reflection on structural members).
+  // LRF-LOC shipped (LocationIndexedLine/Linear* member-aware for CompoundCurve via reflection on structural members; explicit "go").
   // F-RD (CurvedShapeWriter integration) remains for later.
-  // LRF-LOC shipped (explicit "go"; low risk/cost using structural CC members).
   // Current meter: 30 red TAGs. Last shipped: LRF-LOC.
   // Next low risk/cost (per triage): F-RD, H-*, S-*, AT-*, TRI-*, etc.
   // State clean on feature/sfa-curve-B-MS-rgr; see RGR + ship commits.
