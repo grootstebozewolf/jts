@@ -79,6 +79,9 @@ public class CurvePolygon extends Polygon implements Linearizable {
    * falls back to the flat parent-polygon area.
    */
   @Override
+  /**
+   * @see #getArea() M-AREA-CP analytical implementation in CurvedArea (epic #1195).
+   */
   public double getArea() {
     if (curvedRings == null || curvedRings.length == 0) {
       return super.getArea();

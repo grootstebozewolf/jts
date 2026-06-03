@@ -27,6 +27,11 @@ import test.jts.GeometryTestCase;
  * Green tests for M-AREA-CP: {@link CurvePolygon#getArea()} uses the exact
  * circular-segment correction rather than the area of the flattened
  * control-point polygon.
+ *
+ * Hardened with CurveAreaRefRunner + adversarial hunter (in adversarial/),
+ * using BigDecimal ref + (future) vectors from NetTopologySuite.Proofs
+ * oracle (ARC_AREA mode) and Rocq theories. Goal: stable release with
+ * no discoverable counterexamples in practical ranges.
  */
 public class CurvePolygonAreaTest extends GeometryTestCase {
 
@@ -76,10 +81,12 @@ public class CurvePolygonAreaTest extends GeometryTestCase {
     assertEquals(Math.PI * (100.0 - 25.0), g.getArea(), TOL);
   }
 
-  /** A straight (non-curved) CurvePolygon ring matches the plain polygon area. */
+  /** A straight (non-curved) CurvePolygon ring matches the plain polygon area exactly. */
   public void testStraightRingMatchesFlatPolygon() {
     Geometry g = readCurved("CURVEPOLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))");
-    assertEquals(100.0, g.getArea(), TOL);
+    // Exact (0.0 delta) because we now delegate straight to core's stable Area.ofRingSigned
+    // (the 3-arg ctor path has curvedRings=null and takes super).
+    assertEquals(100.0, g.getArea(), 0.0);
   }
 
   /** An empty CurvePolygon has zero area. */
@@ -100,6 +107,7 @@ public class CurvePolygonAreaTest extends GeometryTestCase {
         new Coordinate(10, 10), new Coordinate(0, 10), new Coordinate(0, 0)
     });
     CurvePolygon cp = new CurvePolygon(shell, null, f);
+    // Exact match via delegation to core Area for non-retained case.
     assertEquals(f.createPolygon(shell).getArea(), cp.getArea(), 0.0);
     assertEquals(100.0, cp.getArea(), 0.0);
   }

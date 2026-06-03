@@ -11,6 +11,7 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -43,6 +44,9 @@ import org.locationtech.jts.geom.LineString;
  * (its members are walked in turn), and plain straight {@link LineString} /
  * {@code LinearRing} rings (degenerate case &mdash; the result matches the
  * standard polygon area).
+ *
+ * <p>This implements M-AREA-CP for the curve-awareness epic (locationtech/jts#1195).
+ * See CurveAwarenessSpecTest and the RGR branch for context.
  */
 final class CurvedArea {
 
@@ -67,7 +71,10 @@ final class CurvedArea {
 
   /**
    * Signed area of a single closed curved ring. Positive when the ring is
-   * traversed counter-clockwise, negative when clockwise. Callers that only
+   * traversed counter-clockwise, negative when clockwise (mathematical
+   * convention for the line integral). This differs from
+   * {@link org.locationtech.jts.algorithm.Area#ofRingSigned} (which is
+   * CW-positive); callers mixing the two must be aware. Callers that only
    * want magnitude should take {@link Math#abs(double)}.
    */
   static double signedRingArea(LineString ring) {
@@ -95,15 +102,13 @@ final class CurvedArea {
     return accumulateStraight(member.getCoordinateSequence());
   }
 
-  /** Straight polyline: shoelace cross term per consecutive vertex pair. */
+  /** Straight polyline: delegate to the stable core shoelace (shifted, incremental)
+   * to avoid precision loss for large coordinates. The sign is adjusted to match
+   * CurvedArea's CCW-positive convention (core Area.ofRingSigned is CW-positive).
+   */
   private static double accumulateStraight(CoordinateSequence seq) {
-    double sum = 0.0;
-    for (int i = 0; i + 1 < seq.size(); i++) {
-      double xs = seq.getX(i),     ys = seq.getY(i);
-      double xe = seq.getX(i + 1), ye = seq.getY(i + 1);
-      sum += xs * ye - xe * ys;
-    }
-    return sum;
+    // Core returns positive for CW, we want positive for CCW => negate.
+    return -2.0 * Area.ofRingSigned(seq);
   }
 
   /**
