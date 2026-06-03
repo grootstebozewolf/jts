@@ -11,10 +11,12 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 
 /**
@@ -149,6 +151,34 @@ public class CurvePolygon extends Polygon implements Linearizable {
       return super.getArea();
     }
     return CurvedArea.ofRings(rings);
+  }
+
+  /**
+   * Area centroid of the curve-bounded polygon (C-AREA). When any structural
+   * ring is curved the centroid is computed analytically by Green's-theorem
+   * moments over the structural rings (combining the chord-polygon centroid
+   * with each circular segment's), so a disk of arcs centres on its centre and
+   * a half-disk on {@code 4R/(3*pi)}; a polygon with only straight rings falls
+   * through to the exact flat parent centroid.
+   */
+  @Override
+  public Point getCentroid() {
+    LineString[] rings = structuralRings();
+    boolean anyCurved = false;
+    for (LineString r : rings) {
+      if (r instanceof CircularString || r instanceof CompoundCurve) {
+        anyCurved = true;
+        break;
+      }
+    }
+    if (!anyCurved) {
+      return super.getCentroid();
+    }
+    double[] c = CurvedArea.centroid(rings);
+    if (c == null) {
+      return super.getCentroid();
+    }
+    return getFactory().createPoint(new Coordinate(c[0], c[1]));
   }
 
   @Override
