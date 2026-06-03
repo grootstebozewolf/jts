@@ -66,10 +66,9 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // DSF shipped (Densifier now delegates to toLinear for Linearizable/curved via reflection; no core dep).
   // LRF-LEN shipped (LengthIndexedLine now interprets s as arc-length for CircularString, using arc interp in location map + getCoordinate).
   // F-RD (CurvedShapeWriter integration) remains for later.
-  // === WORK PAUSED === (per user "pause" command). Current meter: 31 red TAGs (LRF-LEN + C-IP + DSF shipped).
-  // Last shipped: ... + LRF-LEN (arc param in Length* for CS).
-  // Next low risk/cost candidates (per triage/epic): LRF-LOC (now with structural CC), F-RD, H-*, S-*, etc.
-  // Do not continue "go" or auto-ship without explicit instruction. State is clean on feature/sfa-curve-B-MS-rgr.
+  // LRF-LOC RGR in progress (explicit "go" post-pause; low risk/cost follow-up to structural CC + LRF-LEN).
+  // Current meter: 31 red TAGs. Last shipped: LRF-LEN. Targeting LRF-LOC (member-aware locs for CC).
+  // State clean on feature/sfa-curve-B-MS-rgr; see RGR + ship commits.
 
   /** F-RD: renderer arc-walks CurvePolygon rings + MultiCurve+MultiSurface. */
   public void test_F_RD_curvedShapeWriterArcRendersCurvePolygonRings() throws Exception {
@@ -324,7 +323,33 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Linear referencing
   // ============================================================
 
-  /** LRF-LOC: LocationIndexedLine member-aware on CompoundCurve. */
+  /**
+   * LRF-LOC: LocationIndexedLine member-aware on CompoundCurve.
+   *
+   * <p>RED-FIRST SEAM IDENTIFICATION (for RGR on this TAG; low risk/cost now that structural CC members + LRF-LEN arc interp for CS are in):
+   * <ul>
+   *   <li>Seam: linearref (core) -- LocationIndexedLine, LinearLocation, LinearIterator, LocationIndexOfPoint
+   *       and ExtractLineByLocation hard-wire to LineString/MultiLineString flat model:
+   *       LinearIterator walks via getNumGeometries()/getGeometryN() + vertex indices into control seq;
+   *       LinearLocation.getCoordinate etc resolve via getGeometryN(component) then chord frac or CS-special.
+   *       CompoundCurve (as LineString subclass) is seen as 1 component with concatenated control points;
+   *       member structure is invisible ("members are flattened").</li>
+   *   <li>Delegation seam (low risk): in LinearIterator (and LinearLocation) detect CompoundCurve via
+   *       string getGeometryType()=="CompoundCurve" (no curved dep); use reflection:
+   *       Class.forName("...curved.CompoundCurve"), invoke "getNumCurves", "getCurveN(int)" to
+   *       treat members as the "components" for iteration/indexing. componentIndex in LinearLocation
+   *       then directly addresses member i; segmentIndex/frac are relative to that member's control points.
+   *       Existing CS arc-interp in LinearLocation.getCircularStringCoordinate will apply when member is CS.</li>
+   *   <li>Risk/cost: low (isolated to linearref package; reuses LRF-LEN's reflection+arc math pattern + structural
+   *       CC getCurveN; no new geometry math, no change to CC's public getNumGeometries (still 1, as LineString);
+   *       no core geometry changes; no API break for non-linearref users. Bonus: makes Length* on CC see members
+   *       for iteration (though arc-length param still chord-based until full LRF-LEN-CC follow-up).</li>
+   *   <li>Verification: green verif (e.g. in CurvePolygonStructuralSpec or manual) creates CC (line + CS),
+   *       LocationIndexedLine lil = new LocationIndexedLine(cc); LinearLocation loc = lil.indexOf(ptOnSecondMember);
+   *       assert loc.getComponentIndex()==1; assert lil.extractPoint(loc) is correct point (arc interp if CS);
+   *       also roundtrip loc from length loc etc. Meter red deleted on ship commit only.</li>
+   * </ul>
+   */
   public void test_LRF_LOC_locationIndexedLineMemberAware() throws Exception {
     fail("LRF-LOC: LocationIndexedLine on a CompoundCurve must address member i, "
         + "parameter t (arc-length within member); today members are flattened.");

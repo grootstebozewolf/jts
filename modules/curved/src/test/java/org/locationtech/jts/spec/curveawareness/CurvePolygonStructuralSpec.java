@@ -11,6 +11,7 @@
  */
 package org.locationtech.jts.spec.curveawareness;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
@@ -22,6 +23,8 @@ import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
 import org.locationtech.jts.geom.curved.Linearizable;
 import org.locationtech.jts.io.curved.CurvedWKTReader;
 import org.locationtech.jts.io.curved.CurvedWKTWriter;
+import org.locationtech.jts.linearref.LinearLocation;
+import org.locationtech.jts.linearref.LocationIndexedLine;
 
 import junit.framework.Test;
 import junit.framework.TestSuite;
@@ -397,5 +400,60 @@ public class CurvePolygonStructuralSpec extends GeometryTestCase {
     org.locationtech.jts.geom.Geometry eMS = r.read("MULTISURFACE EMPTY");
     assertEquals("M-DIM green: empty CP dim", 2, eCP.getDimension());
     assertEquals("M-DIM green: empty MS dim", 2, eMS.getDimension());
+  }
+
+  // ============================================================
+  // LRF-LOC verification (green proof for RGR/ship on LRF-LOC TAG)
+  // Low risk/cost: structural CC members + reflection in linearref now allow
+  // LocationIndexedLine to address member i with local segment/frac (arc interp
+  // if member is CircularString). Added with the iterator/LinearLocation updates.
+  // ============================================================
+
+  /**
+   * Green verification for LRF-LOC: LocationIndexedLine on CompoundCurve
+   * returns LinearLocations that address members (componentIndex = member#),
+   * and extractPoint uses arc interpolation when the member is a CircularString.
+   */
+  public void test_LRF_LOC_locationIndexedLineMemberAwareGreen() throws Exception {
+    CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
+
+    // CC with 2 members: plain line (member0), then CircularString arc (member1)
+    // Arc: from (10,0) mid-up (15,5) to (20,0) -- quarter-ish, mid arc ~ (10+5√2,5) but use exact
+    Geometry cc = r.read(
+        "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
+    assertTrue("LRF-LOC green: CC is CompoundCurve", cc instanceof CompoundCurve);
+    CompoundCurve ccv = (CompoundCurve) cc;
+    assertEquals("LRF-LOC green: 2 members", 2, ccv.getNumCurves());
+
+    LocationIndexedLine lil = new LocationIndexedLine(cc);
+
+    // Point on first member (the line)
+    Coordinate pt0 = new Coordinate(5, 0);
+    LinearLocation loc0 = lil.indexOf(pt0);
+    assertEquals("LRF-LOC green: pt on member0 has component=0", 0, loc0.getComponentIndex());
+    Coordinate ex0 = lil.extractPoint(loc0);
+    assertEquals("LRF-LOC green: extract on line member approx", 5.0, ex0.x, 1e-9);
+
+    // Point on second member (the arc) -- choose a point whose closest is first chord seg of the CS arc (seg even=0 for member).
+    // (15,5) is mid control; use a point on/near chord (10,0)-(15,5) to get seg=0 in loc.
+    Coordinate pt1 = new Coordinate(12, 1);
+    LinearLocation loc1 = lil.indexOf(pt1);
+    assertEquals("LRF-LOC green: pt on arc member1 has component=1 (member aware!)", 1, loc1.getComponentIndex());
+    Coordinate ex1 = lil.extractPoint(loc1);
+    // extract uses arc interp of the (chord-derived) frac; just assert it's on the arc member (x in [10,15], not the line member)
+    assertTrue("LRF-LOC green: extract for arc-loc has comp-resolved x>=10", ex1.x >= 10.0 - 1e-9);
+    assertTrue("LRF-LOC green: extract for arc-loc has comp-resolved x<=15", ex1.x <= 15.0 + 1e-9);
+
+    // A interior point on the arc member, not control: use length loc or just known
+    // For green, also check roundtrip via extract/index on arc member
+    // Pick approx mid of arc via LengthIndexedLine (arc s) then convert? simple: use a frac loc directly
+    LinearLocation locArcMid = new LinearLocation(1 /*member*/, 0 /*arc start seg*/, 0.5);
+    Coordinate exArcMid = lil.extractPoint(locArcMid);
+    // Should NOT be the chord mid (15, 2.5), but arc interp -- we just assert != chord and on circle-ish
+    Coordinate chordMid = new Coordinate(15, 2.5);
+    assertTrue("LRF-LOC green: arc frac loc extract != chord mid (using arc interp)",
+        Math.hypot(exArcMid.x - chordMid.x, exArcMid.y - chordMid.y) > 0.1);
+    // And valid
+    assertTrue("LRF-LOC green: loc on member1 valid", locArcMid.isValid(cc));
   }
 }

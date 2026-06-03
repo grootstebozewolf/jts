@@ -214,8 +214,9 @@ public class LinearLocation
    */
   public void setToEnd(Geometry linear)
   {
-    componentIndex = linear.getNumGeometries() - 1;
-    LineString lastLine = (LineString) linear.getGeometryN(componentIndex);
+    int n = getComponentCount(linear);
+    componentIndex = n - 1;
+    LineString lastLine = getComponentLine(linear, componentIndex);
     segmentIndex = numSegments(lastLine);
     segmentFraction = 0.0;
   }
@@ -261,7 +262,7 @@ public class LinearLocation
    */
   public Coordinate getCoordinate(Geometry linearGeom)
   {
-    LineString lineComp = (LineString) linearGeom.getGeometryN(componentIndex);
+    LineString lineComp = getComponentLine(linearGeom, componentIndex);
     if ("CircularString".equals(lineComp.getGeometryType())) {
       return getCircularStringCoordinate(lineComp, segmentIndex, segmentFraction);
     }
@@ -300,7 +301,7 @@ public class LinearLocation
    */
   public LineSegment getSegment(Geometry linearGeom)
   {
-    LineString lineComp = (LineString) linearGeom.getGeometryN(componentIndex);
+    LineString lineComp = getComponentLine(linearGeom, componentIndex);
     Coordinate p0 = lineComp.getCoordinateN(segmentIndex);
     // check for endpoint - return last segment of the line if so
     if (segmentIndex >= numSegments(lineComp)) {
@@ -320,10 +321,11 @@ public class LinearLocation
    */
   public boolean isValid(Geometry linearGeom)
   {
-    if (componentIndex < 0 || componentIndex >= linearGeom.getNumGeometries())
+    int n = getComponentCount(linearGeom);
+    if (componentIndex < 0 || componentIndex >= n)
       return false;
 
-    LineString lineComp = (LineString) linearGeom.getGeometryN(componentIndex);
+    LineString lineComp = getComponentLine(linearGeom, componentIndex);
     if (segmentIndex < 0 || segmentIndex > lineComp.getNumPoints())
       return false;
     if (segmentIndex == lineComp.getNumPoints() && segmentFraction != 0.0)
@@ -439,7 +441,7 @@ public class LinearLocation
    */
   public boolean isEndpoint(Geometry linearGeom)
   {
-    LineString lineComp = (LineString) linearGeom.getGeometryN(componentIndex);
+    LineString lineComp = getComponentLine(linearGeom, componentIndex);
     // check for endpoint
     int nseg = numSegments(lineComp);
     return segmentIndex >= nseg
@@ -463,7 +465,7 @@ public class LinearLocation
   public LinearLocation toLowest(Geometry linearGeom)
   {
     // TODO: compute lowest component index
-    LineString lineComp = (LineString) linearGeom.getGeometryN(componentIndex);
+    LineString lineComp = getComponentLine(linearGeom, componentIndex);
     int nseg = numSegments(lineComp);
     // if not an endpoint can be returned directly
     if (segmentIndex < nseg) return this;
@@ -510,5 +512,53 @@ public class LinearLocation
     int npts = line.getNumPoints();
     if (npts <= 1) return 0;
     return npts - 1;
+  }
+
+  // --- Curve support (LRF-LOC; reflection to avoid core->curved dep, mirrors LRF-LEN) ---
+
+  private boolean isCompoundCurve(Geometry g)
+  {
+    if (g instanceof LineString) {
+      return "CompoundCurve".equals(((LineString) g).getGeometryType());
+    }
+    return false;
+  }
+
+  private int getComponentCount(Geometry g)
+  {
+    if (isCompoundCurve(g)) {
+      return getNumCurves(g);
+    }
+    return g.getNumGeometries();
+  }
+
+  private LineString getComponentLine(Geometry g, int compIndex)
+  {
+    if (isCompoundCurve(g)) {
+      return getCurveN(g, compIndex);
+    }
+    return (LineString) g.getGeometryN(compIndex);
+  }
+
+  private int getNumCurves(Geometry g)
+  {
+    try {
+      Class<?> clz = Class.forName("org.locationtech.jts.geom.curved.CompoundCurve");
+      java.lang.reflect.Method m = clz.getMethod("getNumCurves");
+      return (Integer) m.invoke(g);
+    } catch (Exception e) {
+      return 1;
+    }
+  }
+
+  private LineString getCurveN(Geometry g, int n)
+  {
+    try {
+      Class<?> clz = Class.forName("org.locationtech.jts.geom.curved.CompoundCurve");
+      java.lang.reflect.Method m = clz.getMethod("getCurveN", int.class);
+      return (LineString) m.invoke(g, n);
+    } catch (Exception e) {
+      return (LineString) g;
+    }
   }
 }

@@ -20,7 +20,7 @@ import org.locationtech.jts.geom.MultiLineString;
 
 /**
  * An iterator over the components and coordinates of a linear geometry
- * ({@link LineString}s and {@link MultiLineString}s.
+ * ({@link LineString}s, {@link MultiLineString}s, and CompoundCurve curve members).
  *
  * The standard usage pattern for a {@link LinearIterator} is:
  *
@@ -90,10 +90,26 @@ public class LinearIterator
   	if (! (linearGeom instanceof Lineal))
   			throw new IllegalArgumentException("Lineal geometry is required");
     this.linearGeom = linearGeom;
-    numLines = linearGeom.getNumGeometries();
+    numLines = computeNumLines(linearGeom);
     this.componentIndex = componentIndex;
     this.vertexIndex = vertexIndex;
     loadCurrentLine();
+  }
+
+  private int computeNumLines(Geometry g)
+  {
+    if (isCompoundCurve(g)) {
+      return getNumCurves(g);
+    }
+    return g.getNumGeometries();
+  }
+
+  private LineString getLineComponent(int i)
+  {
+    if (isCompoundCurve(linearGeom)) {
+      return getCurveN(linearGeom, i);
+    }
+    return (LineString) linearGeom.getGeometryN(i);
   }
 
   private void loadCurrentLine()
@@ -102,7 +118,7 @@ public class LinearIterator
       currentLine = null;
       return;
     }
-    currentLine = (LineString) linearGeom.getGeometryN(componentIndex);
+    currentLine = getLineComponent(componentIndex);
   }
 
   /**
@@ -188,5 +204,37 @@ public class LinearIterator
     if (vertexIndex < getLine().getNumPoints() - 1)
       return currentLine.getCoordinateN(vertexIndex + 1);
     return null;
+  }
+
+  // --- Curve support (LRF-LOC / low-risk reflection; mirrors LRF-LEN pattern for CS) ---
+
+  private boolean isCompoundCurve(Geometry g)
+  {
+    if (g instanceof LineString) {
+      return "CompoundCurve".equals(((LineString) g).getGeometryType());
+    }
+    return false;
+  }
+
+  private int getNumCurves(Geometry g)
+  {
+    try {
+      Class<?> clz = Class.forName("org.locationtech.jts.geom.curved.CompoundCurve");
+      java.lang.reflect.Method m = clz.getMethod("getNumCurves");
+      return (Integer) m.invoke(g);
+    } catch (Exception e) {
+      return 1; // fallback (should not happen if type check passed)
+    }
+  }
+
+  private LineString getCurveN(Geometry g, int n)
+  {
+    try {
+      Class<?> clz = Class.forName("org.locationtech.jts.geom.curved.CompoundCurve");
+      java.lang.reflect.Method m = clz.getMethod("getCurveN", int.class);
+      return (LineString) m.invoke(g, n);
+    } catch (Exception e) {
+      return (LineString) g; // fallback
+    }
   }
 }
