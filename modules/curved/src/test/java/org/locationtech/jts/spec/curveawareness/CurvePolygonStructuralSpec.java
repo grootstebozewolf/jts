@@ -259,19 +259,15 @@ public class CurvePolygonStructuralSpec extends GeometryTestCase {
   }
 
   // ============================================================
-  // B-CP verification (green proof for RGR on B-CP TAG)
-  // Added during green phase; exercises the override without editing the
-  // red TAG fail in CurveAwarenessSpecTest (per "don't integrate yet").
-  // When B-CP ships, the meter method is deleted (not turned green).
+  // B-CP verification (green; B-CP shipped)
+  // Added during green phase; the meter red test was deleted on ship.
+  // This remains as executable doc / regression test for the override.
   // ============================================================
 
   /**
    * Green verification that CurvePolygon.getBoundary() now uses the F-CP
    * structural curves (CompoundCurve / CircularString members) rather than
    * the densified LinearRing view from the Polygon supertype.
-   * <p>
-   * This lives in the structural spec (executable doc) so the main
-   * CurveAwarenessSpecTest#test_B_CP_* can stay as the red progress meter.
    */
   public void test_B_CP_boundaryUsesStructuralCurvesNotDensifiedView() throws Exception {
     // Use explicit CurvedGeometryFactory so read produces proper structural curves
@@ -300,9 +296,8 @@ public class CurvePolygonStructuralSpec extends GeometryTestCase {
 
   /**
    * Green verification for B-MS (MultiSurface boundary returns MultiCurve when
-   * any member is CurvePolygon). Lives here so the meter red test in
-   * CurveAwarenessSpecTest remains untouched (explicit fail kept per RGR "don't
-   * integrate yet").
+   * any member is CurvePolygon). The meter red test was deleted on ship.
+   * This remains as executable doc.
    */
   public void test_B_MS_multiSurfaceBoundaryPreservesCurvedRings() throws Exception {
     CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
