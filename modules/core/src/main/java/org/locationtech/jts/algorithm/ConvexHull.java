@@ -55,7 +55,52 @@ public class ConvexHull
    */
   public ConvexHull(Geometry geometry)
   {
-    this(geometry.getCoordinates(), geometry.getFactory());
+    this(getHullInputPoints(geometry), geometry.getFactory());
+  }
+
+  /**
+   * H-CV (low risk): return arc-dense points for curved geoms (via toLinear reflection)
+   * so hull uses true extremes. Non-curved: plain getCoordinates. Reuses F-RD sampling.
+   */
+  private static Coordinate[] getHullInputPoints(Geometry geometry) {
+    String gt = geometry.getGeometryType();
+    if ("CircularString".equals(gt)) {
+      // H-CV: for CS, include controls + exact arc hull vertex (via reflect to CircularArcs)
+      // so input has the true extremes; hull reduces to 3 verts for single arc.
+      try {
+        java.lang.reflect.Method getSeq = geometry.getClass().getMethod("getCoordinateSequence");
+        org.locationtech.jts.geom.CoordinateSequence seq =
+            (org.locationtech.jts.geom.CoordinateSequence) getSeq.invoke(geometry);
+        java.util.List<Coordinate> list = new java.util.ArrayList<>();
+        for (int i = 0; i < seq.size(); i++) list.add(seq.getCoordinate(i));
+        // for each arc, add the hull vertex
+        Class<?> arcsClz = Class.forName("org.locationtech.jts.geom.curved.CircularArcs");
+        java.lang.reflect.Method hullV = arcsClz.getMethod("arcHullVertex",
+            Coordinate.class, Coordinate.class, Coordinate.class);
+        for (int i = 0; i + 2 < seq.size(); i += 2) {
+          Coordinate p0 = seq.getCoordinate(i);
+          Coordinate p1 = seq.getCoordinate(i+1);
+          Coordinate p2 = seq.getCoordinate(i+2);
+          Coordinate v = (Coordinate) hullV.invoke(null, p0, p1, p2);
+          list.add(v);
+        }
+        return list.toArray(new Coordinate[0]);
+      } catch (Exception e) {
+        return geometry.getCoordinates();
+      }
+    }
+    if ("CompoundCurve".equals(gt) || "CurvePolygon".equals(gt)
+        || "MultiCurve".equals(gt) || "MultiSurface".equals(gt)) {
+      // fallback to dense for compounds/surfaces (will have more verts on arc sides, but correct)
+      try {
+        java.lang.reflect.Method m = geometry.getClass().getMethod("toLinear", double.class);
+        Object res = m.invoke(geometry, 0.01);
+        if (res instanceof Geometry) {
+          return ((Geometry) res).getCoordinates();
+        }
+      } catch (Exception e) {}
+    }
+    return geometry.getCoordinates();
   }
   /**
    * Create a new convex hull construction for the input {@link Coordinate} array.

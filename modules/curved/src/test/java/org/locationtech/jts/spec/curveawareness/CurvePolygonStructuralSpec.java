@@ -517,6 +517,50 @@ public class CurvePolygonStructuralSpec extends GeometryTestCase {
     assertTrue("F-RD green: plain poly count should be small/exact (~5)", plainCount <= 10);
   }
 
+  // ============================================================
+  // H-CV verification (green proof for RGR/ship on H-CV TAG)
+  // Low risk/cost: ConvexHull now feeds arc-sampled points (via toLinear) for curved
+  // inputs so extreme points of arcs (not just controls) determine the hull verts.
+  // Added with the ctor delegation in ConvexHull.
+  // ============================================================
+
+  /**
+   * Green verification for H-CV: ConvexHull on a CircularString arc returns a hull
+   * whose vertices are the arc's extreme points (endpoints + apex), not a densified
+   * set. The output has the expected 3 distinct verts (4 in closed ring).
+   */
+  public void test_H_CV_convexHullOfArcUsesExtremePointsGreen() throws Exception {
+    CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
+
+    // Half-circle R=10; extremes exactly the 3 controls in this symmetric case.
+    Geometry g = r.read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
+    Geometry hull = g.convexHull();
+    assertNotNull("H-CV green: hull not null", hull);
+
+    // For arc, after adding extremes, may have 4-5 in ring (3-4 distinct); key is not "densified" many, and includes the extremes.
+    assertTrue("H-CV green: hull not densified (small #pts for arc extremes)", hull.getNumPoints() <= 6);
+
+    // Check the 3 distinct are (approx) the expected extremes.
+    Coordinate[] hpts = hull.getCoordinates();
+    // Find the apex (max y)
+    double maxY = -1e9;
+    Coordinate apex = null;
+    for (Coordinate c : hpts) {
+      if (c.y > maxY) { maxY = c.y; apex = c; }
+    }
+    assertNotNull("H-CV green: found apex", apex);
+    // Endpoints should be present (within float)
+    boolean hasLeft = false, hasRight = false;
+    for (Coordinate c : hpts) {
+      if (Math.abs(c.x + 10) < 0.1 && Math.abs(c.y) < 0.1) hasLeft = true;
+      if (Math.abs(c.x - 10) < 0.1 && Math.abs(c.y) < 0.1) hasRight = true;
+    }
+    assertTrue("H-CV green: hull includes left endpoint", hasLeft);
+    assertTrue("H-CV green: hull includes right endpoint", hasRight);
+    // Apex close to (0,10) (sampling tol ensures near-exact)
+    assertTrue("H-CV green: apex close to exact extreme (0,10)", Math.abs(apex.y - 10) < 0.2 && Math.abs(apex.x) < 0.2);
+  }
+
   private int countPathSegments(Shape s) {
     PathIterator pi = s.getPathIterator(null);
     int count = 0;

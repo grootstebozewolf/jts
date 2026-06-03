@@ -268,6 +268,31 @@ public final class CircularArcs {
     return new Coordinate(scx, scy);
   }
 
+  /**
+   * Returns the point on the arc that should be a vertex of the convex hull of the arc
+   * (max distance to p0-p2 chord on arc side). +p0+p2 gives tight containing triangle.
+   */
+  public static Coordinate arcHullVertex(Coordinate p0, Coordinate p1, Coordinate p2) {
+    double[] pa = arcParams(p0, p1, p2);
+    double r = pa[0];
+    if (r < 1e-12) return p0;
+    double cx = pa[2], cy = pa[3], a0 = pa[4], sweep = pa[5];
+    double dx = p2.x - p0.x, dy = p2.y - p0.y;
+    double len = Math.hypot(dx, dy);
+    if (len < 1e-12) return p0;
+    double ux = dx / len, uy = dy / len;
+    double nx = -uy, ny = ux;
+    double cross = dx * (p1.y - p0.y) - dy * (p1.x - p0.x);
+    if (cross < 0) { nx = -nx; ny = -ny; }
+    double aCand = Math.atan2(ny, nx);
+    // clamp to sweep (simplified)
+    double rel = aCand - a0;
+    rel = ((rel + Math.PI) % (2 * Math.PI)) - Math.PI;
+    boolean inArc = Math.signum(sweep) * rel >= -1e-9 && Math.abs(rel) <= Math.abs(sweep) + 1e-9;
+    if (!inArc) return p1; // fallback to mid control (on arc)
+    return new Coordinate(cx + r * Math.cos(aCand), cy + r * Math.sin(aCand));
+  }
+
   // Additional helpers can be added for D-PT etc (sweep, pointOnArc) without
   // changing this file signature for PRC-SN harden.
 }

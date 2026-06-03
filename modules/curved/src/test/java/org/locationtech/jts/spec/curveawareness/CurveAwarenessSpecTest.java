@@ -249,7 +249,34 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Hulls
   // ============================================================
 
-  /** H-CV: ConvexHull of an arc returns the arc's extreme points. */
+  /**
+   * H-CV: ConvexHull of an arc returns the arc's extreme points.
+   *
+   * <p>RED-FIRST SEAM IDENTIFICATION (for RGR on this TAG; low risk/cost as hulls are foundational, post F-RD toLinear):
+   * <ul>
+   *   <li>Seam: core algorithm ConvexHull(Geometry) ctor unconditionally does geometry.getCoordinates()
+   *       (via LineString etc for curved subclasses), then reduce/preSort/grahamScan/lineOrPolygon on those.
+   *       For curved lineals/surfaces (CS, CC, CP, MC, MS), getCoordinates() yields only control points (or
+   *       derived ring controls), so the computed hull may miss true arc extremes (bulge points not at controls),
+   *       resulting in a hull polygon that does not contain the arc or reports "densified" extra verts from
+   *       non-aware paths. Output for 3-pt half-arc is the normal 4-pt closed (3 distinct), but test flags the
+   *       general lack of arc awareness.</li>
+   *   <li>Delegation seam (low risk): in ConvexHull(Geometry) ctor, before this(getCoordinates()...),
+   *       check getGeometryType() for "CircularString","CompoundCurve","CurvePolygon","MultiCurve","MultiSurface"
+   *       (string, no curved dep); if so, use reflection Class.forName + getMethod("toLinear", double.class)
+   *       .invoke(geom, 0.01) to get a dense linear approx (reuses our arc-sampling toLinear from F-RD RGR),
+   *       then use lin.getCoordinates() as inputPts. Non-curved fall to normal getCoordinates (exact, no change).
+   *       Small tol=0.01 ensures samples near true extremes; graham/reduce will select them as hull verts (approx
+   *       but correct containing hull; exact extremes possible with more math in future).</li>
+   *   <li>Risk/cost: low (isolated ctor change in ConvexHull; reflection safe like all prior core delegations
+   *       (DSF, LRF-*, F-RD, ShapeWriter); reuses existing toLinear impl + CircularArcs; no new geometric
+   *       algorithms or math in core; hulls of curved now consider arc points so output hull contains the input
+   *       curve. Touches core algorithm but purely for awareness, no behavior change for flat geoms.</li>
+   *   <li>Verification: green verif creates CS half-arc, hull = g.convexHull(); assert hull.getNumPoints()==4
+   *       (or 3 distinct), vertices approx match the 3 extremes (endpoints + (0,10)), and the hull contains
+   *       the original arc points (or distance from arc to hull edges small). Meter red deleted on ship.</li>
+   * </ul>
+   */
   public void test_H_CV_convexHullOfArcUsesExtremePoints() throws Exception {
     // Half-circle R=10. Extreme points within sweep + endpoints: (-10,0), (0,10), (10,0).
     Geometry g = read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
