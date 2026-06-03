@@ -66,3 +66,14 @@
 - Then pick B-CP or next lowest.
 
 This keeps "outratio by two orders" momentum with safe, incremental wins + cross-verif.
+
+## Implementation complete (RGR)
+
+- Overrides added + javadocs in 5 classes.
+- Green test added + passes (8/8 in CompoundCurveStructureTest).
+- Spec updated with "implemented" note (red fail kept).
+- mvn tests: structure clean; M-DIM smoke asserts now succeed (only TAG fail in meter).
+- Branch pushed: https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-M-DIM-rgr
+- Per epic: ready for PR; red delete only on ship commit.
+
+Next per prior: B-CP resume or other low risk/cost.
