@@ -508,7 +508,13 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Snapping / Precision
   // ============================================================
 
-  /** PRC-SN: snap-to-grid for CircularString preserves arc when possible. */
+  /**
+   * PRC-SN: snap-to-grid for CircularString preserves arc when possible.
+   * Implemented in CurvedPrecisionReducer (Option D: preserve if grid-friendly
+   * centre/radius after snap controls, else densify+reduce). See green tests
+   * in CurvedPrecisionReducerTest. Hardened with proofs #66.
+   * Red marker kept per RGR.
+   */
   public void test_PRC_SN_snapPreservesArcWhenControlPointsAlign() throws Exception {
     fail("PRC-SN: precision-model snap on a CircularString should snap the 3 control "
         + "points and preserve the arc if the resulting (R, C, sweep) still represent "
