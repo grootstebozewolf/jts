@@ -339,7 +339,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
     Geometry arcB = read("CIRCULARSTRING (5 0, 10 5, 15 0)");
     double actual = arcA.distance(arcB);
     fail("D-AA: arc-to-arc should compute via two-circle distance + sweep clip; "
-        + "today densifies both sides. Got " + actual + ".");
+        + "Got " + actual + " (TAG marker kept per RGR).");
   }
 
   /** D-OP: DistanceOp curve-aware. */
