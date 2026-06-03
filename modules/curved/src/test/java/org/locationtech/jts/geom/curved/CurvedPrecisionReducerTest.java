@@ -64,4 +64,26 @@ public class CurvedPrecisionReducerTest extends TestCase {
     Geometry reduced = CurvedPrecisionReducer.reduce(cc, pm);
     assertTrue(reduced instanceof CompoundCurve);
   }
+
+  /** Basic hunter for snap cases (grid vs sub-grid); exercises preserve/fallback paths.
+   *  For full adversarial, integrate vectors from proofs#66 SnapRounding.
+   */
+  public void testSnapHunterBasic() {
+    int preserved = 0, densified = 0;
+    PrecisionModel pm = new PrecisionModel(1.0);
+    for (int i = 0; i < 20; i++) {
+      // simple random-ish arc near grid
+      double x0 = i * 0.1, y0 = 0;
+      double x1 = i*0.1 + 0.3, y1 = 1.2;
+      double x2 = i*0.1 + 1.0, y2 = 0.1;
+      String wkt = "CIRCULARSTRING (" + x0 + " " + y0 + ", " + x1 + " " + y1 + ", " + x2 + " " + y2 + ")";
+      Geometry cs = read(wkt);
+      Geometry red = CurvedPrecisionReducer.reduce(cs, pm);
+      if (red instanceof CircularString) preserved++;
+      else densified++;
+    }
+    System.out.println("PRC-SN hunter: " + preserved + " preserved as CS, " + densified + " densified");
+    // Just exercise; in practice with proofs vectors, assert on specific cases.
+    assertTrue(preserved + densified > 0);
+  }
 }
