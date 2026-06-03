@@ -129,6 +129,19 @@ public class CurvePolygon extends Polygon implements Linearizable {
     return "CurvePolygon";
   }
 
+  /**
+   * M-DIM guard: empty curved surfaces must report dimension 2.
+   * <p>
+   * Explicit override (in addition to inherited from Polygon) so that
+   * refactors to empty construction (e.g. the no-arg ctor or structural
+   * nulls) cannot regress the empty-curve dimension semantics.
+   * See CurveAwarenessSpecTest#test_M_DIM_* .
+   */
+  @Override
+  public int getDimension() {
+    return 2;
+  }
+
   @Override
   public CurvePolygon reverse() {
     return (CurvePolygon) super.reverse();

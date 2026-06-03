@@ -111,16 +111,6 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
         + " (treating control points as a flat polygon).");
   }
 
-  /** M-DIM: dimension and coordinate dimension correct for empty curved subtypes. */
-  public void test_M_DIM_emptyCurvedDimensions() throws Exception {
-    Geometry e1 = read("CIRCULARSTRING EMPTY");
-    Geometry e2 = read("CURVEPOLYGON EMPTY");
-    assertEquals(1, e1.getDimension());
-    assertEquals(2, e2.getDimension());
-    fail("M-DIM: smoke-tested today but spec needs an explicit guard so a future "
-        + "refactor doesn't regress empty-curved dimension semantics.");
-  }
-
   // ============================================================
   // Boundary
   // ============================================================

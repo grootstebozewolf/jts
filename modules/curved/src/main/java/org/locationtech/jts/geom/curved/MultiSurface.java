@@ -35,6 +35,17 @@ public class MultiSurface extends MultiPolygon implements Linearizable {
     return "MultiSurface";
   }
 
+  /**
+   * M-DIM guard: empty curved surface collections must report dimension 2.
+   * <p>
+   * Explicit override so empty MULTISURFACE reports correctly, guarding
+   * against regression in collection/empty paths.
+   */
+  @Override
+  public int getDimension() {
+    return 2;
+  }
+
   @Override
   public Geometry getBoundary() {
     if (isEmpty()) {

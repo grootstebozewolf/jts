@@ -34,6 +34,19 @@ public class CompoundCurve extends LineString implements Linearizable {
   }
 
   /**
+   * M-DIM guard: empty curved lineals must report dimension 1.
+   * <p>
+   * Explicit override (in addition to inherited from LineString) so that
+   * refactors to empty construction or future changes cannot regress the
+   * empty-curve dimension semantics required by the spec. See
+   * CurveAwarenessSpecTest#test_M_DIM_* (and its ship commit).
+   */
+  @Override
+  public int getDimension() {
+    return 1;
+  }
+
+  /**
    * Returns the boundary of this CompoundCurve.
    *
    * <p>B-CC (low risk/cost RGR pivot): semantics are identical to LineString.

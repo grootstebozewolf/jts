@@ -32,6 +32,18 @@ public class MultiCurve extends MultiLineString implements Linearizable {
     return "MultiCurve";
   }
 
+  /**
+   * M-DIM guard: empty curved lineal collections must report dimension 1.
+   * <p>
+   * Explicit override so that refactors cannot regress empty MULTICURVE
+   * dimension semantics. Complements the lineal guards in CircularString/
+   * CompoundCurve.
+   */
+  @Override
+  public int getDimension() {
+    return 1;
+  }
+
   @Override
   protected MultiCurve copyInternal() {
     int n = getNumGeometries();

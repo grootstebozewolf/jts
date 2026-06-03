@@ -374,4 +374,33 @@ public class CurvePolygonStructuralSpec extends GeometryTestCase {
     assertEquals("B-CC green: open lineal boundary dim", 0, openCC.getBoundaryDimension());
     assertEquals("B-CC green: closed lineal boundary dim", -1 /*FALSE*/, closedCC.getBoundaryDimension());
   }
+
+  // ============================================================
+  // M-DIM verification (green proof for RGR/ship on M-DIM TAG)
+  // Ultra low-risk/cost guard for empty curved dimension semantics.
+  // Added with the dimension overrides; meter method will be deleted on ship.
+  // ============================================================
+
+  /**
+   * Green verification that empty curved subtypes report the correct
+   * topological dimension (1 for lineal curves, 2 for surfaces), now with
+   * explicit guards in all curved classes.
+   */
+  public void test_M_DIM_emptyCurvedDimensions() throws Exception {
+    CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
+
+    // Curve lineals (CS, CC, MC) → dim 1
+    org.locationtech.jts.geom.Geometry eCS = r.read("CIRCULARSTRING EMPTY");
+    org.locationtech.jts.geom.Geometry eCC = r.read("COMPOUNDCURVE EMPTY");
+    org.locationtech.jts.geom.Geometry eMC = r.read("MULTICURVE EMPTY");
+    assertEquals("M-DIM green: empty CS dim", 1, eCS.getDimension());
+    assertEquals("M-DIM green: empty CC dim", 1, eCC.getDimension());
+    assertEquals("M-DIM green: empty MC dim", 1, eMC.getDimension());
+
+    // Curved surfaces (CP, MS) → dim 2
+    org.locationtech.jts.geom.Geometry eCP = r.read("CURVEPOLYGON EMPTY");
+    org.locationtech.jts.geom.Geometry eMS = r.read("MULTISURFACE EMPTY");
+    assertEquals("M-DIM green: empty CP dim", 2, eCP.getDimension());
+    assertEquals("M-DIM green: empty MS dim", 2, eMS.getDimension());
+  }
 }
