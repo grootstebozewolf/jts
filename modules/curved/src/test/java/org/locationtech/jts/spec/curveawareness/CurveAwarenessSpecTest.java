@@ -57,6 +57,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
 
   // F-CP, F-MC, F-MS landed (structural composites + subtype preservation in copy/ctor/reader/writer).
   // B-CP, B-MS, B-CC, M-DIM shipped (red meters deleted; greens + guards in place).
+  // M-AREA-CP, D-PT, D-AA, PRC-SN shipped (green verified + proofs harden; red markers deleted).
   // F-RD (CurvedShapeWriter integration) remains for later.
 
   /** F-RD: renderer arc-walks CurvePolygon rings + MultiCurve+MultiSurface. */
@@ -90,26 +91,6 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
     double actual = g.getLength();
     fail("M-LEN-CC: line(10)+halfArc(R=5) length should be ≈ " + expected
         + " but got " + actual + ".");
-  }
-
-  /**
-   * M-AREA-CP: CurvePolygon area uses circular-segment correction.
-   * <p>
-   * Implemented (green verified, see CurvePolygonAreaTest 7 tests exact delta 0.0;
-   * CurvedArea Green's + arc theta contrib; red marker kept per RGR).
-   * Further hardened with proofs artifact run 26887314315/art 7385761173
-   * (ARC_AREA_INVARIANTS_EXACT + ARC_AREA using AngleBetween for theta/sin;
-   * BigDecimal ref cross-check; 0 counterex).
-   */
-  public void test_M_AREA_CP_curvePolygonAreaWithSegmentCorrection() throws Exception {
-    // Disk of radius 10 expressed as CURVEPOLYGON of two half-arcs. Area = π · R² ≈ 314.159.
-    Geometry g = read(
-        "CURVEPOLYGON (CIRCULARSTRING (-10 0, 0 10, 10 0, 0 -10, -10 0))");
-    double expected = Math.PI * 100;
-    double actual = g.getArea();
-    fail("M-AREA-CP: disk (R=10) area should be ≈ " + expected
-        + " (π·R²) but Geometry.getArea() returned " + actual
-        + " (treating control points as a flat polygon).");
   }
 
   // ============================================================
@@ -161,40 +142,6 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // ============================================================
   // Distance
   // ============================================================
-
-  /**
-   * D-PT: point-to-arc distance.
-   * <p>
-   * Implemented (green verified, see testPointToArcDistance_D_PT in CompoundCurveMembersTest;
-   * math reuse from M-LEN-CS; red marker kept per RGR).
-   * Further hardened with proofs artifact run 26887314315/art 7385761173 (angle_between
-   * + arc primitives for sweep clamp in distancePointToArc).
-   */
-  public void test_D_PT_pointToArcDistanceClampsToSweep() throws Exception {
-    // Half-circle (-5,0)..(5,0) through (0,5). Centre (0,0). External point (0, 10).
-    Geometry arc = read("CIRCULARSTRING (-5 0, 0 5, 5 0)");
-    Geometry pt  = read("POINT (0 10)");
-    double expected = 5.0;     // 10 - radius 5
-    double actual   = arc.distance(pt);
-    fail("D-PT: distance from POINT(0 10) to half-arc R=5 should be " + expected
-        + ", got " + actual + " (chord-treated polyline distance).");
-  }
-
-  /**
-   * D-AA: arc-to-arc distance.
-   * <p>
-   * Implemented (green verified, see testArcToArcDistance_D_AA in CompoundCurveMembersTest;
-   * reuses D-PT helpers + radial clamp; red marker kept per RGR).
-   * Further hardened with proofs artifact run 26887314315/art 7385761173 (ARC_AREA/ANGLE
-   * for contribs + chord cross for intersect in arc-arc dist).
-   */
-  public void test_D_AA_arcToArcAnalyticalDistance() throws Exception {
-    Geometry arcA = read("CIRCULARSTRING (-10 0, -5 5, 0 0)");
-    Geometry arcB = read("CIRCULARSTRING (5 0, 10 5, 15 0)");
-    double actual = arcA.distance(arcB);
-    fail("D-AA: arc-to-arc should compute via two-circle distance + sweep clip; "
-        + "today densifies both sides. Got " + actual + ".");
-  }
 
   /** D-OP: DistanceOp curve-aware. */
   public void test_D_OP_distanceOpForCurvedInputs() throws Exception {
@@ -470,23 +417,6 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // ============================================================
   // Snapping / Precision
   // ============================================================
-
-  /** PRC-SN: snap-to-grid for CircularString preserves arc when possible. */
-  /**
-   * PRC-SN: snap decision for curved (preserve arc vs densify) under PrecisionModel.
-   * <p>
-   * See CurvedPrecisionReducer.isGridFriendly + reduce (per-member for CC).
-   * Green verified via CurvedPrecisionReducerTest + CurveSnapRefRunner (vectors load,
-   * isSound 0 counterexamples). Red marker kept per RGR §5/11 until ship-delete.
-   * Hardened with oracle-bin-linux from run 26887314315/art 7385761173
-   * (exact Q CURVE_SNAP_DECISION + CURVE_SNAP_INVARIANTS_EXACT; AngleBetween.v;
-   * JTS#1195 #66; zero counterexamples in hunter + load).
-   */
-  public void test_PRC_SN_snapPreservesArcWhenControlPointsAlign() throws Exception {
-    fail("PRC-SN: precision-model snap on a CircularString should snap the 3 control "
-        + "points and preserve the arc if the resulting (R, C, sweep) still represent "
-        + "a valid circular arc on the snap grid; otherwise densify and snap chords.");
-  }
 
   // ============================================================
   // TestBuilder integration
