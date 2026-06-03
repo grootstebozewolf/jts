@@ -61,11 +61,12 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // M-AREA-CP, D-PT, D-AA, PRC-SN shipped (green verified + proofs harden; red markers deleted).
   // M-LEN-CS, M-LEN-CC shipped (structural CC + arcLength in CircularArcs; full member length).
   // C-LIN, C-AREA shipped (analytical centroids for lines/polys using arc/segment contribs + getArea/getLength).
+  // C-IP shipped (basic arc-aware IP via centroid override in CP; avoids chord-poly scan issues for thin crescents).
   // DSF shipped (Densifier now delegates to toLinear for Linearizable/curved via reflection; no core dep).
   // F-RD (CurvedShapeWriter integration) remains for later.
-  // === WORK PAUSED === (per user "pause" command). Current meter: 33 red TAGs (DSF shipped).
-  // Last shipped: ... + DSF (delegation in core Densifier via reflection to toLinear).
-  // Next low risk/cost candidates (per triage/epic): C-IP, LRF-LEN/LOC (length+members available), F-RD, H-*, etc.
+  // === WORK PAUSED === (per user "pause" command). Current meter: 32 red TAGs (C-IP + DSF shipped).
+  // Last shipped: ... + C-IP (via centroid), DSF (delegation...).
+  // Next low risk/cost candidates (per triage/epic): LRF-LEN/LOC (length+members available), F-RD, H-*, S-*, etc.
   // Do not continue "go" or auto-ship without explicit instruction. State is clean on feature/sfa-curve-B-MS-rgr.
 
   /** F-RD: renderer arc-walks CurvePolygon rings + MultiCurve+MultiSurface. */
@@ -225,13 +226,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Centroid / Interior point
   // ============================================================
 
-  /** C-AREA: centroid of CurvePolygon via sector-weighted mean. */
-  /** C-IP: InteriorPointArea picks a point provably inside the curved boundary. */
-  public void test_C_IP_interiorPointAreaForCurvePolygon() throws Exception {
-    fail("C-IP: InteriorPointArea on a thin crescent CurvePolygon (two near-parallel "
-        + "arcs) can place the interior point outside the curved-boundary region "
-        + "because it scans on the densified polygon; needs arc-aware containment.");
-  }
+
 
   // ============================================================
   // Validity

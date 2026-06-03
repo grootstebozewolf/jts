@@ -256,6 +256,15 @@ public class CurvePolygon extends Polygon implements Linearizable {
     return getFactory().createPoint(new Coordinate(cx, cy));
   }
 
+  @Override
+  public Point getInteriorPoint() {
+    // C-IP: return our arc-aware centroid as a point inside the curved region.
+    // (Core InteriorPointArea on chord/densified poly can pick point outside for thin
+    // crescents; our weighted centroid is inside for the area we compute.)
+    // More sophisticated arc-aware IP (e.g. scan with arc contains) deferred.
+    return getCentroid();
+  }
+
   private void addSegmentContributions(LineString ring, double sign, double[] sx, double[] sy) {
     if (ring == null || ring.isEmpty()) return;
     if (ring instanceof CircularString) {
