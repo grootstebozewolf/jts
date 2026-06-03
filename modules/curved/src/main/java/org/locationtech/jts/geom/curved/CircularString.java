@@ -11,6 +11,7 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import org.locationtech.jts.algorithm.Distance;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -100,6 +101,65 @@ public class CircularString extends LineString implements Linearizable {
       return super.getCentroid();
     }
     return getFactory().createPoint(new Coordinate(cxAcc / wSum, cyAcc / wSum));
+  }
+
+  /**
+   * D-PT: distance to a puntal geometry is computed analytically against the
+   * circular arcs (point-to-arc, clamped to each arc's sweep) rather than
+   * against the flat chord polyline of the control points. For non-puntal
+   * inputs (line/area, i.e. the D-AA / D-OP tags) the inherited densified
+   * behaviour is retained.
+   */
+  @Override
+  public double distance(Geometry g) {
+    CoordinateSequence cs = getCoordinateSequence();
+    int n = cs.size();
+    if (g == null || g.isEmpty() || g.getDimension() != 0 || n < 3) {
+      return super.distance(g);
+    }
+    double best = Double.POSITIVE_INFINITY;
+    Coordinate[] pts = g.getCoordinates();
+    for (int k = 0; k < pts.length; k++) {
+      for (int i = 0; i + 2 < n; i += 2) {
+        double dpt = pointToArc(pts[k].x, pts[k].y,
+            cs.getX(i), cs.getY(i),
+            cs.getX(i + 1), cs.getY(i + 1),
+            cs.getX(i + 2), cs.getY(i + 2));
+        if (dpt < best) best = dpt;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Distance from a point to one circular arc. If the point's projection onto
+   * the circle falls within the arc's sweep the distance is {@code |d - R|}
+   * (d the point-centre distance); otherwise it is the distance to the nearer
+   * arc endpoint. Degenerate (collinear) triples use point-to-chord distance.
+   */
+  private static double pointToArc(double px, double py,
+                                   double sx, double sy,
+                                   double mx, double my,
+                                   double ex, double ey) {
+    double[] g = arcGeometry(sx, sy, mx, my, ex, ey);
+    if (g == null) {
+      return Distance.pointToSegment(new Coordinate(px, py),
+          new Coordinate(sx, sy), new Coordinate(ex, ey));
+    }
+    double cx = g[0], cy = g[1], r = g[2], delta = g[3];
+    double dC = Math.hypot(px - cx, py - cy);
+    if (dC == 0.0) {
+      return r; // point at the centre: every arc point is R away
+    }
+    double phi = Math.atan2(py - cy, px - cx);
+    double a0 = Math.atan2(sy - cy, sx - cx);
+    boolean within = (delta >= 0)
+        ? (normTwoPi(phi - a0) <= delta)
+        : (normTwoPi(a0 - phi) <= -delta);
+    if (within) {
+      return Math.abs(dC - r);
+    }
+    return Math.min(Math.hypot(px - sx, py - sy), Math.hypot(px - ex, py - ey));
   }
 
   /**

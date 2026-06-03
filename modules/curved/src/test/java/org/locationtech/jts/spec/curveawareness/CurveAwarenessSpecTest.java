@@ -244,16 +244,12 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Distance
   // ============================================================
 
-  /** D-PT: point-to-arc distance. */
-  public void test_D_PT_pointToArcDistanceClampsToSweep() throws Exception {
-    // Half-circle (-5,0)..(5,0) through (0,5). Centre (0,0). External point (0, 10).
-    Geometry arc = read("CIRCULARSTRING (-5 0, 0 5, 5 0)");
-    Geometry pt  = read("POINT (0 10)");
-    double expected = 5.0;     // 10 - radius 5
-    double actual   = arc.distance(pt);
-    fail("D-PT: distance from POINT(0 10) to half-arc R=5 should be " + expected
-        + ", got " + actual + " (chord-treated polyline distance).");
-  }
+  // D-PT shipped: CircularString.distance(puntal) uses the analytical
+  //   point-to-arc distance clamped to each arc's sweep (|d-R| when the foot
+  //   lies on the arc, else the nearer endpoint, R at the centre), not the
+  //   chord-polyline distance. Non-puntal inputs (D-AA / D-OP) still densify.
+  //   Green coverage: CircularStringDistanceProofTest.
+  // Red meter method deleted per epic "delete on ship" convention.
 
   /** D-AA: arc-to-arc distance. */
   public void test_D_AA_arcToArcAnalyticalDistance() throws Exception {
