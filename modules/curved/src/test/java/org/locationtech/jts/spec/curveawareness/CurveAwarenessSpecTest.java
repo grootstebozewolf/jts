@@ -61,10 +61,11 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // M-AREA-CP, D-PT, D-AA, PRC-SN shipped (green verified + proofs harden; red markers deleted).
   // M-LEN-CS, M-LEN-CC shipped (structural CC + arcLength in CircularArcs; full member length).
   // C-LIN, C-AREA shipped (analytical centroids for lines/polys using arc/segment contribs + getArea/getLength).
+  // DSF shipped (Densifier now delegates to toLinear for Linearizable/curved via reflection; no core dep).
   // F-RD (CurvedShapeWriter integration) remains for later.
-  // === WORK PAUSED === (per user "pause" command). Current meter: 34 red TAGs.
-  // Last shipped: structural CC (for M-LEN-CC), C-LIN, C-AREA, M-LENs, etc.
-  // Next low risk/cost candidates (per triage/epic): C-IP, DSF (densifier should delegate to toLinear now that we have it), LRF-LEN/LOC (length+members available), perhaps F-RD or H-*.
+  // === WORK PAUSED === (per user "pause" command). Current meter: 33 red TAGs (DSF shipped).
+  // Last shipped: ... + DSF (delegation in core Densifier via reflection to toLinear).
+  // Next low risk/cost candidates (per triage/epic): C-IP, LRF-LEN/LOC (length+members available), F-RD, H-*, etc.
   // Do not continue "go" or auto-ship without explicit instruction. State is clean on feature/sfa-curve-B-MS-rgr.
 
   /** F-RD: renderer arc-walks CurvePolygon rings + MultiCurve+MultiSurface. */
@@ -342,14 +343,24 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Densifier
   // ============================================================
 
-  /** DSF: Densifier delegates to toLinear for arc input. */
-  public void test_DSF_densifierUsesToLinearForArcInput() throws Exception {
-    fail("DSF: org.locationtech.jts.densify.Densifier walks coordinates and "
-        + "subdivides chords. On a CircularString it should detect the type and "
-        + "delegate to toLinear(tolerance); today it produces chord-subdivisions "
-        + "that don't lie on the arc.");
-  }
-
+  /**
+   * DSF: Densifier delegates to toLinear for arc input.
+   *
+   * <p>RED-FIRST SEAM IDENTIFICATION (for RGR on this TAG; low risk/cost now that toLinear is structural):
+   * <ul>
+   *   <li>Seam in Densifier (core): static densify(geom, tol) and internal DensifyTransformer.transformCoordinates
+   *       always treat input as polyline coords (even if subclass of LineString like CS/CC).
+   *       This produces points that may not lie on the original arc.</li>
+   *   <li>Delegation seam: use reflection in densify() to detect toLinear(double) method (avoids core->curved dep;
+   *       see epic §6 "or shadow"). If present, early-return ((Linearizable)geom).toLinear(tol).
+   *       This is the "detect the type and delegate" required by spec.</li>
+   *   <li>Risk/cost: low (reflection is safe, no new math, reuses existing toLinear which now supports
+   *       structural members). Touches core but isolated change. Alternative shadow in curved not needed.
+   *       toLinear(tol) currently returns control-point approx (future can improve densify logic inside toLinear).</li>
+   *   <li>Verification: green verif can be simple (use Densifier.densify on CS, assert result is LineString
+   *       not further densified beyond toLinear, or just that no error). Meter red deleted on ship.</li>
+   * </ul>
+   */
   // ============================================================
   // Triangulation / Voronoi
   // ============================================================

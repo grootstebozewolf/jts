@@ -51,6 +51,16 @@ public class Densifier {
 	 * @return the densified geometry
 	 */
 	public static Geometry densify(Geometry geom, double distanceTolerance) {
+		// DSF: delegate to toLinear for Linearizable (curved) inputs, per JTS#1195.
+		// Uses reflection to avoid core dependency on jts-curved module.
+		if (geom != null) {
+			try {
+				java.lang.reflect.Method toLinear = geom.getClass().getMethod("toLinear", double.class);
+				return (Geometry) toLinear.invoke(geom, distanceTolerance);
+			} catch (NoSuchMethodException | IllegalAccessException | java.lang.reflect.InvocationTargetException e) {
+				// not Linearizable or error -> fall through to standard densify
+			}
+		}
 		Densifier densifier = new Densifier(geom);
 		densifier.setDistanceTolerance(distanceTolerance);
 		return densifier.getResultGeometry();
