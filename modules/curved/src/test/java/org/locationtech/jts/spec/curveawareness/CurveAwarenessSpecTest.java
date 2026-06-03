@@ -365,12 +365,13 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   //   at centre, off-chord, collinear-as-chord-midpoint).
   // Red meter method deleted per epic "delete on ship" convention.
 
-  /** C-AREA: centroid of CurvePolygon via sector-weighted mean. */
-  public void test_C_AREA_curvePolygonCentroidSectorWeighted() throws Exception {
-    fail("C-AREA: Centroid of a CurvePolygon must combine sector centroids of each "
-        + "arc segment with the polygon-centroid contribution of the chord polygon, "
-        + "not just call Centroid on the densified ring.");
-  }
+  // C-AREA shipped: CurvePolygon.getCentroid() computes the area centroid
+  //   analytically via Green's-theorem moments over the structural rings
+  //   (chord-polygon centroid combined with each circular segment's), instead
+  //   of Centroid on the densified ring. A disk centres on its centre, a
+  //   half-disk on 4R/(3*pi). Green coverage: CurvePolygonCentroidProofTest
+  //   (disk, offset disk, half-disk, concentric hole, straight-ring parity).
+  // Red meter method deleted per epic "delete on ship" convention.
 
   /** C-IP: InteriorPointArea picks a point provably inside the curved boundary. */
   public void test_C_IP_interiorPointAreaForCurvePolygon() throws Exception {

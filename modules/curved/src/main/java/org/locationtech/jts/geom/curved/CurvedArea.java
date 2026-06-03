@@ -17,41 +17,36 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.LineString;
 
 /**
- * Analytical area for curve-bounded rings (M-AREA-CP), using the exact
- * circular-segment correction rather than the area of the flattened chord
- * polygon.
+ * Analytical area and area-centroid for curve-bounded rings (M-AREA-CP /
+ * C-AREA), using the exact circular-segment correction rather than the flat
+ * chord polygon.
  *
- * <p>The enclosed area is evaluated with Green's theorem,
- * {@code A = (1/2) * oint (x dy - y dx)}. The line integral is path-additive,
- * so a ring is walked segment by segment. A straight segment {@code (p, q)}
- * contributes the shoelace cross term {@code p.x*q.y - q.x*p.y}. A circular
- * arc with centre {@code (cx, cy)}, radius {@code R} and signed sweep
- * {@code delta} (positive counter-clockwise) contributes
- * {@code R^2*delta + cx*(ye - ys) - cy*(xe - xs)}, which already folds in the
- * circular-segment area between the arc and its chord with the correct sign.
- * A disk of radius {@code R} therefore evaluates to exactly {@code pi*R^2}.
+ * <p>Both are evaluated by Green's theorem over the ring boundary, walked
+ * segment by segment. With the boundary integral {@code oint},
+ * <pre>
+ *   A      = (1/2) oint (x dy - y dx)
+ *   ∬ x dA = (1/2) oint x^2 dy
+ *   ∬ y dA = -(1/2) oint y^2 dx
+ * </pre>
+ * the centroid is {@code (∬x dA / A, ∬y dA / A)}. A straight segment
+ * contributes elementary polynomial terms; a circular arc contributes the
+ * closed-form trigonometric integrals over its sweep. A disk expressed as
+ * arcs yields area {@code pi*R^2} and centroid at its centre; a half-disk
+ * yields centroid {@code 4R/(3*pi)} from the centre.
  *
- * <p>The arc geometry is computed with the same robustness measures proven
- * out for arc length (M-LEN-CS): the start/mid/end degeneracy is decided by
- * the scale-invariant {@link Orientation} predicate (NetTopologySuite.Proofs
- * ArcOrient.arc_side_chord_mid_nonzero), the circumcentre is computed in a
- * frame translated to the arc start, and the swept angle uses the
- * orientation-robust CCW-span selection. The whole ring is additionally
- * evaluated in a frame translated to its first vertex to limit cancellation
- * for rings far from the origin. The circular-segment value matches the
- * proof oracle's ARC_AREA mode.
+ * <p>Arc geometry uses the robustness measures proven out for arc length
+ * (M-LEN-CS): scale-invariant {@link Orientation} degeneracy
+ * (ArcOrient.arc_side_chord_mid_nonzero), a start-translated circumcentre, and
+ * the orientation-robust CCW-span signed sweep. Rings are evaluated in a frame
+ * translated to the shell's first vertex to limit cancellation far from the
+ * origin.
  */
 final class CurvedArea {
 
   private CurvedArea() {
   }
 
-  /**
-   * Area of a curve-bounded polygon: {@code |shell| - sum|hole|}, mirroring
-   * {@link org.locationtech.jts.geom.Polygon#getArea()}.
-   *
-   * @param rings structural rings in boundary order: [shell, hole0, hole1, ...]
-   */
+  /** Area of a curve-bounded polygon: {@code |shell| - sum|hole|}. */
   static double ofRings(LineString[] rings) {
     if (rings == null || rings.length == 0) return 0.0;
     double area = Math.abs(signedRingArea(rings[0]));
@@ -65,65 +60,92 @@ final class CurvedArea {
   static double signedRingArea(LineString ring) {
     if (ring == null || ring.isEmpty() || ring.getNumPoints() == 0) return 0.0;
     Coordinate o = ring.getCoordinateN(0);
-    return accumulate(ring, o.x, o.y) / 2.0;
-  }
-
-  private static double accumulate(LineString ring, double ox, double oy) {
-    if (ring instanceof CompoundCurve) {
-      CompoundCurve cc = (CompoundCurve) ring;
-      double sum = 0.0;
-      for (int i = 0; i < cc.getNumCurves(); i++) {
-        sum += accumulateMember(cc.getCurveN(i), ox, oy);
-      }
-      return sum;
-    }
-    return accumulateMember(ring, ox, oy);
-  }
-
-  private static double accumulateMember(LineString m, double ox, double oy) {
-    if (m instanceof CircularString) {
-      return accumulateArcs(m.getCoordinateSequence(), ox, oy);
-    }
-    return accumulateStraight(m.getCoordinateSequence(), ox, oy);
-  }
-
-  /** Straight polyline: shoelace cross term per consecutive vertex pair (origin-translated). */
-  private static double accumulateStraight(CoordinateSequence seq, double ox, double oy) {
-    double sum = 0.0;
-    for (int i = 0; i + 1 < seq.size(); i++) {
-      double xs = seq.getX(i) - ox,     ys = seq.getY(i) - oy;
-      double xe = seq.getX(i + 1) - ox, ye = seq.getY(i + 1) - oy;
-      sum += xs * ye - xe * ys;
-    }
-    return sum;
-  }
-
-  /** CircularString: consecutive (start, mid, end) triples, advancing two at a time. */
-  private static double accumulateArcs(CoordinateSequence seq, double ox, double oy) {
-    int n = seq.size();
-    if (n < 3) return accumulateStraight(seq, ox, oy);
-    double sum = 0.0;
-    for (int i = 0; i + 2 < n; i += 2) {
-      sum += arcContribution(
-          seq.getX(i) - ox,     seq.getY(i) - oy,
-          seq.getX(i + 1) - ox, seq.getY(i + 1) - oy,
-          seq.getX(i + 2) - ox, seq.getY(i + 2) - oy);
-    }
-    return sum;
+    return ringMoments(ring, o.x, o.y)[0] / 2.0;
   }
 
   /**
-   * Contribution of one arc to {@code oint (x dy - y dx)}, with all
-   * coordinates already in the ring-local (origin-translated) frame.
+   * Area centroid of the rings {@code [shell, hole0, hole1, ...]}, or
+   * {@code null} when the area is zero / non-finite. Holes are detected by
+   * opposite winding to the shell and subtracted.
    */
-  private static double arcContribution(double sx, double sy,
-                                        double mx, double my,
-                                        double ex, double ey) {
+  static double[] centroid(LineString[] rings) {
+    if (rings == null || rings.length == 0
+        || rings[0] == null || rings[0].isEmpty()) {
+      return null;
+    }
+    Coordinate anchor = rings[0].getCoordinateN(0);
+    double ox = anchor.x, oy = anchor.y;
+    double[] m = ringMoments(rings[0], ox, oy);
+    double twoArea = m[0], mx = m[1], my = m[2];
+    double shellSign = Math.signum(m[0]);
+    for (int i = 1; i < rings.length; i++) {
+      double[] h = ringMoments(rings[i], ox, oy);
+      // A hole with the same winding as the shell must subtract.
+      double f = (Math.signum(h[0]) == shellSign) ? -1.0 : 1.0;
+      twoArea += f * h[0];
+      mx += f * h[1];
+      my += f * h[2];
+    }
+    double area = twoArea / 2.0;
+    if (area == 0.0 || !Double.isFinite(area)) return null;
+    // Sign of the (signed) area cancels in the moment ratios.
+    return new double[] { mx / area + ox, my / area + oy };
+  }
+
+  /** {2*signedArea, ∬x dA, ∬y dA} for one ring, in the (ox,oy)-translated frame. */
+  private static double[] ringMoments(LineString ring, double ox, double oy) {
+    double[] a = new double[3];
+    if (ring instanceof CompoundCurve) {
+      CompoundCurve cc = (CompoundCurve) ring;
+      for (int i = 0; i < cc.getNumCurves(); i++) {
+        memberMoments(cc.getCurveN(i), ox, oy, a);
+      }
+    } else {
+      memberMoments(ring, ox, oy, a);
+    }
+    return a;
+  }
+
+  private static void memberMoments(LineString m, double ox, double oy, double[] a) {
+    if (m instanceof CircularString) {
+      arcsMoments(m.getCoordinateSequence(), ox, oy, a);
+    } else {
+      straightMoments(m.getCoordinateSequence(), ox, oy, a);
+    }
+  }
+
+  private static void straightMoments(CoordinateSequence seq, double ox, double oy, double[] a) {
+    for (int i = 0; i + 1 < seq.size(); i++) {
+      straightSeg(seq.getX(i) - ox, seq.getY(i) - oy,
+                  seq.getX(i + 1) - ox, seq.getY(i + 1) - oy, a);
+    }
+  }
+
+  private static void arcsMoments(CoordinateSequence seq, double ox, double oy, double[] a) {
+    int n = seq.size();
+    if (n < 3) { straightMoments(seq, ox, oy, a); return; }
+    for (int i = 0; i + 2 < n; i += 2) {
+      arcMoments(seq.getX(i) - ox,     seq.getY(i) - oy,
+                 seq.getX(i + 1) - ox, seq.getY(i + 1) - oy,
+                 seq.getX(i + 2) - ox, seq.getY(i + 2) - oy, a);
+    }
+  }
+
+  /** Straight edge contribution to {2*area, ∬x dA, ∬y dA}. */
+  private static void straightSeg(double x0, double y0, double x1, double y1, double[] a) {
+    a[0] += x0 * y1 - x1 * y0;
+    a[1] += (y1 - y0) * (x0 * x0 + x0 * x1 + x1 * x1) / 6.0;
+    a[2] += -(x1 - x0) * (y0 * y0 + y0 * y1 + y1 * y1) / 6.0;
+  }
+
+  /** Circular-arc contribution to {2*area, ∬x dA, ∬y dA} (coords pre-translated). */
+  private static void arcMoments(double sx, double sy, double mx, double my,
+                                 double ex, double ey, double[] a) {
     if (Orientation.index(new Coordinate(sx, sy), new Coordinate(mx, my),
                           new Coordinate(ex, ey)) == Orientation.COLLINEAR) {
-      return sx * ey - ex * sy; // degenerate: straight chord term
+      straightSeg(sx, sy, ex, ey, a);
+      return;
     }
-    // Circumcentre relative to the arc start (translate again for stability).
     double mxL = mx - sx, myL = my - sy;
     double exL = ex - sx, eyL = ey - sy;
     double d = 2 * (mxL * eyL - exL * myL);
@@ -131,21 +153,41 @@ final class CurvedArea {
     double eSq = exL * exL + eyL * eyL;
     double cxL = (mSq * eyL - eSq * myL) / d;
     double cyL = (eSq * mxL - mSq * exL) / d;
-    double r2 = cxL * cxL + cyL * cyL;
-    if (!Double.isFinite(r2) || r2 == 0.0) {
-      return sx * ey - ex * sy;
+    double r = Math.hypot(cxL, cyL);
+    if (!Double.isFinite(r) || r == 0.0) {
+      straightSeg(sx, sy, ex, ey, a);
+      return;
     }
-    // Signed sweep (positive CCW) via the orientation-robust CCW-span selection.
     double a0 = Math.atan2(-cyL, -cxL);
     double a1 = Math.atan2(myL - cyL, mxL - cxL);
     double a2 = Math.atan2(eyL - cyL, exL - cxL);
     double midCcw = normTwoPi(a1 - a0);
     double endCcw = normTwoPi(a2 - a0);
     double delta = (midCcw <= endCcw) ? endCcw : endCcw - 2 * Math.PI;
-    // Centre back in the ring-local frame (arc start is at (sx,sy) there).
-    double cx = cxL + sx;
-    double cy = cyL + sy;
-    return r2 * delta + cx * (ey - sy) - cy * (ex - sx);
+    double cx = cxL + sx, cy = cyL + sy;        // centre, ring-local frame
+    double al = Math.atan2(sy - cy, sx - cx);   // start angle from centre
+    double be = al + delta;
+
+    // area: (1/2) oint (x dy - y dx) over the arc.
+    a[0] += r * r * delta + cx * (ey - sy) - cy * (ex - sx);
+
+    double sinAl = Math.sin(al), sinBe = Math.sin(be);
+    double cosAl = Math.cos(al), cosBe = Math.cos(be);
+    double sin2 = Math.sin(2 * be) - Math.sin(2 * al);
+
+    // (1/2) oint x^2 dy over the arc.
+    double s1 = sinBe - sinAl;
+    double c2 = delta / 2.0 + sin2 / 4.0;
+    double c3 = (sinBe - sinAl) - (sinBe * sinBe * sinBe - sinAl * sinAl * sinAl) / 3.0;
+    double ixdy = r * (cx * cx * s1 + 2 * cx * r * c2 + r * r * c3);
+    a[1] += ixdy / 2.0;
+
+    // -(1/2) oint y^2 dx over the arc.
+    double sa = cosAl - cosBe;
+    double s2b = delta / 2.0 - sin2 / 4.0;
+    double s3b = (cosAl - cosBe) + (cosBe * cosBe * cosBe - cosAl * cosAl * cosAl) / 3.0;
+    double iy2dx = -r * (cy * cy * sa + 2 * cy * r * s2b + r * r * s3b);
+    a[2] += -iy2dx / 2.0;
   }
 
   /** Reduce an angle to {@code [0, 2*PI)}. */
