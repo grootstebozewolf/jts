@@ -1,0 +1,5 @@
+# Curve area reference vectors (M-AREA-CP hardening).
+# Format example (straight for now): x0 y0 x1 y1 ... expected_signed_area
+# When proofs generate ARC_AREA vectors, append here (b64 or text).
+# Cross-checked on load by CurveAreaRefRunner / adversarial tests.
+0 0  10 0  10 10  0 10  0 0   100.0

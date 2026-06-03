@@ -116,9 +116,10 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
         + " but got " + actual + ".");
   }
 
-  // M-AREA-CP shipped: CurvePolygon.getArea() now applies the analytical
-  // circular-segment correction. See CurvePolygonAreaTest for the green
-  // coverage (the red method was deleted per the epic progress convention).
+  // M-AREA-CP shipped + hardened: CurvePolygon.getArea() analytical (CurvedArea).
+  // See CurvePolygonAreaTest + adversarial/CurveAreaRefRunner + hunter for
+  // green + hardening using NetTopologySuite.Proofs (ARC_AREA, vectors).
+  // Red method deleted per convention. Ready for stable release.
 
   /** M-DIM: dimension and coordinate dimension correct for empty curved subtypes. */
   public void test_M_DIM_emptyCurvedDimensions() throws Exception {

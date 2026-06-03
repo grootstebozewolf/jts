@@ -54,6 +54,15 @@ public class CurveAreaAdversarialTest extends TestCase {
     // Do not assert zero; the point is the machinery exists for continuous hardening.
   }
 
-  // TODO: loadProofCases from rocqref/curve_area_vectors.txt (when proofs generate them)
-  // TODO: add red NUnit tests on NTS side mirroring this (see proofs oracle integration).
+  public void testLoadAreaVectorsIfPresent() throws Exception {
+    // Loads stub or real vectors from proofs (ARC_AREA mode / Rocq).
+    // When full vectors land, this exercises the ref vs JTS for M-AREA-CP.
+    java.io.InputStream in = getClass().getResourceAsStream(
+        "/org/locationtech/jts/geom/curved/rocqref/curve_area_vectors.txt");
+    if (in != null) {
+      List<CurveAreaRefRunner.AreaCase> v = CurveAreaRefRunner.loadVectors(in);
+      CurveAreaRefRunner.Result res = CurveAreaRefRunner.run(v);
+      assertTrue("loaded vectors from proofs should be sound: " + res, res.isSound() || res.mismatches == 0);
+    }
+  }
 }
