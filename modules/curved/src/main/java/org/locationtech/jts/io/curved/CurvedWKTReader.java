@@ -174,13 +174,20 @@ public class CurvedWKTReader extends WKTReader {
     String tok = getNextEmptyOrOpener(tokenizer);
     if (tok.equals(WKTConstants.EMPTY)) return new CurvePolygon(geometryFactory);
     List<LinearRing> rings = new ArrayList<LinearRing>();
+    List<LineString> curvedRings = new ArrayList<LineString>();
     do {
-      Coordinate[] coords = readCurveMember(tokenizer, ordinateFlags).getCoordinates();
-      rings.add(geometryFactory.createLinearRing(coords));
+      // Retain the original curved ring (CircularString / CompoundCurve /
+      // straight LineString) so arc-aware operations such as getArea() can
+      // use the exact geometry, while still linearising it for the parent
+      // Polygon so the existing algorithm suite keeps working.
+      LineString member = readCurveMember(tokenizer, ordinateFlags);
+      curvedRings.add(member);
+      rings.add(geometryFactory.createLinearRing(member.getCoordinates()));
       tok = getNextCloserOrComma(tokenizer);
     } while (tok.equals(","));
-    LinearRing shell = rings.remove(0);
-    return new CurvePolygon(shell, rings.toArray(new LinearRing[0]), geometryFactory);
+    LinearRing shell = rings.get(0);
+    LinearRing[] holes = rings.subList(1, rings.size()).toArray(new LinearRing[0]);
+    return new CurvePolygon(shell, holes, curvedRings.toArray(new LineString[0]), geometryFactory);
   }
 
   private MultiCurve readMultiCurveText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
