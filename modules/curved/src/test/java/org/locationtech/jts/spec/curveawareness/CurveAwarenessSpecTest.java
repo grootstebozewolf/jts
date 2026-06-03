@@ -117,6 +117,14 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Boundary
   // ============================================================
 
+  // B-CP implemented (green verified on branch): CurvePolygon.getBoundary() override
+  // using structuralRings() from F-CP Option A.
+  // - 0-hole: copy of structural ring (preserves CircularString/CompoundCurve subtype).
+  // - >0 holes: MultiCurve of structural rings (unless all LinearRings -> super MLS for compat).
+  // Green verification: CurvePolygonStructuralSpec#test_B_CP_boundaryUsesStructuralCurvesNotDensifiedView
+  // (and extended red test with seam IDs). Red marker kept per RGR until ship-delete.
+  // See RGR commit d1791d9f on feature/sfa-curve-B-CP-rgr.
+
   /**
    * B-CP: CurvePolygon.getBoundary() returns a CompoundCurve (or other curve LineString).
    *
