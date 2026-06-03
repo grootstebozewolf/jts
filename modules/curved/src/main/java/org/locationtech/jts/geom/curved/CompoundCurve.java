@@ -19,6 +19,7 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Point;
 
 /**
  * A connected sequence of {@link LineString} and {@link CircularString}
@@ -97,6 +98,27 @@ public class CompoundCurve extends LineString implements Linearizable {
       len += m.getLength();
     }
     return len;
+  }
+
+  @Override
+  public Point getCentroid() {
+    if (isEmpty() || members.length == 0) {
+      return getFactory().createPoint();
+    }
+    double total = getLength();
+    if (total == 0) {
+      return getFactory().createPoint(getCoordinate());
+    }
+    double sx = 0, sy = 0;
+    for (LineString m : members) {
+      double ml = m.getLength();
+      Point mc = m.getCentroid();
+      if (mc != null && !mc.isEmpty()) {
+        sx += ml * mc.getX();
+        sy += ml * mc.getY();
+      }
+    }
+    return getFactory().createPoint(new Coordinate(sx / total, sy / total));
   }
 
   /**

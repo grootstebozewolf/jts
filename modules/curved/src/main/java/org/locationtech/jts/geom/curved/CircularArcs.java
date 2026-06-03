@@ -73,6 +73,148 @@ public final class CircularArcs {
     return r * theta;
   }
 
+  /**
+   * Centroid of a circular arc (the curve, uniform density), for C-LIN etc.
+   * Returns the point at distance (r * sin(alpha)/alpha) from center along bisector,
+   * where alpha = theta/2.
+   */
+  public static Coordinate arcCentroid(Coordinate p0, Coordinate p1, Coordinate p2) {
+    double sx = p0.x, sy = p0.y;
+    double mx = p1.x, my = p1.y;
+    double ex = p2.x, ey = p2.y;
+    double d = 2 * (sx * (my - ey) + mx * (ey - sy) + ex * (sy - my));
+    if (Math.abs(d) < 1e-12) {
+      return new Coordinate( (sx+ex)/2, (sy+ey)/2 );
+    }
+    double cx = ((sx*sx + sy*sy) * (my - ey)
+               + (mx*mx + my*my) * (ey - sy)
+               + (ex*ex + ey*ey) * (sy - my)) / d;
+    double cy = ((sx*sx + sy*sy) * (ex - mx)
+               + (mx*mx + my*my) * (sx - ex)
+               + (ex*ex + ey*ey) * (mx - sx)) / d;
+    double r = Math.hypot(sx - cx, sy - cy);
+    if (r < 1e-12) {
+      return new Coordinate( (sx+ex)/2, (sy+ey)/2 );
+    }
+    double a0 = Math.atan2(sy - cy, sx - cx);
+    double a1 = Math.atan2(my - cy, mx - cx);
+    double a2 = Math.atan2(ey - cy, ex - cx);
+    double sweep = a2 - a0;
+    sweep = ((sweep + Math.PI) % (2 * Math.PI)) - Math.PI;
+    double aMidRel = a1 - a0;
+    aMidRel = ((aMidRel + Math.PI) % (2 * Math.PI)) - Math.PI;
+    if (Math.signum(sweep) * Math.signum(aMidRel) < 0 && Math.abs(sweep) < Math.PI) {
+      sweep = (sweep > 0 ? sweep - 2*Math.PI : sweep + 2*Math.PI);
+    }
+    double theta = Math.abs(sweep);
+    if (theta < 1e-12) {
+      return new Coordinate( (sx+ex)/2, (sy+ey)/2 );
+    }
+    double alpha = theta / 2;
+    double dist = r * Math.sin(alpha) / alpha;
+    double bis = a0 + sweep / 2;
+    double acx = cx + dist * Math.cos(bis);
+    double acy = cy + dist * Math.sin(bis);
+    return new Coordinate(acx, acy);
+  }
+
+  /**
+   * Area of the circular segment (area between arc and chord).
+   */
+  public static double segmentArea(double r, double theta) {
+    if (theta < 0) theta = -theta;
+    return (r * r / 2.0) * (theta - Math.sin(theta));
+  }
+
+  /** Segment area for 3-pt arc. */
+  public static double segmentArea(Coordinate p0, Coordinate p1, Coordinate p2) {
+    double[] p = arcParams(p0, p1, p2);
+    return segmentArea(p[0], p[1]);
+  }
+
+  /** Returns [r, theta, cx, cy, a0, sweep] for the arc. */
+  private static double[] arcParams(Coordinate p0, Coordinate p1, Coordinate p2) {
+    double sx = p0.x, sy = p0.y;
+    double mx = p1.x, my = p1.y;
+    double ex = p2.x, ey = p2.y;
+    double d = 2 * (sx * (my - ey) + mx * (ey - sy) + ex * (sy - my));
+    if (Math.abs(d) < 1e-12) {
+      return new double[]{0, 0, 0, 0, 0, 0};
+    }
+    double cx = ((sx*sx + sy*sy) * (my - ey)
+               + (mx*mx + my*my) * (ey - sy)
+               + (ex*ex + ey*ey) * (sy - my)) / d;
+    double cy = ((sx*sx + sy*sy) * (ex - mx)
+               + (mx*mx + my*my) * (sx - ex)
+               + (ex*ex + ey*ey) * (mx - sx)) / d;
+    double r = Math.hypot(sx - cx, sy - cy);
+    if (r < 1e-12) {
+      return new double[]{0, 0, 0, 0, 0, 0};
+    }
+    double a0 = Math.atan2(sy - cy, sx - cx);
+    double a1 = Math.atan2(my - cy, mx - cx);
+    double a2 = Math.atan2(ey - cy, ex - cx);
+    double sweep = a2 - a0;
+    sweep = ((sweep + Math.PI) % (2 * Math.PI)) - Math.PI;
+    double aMidRel = a1 - a0;
+    aMidRel = ((aMidRel + Math.PI) % (2 * Math.PI)) - Math.PI;
+    if (Math.signum(sweep) * Math.signum(aMidRel) < 0 && Math.abs(sweep) < Math.PI) {
+      sweep = (sweep > 0 ? sweep - 2*Math.PI : sweep + 2*Math.PI);
+    }
+    double theta = Math.abs(sweep);
+    return new double[]{r, theta, cx, cy, a0, sweep};
+  }
+
+  /**
+   * Centroid of the circular segment (the 'lune' area between chord and arc),
+   * relative to center, along bisector.
+   * Formula: d = 4 r sin^3(alpha) / (3 (theta - sin theta)) , alpha=theta/2 .
+   */
+  public static Coordinate segmentCentroid(Coordinate p0, Coordinate p1, Coordinate p2) {
+    // reuse computations
+    double sx = p0.x, sy = p0.y;
+    double mx = p1.x, my = p1.y;
+    double ex = p2.x, ey = p2.y;
+    double d = 2 * (sx * (my - ey) + mx * (ey - sy) + ex * (sy - my));
+    if (Math.abs(d) < 1e-12) {
+      return new Coordinate( (sx+ex)/2, (sy+ey)/2 );
+    }
+    double cx = ((sx*sx + sy*sy) * (my - ey)
+               + (mx*mx + my*my) * (ey - sy)
+               + (ex*ex + ey*ey) * (sy - my)) / d;
+    double cy = ((sx*sx + sy*sy) * (ex - mx)
+               + (mx*mx + my*my) * (sx - ex)
+               + (ex*ex + ey*ey) * (mx - sx)) / d;
+    double r = Math.hypot(sx - cx, sy - cy);
+    if (r < 1e-12) {
+      return new Coordinate( (sx+ex)/2, (sy+ey)/2 );
+    }
+    double a0 = Math.atan2(sy - cy, sx - cx);
+    double a1 = Math.atan2(my - cy, mx - cx);
+    double a2 = Math.atan2(ey - cy, ex - cx);
+    double sweep = a2 - a0;
+    sweep = ((sweep + Math.PI) % (2 * Math.PI)) - Math.PI;
+    double aMidRel = a1 - a0;
+    aMidRel = ((aMidRel + Math.PI) % (2 * Math.PI)) - Math.PI;
+    if (Math.signum(sweep) * Math.signum(aMidRel) < 0 && Math.abs(sweep) < Math.PI) {
+      sweep = (sweep > 0 ? sweep - 2*Math.PI : sweep + 2*Math.PI);
+    }
+    double theta = Math.abs(sweep);
+    if (theta < 1e-12) {
+      return new Coordinate( (sx+ex)/2, (sy+ey)/2 );
+    }
+    double alpha = theta / 2;
+    double denom = (theta - Math.sin(theta));
+    if (Math.abs(denom) < 1e-12) {
+      return new Coordinate( (sx+ex)/2, (sy+ey)/2 );
+    }
+    double dseg = (4 * r * Math.pow(Math.sin(alpha), 3)) / (3 * denom);
+    double bis = a0 + sweep / 2;
+    double scx = cx + dseg * Math.cos(bis);
+    double scy = cy + dseg * Math.sin(bis);
+    return new Coordinate(scx, scy);
+  }
+
   // Additional helpers can be added for D-PT etc (sweep, pointOnArc) without
   // changing this file signature for PRC-SN harden.
 }

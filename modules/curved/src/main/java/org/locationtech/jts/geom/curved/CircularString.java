@@ -11,10 +11,12 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Point;
 
 /**
  * A connected sequence of circular arcs, where each consecutive triple of
@@ -70,6 +72,35 @@ public class CircularString extends LineString implements Linearizable {
       );
     }
     return len;
+  }
+
+  @Override
+  public Point getCentroid() {
+    if (isEmpty()) {
+      return getFactory().createPoint();
+    }
+    CoordinateSequence pts = getCoordinateSequence();
+    int n = pts.size();
+    if (n < 2) {
+      return getFactory().createPoint(pts.getCoordinate(0));
+    }
+    double totalLen = getLength();
+    if (totalLen == 0) {
+      return getFactory().createPoint(pts.getCoordinate(0));
+    }
+    double sumX = 0, sumY = 0;
+    for (int i = 0; i + 2 < n; i += 2) {
+      Coordinate a = pts.getCoordinate(i);
+      Coordinate b = pts.getCoordinate(i + 1);
+      Coordinate c = pts.getCoordinate(i + 2);
+      double alen = CircularArcs.arcLength(a, b, c);
+      Coordinate ac = CircularArcs.arcCentroid(a, b, c);
+      sumX += alen * ac.x;
+      sumY += alen * ac.y;
+    }
+    double cx = sumX / totalLen;
+    double cy = sumY / totalLen;
+    return getFactory().createPoint(new Coordinate(cx, cy));
   }
 
   /**

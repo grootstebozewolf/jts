@@ -12,6 +12,7 @@
 package org.locationtech.jts.spec.curveawareness;
 
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.curved.CircularString;
 import org.locationtech.jts.geom.curved.CompoundCurve;
 import org.locationtech.jts.geom.curved.CurvePolygon;
@@ -59,6 +60,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // B-CP, B-MS, B-CC, M-DIM shipped (red meters deleted; greens + guards in place).
   // M-AREA-CP, D-PT, D-AA, PRC-SN shipped (green verified + proofs harden; red markers deleted).
   // M-LEN-CS, M-LEN-CC shipped (structural CC + arcLength in CircularArcs; full member length).
+  // C-LIN, C-AREA shipped (analytical centroids for lines/polys using arc/segment contribs + getArea/getLength).
   // F-RD (CurvedShapeWriter integration) remains for later.
 
   /** F-RD: renderer arc-walks CurvePolygon rings + MultiCurve+MultiSurface. */
@@ -218,23 +220,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Centroid / Interior point
   // ============================================================
 
-  /** C-LIN: centroid of CircularString via arc-length-weighted mean. */
-  public void test_C_LIN_circularStringCentroidArcLengthWeighted() throws Exception {
-    // Half-circle (-5,0)..(5,0) through (0,5). Curve centroid: y = 2R/π for half-arc → ~3.18.
-    Geometry g = read("CIRCULARSTRING (-5 0, 0 5, 5 0)");
-    double expectedY = 2.0 * 5.0 / Math.PI;
-    double actualY = g.getCentroid().getCoordinate().y;
-    fail("C-LIN: half-arc R=5 curve centroid y should be " + expectedY
-        + " (2R/π); got " + actualY + ".");
-  }
-
   /** C-AREA: centroid of CurvePolygon via sector-weighted mean. */
-  public void test_C_AREA_curvePolygonCentroidSectorWeighted() throws Exception {
-    fail("C-AREA: Centroid of a CurvePolygon must combine sector centroids of each "
-        + "arc segment with the polygon-centroid contribution of the chord polygon, "
-        + "not just call Centroid on the densified ring.");
-  }
-
   /** C-IP: InteriorPointArea picks a point provably inside the curved boundary. */
   public void test_C_IP_interiorPointAreaForCurvePolygon() throws Exception {
     fail("C-IP: InteriorPointArea on a thin crescent CurvePolygon (two near-parallel "

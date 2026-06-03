@@ -11,10 +11,13 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 
 /**
@@ -226,6 +229,66 @@ public class CurvePolygon extends Polygon implements Linearizable {
     return new MultiCurve(rings, f);
   }
 
+  @Override
+  public Point getCentroid() {
+    if (isEmpty() || structuralShell == null) {
+      return getFactory().createPoint();
+    }
+    Geometry chord = toLinear(0.0);
+    if (chord.isEmpty() || !(chord instanceof Polygon)) {
+      return super.getCentroid();
+    }
+    Polygon chordPoly = (Polygon) chord;
+    double chordArea = chordPoly.getArea();
+    Point chordC = chordPoly.getCentroid();
+    double totArea = getArea();
+    if (Math.abs(totArea) < 1e-12) {
+      return chordC;
+    }
+    double[] sx = new double[]{ chordArea * chordC.getX() };
+    double[] sy = new double[]{ chordArea * chordC.getY() };
+    addSegmentContributions(structuralShell, +1.0, sx, sy);
+    for (LineString h : structuralHoles) {
+      addSegmentContributions(h, -1.0, sx, sy);
+    }
+    double cx = sx[0] / totArea;
+    double cy = sy[0] / totArea;
+    return getFactory().createPoint(new Coordinate(cx, cy));
+  }
+
+  private void addSegmentContributions(LineString ring, double sign, double[] sx, double[] sy) {
+    if (ring == null || ring.isEmpty()) return;
+    if (ring instanceof CircularString) {
+      CoordinateSequence pts = ring.getCoordinateSequence();
+      for (int i = 0; i + 2 < pts.size(); i += 2) {
+        Coordinate a = pts.getCoordinate(i);
+        Coordinate b = pts.getCoordinate(i + 1);
+        Coordinate c = pts.getCoordinate(i + 2);
+        double segA = CircularArcs.segmentArea(a, b, c);
+        Coordinate sc = CircularArcs.segmentCentroid(a, b, c);
+        sx[0] += sign * segA * sc.x;
+        sy[0] += sign * segA * sc.y;
+      }
+    } else if (ring instanceof CompoundCurve) {
+      CompoundCurve cc = (CompoundCurve) ring;
+      for (int k = 0; k < cc.getNumCurves(); k++) {
+        LineString m = cc.getCurveN(k);
+        if (m instanceof CircularString) {
+          CoordinateSequence pts = m.getCoordinateSequence();
+          for (int i = 0; i + 2 < pts.size(); i += 2) {
+            Coordinate a = pts.getCoordinate(i);
+            Coordinate b = pts.getCoordinate(i + 1);
+            Coordinate c = pts.getCoordinate(i + 2);
+            double segA = CircularArcs.segmentArea(a, b, c);
+            Coordinate sc = CircularArcs.segmentCentroid(a, b, c);
+            sx[0] += sign * segA * sc.x;
+            sy[0] += sign * segA * sc.y;
+          }
+        }
+      }
+    }
+  }
+
   /**
    * Returns the structural rings in boundary order: [shell, hole0, hole1, ...].
    * Never null; length == 0 for empty. Used by getBoundary (B-CP etc) and
@@ -271,5 +334,40 @@ public class CurvePolygon extends Polygon implements Linearizable {
       holeRings[i] = f.createLinearRing(hflat.getCoordinates());
     }
     return f.createPolygon(shell, holeRings);
+  }
+
+  @Override
+  public double getArea() {
+    if (isEmpty() || structuralShell == null) return 0.0;
+    Geometry chord = toLinear(0.0);
+    if (!(chord instanceof Polygon)) return chord.getArea();
+    double a = chord.getArea();
+    a += sumSegmentAreas(structuralShell);
+    for (LineString h : structuralHoles) {
+      a -= sumSegmentAreas(h);
+    }
+    return a;
+  }
+
+  private double sumSegmentAreas(LineString ring) {
+    double sa = 0.0;
+    if (ring instanceof CircularString) {
+      CoordinateSequence pts = ring.getCoordinateSequence();
+      for (int i = 0; i + 2 < pts.size(); i += 2) {
+        sa += CircularArcs.segmentArea(pts.getCoordinate(i), pts.getCoordinate(i + 1), pts.getCoordinate(i + 2));
+      }
+    } else if (ring instanceof CompoundCurve) {
+      CompoundCurve cc = (CompoundCurve) ring;
+      for (int k = 0; k < cc.getNumCurves(); k++) {
+        LineString m = cc.getCurveN(k);
+        if (m instanceof CircularString) {
+          CoordinateSequence pts = m.getCoordinateSequence();
+          for (int i = 0; i + 2 < pts.size(); i += 2) {
+            sa += CircularArcs.segmentArea(pts.getCoordinate(i), pts.getCoordinate(i + 1), pts.getCoordinate(i + 2));
+          }
+        }
+      }
+    }
+    return sa;
   }
 }
