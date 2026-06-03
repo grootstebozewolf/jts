@@ -121,6 +121,11 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // green + hardening using NetTopologySuite.Proofs (ARC_AREA, vectors).
   // Red method deleted per convention. Ready for stable release.
 
+  // M-DIM implemented (green verified): explicit getDimension() guards in
+  // CircularString/CompoundCurve (1), CurvePolygon/MultiSurface (2), MultiCurve (1).
+  // See CompoundCurveStructureTest#testEmptyCurvedDimensions_M_DIM (uses same
+  // CurvedWKTReader EMPTY cases as red). Red marker kept per RGR.
+
   /** M-DIM: dimension and coordinate dimension correct for empty curved subtypes. */
   public void test_M_DIM_emptyCurvedDimensions() throws Exception {
     Geometry e1 = read("CIRCULARSTRING EMPTY");

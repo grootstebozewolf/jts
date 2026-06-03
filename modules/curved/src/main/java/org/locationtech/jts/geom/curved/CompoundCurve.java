@@ -79,6 +79,16 @@ public class CompoundCurve extends LineString implements Linearizable {
     return "CompoundCurve";
   }
 
+  /**
+   * Explicit dimension guard for M-DIM (epic #1195).
+   * Ensures empty (and non-empty) CompoundCurve report dimension 1 even if
+   * parent LineString semantics change in a refactor.
+   */
+  @Override
+  public int getDimension() {
+    return 1;
+  }
+
   @Override
   protected CompoundCurve copyInternal() {
     if (members.length == 0) {

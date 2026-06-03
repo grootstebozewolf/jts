@@ -14,8 +14,12 @@ package org.locationtech.jts.geom.curved;
 import java.util.Arrays;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.curved.CircularString;
+import org.locationtech.jts.geom.curved.CurvePolygon;
+import org.locationtech.jts.io.curved.CurvedWKTReader;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
@@ -162,5 +166,28 @@ public class CompoundCurveStructureTest extends GeometryTestCase {
     CompoundCurve cc = new CompoundCurve(f.getCoordinateSequenceFactory().create(pts), f);
     assertEquals(1, cc.getNumMembers());
     assertEquals(3, cc.getCoordinates().length);
+  }
+
+  /**
+   * Green verification for M-DIM (epic #1195).
+   * Empty curved subtypes must report correct topological dimension
+   * (1 for lineal curved, 2 for areal). The red meter in CurveAwarenessSpecTest
+   * exercises via WKT EMPTY; this ensures explicit guards (not just inheritance).
+   */
+  public void testEmptyCurvedDimensions_M_DIM() throws Exception {
+    CurvedGeometryFactory f = cgf();
+    CurvedWKTReader r = new CurvedWKTReader(f);
+
+    Geometry e1 = r.read("CIRCULARSTRING EMPTY");
+    assertTrue(e1 instanceof CircularString);
+    assertEquals(1, e1.getDimension());
+
+    Geometry e2 = r.read("CURVEPOLYGON EMPTY");
+    assertTrue(e2 instanceof CurvePolygon);
+    assertEquals(2, e2.getDimension());
+
+    // Also compound empty (lineal curved)
+    CompoundCurve e3 = new CompoundCurve(new LineString[0], f);
+    assertEquals(1, e3.getDimension());
   }
 }

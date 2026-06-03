@@ -29,6 +29,15 @@ public class MultiSurface extends MultiPolygon implements Linearizable {
     return "MultiSurface";
   }
 
+  /**
+   * Explicit dimension guard for M-DIM (epic #1195).
+   * Ensures MultiSurface (collection of areal curved) reports dimension 2.
+   */
+  @Override
+  public int getDimension() {
+    return 2;
+  }
+
   @Override
   protected MultiSurface copyInternal() {
     int n = getNumGeometries();

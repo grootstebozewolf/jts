@@ -32,6 +32,15 @@ public class MultiCurve extends MultiLineString implements Linearizable {
     return "MultiCurve";
   }
 
+  /**
+   * Explicit dimension guard for M-DIM (epic #1195).
+   * Ensures MultiCurve (collection of lineal curved) reports dimension 1.
+   */
+  @Override
+  public int getDimension() {
+    return 1;
+  }
+
   @Override
   protected MultiCurve copyInternal() {
     int n = getNumGeometries();

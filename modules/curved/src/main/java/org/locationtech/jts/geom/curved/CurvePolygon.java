@@ -97,6 +97,16 @@ public class CurvePolygon extends Polygon implements Linearizable {
     return "CurvePolygon";
   }
 
+  /**
+   * Explicit dimension guard for M-DIM (epic #1195).
+   * Ensures empty (and non-empty) CurvePolygon report dimension 2 even if
+   * parent Polygon semantics change in a refactor.
+   */
+  @Override
+  public int getDimension() {
+    return 2;
+  }
+
   @Override
   protected CurvePolygon copyInternal() {
     GeometryFactory f = getFactory();

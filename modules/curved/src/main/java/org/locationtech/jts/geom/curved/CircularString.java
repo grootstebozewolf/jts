@@ -43,6 +43,16 @@ public class CircularString extends LineString implements Linearizable {
     return "CircularString";
   }
 
+  /**
+   * Explicit dimension guard for M-DIM (epic #1195).
+   * Ensures empty (and non-empty) CircularString report dimension 1 even if
+   * parent LineString semantics change in a refactor.
+   */
+  @Override
+  public int getDimension() {
+    return 1;
+  }
+
   @Override
   protected CircularString copyInternal() {
     return new CircularString(getCoordinateSequence().copy(), getFactory());
