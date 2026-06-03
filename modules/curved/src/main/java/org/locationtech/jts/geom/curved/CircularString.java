@@ -17,6 +17,7 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Point;
 
 /**
  * A connected sequence of circular arcs, where each consecutive triple of
@@ -69,6 +70,39 @@ public class CircularString extends LineString implements Linearizable {
   }
 
   /**
+   * C-LIN: arc-length-weighted centroid of the circular string. The centroid
+   * of each circular arc is taken analytically (it lies on the arc's bisector
+   * at distance {@code R*sin(alpha)/alpha} from the centre, {@code alpha} the
+   * half-sweep) and the per-arc centroids are averaged weighted by arc length,
+   * rather than computing the centroid of the flat chord polyline of the
+   * control points. For a half-arc this puts the centroid at {@code 2R/pi}
+   * from the centre. Degenerate (collinear) triples contribute their chord
+   * midpoint weighted by chord length.
+   */
+  @Override
+  public Point getCentroid() {
+    CoordinateSequence cs = getCoordinateSequence();
+    int n = cs.size();
+    if (n < 3) {
+      return super.getCentroid();
+    }
+    double wSum = 0.0, cxAcc = 0.0, cyAcc = 0.0;
+    for (int i = 0; i + 2 < n; i += 2) {
+      double[] c = arcCentroid(
+          cs.getX(i), cs.getY(i),
+          cs.getX(i + 1), cs.getY(i + 1),
+          cs.getX(i + 2), cs.getY(i + 2));
+      cxAcc += c[2] * c[0];
+      cyAcc += c[2] * c[1];
+      wSum += c[2];
+    }
+    if (!(wSum > 0.0)) {
+      return super.getCentroid();
+    }
+    return getFactory().createPoint(new Coordinate(cxAcc / wSum, cyAcc / wSum));
+  }
+
+  /**
    * Exact arc length for one circular arc given its 3 control points.
    * (Inlined here for main-code use by getLength(); the test CurveRefRunner
    * keeps its own copy for adversarial/hunter isolation.)
@@ -76,55 +110,77 @@ public class CircularString extends LineString implements Linearizable {
   private static double exactCircularArcLength(double sx, double sy,
                                                double mx, double my,
                                                double ex, double ey) {
-    // Robust, scale-invariant degeneracy test: the three control points
-    // define a genuine arc exactly when the mid point lies off the
-    // start-end chord. Decide that with the exact-sign Orientation
-    // predicate, NOT an absolute determinant threshold. The criterion is
-    // the one proven sound in NetTopologySuite.Proofs ArcOrient.v
-    // (arc_side_chord_mid_nonzero: mid off the chord <=> valid arc). An
-    // absolute |det| < eps test misclassifies valid arcs at small
-    // coordinate magnitudes, since det scales as O(coord^2) -- e.g. a
-    // radius ~5e-8 arc has |det| ~4e-15 and was wrongly treated as a
-    // straight chord (returning ~2e-8 instead of the true ~2.0133e-8).
-    Coordinate s = new Coordinate(sx, sy);
-    Coordinate m = new Coordinate(mx, my);
-    Coordinate e = new Coordinate(ex, ey);
-    if (Orientation.index(s, m, e) == Orientation.COLLINEAR) {
-      return Math.hypot(ex - sx, ey - sy);
+    double[] g = arcGeometry(sx, sy, mx, my, ex, ey);
+    if (g == null) {
+      return Math.hypot(ex - sx, ey - sy); // degenerate -> chord
     }
-    // Work in a frame translated to the start point. Arc length is
-    // translation-invariant, and computing the circumcentre from the
-    // (small) local offsets instead of the (large) absolute coordinates
-    // avoids catastrophic cancellation for arcs whose extent is tiny
-    // relative to their distance from the origin -- otherwise a genuine
-    // arc can come out shorter than its chord (violating
-    // ArcLength.chord_le_arc_length).
+    return g[2] * Math.abs(g[3]); // r * |sweep|
+  }
+
+  /**
+   * Centroid and arc length of one circular arc as {@code [cx, cy, length]}.
+   * Degenerate (collinear) triples return the chord midpoint and chord length.
+   */
+  private static double[] arcCentroid(double sx, double sy,
+                                      double mx, double my,
+                                      double ex, double ey) {
+    double[] g = arcGeometry(sx, sy, mx, my, ex, ey);
+    if (g == null) {
+      return new double[] { (sx + ex) / 2.0, (sy + ey) / 2.0,
+          Math.hypot(ex - sx, ey - sy) };
+    }
+    double cx = g[0], cy = g[1], r = g[2], delta = g[3];
+    double length = r * Math.abs(delta);
+    double half = Math.abs(delta) / 2.0;
+    // Distance of the arc centroid from the centre along the bisector.
+    double dC = r * Math.sin(half) / half;
+    // Bisector direction = start direction (from centre) advanced by half the
+    // signed sweep.
+    double phiMid = Math.atan2(sy - cy, sx - cx) + delta / 2.0;
+    return new double[] { cx + dC * Math.cos(phiMid),
+        cy + dC * Math.sin(phiMid), length };
+  }
+
+  /**
+   * Geometry of one circular arc through three control points as
+   * {@code [centreX, centreY, radius, signedSweep]} (sweep positive CCW), or
+   * {@code null} when the triple is degenerate (collinear / coincident).
+   *
+   * <p>Degeneracy is decided with the scale-invariant {@link Orientation}
+   * predicate -- the criterion proven sound in NetTopologySuite.Proofs
+   * ArcOrient.v (arc_side_chord_mid_nonzero) -- not an absolute determinant
+   * threshold (which misclassifies valid arcs at small coordinate magnitudes,
+   * since det scales as O(coord^2)). The circumcentre is computed in a frame
+   * translated to the start point to avoid catastrophic cancellation for arcs
+   * small relative to their distance from the origin, and the swept angle uses
+   * the orientation-robust CCW-span selection (correct for minor, major and
+   * reflex arcs alike).
+   */
+  private static double[] arcGeometry(double sx, double sy,
+                                      double mx, double my,
+                                      double ex, double ey) {
+    if (Orientation.index(new Coordinate(sx, sy), new Coordinate(mx, my),
+                          new Coordinate(ex, ey)) == Orientation.COLLINEAR) {
+      return null;
+    }
     double mxL = mx - sx, myL = my - sy;
     double exL = ex - sx, eyL = ey - sy;
     double d = 2 * (mxL * eyL - exL * myL);
     double mSq = mxL * mxL + myL * myL;
     double eSq = exL * exL + eyL * eyL;
-    double cx = (mSq * eyL - eSq * myL) / d;
-    double cy = (eSq * mxL - mSq * exL) / d;
-    double r = Math.hypot(cx, cy);
+    double cxL = (mSq * eyL - eSq * myL) / d;
+    double cyL = (eSq * mxL - mSq * exL) / d;
+    double r = Math.hypot(cxL, cyL);
     if (!Double.isFinite(r) || r == 0.0) {
-      // Overflow/underflow at extreme magnitudes: fall back to the chord.
-      return Math.hypot(ex - sx, ey - sy);
+      return null;
     }
-    double a0 = Math.atan2(-cy, -cx);
-    double a1 = Math.atan2(myL - cy, mxL - cx);
-    double a2 = Math.atan2(eyL - cy, exL - cx);
-    // Swept angle of start -> mid -> end. Normalise the mid and end offsets
-    // from the start direction into [0, 2*PI). If the mid lies within the
-    // CCW span from start to end, the arc is CCW (sweep = endCcw); otherwise
-    // it is CW (sweep = 2*PI - endCcw). This is the orientation-robust
-    // selection used by CircularArcDensifier and is correct for minor, major
-    // and reflex arcs alike -- unlike a (atan2-difference, mid-sign) test,
-    // whose angle wrapping is fragile once a2 - a0 falls below -PI.
+    double a0 = Math.atan2(-cyL, -cxL);
+    double a1 = Math.atan2(myL - cyL, mxL - cxL);
+    double a2 = Math.atan2(eyL - cyL, exL - cxL);
     double midCcw = normTwoPi(a1 - a0);
     double endCcw = normTwoPi(a2 - a0);
-    double theta = (midCcw <= endCcw) ? endCcw : (2 * Math.PI - endCcw);
-    return r * theta;
+    double delta = (midCcw <= endCcw) ? endCcw : endCcw - 2 * Math.PI;
+    return new double[] { cxL + sx, cyL + sy, r, delta };
   }
 
   /** Reduce an angle to {@code [0, 2*PI)}. */

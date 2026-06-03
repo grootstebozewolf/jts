@@ -358,15 +358,12 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Centroid / Interior point
   // ============================================================
 
-  /** C-LIN: centroid of CircularString via arc-length-weighted mean. */
-  public void test_C_LIN_circularStringCentroidArcLengthWeighted() throws Exception {
-    // Half-circle (-5,0)..(5,0) through (0,5). Curve centroid: y = 2R/π for half-arc → ~3.18.
-    Geometry g = read("CIRCULARSTRING (-5 0, 0 5, 5 0)");
-    double expectedY = 2.0 * 5.0 / Math.PI;
-    double actualY = g.getCentroid().getCoordinate().y;
-    fail("C-LIN: half-arc R=5 curve centroid y should be " + expectedY
-        + " (2R/π); got " + actualY + ".");
-  }
+  // C-LIN shipped: CircularString.getCentroid() is the arc-length-weighted mean
+  //   of analytical per-arc centroids (on the bisector at R*sin(alpha)/alpha);
+  //   a half-arc centroid sits at 2R/pi. Green coverage:
+  //   CircularStringCentroidProofTest (half-arc 2R/pi, quarter 2/pi, full circle
+  //   at centre, off-chord, collinear-as-chord-midpoint).
+  // Red meter method deleted per epic "delete on ship" convention.
 
   /** C-AREA: centroid of CurvePolygon via sector-weighted mean. */
   public void test_C_AREA_curvePolygonCentroidSectorWeighted() throws Exception {
