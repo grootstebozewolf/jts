@@ -3,7 +3,7 @@
 **Epic source:** the full text in the user query (to be lifted as `EPIC_SFA_CURVE_AWARENESS.md` or GitHub Epic body).  
 **Date of this overview:** 2026-06-03 (post latest artifact processing + RGR/hardening).  
 **Live meter:** `CurveAwarenessSpecTest` (46–50 red `test_*` methods; run with `-Dtest=CurveAwarenessSpecTest`; delete methods on ship per §5/11).  
-**Current branch (last work):** `feature/sfa-curve-V-CP-rgr` (V-CP arc-aware CurvePolygon.isValid; self-intersect, orientation, holes).  
+**Current branch (last work):** `feature/sfa-curve-V-CS-rgr` (V-CS arc-aware isSimple on CS/CC).  
 **Key infra:** `CurveRefRunner` + `CurveAdversarialTest` (RocqRefRunner pattern from #1197), vectors in `src/test/resources/.../rocqref/`, proofs artifacts (NetTopologySuite.Proofs runs), Flocq/Rocq oracles.
 
 ## High-level Status (Phases per epic §9)
@@ -15,7 +15,8 @@
   - B-CP / B-MS **landed + hardened**.
   - B-CC **landed** (explicit guard override on CompoundCurve asserting standard lineal open/closed boundary rules).
   - V-CP **landed** (CurvePolygon.isValid arc-aware: ring isSimple, sector orientation, hole containment approx).
-  - M-AREA-CP / M-DIM / V-CP / V-CS **red** (area with segment correction, dim guards, validity for curves not yet).
+  - V-CS **landed** (CircularString/CompoundCurve.isSimple arc-aware for overlaps/crosses/revisits).
+  - M-AREA-CP / M-DIM **red** (area with segment correction, dim guards).
 - **Phases 3–7:** Almost entirely **red** (no production changes for distance/centroid/buffer/overlay/noding/polygonizer/snap/tri/TestBuilder etc.). N-AA has **foundation hardening** (see below). Some core-touching TAGs (N-*, PLG, PRC-SN, DSF) still untouched per §6.
 - **Early cross-cutting fixes (pre-RGR, from user reports + review):** COMPOUNDCURVE member-structured WKT emission (non-flat "( ( " form), outer-ring-only Z/M dimension in CurvedWKT*, structural curves excluded from equalsExact (with test_FCP_EQ... documenting view-based + isEquivalentClass; epic §7 risk).
 
@@ -53,7 +54,7 @@
 - All vectors updated with the 26856051962 citation during latest "hardening using RocqRefRunner" pass.
 - Pattern ready for more (D-*, V-*, BUF-*, R-*, OV etc.): add Case/Result/run + vectors + assert in adversarial, wire into TAG RGR when green lands.
 
-**No hardening yet for:** everything else (BUF_*, D-*, C-*, V-*, S-*, AT-*, LRF-*, DSF, TRI-*, PLG, COV, PRC-SN, TB-*, R-*, OV, N-AL/N-SS (N-AA only via chord), M-AREA etc.). M-LEN-CC can reuse existing arc-length vectors for future hardening. More proofs artifacts will feed the rest (see proofs-first-batch/01-arc-primitives.md which refs JTS#1195 + M-LEN-*/V-CP/N-* + this exact hardening pattern).
+**No hardening yet for:** everything else (BUF_*, D-*, C-*, V-*, S-*, AT-*, LRF-*, DSF, TRI-*, PLG, COV, PRC-SN, TB-*, R-*, OV, N-AL/N-SS (N-AA only via chord), M-AREA etc.). M-LEN-CC can reuse existing arc-length vectors for future hardening. V-CS reuses the point/arc logic. More proofs artifacts will feed the rest (see proofs-first-batch/01-arc-primitives.md which refs JTS#1195 + M-LEN-*/V-CP/N-* + this exact hardening pattern).
 
 ## Cross-refs to Epic Sections
 - Matches §4 (spike landed items), §5 (meter + delete-on-ship + TAG PR convention), §6 (core touch list; only N-*/PLG/PRC-SN/DSF/F-RD would), §7 (risks noted in red tests + structural spec for FCP-DOVE + R-EQ).
@@ -62,7 +63,7 @@
 - Proofs issues batch + triage + Flocq build (prior turns) feed the oracles.
 
 ## Next (suggested, per epic order + pending in history)
-- Continue RGR on low-risk remaining Phase 2 (M-AREA-CP, V-CS, M-DIM guard). V-CP done (with B-CC etc).
+- Continue RGR on low-risk remaining Phase 2 (M-AREA-CP, M-DIM guard). V-CP and V-CS done.
 - Wire more vectors/hunter into new TAGs (e.g. once N-AA utility lands, use chord-cross vectors + hunter for arc-arc cases).
 - F-RD (TestBuilder + CurvedShapeWriter full).
 - When core seams (Phase 5 N-SS etc.) ready, open the WKB sibling epic per §3.
@@ -70,12 +71,12 @@
 
 ## Files touched for this overview + recent hardening
 - `modules/curved/src/test/java/org/locationtech/jts/spec/curveawareness/CurveAwarenessSpecTest.java` (progress header table + M-LEN-CC notes)
-- `modules/curved/src/main/java/org/locationtech/jts/geom/curved/CompoundCurve.java` (M-LEN-CC getLength + B-CC getBoundary guard + V-CP isSimple support + prior structural)
+- `modules/curved/src/main/java/org/locationtech/jts/geom/curved/CompoundCurve.java` (M-LEN-CC getLength + B-CC getBoundary guard + V-CP/V-CS isSimple support + prior structural)
 - `modules/curved/src/main/java/org/locationtech/jts/io/curved/CurvedWKTWriter.java` (member-tagged CC emission)
 - `modules/curved/src/test/java/org/locationtech/jts/geom/curved/CompoundCurveMembersTest.java` (B-CC + M-LEN-CC verification tests)
-- `modules/curved/src/main/java/org/locationtech/jts/geom/curved/CircularString.java` (V-CP arc helpers + B-CC isSimple)
+- `modules/curved/src/main/java/org/locationtech/jts/geom/curved/CircularString.java` (V-CP arc helpers + B-CC/V-CS isSimple)
 - `modules/curved/src/main/java/org/locationtech/jts/geom/curved/CurvePolygon.java` (V-CP isValid + sector checks)
-- `modules/curved/src/test/java/org/locationtech/jts/spec/curveawareness/CurvePolygonStructuralSpec.java` (V-CP verifications)
+- `modules/curved/src/test/java/org/locationtech/jts/spec/curveawareness/CurvePolygonStructuralSpec.java` (V-CP verifications + V-CS dedicated tests)
 - `modules/curved/src/test/java/org/locationtech/jts/geom/curved/adversarial/CurveRefRunner.java` + `CurveAdversarialTest.java` (chord cross + latest artifact citations)
 - `.../rocqref/*.txt` (headers + cases for 26856051962)
 

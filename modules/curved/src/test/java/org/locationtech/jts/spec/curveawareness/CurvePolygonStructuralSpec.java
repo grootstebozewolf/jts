@@ -372,4 +372,50 @@ public class CurvePolygonStructuralSpec extends GeometryTestCase {
         + "CIRCULARSTRING (10 0, 5 -5, 0 0)))");
     assertFalse("V-CP green: clockwise shell (negative sector area) must be invalid for polygon", cw.isValid());
   }
+
+  // ============================================================
+  // V-CS: arc-aware isSimple for CircularString and CompoundCurve
+  // (red meter test in CurveAwarenessSpecTest kept with fail per RGR convention)
+  // ============================================================
+
+  /** Basic non-overlapping CircularString is simple (arc-aware). */
+  public void test_V_CS_simpleCircularString() throws Exception {
+    CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
+    Geometry simpleArc = r.read("CIRCULARSTRING (0 0, 5 5, 10 0)");
+    assertTrue("V-CS: basic non-self-intersecting CircularString must be simple", simpleArc.isSimple());
+    CircularString cs = (CircularString) simpleArc;
+    assertTrue("V-CS direct: same via subclass", cs.isSimple());
+  }
+
+  /** The exact self-overlapping case from the V-CS red meter must not be simple. */
+  public void test_V_CS_overlappingCircularStringNotSimple() throws Exception {
+    CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
+    // exact WKT from the red test_V_CS_...
+    Geometry g = r.read("CIRCULARSTRING (0 0, 10 5, 20 0, 10 -5, 0 0, -10 5, -20 0)");
+    boolean simpleViaGeom = g.isSimple();  // dispatch through Geometry -> override
+    assertFalse("V-CS: self-overlapping multi-arc CircularString must not be simple (arc-aware + revisit)", simpleViaGeom);
+
+    CircularString cs = (CircularString) g;
+    assertFalse("V-CS direct", cs.isSimple());
+  }
+
+  /** Simple mixed CompoundCurve (line + arc, no overlaps) is simple. */
+  public void test_V_CS_simpleCompoundCurve() throws Exception {
+    CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
+    Geometry cc = r.read("COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
+    assertTrue("V-CS: simple mixed CC must be simple", cc.isSimple());
+    CompoundCurve ccc = (CompoundCurve) cc;
+    assertTrue(ccc.isSimple());
+  }
+
+  /** A CC containing a non-simple CS member should not be simple. */
+  public void test_V_CS_compoundCurveWithOverlappingMemberNotSimple() throws Exception {
+    CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
+    Geometry badCC = r.read(
+        "COMPOUNDCURVE ("
+        + "(0 0, 5 0), "
+        + "CIRCULARSTRING (5 0, 10 5, 15 0, 10 -5, 5 0, 0 5, -5 0)"  // the overlapping pattern as member
+        + ")");
+    assertFalse("V-CS: CC with non-simple CS member must not be simple", badCC.isSimple());
+  }
 }

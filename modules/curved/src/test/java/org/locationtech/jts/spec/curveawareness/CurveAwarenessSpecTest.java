@@ -60,6 +60,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // M-LEN-CS landed (analytical on CircularString); M-LEN-CC landed (sums member lengths, using structural CompoundCurve).
   // B-CC landed (explicit getBoundary guard asserting lineal endpoint/empty semantics on structural CC).
   // V-CP landed (arc-aware isValid on CurvePolygon: self-intersect via isSimple on rings, sector orientation, holes inside).
+  // V-CS landed (arc-aware isSimple on CircularString/CompoundCurve for self-overlaps, crossings, revisits).
   // F-RD (CurvedShapeWriter integration) remains for later.
 
   /** F-RD: renderer arc-walks CurvePolygon rings + MultiCurve+MultiSurface. */
@@ -461,7 +462,11 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
         + "sector area, and that holes lie inside the shell using arc-aware contains.");
   }
 
-  /** V-CS: IsSimpleOp for CircularString / CompoundCurve. */
+  /**
+   * V-CS: arc-aware isSimple for CircularString / CompoundCurve.
+   * (Overrides dispatch via Geometry.isSimple() -> our impl using arc crosses + point revisits.)
+   * Red marker kept; verification in CurvePolygonStructuralSpec.
+   */
   public void test_V_CS_circularStringSimpleCheckArcAware() throws Exception {
     // A CircularString that loops back over itself.
     Geometry g = read("CIRCULARSTRING (0 0, 10 5, 20 0, 10 -5, 0 0, -10 5, -20 0)");
