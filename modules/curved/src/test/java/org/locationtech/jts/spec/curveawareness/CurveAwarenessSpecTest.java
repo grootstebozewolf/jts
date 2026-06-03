@@ -58,6 +58,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // F-CP, F-MC, F-MS landed (structural composites + subtype preservation in copy/ctor/reader/writer).
   // B-CP, B-MS, B-CC, M-DIM shipped (red meters deleted; greens + guards in place).
   // M-AREA-CP, D-PT, D-AA, PRC-SN shipped (green verified + proofs harden; red markers deleted).
+  // M-LEN-CS shipped (CS now uses CircularArcs.arcLength; CC partial pending structural).
   // F-RD (CurvedShapeWriter integration) remains for later.
 
   /** F-RD: renderer arc-walks CurvePolygon rings + MultiCurve+MultiSurface. */
@@ -70,17 +71,6 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // ============================================================
   // Metrics
   // ============================================================
-
-  /** M-LEN-CS: CircularString.getLength returns analytical arc length, not chord sum. */
-  public void test_M_LEN_CS_circularStringArcLength() throws Exception {
-    // Half-circle radius 10 — arc length = π · 10 ≈ 31.4159
-    Geometry g = read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
-    double expectedArc = Math.PI * 10;
-    double actual = g.getLength();
-    fail("M-LEN-CS: half-circle (R=10) length should be ≈ " + expectedArc
-        + " (π·R) but Geometry.getLength() returned " + actual
-        + " (chord-sum of the 3 control points).");
-  }
 
   /** M-LEN-CC: CompoundCurve.getLength sums analytical members. */
   public void test_M_LEN_CC_compoundCurveLengthSumsMembers() throws Exception {

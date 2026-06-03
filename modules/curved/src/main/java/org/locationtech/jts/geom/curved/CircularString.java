@@ -52,6 +52,27 @@ public class CircularString extends LineString implements Linearizable {
   }
 
   /**
+   * M-LEN-CS: analytical arc length for CircularString (sum of r*theta for arcs).
+   * Uses CircularArcs.arcLength on consecutive control triples.
+   * Phase-1: for multi-arc CS (odd num points >=3), steps by 2.
+   */
+  @Override
+  public double getLength() {
+    CoordinateSequence pts = getCoordinateSequence();
+    int n = pts.size();
+    if (n < 2) return 0.0;
+    double len = 0.0;
+    for (int i = 0; i + 2 < n; i += 2) {
+      len += CircularArcs.arcLength(
+          pts.getCoordinate(i),
+          pts.getCoordinate(i + 1),
+          pts.getCoordinate(i + 2)
+      );
+    }
+    return len;
+  }
+
+  /**
    * Returns the boundary of this CircularString.
    *
    * <p>B-CC / lineal boundary (low risk/cost RGR): semantics identical to

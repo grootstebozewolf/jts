@@ -47,6 +47,18 @@ public class CompoundCurve extends LineString implements Linearizable {
   }
 
   /**
+   * M-LEN-CC (partial): length for CompoundCurve.
+   * <p>
+   * Phase-1 stand-in (flat seq): delegates to super (chord sum). Full analytical
+   * (sum over line/arc members) awaits structural CC (see class javadoc and epic F).
+   * The M-LEN-CC red test documents the desired behaviour.
+   */
+  @Override
+  public double getLength() {
+    return super.getLength();
+  }
+
+  /**
    * Returns the boundary of this CompoundCurve.
    *
    * <p>B-CC (low risk/cost RGR pivot): semantics are identical to LineString.
