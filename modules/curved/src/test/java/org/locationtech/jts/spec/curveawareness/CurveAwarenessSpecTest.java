@@ -240,6 +240,12 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
         + "ring members; got " + boundary.getGeometryType() + ".");
   }
 
+  // B-CC implemented (green verified, early RGR + symmetric on CS): explicit
+  // boundary guards in CompoundCurve (open->MultiPoint endpoints, closed->empty)
+  // and symmetric in CircularString. Green verifs extended (incl. CS boundary).
+  // Assert in red test exercises it; fail(TAG) kept per RGR. See e69c2f79 +
+  // e6511777 on feature/sfa-curve-B-CC-rgr.
+
   /**
    * B-CC: open CompoundCurve boundary = its 2 endpoints (as MultiPoint);
    * closed CompoundCurve boundary = empty (per standard lineal rules).
