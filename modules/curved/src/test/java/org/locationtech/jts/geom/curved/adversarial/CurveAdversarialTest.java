@@ -23,9 +23,10 @@ import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
  * of OrientationDDRobustnessTest + RocqRefRunnerTest from locationtech/jts#1197).
  * <p>
  * Uses the RocqRefRunner / loadProofCases + vector artifact pattern.
- * Curve arc length/sweep oracles from Proofs#64 (ArcLength.v + b64_circular_arc_length
- * with host-atan2 extraction override, matching this file's exactCircularArcLength).
+ * Curve arc length/sweep oracles from Proofs#64 (ArcLength.v + AngleBetween.v + b64...
+ * with host-atan2, matching exactCircularArcLength).
  * See https://github.com/grootstebozewolf/NetTopologySuite.Proofs/issues/64 .
+ * Hardened with run 26887314315/art 7385761173 (refines primitives for D-PT/D-AA).
  * <p>
  * Currently demonstrates that the phase-1 linearised CircularString.getLength()
  * deviates from the analytical circular arc length on adversarial inputs

@@ -35,7 +35,8 @@ import org.locationtech.jts.geom.Coordinate;
  * CurveCounterexampleHunter and the red TAGs in CurveAwarenessSpecTest) that
  * consume certified exports from the NetTopologySuite.Proofs Rocq
  * development (arc/curve theories, see Proofs#64 for the native length/sweep/
- * in-arc primitives) the same way the orientation work does.
+ * in-arc primitives using AngleBetween) the same way the orientation work does.
+ * Latest vectors hardened via run 26887314315/art 7385761173.
  */
 public final class CurveRefRunner {
 
