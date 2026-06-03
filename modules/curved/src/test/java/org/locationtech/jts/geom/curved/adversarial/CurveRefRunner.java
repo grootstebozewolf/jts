@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.curved.CircularString;
@@ -108,38 +109,49 @@ public final class CurveRefRunner {
   public static double exactCircularArcLength(double sx, double sy,
                                               double mx, double my,
                                               double ex, double ey) {
-    // Compute circumcenter (cx,cy) and r using the determinant formula
-    double d = 2 * (sx * (my - ey) + mx * (ey - sy) + ex * (sy - my));
-    if (Math.abs(d) < 1e-12) {
-      // degenerate / collinear -> chord length
+    // Robust, scale-invariant degeneracy test (matches the production impl in
+    // CircularString and the criterion proven in NetTopologySuite.Proofs
+    // ArcOrient.v arc_side_chord_mid_nonzero). An absolute |det| < eps test
+    // misclassifies valid arcs at small coordinate magnitudes.
+    if (Orientation.index(new Coordinate(sx, sy), new Coordinate(mx, my),
+                          new Coordinate(ex, ey)) == Orientation.COLLINEAR) {
       return Math.hypot(ex - sx, ey - sy);
     }
-    double cx = ((sx*sx + sy*sy) * (my - ey)
-               + (mx*mx + my*my) * (ey - sy)
-               + (ex*ex + ey*ey) * (sy - my)) / d;
-    double cy = ((sx*sx + sy*sy) * (ex - mx)
-               + (mx*mx + my*my) * (sx - ex)
-               + (ex*ex + ey*ey) * (mx - sx)) / d;
-    double r = Math.hypot(sx - cx, sy - cy);
-    if (r < 1e-12) {
+    // Compute the circumcenter in a frame translated to the start point.
+    // Arc length is translation-invariant; using the small local offsets
+    // (not the large absolute coordinates) avoids catastrophic cancellation
+    // for tiny arcs far from the origin (which otherwise produce a length
+    // below the chord).
+    double mxL = mx - sx, myL = my - sy;
+    double exL = ex - sx, eyL = ey - sy;
+    double d = 2 * (mxL * eyL - exL * myL);
+    double mSq = mxL * mxL + myL * myL;
+    double eSq = exL * exL + eyL * eyL;
+    double cx = (mSq * eyL - eSq * myL) / d;
+    double cy = (eSq * mxL - mSq * exL) / d;
+    double r = Math.hypot(cx, cy);
+    if (!Double.isFinite(r) || r == 0.0) {
       return Math.hypot(ex - sx, ey - sy);
     }
-    // Central angle using atan2 for robustness (sweep through the mid point)
-    double a0 = Math.atan2(sy - cy, sx - cx);
-    double a1 = Math.atan2(my - cy, mx - cx);
-    double a2 = Math.atan2(ey - cy, ex - cx);
-    // Compute the signed sweep a0 -> a2 that passes near a1
-    double sweep = a2 - a0;
-    // normalize to [-pi, pi] then adjust direction if mid indicates the long way
-    sweep = ((sweep + Math.PI) % (2 * Math.PI)) - Math.PI;
-    // If the mid point suggests we should go the other way, flip
-    double aMidRel = a1 - a0;
-    aMidRel = ((aMidRel + Math.PI) % (2 * Math.PI)) - Math.PI;
-    if (Math.signum(sweep) * Math.signum(aMidRel) < 0 && Math.abs(sweep) < Math.PI) {
-      sweep = (sweep > 0 ? sweep - 2*Math.PI : sweep + 2*Math.PI);
-    }
-    double theta = Math.abs(sweep);
+    // Swept angle of start -> mid -> end via the orientation-robust CCW-span
+    // selection (matches CircularArcDensifier and the production impl). The
+    // earlier (atan2-difference + mid-sign-flip) form normalised incorrectly
+    // once a2 - a0 fell below -PI and could return the complementary arc.
+    double a0 = Math.atan2(-cy, -cx);
+    double a1 = Math.atan2(myL - cy, mxL - cx);
+    double a2 = Math.atan2(eyL - cy, exL - cx);
+    double midCcw = normTwoPi(a1 - a0);
+    double endCcw = normTwoPi(a2 - a0);
+    double theta = (midCcw <= endCcw) ? endCcw : (2 * Math.PI - endCcw);
     return r * theta;
+  }
+
+  /** Reduce an angle to {@code [0, 2*PI)}. */
+  private static double normTwoPi(double a) {
+    double twoPi = 2 * Math.PI;
+    a = a % twoPi;
+    if (a < 0) a += twoPi;
+    return a;
   }
 
   /**
