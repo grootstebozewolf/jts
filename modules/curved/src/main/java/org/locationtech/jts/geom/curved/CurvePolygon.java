@@ -181,6 +181,34 @@ public class CurvePolygon extends Polygon implements Linearizable {
     return getFactory().createPoint(new Coordinate(c[0], c[1]));
   }
 
+  /**
+   * An interior point provably inside the curve-bounded region (C-IP). When any
+   * structural ring is curved this uses an arc-aware horizontal scan line (the
+   * midpoint of the widest interior interval of the true arc boundary), so it
+   * stays inside even for a thin crescent of near-parallel arcs -- unlike the
+   * inherited InteriorPointArea, which scans the densified ring and can fall
+   * outside the curved region. Straight-only polygons use the parent behaviour.
+   */
+  @Override
+  public Point getInteriorPoint() {
+    LineString[] rings = structuralRings();
+    boolean anyCurved = false;
+    for (LineString r : rings) {
+      if (r instanceof CircularString || r instanceof CompoundCurve) {
+        anyCurved = true;
+        break;
+      }
+    }
+    if (!anyCurved) {
+      return super.getInteriorPoint();
+    }
+    Coordinate c = CurvedInteriorPoint.of(rings);
+    if (c == null) {
+      return super.getInteriorPoint();
+    }
+    return getFactory().createPoint(c);
+  }
+
   @Override
   public CurvePolygon reverse() {
     return (CurvePolygon) super.reverse();

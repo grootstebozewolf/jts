@@ -426,12 +426,13 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   //   (disk, offset disk, half-disk, concentric hole, straight-ring parity).
   // Red meter method deleted per epic "delete on ship" convention.
 
-  /** C-IP: InteriorPointArea picks a point provably inside the curved boundary. */
-  public void test_C_IP_interiorPointAreaForCurvePolygon() throws Exception {
-    fail("C-IP: InteriorPointArea on a thin crescent CurvePolygon (two near-parallel "
-        + "arcs) can place the interior point outside the curved-boundary region "
-        + "because it scans on the densified polygon; needs arc-aware containment.");
-  }
+  // C-IP shipped: CurvePolygon.getInteriorPoint() uses an arc-aware horizontal
+  //   scan line (midpoint of the widest interior interval of the true arc
+  //   boundary, provably inside by the even-odd rule), so it stays inside even
+  //   for a thin crescent of near-parallel arcs. Green coverage:
+  //   CurvePolygonInteriorPointProofTest (disk, annulus in-ring-not-hole,
+  //   crescent, straight), each cross-checked by densified contains().
+  // Red meter method deleted per epic "delete on ship" convention.
 
   // ============================================================
   // Validity
