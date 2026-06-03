@@ -62,6 +62,10 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // M-LEN-CS, M-LEN-CC shipped (structural CC + arcLength in CircularArcs; full member length).
   // C-LIN, C-AREA shipped (analytical centroids for lines/polys using arc/segment contribs + getArea/getLength).
   // F-RD (CurvedShapeWriter integration) remains for later.
+  // === WORK PAUSED === (per user "pause" command). Current meter: 34 red TAGs.
+  // Last shipped: structural CC (for M-LEN-CC), C-LIN, C-AREA, M-LENs, etc.
+  // Next low risk/cost candidates (per triage/epic): C-IP, DSF (densifier should delegate to toLinear now that we have it), LRF-LEN/LOC (length+members available), perhaps F-RD or H-*.
+  // Do not continue "go" or auto-ship without explicit instruction. State is clean on feature/sfa-curve-B-MS-rgr.
 
   /** F-RD: renderer arc-walks CurvePolygon rings + MultiCurve+MultiSurface. */
   public void test_F_RD_curvedShapeWriterArcRendersCurvePolygonRings() throws Exception {
