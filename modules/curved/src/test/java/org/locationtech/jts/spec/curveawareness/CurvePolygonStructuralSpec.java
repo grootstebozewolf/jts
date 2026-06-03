@@ -333,11 +333,12 @@ public class CurvePolygonStructuralSpec extends GeometryTestCase {
   }
 
   // ============================================================
-  // B-CC verification (green proof for RGR on B-CC TAG)
+  // B-CC verification (green; B-CC shipped)
   // Added during green phase of low-risk/cost RGR pivot; exercises the
-  // delegating guards in CompoundCurve / CircularString without editing
-  // the red TAG fail in CurveAwarenessSpecTest (per epic convention).
-  // When B-CC ships, the meter method is deleted (not turned green).
+  // delegating guards in CompoundCurve / CircularString.
+  // Meter red-test method deleted in ship commit (see CurveAwarenessSpecTest
+  // history + "test: drop ...#test_B_CC_*" commit). This remains as executable
+  // documentation / regression guard for the TAG.
   // ============================================================
 
   /**
