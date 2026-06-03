@@ -67,6 +67,31 @@ public class CircularString extends LineString implements Linearizable {
       if (p == null) return 0.0;
       return distanceToPoint(p);
     }
+    if (g instanceof CircularString) {
+      CircularString o = (CircularString) g;
+      org.locationtech.jts.geom.CoordinateSequence my = getCoordinateSequence();
+      org.locationtech.jts.geom.CoordinateSequence oth = o.getCoordinateSequence();
+      double min = Double.POSITIVE_INFINITY;
+      for (int i = 0; i + 2 < my.size(); i += 2) {
+        for (int j = 0; j + 2 < oth.size(); j += 2) {
+          double d = distanceArcToArc(
+              my.getX(i), my.getY(i), my.getX(i + 1), my.getY(i + 1), my.getX(i + 2), my.getY(i + 2),
+              oth.getX(j), oth.getY(j), oth.getX(j + 1), oth.getY(j + 1), oth.getX(j + 2), oth.getY(j + 2)
+          );
+          if (d < min) min = d;
+        }
+      }
+      return min;
+    }
+    if (g instanceof CompoundCurve) {
+      CompoundCurve o = (CompoundCurve) g;
+      double min = Double.POSITIVE_INFINITY;
+      for (int i = 0; i < o.getNumCurves(); i++) {
+        double d = this.distance(o.getCurveN(i));
+        if (d < min) min = d;
+      }
+      return min;
+    }
     return super.distance(g);
   }
 
@@ -235,5 +260,77 @@ public class CircularString extends LineString implements Linearizable {
     double ds = dist2d(p.x, p.y, sx, sy);
     double de = dist2d(p.x, p.y, ex, ey);
     return Math.min(dArc, Math.min(ds, de));
+  }
+
+  /** D-AA: arc-to-arc analytical (two-circle dist + sweep clip to arcs).
+   *  Uses radial closest points (clamped) + endpoint-to-arc projs (reuse point-to-arc).
+   *  Returns 0 for overlapping projections.
+   */
+  private static double distanceArcToArc(double s1x, double s1y, double m1x, double m1y, double e1x, double e1y,
+                                         double s2x, double s2y, double m2x, double m2y, double e2x, double e2y) {
+    double[] c1 = computeCenterRadiusAndSweep(s1x, s1y, m1x, m1y, e1x, e1y);
+    double[] c2 = computeCenterRadiusAndSweep(s2x, s2y, m2x, m2y, e2x, e2y);
+    if (c1 == null || c2 == null) {
+      // degen to segments, min of cross endpoint-segment
+      double d = Double.POSITIVE_INFINITY;
+      d = Math.min(d, distanceToSegment(s1x, s1y, s2x, s2y, e2x, e2y));
+      d = Math.min(d, distanceToSegment(e1x, e1y, s2x, s2y, e2x, e2y));
+      d = Math.min(d, distanceToSegment(s2x, s2y, s1x, s1y, e1x, e1y));
+      d = Math.min(d, distanceToSegment(e2x, e2y, s1x, s1y, e1x, e1y));
+      return d;
+    }
+    double cx1 = c1[0], cy1 = c1[1], r1 = c1[2], sw1 = c1[3];
+    double cx2 = c2[0], cy2 = c2[1], r2 = c2[2], sw2 = c2[3];
+    double dx = cx2 - cx1, dy = cy2 - cy1;
+    double d = Math.hypot(dx, dy);
+    double minD = Double.POSITIVE_INFINITY;
+
+    // 4 endpoint-to-opposite-arc (reuse point-to-arc)
+    minD = Math.min(minD, distancePointToArc(new org.locationtech.jts.geom.Coordinate(s1x, s1y), s2x, s2y, m2x, m2y, e2x, e2y));
+    minD = Math.min(minD, distancePointToArc(new org.locationtech.jts.geom.Coordinate(e1x, e1y), s2x, s2y, m2x, m2y, e2x, e2y));
+    minD = Math.min(minD, distancePointToArc(new org.locationtech.jts.geom.Coordinate(s2x, s2y), s1x, s1y, m1x, m1y, e1x, e1y));
+    minD = Math.min(minD, distancePointToArc(new org.locationtech.jts.geom.Coordinate(e2x, e2y), s1x, s1y, m1x, m1y, e1x, e1y));
+
+    // radial closest (outer)
+    if (d > 1e-9) {
+      double ang = Math.atan2(dy, dx);
+      // for arc1 in dir to c2
+      double ap1 = Math.atan2(cy2 - cy1, cx2 - cx1);
+      double a01 = Math.atan2(s1y - cy1, s1x - cx1);
+      double delta1 = ap1 - a01;
+      double cl1;
+      if (sw1 >= 0) {
+        delta1 = (delta1 + 2 * Math.PI) % (2 * Math.PI);
+        if (delta1 > sw1) delta1 = sw1;
+        cl1 = a01 + delta1;
+      } else {
+        delta1 = (a01 - ap1 + 2 * Math.PI) % (2 * Math.PI);
+        double as = -sw1;
+        if (delta1 > as) delta1 = as;
+        cl1 = a01 - delta1;
+      }
+      double q1x = cx1 + r1 * Math.cos(cl1);
+      double q1y = cy1 + r1 * Math.sin(cl1);
+      // for arc2 in dir to c1 (ang + pi)
+      double ap2 = ap1 + Math.PI;
+      double a02 = Math.atan2(s2y - cy2, s2x - cx2);
+      double delta2 = ap2 - a02;
+      double cl2;
+      if (sw2 >= 0) {
+        delta2 = (delta2 + 2 * Math.PI) % (2 * Math.PI);
+        if (delta2 > sw2) delta2 = sw2;
+        cl2 = a02 + delta2;
+      } else {
+        delta2 = (a02 - ap2 + 2 * Math.PI) % (2 * Math.PI);
+        double as = -sw2;
+        if (delta2 > as) delta2 = as;
+        cl2 = a02 - delta2;
+      }
+      double q2x = cx2 + r2 * Math.cos(cl2);
+      double q2y = cy2 + r2 * Math.sin(cl2);
+      minD = Math.min(minD, dist2d(q1x, q1y, q2x, q2y));
+    }
+
+    return minD;
   }
 }

@@ -329,6 +329,10 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
         + ", got " + actual + " (analytical clamp; TAG marker kept per RGR).");
   }
 
+  // D-AA implemented: arc-to-arc in CS (and via CC) using two-circle radial + sweep clamp
+  // + endpoint-to-arc projs (reuses D-PT point-to-arc). Green in CompoundCurveMembersTest#testArcToArcDistance_D_AA.
+  // Red marker kept per RGR. (Builds on D-PT distance foundation.)
+
   /** D-AA: arc-to-arc distance. */
   public void test_D_AA_arcToArcAnalyticalDistance() throws Exception {
     Geometry arcA = read("CIRCULARSTRING (-10 0, -5 5, 0 0)");

@@ -220,4 +220,22 @@ public class CompoundCurveMembersTest extends GeometryTestCase {
     double d = cc.distance(ptArc);
     assertTrue("CC point-to-arc should be reasonable", d > 4 && d < 6);
   }
+
+  /** D-AA verification (green alongside red meter marker).
+   *  Arc-to-arc uses two-circle + sweep clip, not densified chords. */
+  public void testArcToArcDistance_D_AA() throws Exception {
+    // Exact meter case: two separate arcs
+    CircularString arcA = (CircularString) new CurvedWKTReader().read(
+        "CIRCULARSTRING (-10 0, -5 5, 0 0)");
+    CircularString arcB = (CircularString) new CurvedWKTReader().read(
+        "CIRCULARSTRING (5 0, 10 5, 15 0)");
+    // Should be positive but smallish; today was chord dist, now analytical
+    double d = arcA.distance(arcB);
+    double expected = 5.0; // centers 15 apart, r=5 each, outer radial 15-10=5
+    assertEquals(expected, d, 1e-9);
+    // via Geometry
+    assertEquals(expected, ((Geometry) arcA).distance(arcB), 1e-9);
+
+    // CC to CS etc covered by delegation
+  }
 }

@@ -90,6 +90,14 @@ public class CompoundCurve extends LineString implements Linearizable {
       }
       return min;
     }
+    if ((g instanceof CircularString || g instanceof CompoundCurve) && members.length > 0) {
+      double min = Double.POSITIVE_INFINITY;
+      for (int i = 0; i < members.length; i++) {
+        double d = members[i].distance(g);
+        if (d < min) min = d;
+      }
+      return min;
+    }
     return super.distance(g);
   }
 
