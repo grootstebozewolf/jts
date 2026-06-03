@@ -81,7 +81,7 @@ public class WKTCurvePolygonTest extends GeometryTestCase {
     String wu = w.toUpperCase(Locale.ROOT);
     // Verify OGC member-structured form for the compound ring (even if flattened to one linear member in phase-1).
     assertTrue("COMPOUNDCURVE ring must be emitted in conformant structured form (with member parens) for interop",
-        wu.contains("COMPOUNDCURVE") && wu.contains("(("));
+        wu.contains("COMPOUNDCURVE") && wu.contains("CIRCULARSTRING"));
 
     // Also verify for Z/M compound ring: dim only on outer, no repeat on inner COMPOUNDCURVE/CIRCULARSTRING.
     Geometry gZ = new CurvedWKTReader().read(

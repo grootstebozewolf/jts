@@ -15,6 +15,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.util.GeometryEditor;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
@@ -107,9 +108,39 @@ public final class CurvedPrecisionReducer {
           return GeometryPrecisionReducer.reduce(lin, pm);
         }
       }
+      if (geometry instanceof CompoundCurve) {
+        CompoundCurve cc = (CompoundCurve) geometry;
+        LineString[] mems = cc.getCurves();
+        LineString[] newMems = new LineString[mems.length];
+        boolean preserved = true;
+        for (int i = 0; i < mems.length; i++) {
+          if (mems[i] instanceof CircularString) {
+            CircularString cs = (CircularString) mems[i];
+            if (isGridFriendly(cs, pm)) {
+              CoordinateSequence seq = cs.getCoordinateSequence().copy();
+              for (int j = 0; j < seq.size(); j++) {
+                seq.setOrdinate(j, 0, pm.makePrecise(seq.getOrdinate(j, 0)));
+                seq.setOrdinate(j, 1, pm.makePrecise(seq.getOrdinate(j, 1)));
+              }
+              newMems[i] = new CircularString(seq, factory);
+            } else {
+              preserved = false;
+              break;
+            }
+          } else {
+            // line member: reduce coords
+            newMems[i] = (LineString) GeometryPrecisionReducer.reduce(mems[i], pm);
+          }
+        }
+        if (preserved) {
+          return new CompoundCurve(newMems, factory);
+        } else {
+          Geometry lin = cc.toLinear(0.0);
+          return GeometryPrecisionReducer.reduce(lin, pm);
+        }
+      }
       if (geometry instanceof Linearizable) {
-        // phase-1: for CC / CP etc that are collapsed or structural, fallback densify+reduce
-        // (real impl would walk members for CS and preserve friendly arcs)
+        // fallback for other (e.g. CP)
         Geometry lin = ((Linearizable) geometry).toLinear(0.0);
         return GeometryPrecisionReducer.reduce(lin, pm);
       }

@@ -18,6 +18,7 @@ import java.util.Locale;
 
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.curved.CircularString;
 import org.locationtech.jts.geom.curved.CompoundCurve;
 import org.locationtech.jts.geom.curved.CurvePolygon;
 import org.locationtech.jts.io.Ordinate;
@@ -96,27 +97,40 @@ public class CurvedWKTWriter extends WKTWriter {
   private void appendCompoundCurveTaggedText(CompoundCurve cc,
       EnumSet<Ordinate> outputOrdinates, boolean useFormatting,
       int level, Writer writer, OrdinateFormat formatter) throws IOException {
-    // Always emit in OGC-conformant structured member form, using the flat
-    // coordinate sequence as a single linear member. This ensures valid WKT
-    // for interop (COMPOUNDCURVE ( ( ... ) )) even for the phase-1 flat
-    // CompoundCurve representation. Readers accept this form, and it is
-    // standard (unlike the previous flat-without-inner-parens emission).
     writer.write(cc.getGeometryType().toUpperCase(Locale.ROOT));
     writer.write(" ");
     appendOrdinateText(outputOrdinates, writer);
     writer.write(" (");
-    appendSequenceText(cc.getCoordinateSequence(), outputOrdinates, useFormatting,
-        level, false, writer, formatter);
+    LineString[] mems = cc.getCurves();
+    for (int i = 0; i < mems.length; i++) {
+      if (i > 0) {
+        writer.write(", ");
+      }
+      LineString m = mems[i];
+      if (m instanceof CircularString) {
+        writer.write("CIRCULARSTRING ");
+        appendOrdinateText(outputOrdinates, writer);
+        // appendSequence provides the opening ( for coords
+        appendSequenceText(m.getCoordinateSequence(), outputOrdinates, useFormatting,
+            level, false, writer, formatter);
+      } else if (m instanceof CompoundCurve) {
+        // recurse for nested
+        appendCompoundCurveTaggedText((CompoundCurve) m, outputOrdinates, useFormatting, level, writer, formatter);
+      } else {
+        // plain linear member: appendSequence provides ( pts )
+        appendSequenceText(m.getCoordinateSequence(), outputOrdinates, useFormatting,
+            level, false, writer, formatter);
+      }
+    }
     writer.write(")");
   }
 
   /**
    * Emit a ring position inside CURVEPOLYGON: for a curved ring (CircularString or
-   * CompoundCurve) emit its tagged form e.g. "CIRCULARSTRING (pts)" or "COMPOUNDCURVE ( (pts) )";
+   * CompoundCurve) emit its tagged form e.g. "CIRCULARSTRING (pts)" or "COMPOUNDCURVE ( (pts), ... )";
    * for a linear one emit plain "(pts)".
    * <p>
-   * COMPOUNDCURVE is emitted with explicit member grouping parens so the result
-   * is OGC SQL/MM conformant WKT (required for interop with PostGIS, Oracle, etc.).
+   * COMPOUNDCURVE now emits full member structure for OGC SQL/MM conformance.
    */
   private void appendCurveRingText(LineString ring,
       EnumSet<Ordinate> outputOrdinates, boolean useFormatting,
@@ -128,11 +142,26 @@ public class CurvedWKTWriter extends WKTWriter {
       if (indentFirst) indent(useFormatting, level, writer);
       writer.write(ring.getGeometryType().toUpperCase(Locale.ROOT));
       if (ring instanceof CompoundCurve) {
-        // Structured member form for OGC conformance: COMPOUNDCURVE ( (seq) )
-        // No per-ring dim qualifier (declared once on the outer CURVEPOLYGON).
+        CompoundCurve cc = (CompoundCurve) ring;
         writer.write(" (");
-        appendSequenceText(ring.getCoordinateSequence(), outputOrdinates, useFormatting,
-            level, false, writer, formatter);
+        LineString[] mems = cc.getCurves();
+        for (int k = 0; k < mems.length; k++) {
+          if (k > 0) {
+            writer.write(", ");
+          }
+          LineString m = mems[k];
+          if (m instanceof CircularString) {
+            writer.write("CIRCULARSTRING ");
+            // NO appendOrdinateText here: dim qualifier only on outer CURVEPOLYGON, not repeated on inner ring members (per test and spec)
+            // appendSequence provides the (
+            appendSequenceText(m.getCoordinateSequence(), outputOrdinates, useFormatting,
+                level, false, writer, formatter);
+          } else {
+            // line sub: append provides (
+            appendSequenceText(m.getCoordinateSequence(), outputOrdinates, useFormatting,
+                level, false, writer, formatter);
+          }
+        }
         writer.write(")");
       } else {
         // CIRCULARSTRING ring: "CIRCULARSTRING (pts...)"

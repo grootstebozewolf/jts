@@ -11,6 +11,10 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -18,14 +22,54 @@ import org.locationtech.jts.geom.LineString;
 
 /**
  * A connected sequence of {@link LineString} and {@link CircularString}
- * segments. Phase-1 stand-in: member structure is collapsed to a flat
- * concatenation of control points. A future phase will preserve segments.
+ * segments (and nested CompoundCurve). Supports member structure for
+ * analytical operations (length, boundary, copy, toLinear, etc).
  */
 public class CompoundCurve extends LineString implements Linearizable {
   private static final long serialVersionUID = 1L;
 
+  private final LineString[] members;
+
+  /**
+   * Legacy/flat ctor (for backward compat with phase-1 seq-based creation):
+   * wraps the seq as a single linear member.
+   */
   public CompoundCurve(CoordinateSequence points, GeometryFactory factory) {
-    super(points, factory);
+    this( new LineString[] { factory.createLineString(points) }, factory );
+  }
+
+  /** Structural ctor. */
+  public CompoundCurve(LineString[] members, GeometryFactory factory) {
+    super( buildSeq(members, factory), factory );
+    this.members = (members == null ? new LineString[0] : members.clone());
+  }
+
+  private static CoordinateSequence buildSeq(LineString[] mems, GeometryFactory f) {
+    if (mems == null || mems.length == 0) {
+      return f.getCoordinateSequenceFactory().create(0, 2);
+    }
+    List<Coordinate> coords = new ArrayList<>();
+    for (int i = 0; i < mems.length; i++) {
+      Coordinate[] cs = mems[i].getCoordinates();
+      int start = coords.isEmpty() ? 0 : 1; // skip junction
+      for (int j = start; j < cs.length; j++) {
+        coords.add(cs[j]);
+      }
+    }
+    return f.getCoordinateSequenceFactory().create( coords.toArray(new Coordinate[0]) );
+  }
+
+  public int getNumCurves() {
+    return members.length;
+  }
+
+  public LineString getCurveN(int n) {
+    return members[n];
+  }
+
+  /** Returns the member curves (for writer etc). */
+  public LineString[] getCurves() {
+    return members.clone();
   }
 
   @Override
@@ -46,16 +90,13 @@ public class CompoundCurve extends LineString implements Linearizable {
     return 1;
   }
 
-  /**
-   * M-LEN-CC (partial): length for CompoundCurve.
-   * <p>
-   * Phase-1 stand-in (flat seq): delegates to super (chord sum). Full analytical
-   * (sum over line/arc members) awaits structural CC (see class javadoc and epic F).
-   * The M-LEN-CC red test documents the desired behaviour.
-   */
   @Override
   public double getLength() {
-    return super.getLength();
+    double len = 0.0;
+    for (LineString m : members) {
+      len += m.getLength();
+    }
+    return len;
   }
 
   /**
@@ -84,11 +125,30 @@ public class CompoundCurve extends LineString implements Linearizable {
 
   @Override
   protected CompoundCurve copyInternal() {
-    return new CompoundCurve(getCoordinateSequence().copy(), getFactory());
+    LineString[] copies = new LineString[members.length];
+    for (int i = 0; i < members.length; i++) {
+      copies[i] = (LineString) members[i].copy();
+    }
+    return new CompoundCurve(copies, getFactory());
   }
 
   @Override
   public Geometry toLinear(double tolerance) {
-    return getFactory().createLineString(getCoordinateSequence().copy());
+    if (members.length == 0) {
+      return getFactory().createLineString();
+    }
+    List<Coordinate> all = new ArrayList<>();
+    for (int i = 0; i < members.length; i++) {
+      LineString m = members[i];
+      LineString lin = (m instanceof Linearizable)
+          ? (LineString) ((Linearizable) m).toLinear(tolerance)
+          : m;
+      Coordinate[] cs = lin.getCoordinates();
+      int start = all.isEmpty() ? 0 : 1;
+      for (int j = start; j < cs.length; j++) {
+        all.add(cs[j]);
+      }
+    }
+    return getFactory().createLineString( all.toArray(new Coordinate[0]) );
   }
 }

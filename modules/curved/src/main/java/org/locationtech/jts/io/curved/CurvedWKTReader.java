@@ -53,12 +53,9 @@ import org.locationtech.jts.io.WKTReader;
  *   <li>{@code TIN}</li>
  * </ul>
  * <p>
- * This is a phase-1 implementation: composite types (CompoundCurve,
- * CurvePolygon, MultiCurve, MultiSurface) collapse member structure to
- * concatenated coordinates / linearised rings on read. The classes are
- * structurally simple wrappers over their parent geometry types so the
- * existing JTS algorithm suite continues to work, treating curves as
- * polylines and curve-bounded surfaces as polygons.
+ * Composite types (CompoundCurve, CurvePolygon, MultiCurve, MultiSurface)
+ * now preserve member structure (CircularString / LineString etc) for
+ * analytical ops. Phase-1 compat for flat seq ctors remains.
  */
 public class CurvedWKTReader extends WKTReader {
 
@@ -141,27 +138,25 @@ public class CurvedWKTReader extends WKTReader {
       throws IOException, ParseException {
     String tok = getNextEmptyOrOpener(tokenizer);
     if (tok.equals(WKTConstants.EMPTY)) {
-      return new CompoundCurve(createCoordinateSequenceEmpty(ordinateFlags), geometryFactory);
+      return new CompoundCurve(new LineString[0], geometryFactory);
     }
     // Choose between SFA-structured form `((...), CIRCULARSTRING(...), ...)`
-    // and legacy flat forms. CurvedWKTWriter now emits the standard member-structured form.
+    // and legacy flat forms. Now preserves members structurally.
     String w = lookAheadWord(tokenizer);
     if (!w.equals(L_PAREN) && !isCurveMemberTag(w)) {
       List<Coordinate> coords = new ArrayList<Coordinate>();
       do {
         coords.add(getCoordinate(tokenizer, ordinateFlags, false));
       } while (getNextCloserOrComma(tokenizer).equals(","));
-      return new CompoundCurve(csFactory.create(coords.toArray(new Coordinate[0])), geometryFactory);
+      LineString single = geometryFactory.createLineString( csFactory.create(coords.toArray(new Coordinate[0])) );
+      return new CompoundCurve( new LineString[] { single }, geometryFactory );
     }
-    List<Coordinate> all = new ArrayList<Coordinate>();
+    List<LineString> mems = new ArrayList<LineString>();
     do {
-      Coordinate[] cc = readCurveMember(tokenizer, ordinateFlags).getCoordinates();
-      int start = all.isEmpty() ? 0 : 1;
-      for (int i = start; i < cc.length; i++) all.add(cc[i]);
+      mems.add( readCurveMember(tokenizer, ordinateFlags) );
       tok = getNextCloserOrComma(tokenizer);
     } while (tok.equals(","));
-    CoordinateSequence seq = csFactory.create(all.toArray(new Coordinate[0]));
-    return new CompoundCurve(seq, geometryFactory);
+    return new CompoundCurve( mems.toArray(new LineString[0]), geometryFactory );
   }
 
   private CurvePolygon readCurvePolygonText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)

@@ -61,6 +61,11 @@ public class CurvedGeometryFactory extends GeometryFactory {
     return new CompoundCurve(points, this);
   }
 
+  /** Structural creation from members (LineString, CircularString, CompoundCurve). */
+  public CompoundCurve createCompoundCurve(LineString[] members) {
+    return new CompoundCurve(members, this);
+  }
+
   public CurvePolygon createCurvePolygon() {
     return new CurvePolygon(this);
   }

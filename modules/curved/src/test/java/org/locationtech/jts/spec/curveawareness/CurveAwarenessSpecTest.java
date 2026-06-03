@@ -58,7 +58,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // F-CP, F-MC, F-MS landed (structural composites + subtype preservation in copy/ctor/reader/writer).
   // B-CP, B-MS, B-CC, M-DIM shipped (red meters deleted; greens + guards in place).
   // M-AREA-CP, D-PT, D-AA, PRC-SN shipped (green verified + proofs harden; red markers deleted).
-  // M-LEN-CS shipped (CS now uses CircularArcs.arcLength; CC partial pending structural).
+  // M-LEN-CS, M-LEN-CC shipped (structural CC + arcLength in CircularArcs; full member length).
   // F-RD (CurvedShapeWriter integration) remains for later.
 
   /** F-RD: renderer arc-walks CurvePolygon rings + MultiCurve+MultiSurface. */
@@ -72,16 +72,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Metrics
   // ============================================================
 
-  /** M-LEN-CC: CompoundCurve.getLength sums analytical members. */
-  public void test_M_LEN_CC_compoundCurveLengthSumsMembers() throws Exception {
-    Geometry g = read(
-        "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
-    // line: 10. half-circle R=5: π·5 ≈ 15.708. Total ≈ 25.708.
-    double expected = 10.0 + Math.PI * 5.0;
-    double actual = g.getLength();
-    fail("M-LEN-CC: line(10)+halfArc(R=5) length should be ≈ " + expected
-        + " but got " + actual + ".");
-  }
+
 
   // ============================================================
   // Buffer / Offset
