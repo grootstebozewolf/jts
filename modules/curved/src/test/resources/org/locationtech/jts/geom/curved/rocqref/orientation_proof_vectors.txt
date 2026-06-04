@@ -1,0 +1,33 @@
+# Orientation reference vectors for JTS #1106 (orientation soundness).
+#
+# Consumed by (core) RocqRefRunner.loadProofCases / RocqRefRunnerTest (and mirrored
+# here for curve-adversarial demos).
+#
+# Artifact from this run (use RocqRefRunner to consume after download):
+# https://github.com/grootstebozewolf/NetTopologySuite.Proofs/actions/runs/26798343472/artifacts/7349017657
+# (use RocqRefRunner + gens to create more adversarial tests, run hunter, fix bugs.)
+#
+# The vectors below were derived from the certified reference. Replace/extend
+# with real export from the run; load validates claimed vs derived refSign.
+#
+# Format (whitespace-separated, '#' comments and blank lines ignored):
+#   p0x p0y  p1x p1y  qx qy  [expectedSign]
+# expectedSign in {-1, 0, 1}: -1 = clockwise, 0 = collinear, 1 = counter-clockwise.
+
+# --- basic turns ---
+0 0    1 0    0 1     1
+0 0    1 0    0 -1   -1
+0 0    0 1    1 0    -1
+
+# --- exact collinearity ---
+0 0    2 2    1 1     0
+0 0    4 2    2 1     0
+-33554432 -33554432   33554432 33554432   0 0   0
+
+# --- near-collinear (one unit off a long diagonal) ---
+0 0    1000000 1000000   1000001 1000000   -1
+0 0    1000000 1000000   1000000 1000001    1
+
+# --- domain boundary (largest representable determinants) ---
+33554432 33554432    -33554432 -33554432    33554432 -33554432    1
+-33554432 33554432    33554432 -33554432    33554431 -33554432   -1

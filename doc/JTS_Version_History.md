@@ -57,6 +57,8 @@ Distributions for older JTS versions can be obtained at the
 * Add Voronoi snapping heuristic to fix invalid diagram topology (#1174)
 * Fix `LineSegment.project` to handle segments projecting onto a single endpoint (#1179)
 * Fix DD equals and compareTo (#1186)
+* Fix `RelateNG.computeLineEnds` incorrectly skipping boundary points for disjoint line components (#1175)
+* Add RocqRefRunner + ORIENT_EXACT vector support (from proofs artifact) + hunter for full-binary64 orientation (JTS #1106). Fix CGAlgorithmsDD (filter+DD) for extreme magnitudes (overflow ~2^512, underflow ~2^-540, cross-binade) using BigDecimal exact fallback. Updated adversarial tests/vectors via RocqRefRunner.
 
 ### Performance Improvements
 

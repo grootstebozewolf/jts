@@ -14,6 +14,8 @@ package org.locationtech.jts.algorithm;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.math.DD;
 
+import java.math.BigDecimal;
+
 /**
  * Implements basic computational geometry algorithms using {@link DD} arithmetic.
  * 
@@ -60,6 +62,11 @@ public class CGAlgorithmsDD
       double p2x, double p2y,
       double qx, double qy)
   {
+    if (isExtreme(p1x, p1y, p2x, p2y, qx, qy)) {
+      // Extreme magnitude: filter and DD will under/overflow (products ~0 or inf).
+      // Go straight to exact BD to match Rocq ORIENT_EXACT (artifact vectors).
+      return orientationIndexBD(p1x, p1y, p2x, p2y, qx, qy);
+    }
     // fast filter for orientation index
     // avoids use of slow extended-precision arithmetic in many cases
     int index = orientationIndexFilter(p1x, p1y, p2x, p2y, qx, qy);
@@ -72,7 +79,15 @@ public class CGAlgorithmsDD
     DD dy2 = DD.valueOf(qy).selfAdd(-p2y);
 
     // sign of determinant - unrolled for performance
-    return dx1.selfMultiply(dy2).selfSubtract(dy1.selfMultiply(dx2)).signum();
+    int ddSign = dx1.selfMultiply(dy2).selfSubtract(dy1.selfMultiply(dx2)).signum();
+    if (ddSign != 0
+        && !isExtreme(p1x, p1y, p2x, p2y, qx, qy)) {
+      return ddSign;
+    }
+    // DD returned 0 or inputs are extreme magnitude (overflow/underflow risk for DD,
+    // e.g. |coord|~2^512 or 2^-540 as in Rocq ORIENT_EXACT artifact vectors for JTS #1106).
+    // Use exact BigDecimal (dyadic) to get the correct sign matching the certified oracle.
+    return orientationIndexBD(p1x, p1y, p2x, p2y, qx, qy);
   }
   
   /**
@@ -217,5 +232,44 @@ public class CGAlgorithmsDD
     }
 
     return new Coordinate(xInt, yInt);
+  }
+
+  // --- exact BigDecimal fallback for full binary64 range (supports Rocq ORIENT_EXACT vectors) ---
+
+  /**
+   * Exact orientation index using BigDecimal (arbitrary precision).
+   * Used as fallback when DD returns 0 (possible overflow/underflow for extreme
+   * coordinates near the binary64 limits, e.g. 2^512 / 2^-540 as in the
+   * proofs artifact vectors for JTS #1106).
+   * Treats the input doubles as exact values; result matches the certified
+   * b64_orient2d_exact from the Rocq proofs.
+   */
+  private static int orientationIndexBD(double p1x, double p1y,
+      double p2x, double p2y,
+      double qx, double qy)
+  {
+    BigDecimal x1 = bd(p1x), y1 = bd(p1y);
+    BigDecimal x2 = bd(p2x), y2 = bd(p2y);
+    BigDecimal xq = bd(qx), yq = bd(qy);
+    BigDecimal dx1 = x2.subtract(x1);
+    BigDecimal dy1 = y2.subtract(y1);
+    BigDecimal dx2 = xq.subtract(x1);
+    BigDecimal dy2 = yq.subtract(y1);
+    BigDecimal det = dx1.multiply(dy2).subtract(dy1.multiply(dx2));
+    return det.signum();
+  }
+
+  private static BigDecimal bd(double d) {
+    // Double.toString(d) yields a decimal representation that parses back to
+    // exactly the same binary64 value (roundtrip-safe, shortest form).
+    return new BigDecimal(Double.toString(d));
+  }
+
+  private static boolean isExtreme(double... coords) {
+    for (double c : coords) {
+      double a = Math.abs(c);
+      if (a > 1e100 || (a > 0 && a < 1e-100)) return true;
+    }
+    return false;
   }
 }

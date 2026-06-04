@@ -1,0 +1,12 @@
+# Arc chord-crosses-circle reference vectors.
+#
+# Consumed by CurveRefRunner (modeled on RocqRefRunner + loadProofCases from #1197).
+#
+# Generated/verified using oracle-bin-linux from GH run 26887314315 / art 7385761173
+# (angle-between branch; uses ARC_CHORD_CROSSES_CIRCLE mode backed by ArcIntersect.v + IVT).
+# Artifact: https://github.com/grootstebozewolf/NetTopologySuite.Proofs/actions/runs/26887314315/artifacts/7385761173
+# See Proofs#64 (arc primitives) + theories/ArcIntersect.v / ArcIntersectIVT.v for the verified
+# chord_crosses_arc_circle + IVT witness. Used to harden arc-arc distance / intersects in D-AA etc.
+#
+0 0 1 0 0 1  0.5 0.1  2 0.1   TRUE
+0 0 5 0 0 5  -1 -1  1 1   TRUE

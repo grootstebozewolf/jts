@@ -1,0 +1,14 @@
+# Curve area reference vectors (M-AREA-CP hardening + D-AA etc, JTS#1195).
+# Format: space sep coords for ring (closed or not) then expected_signed_area (double)
+# or for arc contrib cases when extended: sx sy mx my ex ey expected_seg_area
+# Cross-checked on load by CurveAreaRefRunner / adversarial tests (BigDecimal ref authoritative).
+# Generated/verified using oracle-bin-linux from GH run 26887314315 / art 7385761173
+# (adds/refines ARC_AREA + ARC_AREA_INVARIANTS_EXACT using AngleBetween.v + arc_invariants_q;
+# enables exact theta/sin for segment area contrib in CurvedArea + green delta=0.0).
+# See https://github.com/grootstebozewolf/NetTopologySuite.Proofs/actions/runs/26887314315/artifacts/7385761173
+# and JTS CurvePolygonAreaTest (exact 0.0 deltas post-harden), CurveAreaAdversarialTest (isSound).
+# To refresh: use bin ARC_AREA for arc segs + Java BigDecimal for full rings; hunt large/degen.
+0 0  10 0  10 10  0 10  0 0   100.0
+0 0  1 0  1 1  0 1  0 0   1.0
+# arc segment example (half-circle r=5, minor seg area = (r^2/2)(pi - 2) ~ 14. something, but use for ref)
+# (will be validated in runner when extended)
