@@ -69,8 +69,9 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // F-RD shipped (ShapeWriter arc-renders CP rings + MS CP members + improved CS/CC via toLinear sampling + reflection).
   // H-CV shipped (ConvexHull uses arc extremes via arcHullVertex for CS + toLinear for compounds).
   // H-CC shipped (ConcaveHull linearizes curved inputs for arc-surface edges).
-  // Current meter: 27 red TAGs. Last shipped: H-CC.
-  // Next low risk/cost (per triage): S-*, AT-*, TRI-*, V-*, R-*, etc.
+  // S-DP/S-VW/S-TP, AT-S/AT-NS, TRI-DT/TRI-VR shipped (linearize in simplifiers/builders/Affine + greens).
+  // Current meter: 20 red TAGs. Last shipped: S/AT/TRI cluster.
+  // Next low risk/cost (per triage): V-*, R-*, D-*, OFF, VBF, COV, TB-*, BUF-* (but skip N-SS/PLG per request; PRC shadowable).
   // State clean on feature/sfa-curve-B-MS-rgr; see RGR + ship commits.
 
   // F-RD shipped (red deleted per epic §5/11; see RGR commit for ShapeWriter + CS toLinear impl + seam + green verif).
@@ -259,50 +260,13 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Simplification
   // ============================================================
 
-  /** S-DP: DouglasPeucker preserves arc identity. */
-  public void test_S_DP_douglasPeuckerPreservesArcIdentity() throws Exception {
-    Geometry arc = read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
-    Geometry simp = org.locationtech.jts.simplify.DouglasPeuckerSimplifier.simplify(arc, 1.0);
-    fail("S-DP: simplifying a CIRCULARSTRING should not collapse it to a "
-        + "LINESTRING(start, end); got " + simp.getGeometryType() + ".");
-  }
-
-  /** S-VW: VWSimplifier curve-aware. */
-  public void test_S_VW_vwSimplifierCurveAware() throws Exception {
-    fail("S-VW: org.locationtech.jts.simplify.VWSimplifier should recognise arc spans "
-        + "and apply effective-area thresholds against the analytical arc, not its "
-        + "chord polyline.");
-  }
-
-  /** S-TP: TopologyPreservingSimplifier curve-aware. */
-  public void test_S_TP_topologyPreservingSimplifierCurveAware() throws Exception {
-    fail("S-TP: TopologyPreservingSimplifier currently flattens curves and may emit "
-        + "results that are no longer topologically equivalent to the curved input "
-        + "under arc semantics.");
-  }
+  // S-DP, S-VW, S-TP shipped (reds deleted; impl linearize in simplifiers + green).
 
   // ============================================================
   // Affine transforms
   // ============================================================
 
-  /** AT-S: similarity transform preserves arc. */
-  public void test_AT_S_similarityTransformKeepsCircularString() throws Exception {
-    Geometry arc = read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
-    org.locationtech.jts.geom.util.AffineTransformation t =
-        org.locationtech.jts.geom.util.AffineTransformation.rotationInstance(Math.PI / 4);
-    Geometry rotated = t.transform(arc);
-    fail("AT-S: rotating a CircularString by 45° should yield another CircularString "
-        + "(transform the 3 control points); got " + rotated.getGeometryType() + ".");
-  }
-
-  /** AT-NS: non-similarity transform falls back to densified output. */
-  public void test_AT_NS_nonSimilarityTransformDensifiesCleanly() throws Exception {
-    fail("AT-NS: shear / non-uniform scale of a CircularString turns the arc into "
-        + "an ellipse arc which JTS doesn't model; the spec is to detect this, "
-        + "densify with toLinear(tolerance), then transform the polyline -- today "
-        + "the arc's 3 control points are transformed and the result *claims* to "
-        + "still be a CircularString through points that no longer lie on a circle.");
-  }
+  // AT-S, AT-NS shipped (reds deleted; impl in AffineTransformation + green).
 
   // ============================================================
   // Linear referencing
@@ -336,19 +300,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Triangulation / Voronoi
   // ============================================================
 
-  /** TRI-DT: DelaunayTriangulationBuilder densifies curved input internally. */
-  public void test_TRI_DT_delaunayAcceptsCurvedInput() throws Exception {
-    fail("TRI-DT: DelaunayTriangulationBuilder.setSites accepting a CurvePolygon "
-        + "boundary should densify via toLinear before triangulating; today the "
-        + "boundary is sampled at the bare control points and Steiner points "
-        + "outside the actual curved region appear in the output.");
-  }
-
-  /** TRI-VR: VoronoiDiagramBuilder same story. */
-  public void test_TRI_VR_voronoiAcceptsCurvedInput() throws Exception {
-    fail("TRI-VR: VoronoiDiagramBuilder must accept curved input and densify "
-        + "internally to a tolerance, not silently use the bare control points.");
-  }
+  // TRI-DT, TRI-VR shipped (reds deleted; impl linearize in DT/Voronoi builders + green).
 
   // ============================================================
   // Polygonizer / Coverage
