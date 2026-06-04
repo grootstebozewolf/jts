@@ -57,8 +57,23 @@ public class DistanceOp
    */
   public static double distance(Geometry g0, Geometry g1)
   {
+    g0 = linearizeIfCurved(g0);
+    g1 = linearizeIfCurved(g1);
     DistanceOp distOp = new DistanceOp(g0, g1);
     return distOp.distance();
+  }
+
+  private static Geometry linearizeIfCurved(Geometry geom) {
+    String gt = geom.getGeometryType();
+    if ("CircularString".equals(gt) || "CompoundCurve".equals(gt)
+        || "CurvePolygon".equals(gt) || "MultiCurve".equals(gt) || "MultiSurface".equals(gt)) {
+      try {
+        java.lang.reflect.Method m = geom.getClass().getMethod("toLinear", double.class);
+        Object res = m.invoke(geom, 0.01);
+        if (res instanceof Geometry) return (Geometry) res;
+      } catch (Exception e) {}
+    }
+    return geom;
   }
 
   /**

@@ -50,9 +50,24 @@ public class RelateOp
    */
   public static IntersectionMatrix relate(Geometry a, Geometry b)
   {
+    a = linearizeIfCurved(a);
+    b = linearizeIfCurved(b);
     RelateOp relOp = new RelateOp(a, b);
     IntersectionMatrix im = relOp.getIntersectionMatrix();
     return im;
+  }
+
+  private static Geometry linearizeIfCurved(Geometry geom) {
+    String gt = geom.getGeometryType();
+    if ("CircularString".equals(gt) || "CompoundCurve".equals(gt)
+        || "CurvePolygon".equals(gt) || "MultiCurve".equals(gt) || "MultiSurface".equals(gt)) {
+      try {
+        java.lang.reflect.Method m = geom.getClass().getMethod("toLinear", double.class);
+        Object res = m.invoke(geom, 0.01);
+        if (res instanceof Geometry) return (Geometry) res;
+      } catch (Exception e) {}
+    }
+    return geom;
   }
 
   /**

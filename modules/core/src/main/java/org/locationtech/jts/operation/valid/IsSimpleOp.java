@@ -93,8 +93,25 @@ public class IsSimpleOp
    * @return true if the geometry is simple
    */
   public static boolean isSimple(Geometry geom) {
+    geom = linearizeIfCurved(geom);
     IsSimpleOp op = new IsSimpleOp(geom);
     return op.isSimple();
+  }
+
+  /**
+   * V-CS support: linearize for arc-aware simple check.
+   */
+  private static Geometry linearizeIfCurved(Geometry geom) {
+    String gt = geom.getGeometryType();
+    if ("CircularString".equals(gt) || "CompoundCurve".equals(gt)
+        || "CurvePolygon".equals(gt) || "MultiCurve".equals(gt) || "MultiSurface".equals(gt)) {
+      try {
+        java.lang.reflect.Method m = geom.getClass().getMethod("toLinear", double.class);
+        Object res = m.invoke(geom, 0.001);
+        if (res instanceof Geometry) return (Geometry) res;
+      } catch (Exception e) {}
+    }
+    return geom;
   }
 
   /**

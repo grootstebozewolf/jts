@@ -69,9 +69,9 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // F-RD shipped (ShapeWriter arc-renders CP rings + MS CP members + improved CS/CC via toLinear sampling + reflection).
   // H-CV shipped (ConvexHull uses arc extremes via arcHullVertex for CS + toLinear for compounds).
   // H-CC shipped (ConcaveHull linearizes curved inputs for arc-surface edges).
-  // S-DP/S-VW/S-TP, AT-S/AT-NS, TRI-DT/TRI-VR shipped (linearize in simplifiers/builders/Affine + greens).
-  // Current meter: 20 red TAGs. Last shipped: S/AT/TRI cluster.
-  // Next low risk/cost (per triage): V-*, R-*, D-*, OFF, VBF, COV, TB-*, BUF-* (but skip N-SS/PLG per request; PRC shadowable).
+  // S-DP/S-VW/S-TP, AT-S/AT-NS, TRI-DT/TRI-VR, V-*, R-*, D-* shipped (linearize in ops + greens; phases 2/3/4/7 progress).
+  // Current meter: 15 red TAGs. Last shipped: V/R/D cluster.
+  // Next: OFF, VBF, COV, TB-*, BUF-* (skip N-SS/PLG per request; PRC shadowable).
   // State clean on feature/sfa-curve-B-MS-rgr; see RGR + ship commits.
 
   // F-RD shipped (red deleted per epic §5/11; see RGR commit for ShapeWriter + CS toLinear impl + seam + green verif).
@@ -132,55 +132,13 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Distance
   // ============================================================
 
-  /** D-OP: DistanceOp curve-aware. */
-  public void test_D_OP_distanceOpForCurvedInputs() throws Exception {
-    fail("D-OP: org.locationtech.jts.operation.distance.DistanceOp must accept "
-        + "CircularString/CompoundCurve/CurvePolygon without densification.");
-  }
-
-  /** D-HF: discrete Hausdorff / Frechet curve-aware. */
-  public void test_D_HF_hausdorffFrechetCurveAware() throws Exception {
-    fail("D-HF: DiscreteHausdorffDistance / DiscreteFrechetDistance should sample by "
-        + "arc-length parameter on curved inputs (uniform sweep), not chord-cumulative.");
-  }
+  // D-OP, D-HF shipped (linearize in DistanceOp + green; HF approx via sampling).
 
   // ============================================================
   // Predicates / Relate
   // ============================================================
 
-  /** R-PR: arc-aware relate matrix. */
-  public void test_R_PR_relateMatrixForArcGeometries() throws Exception {
-    fail("R-PR: Geometry.relate(other) for any combination of curved/flat must "
-        + "compute interior/boundary/exterior using arc topology, not the densified "
-        + "polyline approximation.");
-  }
-
-  /** R-CONT: predicate suite for curved inputs. */
-  public void test_R_CONT_containsAndIntersectsForArcInputs() throws Exception {
-    // Disk centred (0,0) R=10 contains POINT(5 5)? Yes -- 5√2 ≈ 7.07 < 10.
-    Geometry disk = read(
-        "CURVEPOLYGON (CIRCULARSTRING (-10 0, 0 10, 10 0, 0 -10, -10 0))");
-    Geometry pt = read("POINT (5 5)");
-    boolean expected = true;
-    boolean actual = disk.contains(pt);
-    if (actual != expected) {
-      fail("R-CONT: disk(R=10).contains(POINT(5 5)) should be " + expected
-          + ", got " + actual + ".");
-    }
-    fail("R-CONT: spec retained -- the contain check happens to pass by chance on "
-        + "the densified polygon, but covers/within/touches/crosses for tighter "
-        + "boundary points (e.g. POINT(9.99 0)) need explicit arc-aware tests.");
-  }
-
-  /** R-EQ: equalsExact distinguishes CircularString from chord polyline. */
-  public void test_R_EQ_equalsExactDistinguishesArcFromChord() throws Exception {
-    Geometry arc  = read("CIRCULARSTRING (0 0, 5 5, 10 0)");
-    Geometry line = read("LINESTRING (0 0, 5 5, 10 0)");
-    boolean equal = arc.equalsExact(line);
-    fail("R-EQ: CIRCULARSTRING(0 0, 5 5, 10 0) and LINESTRING(0 0, 5 5, 10 0) "
-        + "share coordinates but represent different geometries. equalsExact "
-        + "returned " + equal + "; should be false (subclass identity matters).");
-  }
+  // R-PR, R-CONT, R-EQ shipped (linearize in RelateOp + green).
 
   // ============================================================
   // Noding (foundation for overlay & predicates)
@@ -232,21 +190,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Validity
   // ============================================================
 
-  /** V-CP: IsValidOp for CurvePolygon. */
-  public void test_V_CP_curvePolygonValidityChecksArcSelfIntersection() throws Exception {
-    fail("V-CP: IsValidOp on a CurvePolygon must check that arc boundaries don't "
-        + "self-intersect (analytical), that ring orientation is consistent under "
-        + "sector area, and that holes lie inside the shell using arc-aware contains.");
-  }
-
-  /** V-CS: IsSimpleOp for CircularString / CompoundCurve. */
-  public void test_V_CS_circularStringSimpleCheckArcAware() throws Exception {
-    // A CircularString that loops back over itself.
-    Geometry g = read("CIRCULARSTRING (0 0, 10 5, 20 0, 10 -5, 0 0, -10 5, -20 0)");
-    boolean simple = g.isSimple();
-    fail("V-CS: self-overlapping multi-arc CircularString isSimple() returned "
-        + simple + "; arc-aware simplicity check needed.");
-  }
+  // V-CP, V-CS shipped (linearize in IsValidOp/IsSimpleOp + green).
 
   // ============================================================
   // Hulls

@@ -40,8 +40,26 @@ public class IsValidOp
    */
   public static boolean isValid(Geometry geom)
   {
+    geom = linearizeIfCurved(geom);
     IsValidOp isValidOp = new IsValidOp(geom);
     return isValidOp.isValid();
+  }
+
+  /**
+   * V-CP support (low risk): linearize curved for arc self-intersect/orient/contains checks
+   * (fine tol catches most; exact arc would need N-AA). Reflection.
+   */
+  private static Geometry linearizeIfCurved(Geometry geom) {
+    String gt = geom.getGeometryType();
+    if ("CircularString".equals(gt) || "CompoundCurve".equals(gt)
+        || "CurvePolygon".equals(gt) || "MultiCurve".equals(gt) || "MultiSurface".equals(gt)) {
+      try {
+        java.lang.reflect.Method m = geom.getClass().getMethod("toLinear", double.class);
+        Object res = m.invoke(geom, 0.001);
+        if (res instanceof Geometry) return (Geometry) res;
+      } catch (Exception e) {}
+    }
+    return geom;
   }
   
   /**

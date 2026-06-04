@@ -641,6 +641,20 @@ public class CurvePolygonStructuralSpec extends GeometryTestCase {
     assertNotNull("TRI-VR green: voronoi produced", vor);
   }
 
+  /**
+   * Green for V-*: isValid/isSimple on curved now linearize, so arc self-overlap etc detected (fine tol).
+   */
+  public void test_V_curveAwareGreen() throws Exception {
+    CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
+    // self-overlapping CS from red test
+    Geometry g = r.read("CIRCULARSTRING (0 0, 10 5, 20 0, 10 -5, 0 0, -10 5, -20 0)");
+    assertFalse("V-CS green: self-overlap detected as not simple", g.isSimple());
+
+    // simple CP should be valid after linearize
+    Geometry cp = r.read("CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0))");
+    assertTrue("V-CP green: valid CP", cp.isValid());
+  }
+
   private int countPathSegments(Shape s) {
     PathIterator pi = s.getPathIterator(null);
     int count = 0;
