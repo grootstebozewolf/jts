@@ -29,17 +29,18 @@ import test.jts.GeometryTestCase;
  * Spec / red-test suite for the SFA Curve Awareness epic
  * (see {@code EPIC_SFA_CURVE_AWARENESS.md} at the repo root).
  *
- * <p>Each {@code test_TAG_*} method captures the desired
- * post-curve-awareness behaviour of one operation as a single
- * failing assertion. The sub-issue tag in the method name and the
- * {@code fail("TAG: …")} message match the table in the epic so
- * the gap is traceable both ways.
+ * <p>Each {@code test_TAG_*} method (where present) captures the desired
+ * post-curve-awareness behaviour of one operation. The sub-issue tag in the
+ * method name and any fail message match the table in the epic so the gap
+ * is traceable both ways.
  *
- * <p>The class is intentionally red — running
- * {@code mvn -pl modules/curved test -Dtest=CurveAwarenessSpecTest}
- * prints a list of every operation that still needs work. When a
- * sub-issue closes, <strong>delete its method</strong> (do not edit
- * it green); the remaining method count stays a live progress meter.
+ * <p>Verification for landed or hardened TAGs (V-CP, V-CS, M-LEN-*, B-*, etc.)
+ * lives primarily in CurveAdversarialTest (hunters for counterexamples +
+ * RocqRefRunner load/validate against proofs artifacts) and the corresponding
+ * *StructuralSpec classes (green verification tests). The old "progress meter"
+ * convention (keep red fail() methods until sub-issue ships, count remaining
+ * methods) has been dropped in favor of self-contained per-TAG PRs and
+ * dedicated tests.
  *
  * <p>Tests do not have to be precise — the goal is coverage of
  * pre-existing gaps, not exact threshold checks. A green
@@ -447,28 +448,15 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   }
 
   // ============================================================
-  // Validity
+  // Validity (V-CP / V-CS)
   // ============================================================
-
-  /**
-   * V-CP: IsValidOp for CurvePolygon (arc self-intersect, sector orientation, holes-in-shell).
-   * Guarded by CurvePolygon.isValid() override (analytical on structural rings via isSimple etc).
-   * Meter fail kept per convention.
-   */
-  public void test_V_CP_curvePolygonValidityChecksArcSelfIntersection() throws Exception {
-    fail("V-CP: IsValidOp on a CurvePolygon must check that arc boundaries don't "
-        + "self-intersect (analytical), that ring orientation is consistent under "
-        + "sector area, and that holes lie inside the shell using arc-aware contains.");
-  }
-
-  /** V-CS: IsSimpleOp for CircularString / CompoundCurve. */
-  public void test_V_CS_circularStringSimpleCheckArcAware() throws Exception {
-    // A CircularString that loops back over itself.
-    Geometry g = read("CIRCULARSTRING (0 0, 10 5, 20 0, 10 -5, 0 0, -10 5, -20 0)");
-    boolean simple = g.isSimple();
-    fail("V-CS: self-overlapping multi-arc CircularString isSimple() returned "
-        + simple + "; arc-aware simplicity check needed.");
-  }
+  // Meter red-test methods for V-CP and V-CS removed (per decision to drop the
+  // CurveAwarenessSpecTest progress meter in favor of one-TAG-one-self-contained-PR).
+  // Verification now lives in:
+  // - CurveAdversarialTest (hunters for nice counterexamples + RocqRefRunner load/validate).
+  // - CurvePolygonStructuralSpec (green verification tests asserting isValid/isSimple behavior).
+  // The executable spec for the TAGs remains in the javadocs here and in the hunter tests.
+  // See the V-CP/V-CS section of this epic doc and the dedicated tests for details.
 
   // ============================================================
   // Hulls

@@ -2,19 +2,16 @@
 
 > **Live epic tracker and spec.** See GitHub: [locationtech/jts#1195](https://github.com/locationtech/jts/issues/1195).
 >
-> Companion red-test "progress meter" lives in
-> `modules/curved/src/test/java/org/locationtech/jts/spec/curveawareness/CurveAwarenessSpecTest.java`.
-> Each `test_TAG_*` method is a single failing assertion whose message is the
-> executable spec for that sub-issue. When a TAG is implemented, **delete its
-> test method** (do not turn it green). The count of remaining red methods is the
-> live gap meter.
+> Verification for each TAG lives in dedicated tests:
+> - `CurveAdversarialTest` (hunters + RocqRefRunner-style load/validate against proofs artifacts for counterexamples and soundness).
+> - `Curve*StructuralSpec` (green verification tests once the TAG lands).
+> - `CurveAwarenessSpecTest` is retained only for any remaining open high-level spec descriptions (no longer used as a red "progress meter" with fail() placeholders that stay until deleted).
 >
-> The sub-issue TAGs (e.g. `V-CP`, `M-LEN-CS`) in method names and `fail("TAG: …")`
-> messages are the canonical keys that must match entries in this document.
+> The sub-issue TAGs (e.g. `V-CP`, `M-LEN-CS`) in method names and fail messages (where present) are the canonical keys that match entries in this document.
 >
-> Run the meter:
+> To exercise hardening:
 > ```
-> mvn -pl modules/curved test -Dtest=CurveAwarenessSpecTest -DfailIfNoTests=false
+> mvn -pl modules/curved test -Dtest=CurveAdversarialTest
 > ```
 
 This epic adds first-class support for the OGC SFA / ISO 19125-2 / SQL/MM extended
@@ -156,4 +153,4 @@ When in doubt, the red test + its `fail` message *is* the spec. Refine only when
 
 ---
 
-*This document lives in the JTS source tree (grootstebozewolf/jts and locationtech/jts) as the single source of truth for the curve-awareness sub-issue specs and progress meter.*
+*This document lives in the JTS source tree (grootstebozewolf/jts and locationtech/jts) as the single source of truth for the curve-awareness sub-issue specs. Verification for landed TAGs (including V-CP and V-CS) is in CurveAdversarialTest (hunter + ref runner) and the *StructuralSpec classes (green tests). The old red-test meter in CurveAwarenessSpecTest is no longer used.*
