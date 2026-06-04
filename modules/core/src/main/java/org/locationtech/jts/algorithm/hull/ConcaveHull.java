@@ -182,8 +182,30 @@ public class ConcaveHull
    * @param geom the input geometry
    */
   public ConcaveHull(Geometry geom) {
-    this.inputGeometry = geom;
-    this.geomFactory = geom.getFactory();
+    this.inputGeometry = linearizeIfCurved(geom);
+    this.geomFactory = this.inputGeometry.getFactory();
+  }
+
+  /**
+   * H-CC support (low risk): if input is curved, return its toLinear(small tol) so
+   * Delaunay and hull edges respect arc surface points rather than controls/chords.
+   * Reflection to avoid curved dep, reuses F-RD/H-CV pattern. Non-curved unchanged.
+   */
+  private static Geometry linearizeIfCurved(Geometry geom) {
+    String gt = geom.getGeometryType();
+    if ("CircularString".equals(gt) || "CompoundCurve".equals(gt)
+        || "CurvePolygon".equals(gt) || "MultiCurve".equals(gt) || "MultiSurface".equals(gt)) {
+      try {
+        java.lang.reflect.Method m = geom.getClass().getMethod("toLinear", double.class);
+        Object res = m.invoke(geom, 0.01);
+        if (res instanceof Geometry) {
+          return (Geometry) res;
+        }
+      } catch (Exception e) {
+        // fallback
+      }
+    }
+    return geom;
   }
   
   /**

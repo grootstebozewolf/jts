@@ -75,8 +75,25 @@ public class VoronoiDiagramBuilder
 	 */
 	public void setSites(Geometry geom)
 	{
+		geom = linearizeIfCurved(geom);
 		// remove any duplicate points (they will cause the triangulation to fail)
 		siteCoords = DelaunayTriangulationBuilder.extractUniqueCoordinates(geom);
+	}
+
+	/**
+	 * TRI-VR support: linearize curved (same as DT builder).
+	 */
+	private static Geometry linearizeIfCurved(Geometry geom) {
+		String gt = geom.getGeometryType();
+		if ("CircularString".equals(gt) || "CompoundCurve".equals(gt)
+				|| "CurvePolygon".equals(gt) || "MultiCurve".equals(gt) || "MultiSurface".equals(gt)) {
+			try {
+				java.lang.reflect.Method m = geom.getClass().getMethod("toLinear", double.class);
+				Object res = m.invoke(geom, 0.01);
+				if (res instanceof Geometry) return (Geometry) res;
+			} catch (Exception e) {}
+		}
+		return geom;
 	}
 	
 	/**

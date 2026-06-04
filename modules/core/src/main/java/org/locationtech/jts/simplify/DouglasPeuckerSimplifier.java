@@ -56,9 +56,28 @@ public class DouglasPeuckerSimplifier
    */
   public static Geometry simplify(Geometry geom, double distanceTolerance)
   {
+    geom = linearizeIfCurved(geom, distanceTolerance);
     DouglasPeuckerSimplifier tss = new DouglasPeuckerSimplifier(geom);
     tss.setDistanceTolerance(distanceTolerance);
     return tss.getResultGeometry();
+  }
+
+  /**
+   * S-DP support (low risk): for curved, linearize with tol so simplify acts on arc points,
+   * preventing collapse to start/end and preserving arc "identity" in result density.
+   * Reflection, reuses prior toLinear.
+   */
+  private static Geometry linearizeIfCurved(Geometry geom, double tol) {
+    String gt = geom.getGeometryType();
+    if ("CircularString".equals(gt) || "CompoundCurve".equals(gt)
+        || "CurvePolygon".equals(gt) || "MultiCurve".equals(gt) || "MultiSurface".equals(gt)) {
+      try {
+        java.lang.reflect.Method m = geom.getClass().getMethod("toLinear", double.class);
+        Object res = m.invoke(geom, Math.max(0.001, tol * 0.5));
+        if (res instanceof Geometry) return (Geometry) res;
+      } catch (Exception e) {}
+    }
+    return geom;
   }
 
   private Geometry inputGeom;

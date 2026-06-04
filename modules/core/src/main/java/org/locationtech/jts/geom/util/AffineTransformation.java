@@ -984,9 +984,38 @@ public class AffineTransformation
    */
   public Geometry transform(Geometry g)
   {
+    // AT-* support (low risk): for curved, if similarity (rot/scale/uniform) preserve type by transforming controls;
+    // for non-sim (shear etc) linearize first then transform (result is densified linear, not claiming invalid curve).
+    // Reflection + isSimilarity check.
+    String gt = g.getGeometryType();
+    boolean isCurved = "CircularString".equals(gt) || "CompoundCurve".equals(gt)
+        || "CurvePolygon".equals(gt) || "MultiCurve".equals(gt) || "MultiSurface".equals(gt);
+    if (isCurved && ! isSimilarity()) {
+      try {
+        java.lang.reflect.Method m = g.getClass().getMethod("toLinear", double.class);
+        Object lin = m.invoke(g, 0.01);
+        if (lin instanceof Geometry) {
+          g = (Geometry) lin;
+        }
+      } catch (Exception e) {}
+    }
     Geometry g2 = g.copy();
     g2.apply(this);
     return g2;    
+  }
+
+  /**
+   * Returns true if this is a similarity (uniform scale + rotation/reflection + trans).
+   * Used for AT-S vs AT-NS curved handling.
+   */
+  public boolean isSimilarity() {
+    if (isIdentity()) return true;
+    double sx = Math.hypot(m00, m10);
+    double sy = Math.hypot(m01, m11);
+    if (Math.abs(sx - sy) > 1e-8) return false;
+    double dot = m00 * m01 + m10 * m11;
+    if (Math.abs(dot) > 1e-8) return false;
+    return true;
   }
   
   /**

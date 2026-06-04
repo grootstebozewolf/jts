@@ -68,9 +68,26 @@ public class TopologyPreservingSimplifier
 {
   public static Geometry simplify(Geometry geom, double distanceTolerance)
   {
+    geom = linearizeIfCurved(geom, distanceTolerance);
     TopologyPreservingSimplifier tss = new TopologyPreservingSimplifier(geom);
     tss.setDistanceTolerance(distanceTolerance);
     return tss.getResultGeometry();
+  }
+
+  /**
+   * S-TP support (low risk): linearize curved to preserve topo/arc semantics.
+   */
+  private static Geometry linearizeIfCurved(Geometry geom, double tol) {
+    String gt = geom.getGeometryType();
+    if ("CircularString".equals(gt) || "CompoundCurve".equals(gt)
+        || "CurvePolygon".equals(gt) || "MultiCurve".equals(gt) || "MultiSurface".equals(gt)) {
+      try {
+        java.lang.reflect.Method m = geom.getClass().getMethod("toLinear", double.class);
+        Object res = m.invoke(geom, Math.max(0.001, tol * 0.5));
+        if (res instanceof Geometry) return (Geometry) res;
+      } catch (Exception e) {}
+    }
+    return geom;
   }
 
   private Geometry inputGeom;

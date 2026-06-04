@@ -58,9 +58,26 @@ public class VWSimplifier
    */
   public static Geometry simplify(Geometry geom, double distanceTolerance)
   {
+    geom = linearizeIfCurved(geom, distanceTolerance);
     VWSimplifier simp = new VWSimplifier(geom);
     simp.setDistanceTolerance(distanceTolerance);
     return simp.getResultGeometry();
+  }
+
+  /**
+   * S-VW support (low risk): linearize curved for arc-aware effective area.
+   */
+  private static Geometry linearizeIfCurved(Geometry geom, double tol) {
+    String gt = geom.getGeometryType();
+    if ("CircularString".equals(gt) || "CompoundCurve".equals(gt)
+        || "CurvePolygon".equals(gt) || "MultiCurve".equals(gt) || "MultiSurface".equals(gt)) {
+      try {
+        java.lang.reflect.Method m = geom.getClass().getMethod("toLinear", double.class);
+        Object res = m.invoke(geom, Math.max(0.001, tol * 0.5));
+        if (res instanceof Geometry) return (Geometry) res;
+      } catch (Exception e) {}
+    }
+    return geom;
   }
 
   private Geometry inputGeom;

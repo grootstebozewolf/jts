@@ -561,6 +561,86 @@ public class CurvePolygonStructuralSpec extends GeometryTestCase {
     assertTrue("H-CV green: apex close to exact extreme (0,10)", Math.abs(apex.y - 10) < 0.2 && Math.abs(apex.x) < 0.2);
   }
 
+  /**
+   * Green verification for H-CC: ConcaveHull on curved input uses arc points (via internal linearize),
+   * so edges are against the actual arc surface (e.g. includes arc extreme as vertex for high-concavity setting).
+   */
+  public void test_H_CC_concaveHullArcAwareGreen() throws Exception {
+    CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
+
+    Geometry arc = r.read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
+    // Use small length ratio for more concave (should pick the bulge point)
+    Geometry hull = org.locationtech.jts.algorithm.hull.ConcaveHull.concaveHullByLengthRatio(arc, 0.1);
+    assertNotNull("H-CC green: hull", hull);
+
+    // Check that the hull includes a point near the arc extreme (0,10), not just chord
+    Coordinate[] pts = hull.getCoordinates();
+    boolean hasApex = false;
+    for (Coordinate c : pts) {
+      if (Math.abs(c.x) < 1 && Math.abs(c.y - 10) < 1) { hasApex = true; break; }
+    }
+    assertTrue("H-CC green: hull includes arc extreme (against actual surface, not chord)", hasApex);
+  }
+
+  /**
+   * Green verif for S-* (DP, VW, TP): on curved input, simplifiers now linearize first,
+   * so do not collapse arc to LINESTRING(start,end); result has >2 points.
+   */
+  public void test_S_all_curveAwareGreen() throws Exception {
+    CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
+    Geometry arc = r.read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
+
+    Geometry s1 = org.locationtech.jts.simplify.DouglasPeuckerSimplifier.simplify(arc, 1.0);
+    assertTrue("S-DP green: does not collapse to 2pt", s1.getNumPoints() > 2);
+
+    Geometry s2 = org.locationtech.jts.simplify.VWSimplifier.simplify(arc, 1.0);
+    assertTrue("S-VW green: does not collapse to 2pt", s2.getNumPoints() > 2);
+
+    Geometry s3 = org.locationtech.jts.simplify.TopologyPreservingSimplifier.simplify(arc, 1.0);
+    assertTrue("S-TP green: does not collapse to 2pt", s3.getNumPoints() > 2);
+  }
+
+  /**
+   * Green for AT-*: similarity (e.g. rot) on CS keeps CircularString type (controls transformed, still valid arc);
+   * non-sim (shear) densifies first, result is LineString (not claiming invalid CS).
+   */
+  public void test_AT_curveAwareGreen() throws Exception {
+    CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
+    Geometry arc = r.read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
+
+    // similarity
+    org.locationtech.jts.geom.util.AffineTransformation rot =
+        org.locationtech.jts.geom.util.AffineTransformation.rotationInstance(Math.PI / 4);
+    Geometry rotArc = rot.transform(arc);
+    assertEquals("AT-S green: similarity preserves curved type", "CircularString", rotArc.getGeometryType());
+
+    // non-sim
+    org.locationtech.jts.geom.util.AffineTransformation shear = new org.locationtech.jts.geom.util.AffineTransformation(
+        1, 0.5, 0, 0, 1, 0); // shear
+    Geometry sheared = shear.transform(arc);
+    assertEquals("AT-NS green: non-sim densifies, does not claim curved type", "LineString", sheared.getGeometryType());
+  }
+
+  /**
+   * Green for TRI-*: builders on curved (e.g. CP) now densify sites, producing more vertices/triangles
+   * than bare controls (avoids steiner outside etc).
+   */
+  public void test_TRI_curveAwareGreen() throws Exception {
+    CurvedWKTReader r = new CurvedWKTReader(new CurvedGeometryFactory());
+    Geometry cp = r.read("CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0))");
+
+    org.locationtech.jts.triangulate.DelaunayTriangulationBuilder db = new org.locationtech.jts.triangulate.DelaunayTriangulationBuilder();
+    db.setSites(cp);
+    org.locationtech.jts.triangulate.quadedge.QuadEdgeSubdivision sub = db.getSubdivision();
+    // with densify, more sites than 5 controls
+    assertTrue("TRI-DT green: more sites after densify", sub.getVertices(false).size() > 5);
+
+    org.locationtech.jts.triangulate.VoronoiDiagramBuilder vb = new org.locationtech.jts.triangulate.VoronoiDiagramBuilder();
+    vb.setSites(cp);
+    Geometry vor = vb.getDiagram(new CurvedGeometryFactory()); // or plain
+    assertNotNull("TRI-VR green: voronoi produced", vor);
+  }
+
   private int countPathSegments(Shape s) {
     PathIterator pi = s.getPathIterator(null);
     int count = 0;

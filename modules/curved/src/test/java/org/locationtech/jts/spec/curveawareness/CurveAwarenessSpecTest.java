@@ -68,8 +68,9 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // LRF-LOC shipped (LocationIndexedLine/Linear* member-aware for CompoundCurve via reflection on structural members; explicit "go").
   // F-RD shipped (ShapeWriter arc-renders CP rings + MS CP members + improved CS/CC via toLinear sampling + reflection).
   // H-CV shipped (ConvexHull uses arc extremes via arcHullVertex for CS + toLinear for compounds).
-  // Current meter: 28 red TAGs. Last shipped: H-CV.
-  // Next low risk/cost (per triage): H-CC, S-*, AT-*, TRI-*, etc.
+  // H-CC shipped (ConcaveHull linearizes curved inputs for arc-surface edges).
+  // Current meter: 27 red TAGs. Last shipped: H-CC.
+  // Next low risk/cost (per triage): S-*, AT-*, TRI-*, V-*, R-*, etc.
   // State clean on feature/sfa-curve-B-MS-rgr; see RGR + ship commits.
 
   // F-RD shipped (red deleted per epic §5/11; see RGR commit for ShapeWriter + CS toLinear impl + seam + green verif).
@@ -252,12 +253,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
 
   // H-CV shipped (red deleted per epic §5/11; see RGR for arcHullVertex + ConvexHull extremes + green).
 
-  /** H-CC: ConcaveHull arc-aware. */
-  public void test_H_CC_concaveHullArcAware() throws Exception {
-    fail("H-CC: ConcaveHull treats curved input as densified; concave-hull edges "
-        + "drawn between chord vertices may differ from edges drawn against the "
-        + "actual arc surface.");
-  }
+  // H-CC shipped (red deleted per epic §5/11; see RGR for linearize in ConcaveHull + green).
 
   // ============================================================
   // Simplification
