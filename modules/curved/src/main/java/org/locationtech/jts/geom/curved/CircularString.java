@@ -39,6 +39,22 @@ public class CircularString extends LineString implements Linearizable {
   }
 
   /**
+   * Arc-aware simplicity (V-CS, JTS #1195): the curve is simple when its circular
+   * arcs do not cross, touch tangentially, or overlap, except at shared adjacency
+   * endpoints (and the single closing endpoint when the curve is closed) — rather
+   * than testing the chord polyline inherited from {@link LineString}, which can
+   * disagree with the true arcs. Degenerate inputs (fewer than three points, or a
+   * malformed even-length sequence) fall back to the polyline test.
+   */
+  @Override
+  public boolean isSimple() {
+    CoordinateSequence seq = getCoordinateSequence();
+    int n = seq.size();
+    if (n < 3 || (n % 2) == 0) return super.isSimple();
+    return ArcStringSimplicity.isSimple(seq);
+  }
+
+  /**
    * The analytical circular arc length: the sum of {@code r * theta} over each
    * consecutive control-point triple {@code (p[2i], p[2i+1], p[2i+2])}, rather
    * than the chord-polyline length inherited from {@link LineString} (M-LEN-CS,
