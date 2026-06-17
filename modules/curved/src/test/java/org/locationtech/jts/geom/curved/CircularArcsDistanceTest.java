@@ -71,4 +71,33 @@ public class CircularArcsDistanceTest extends TestCase {
     }
     assertEquals(ref, dist(px, py), 1e-3);
   }
+
+  /**
+   * Pins the analytical distance against the exact ARC_DISTANCE oracle
+   * (NetTopologySuite.Proofs Rocq/Coq extraction), over major (&gt;180&deg;),
+   * clockwise, and off-centre arcs and off-span (endpoint-governed) points.
+   */
+  public void testDistanceMatchesOracleVectors() throws Exception {
+    java.io.InputStream in = getClass().getResourceAsStream(
+        "/org/locationtech/jts/geom/curved/rocqref/curve_arc_distance_vectors.txt");
+    assertNotNull("distance vectors resource", in);
+    java.io.BufferedReader r = new java.io.BufferedReader(
+        new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
+    String line; int checked = 0;
+    while ((line = r.readLine()) != null) {
+      String s = line.trim();
+      if (s.isEmpty() || s.startsWith("#")) continue;
+      String[] t = s.split("\\s+");
+      double d = CircularArcs.distancePointToArc(
+          Double.parseDouble(t[0]), Double.parseDouble(t[1]),
+          Double.parseDouble(t[2]), Double.parseDouble(t[3]),
+          Double.parseDouble(t[4]), Double.parseDouble(t[5]),
+          Double.parseDouble(t[6]), Double.parseDouble(t[7]));
+      double exp = Double.parseDouble(t[8]);
+      assertEquals("distance for " + s, exp, d, 1e-9 * Math.max(1.0, Math.abs(exp)));
+      checked++;
+    }
+    r.close();
+    assertTrue("should have checked oracle vectors", checked >= 10);
+  }
 }
