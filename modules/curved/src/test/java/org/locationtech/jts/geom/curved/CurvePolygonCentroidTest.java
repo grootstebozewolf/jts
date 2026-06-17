@@ -83,10 +83,10 @@ public class CurvePolygonCentroidTest extends TestCase {
   /**
    * Pins the per-arc circular-segment centroid ({@link CircularArcs#segmentCentroid},
    * the moment building block of the area centroid) against the exact
-   * ARC_AREA_CENTROID oracle (NetTopologySuite.Proofs Rocq/Coq extraction). The
-   * vectors are canonical arcs (mid at the angular midpoint); the oracle projects
-   * the segment-centroid distance along the mid control-point direction, so
-   * off-midpoint mids are excluded here and covered by the densified cross-checks.
+   * ARC_AREA_CENTROID oracle (NetTopologySuite.Proofs Rocq/Coq extraction), over
+   * minor / major / clockwise / off-centre arcs and arcs whose mid control point
+   * is deliberately not the angular midpoint (the segment centroid depends only
+   * on the chord and which arc, so it must be independent of the mid position).
    */
   public void testSegmentCentroidMatchesOracleVectors() throws Exception {
     java.io.InputStream in = getClass().getResourceAsStream(
