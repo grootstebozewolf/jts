@@ -54,6 +54,60 @@ final class CircularArcs {
     return Double.isFinite(len) ? len : chord;
   }
 
+  /**
+   * Intersection points of the circular arc through {@code (s, m, e)} with the
+   * line segment {@code (p, q)} (N-AL, JTS #1195). Returns each {@code [x, y]}
+   * lying on both the segment ({@code 0 <= t <= 1}) and the arc's swept span
+   * (the directed sweep start->mid->end). Returns 0, 1, or 2 points; empty for a
+   * tangent miss, a degenerate segment, or a collinear (non-circular) arc.
+   */
+  static double[][] intersectSegment(double sx, double sy, double mx, double my, double ex, double ey,
+                                     double px, double py, double qx, double qy) {
+    double d = 2 * (sx * (my - ey) + mx * (ey - sy) + ex * (sy - my));
+    if (d == 0.0) return new double[0][];               // collinear arc: no circle
+    double s2 = sx * sx + sy * sy, m2 = mx * mx + my * my, e2 = ex * ex + ey * ey;
+    double cx = (s2 * (my - ey) + m2 * (ey - sy) + e2 * (sy - my)) / d;
+    double cy = (s2 * (ex - mx) + m2 * (sx - ex) + e2 * (mx - sx)) / d;
+    double r = Math.hypot(sx - cx, sy - cy);
+    if (!Double.isFinite(r) || r == 0.0) return new double[0][];
+
+    // segment X(t) = p + t*(q-p); solve |X - C|^2 = r^2
+    double dx = qx - px, dy = qy - py;
+    double a = dx * dx + dy * dy;
+    if (a == 0.0) return new double[0][];               // degenerate segment
+    double fx = px - cx, fy = py - cy;
+    double bb = 2 * (fx * dx + fy * dy);
+    double cc = fx * fx + fy * fy - r * r;
+    double disc = bb * bb - 4 * a * cc;
+    if (disc < 0) return new double[0][];               // line misses circle
+    double sq = Math.sqrt(disc);
+    double[] ts = (disc == 0.0) ? new double[]{ -bb / (2 * a) }
+                                : new double[]{ (-bb - sq) / (2 * a), (-bb + sq) / (2 * a) };
+
+    double a0 = Math.atan2(sy - cy, sx - cx);
+    double am = Math.atan2(my - cy, mx - cx);
+    double ae = Math.atan2(ey - cy, ex - cx);
+    boolean ccw = d > 0;
+    double theta = directedSweep(a0, am, ccw) + directedSweep(am, ae, ccw);
+
+    final double EPS = 1e-9;
+    double[][] out = new double[ts.length][];
+    int n = 0;
+    for (double t : ts) {
+      if (t < -EPS || t > 1 + EPS) continue;            // off the segment
+      double x = px + t * dx, y = py + t * dy;
+      double sweep = directedSweep(a0, Math.atan2(y - cy, x - cx), ccw);
+      // on the arc span iff 0 <= sweep <= theta (allow tiny wrap just before start)
+      if (sweep <= theta + EPS || sweep >= 2 * Math.PI - EPS) {
+        out[n++] = new double[]{ x, y };
+      }
+    }
+    if (n == out.length) return out;
+    double[][] trimmed = new double[n][];
+    System.arraycopy(out, 0, trimmed, 0, n);
+    return trimmed;
+  }
+
   /** Positive angular turn from {@code from} to {@code to} in the given direction, in [0, 2*pi). */
   private static double directedSweep(double from, double to, boolean ccw) {
     double t = ccw ? (to - from) : (from - to);
