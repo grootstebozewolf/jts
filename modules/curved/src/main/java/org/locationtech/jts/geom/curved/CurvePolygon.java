@@ -131,6 +131,56 @@ public class CurvePolygon extends Polygon implements Linearizable {
     return "CurvePolygon";
   }
 
+  /**
+   * The area enclosed by the (possibly curved) rings: the area of the polygon
+   * through the ring control points plus the signed circular-segment correction
+   * for each arc of a {@link CircularString} ring (M-AREA-CP, JTS #1195). For
+   * rings with no arcs this equals the ordinary polygon area. Holes are
+   * subtracted. A disk expressed as a closed {@code CircularString} shell thus
+   * has area {@code pi*r^2}.
+   */
+  @Override
+  public double getArea() {
+    if (isEmpty() || structuralShell == null) return 0.0;
+    double area = Math.abs(ringSignedArea(structuralShell));
+    for (int i = 0; i < structuralHoles.length; i++) {
+      area -= Math.abs(ringSignedArea(structuralHoles[i]));
+    }
+    return area;
+  }
+
+  /**
+   * Signed area of a (possibly curved) ring: the shoelace area of the polygon
+   * through its endpoints plus the signed segment area of each arc. For a
+   * non-curved ring this reduces to the ordinary shoelace area.
+   */
+  private static double ringSignedArea(LineString ring) {
+    org.locationtech.jts.geom.CoordinateSequence seq = ring.getCoordinateSequence();
+    int n = seq.size();
+    if (n < 3) return 0.0;
+    if (ring instanceof CircularString) {
+      double a = 0.0;
+      int i = 0;
+      for (; i + 2 < n; i += 2) {
+        double sx = seq.getX(i),     sy = seq.getY(i);
+        double mx = seq.getX(i + 1), my = seq.getY(i + 1);
+        double ex = seq.getX(i + 2), ey = seq.getY(i + 2);
+        a += 0.5 * (sx * ey - ex * sy);                       // chord (endpoint polygon) term
+        a += CircularArcs.signedSegmentArea(sx, sy, mx, my, ex, ey);
+      }
+      for (; i + 1 < n; i++) {                                // dangling trailing edge
+        a += 0.5 * (seq.getX(i) * seq.getY(i + 1) - seq.getX(i + 1) * seq.getY(i));
+      }
+      return a;
+    }
+    // non-curved ring: ordinary shoelace over all vertices
+    double a = 0.0;
+    for (int i = 0; i < n - 1; i++) {
+      a += 0.5 * (seq.getX(i) * seq.getY(i + 1) - seq.getX(i + 1) * seq.getY(i));
+    }
+    return a;
+  }
+
   @Override
   public CurvePolygon reverse() {
     return (CurvePolygon) super.reverse();
