@@ -88,22 +88,25 @@ public final class CurveRefRunner {
     if (r < 1e-12) {
       return Math.hypot(ex - sx, ey - sy);
     }
-    // Central angle using atan2 for robustness (sweep through the mid point)
+    // Central angle accumulated in the arc's own direction (CCW iff d > 0), going
+    // start -> mid -> end. Each step is the positive turn in that direction, so
+    // the result is the true sweep (up to 2*pi) with no atan2 branch-cut artifact
+    // when the end angle wraps past +/-pi.
     double a0 = Math.atan2(sy - cy, sx - cx);
-    double a1 = Math.atan2(my - cy, mx - cx);
-    double a2 = Math.atan2(ey - cy, ex - cx);
-    // Compute the signed sweep a0 -> a2 that passes near a1
-    double sweep = a2 - a0;
-    // normalize to [-pi, pi] then adjust direction if mid indicates the long way
-    sweep = ((sweep + Math.PI) % (2 * Math.PI)) - Math.PI;
-    // If the mid point suggests we should go the other way, flip
-    double aMidRel = a1 - a0;
-    aMidRel = ((aMidRel + Math.PI) % (2 * Math.PI)) - Math.PI;
-    if (Math.signum(sweep) * Math.signum(aMidRel) < 0 && Math.abs(sweep) < Math.PI) {
-      sweep = (sweep > 0 ? sweep - 2*Math.PI : sweep + 2*Math.PI);
-    }
-    double theta = Math.abs(sweep);
+    double am = Math.atan2(my - cy, mx - cx);
+    double ae = Math.atan2(ey - cy, ex - cx);
+    boolean ccw = d > 0;
+    double theta = directedSweep(a0, am, ccw) + directedSweep(am, ae, ccw);
     return r * theta;
+  }
+
+  /** Positive angular turn from {@code from} to {@code to} in the given direction, in [0, 2*pi). */
+  private static double directedSweep(double from, double to, boolean ccw) {
+    double t = ccw ? (to - from) : (from - to);
+    double twoPi = 2 * Math.PI;
+    t %= twoPi;
+    if (t < 0) t += twoPi;
+    return t;
   }
 
   /**

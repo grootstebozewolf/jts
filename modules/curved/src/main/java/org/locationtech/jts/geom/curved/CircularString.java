@@ -38,6 +38,33 @@ public class CircularString extends LineString implements Linearizable {
     return "CircularString";
   }
 
+  /**
+   * The analytical circular arc length: the sum of {@code r * theta} over each
+   * consecutive control-point triple {@code (p[2i], p[2i+1], p[2i+2])}, rather
+   * than the chord-polyline length inherited from {@link LineString} (M-LEN-CS,
+   * JTS #1195). Degenerate (collinear) arcs contribute their chord length.
+   */
+  @Override
+  public double getLength() {
+    CoordinateSequence seq = getCoordinateSequence();
+    int n = seq.size();
+    if (n < 3) return super.getLength();
+    double total = 0.0;
+    int i = 0;
+    for (; i + 2 < n; i += 2) {
+      total += CircularArcs.arcLength(
+          seq.getX(i),     seq.getY(i),
+          seq.getX(i + 1), seq.getY(i + 1),
+          seq.getX(i + 2), seq.getY(i + 2));
+    }
+    // Defensive: a malformed (even-length) sequence leaves a dangling segment;
+    // treat its trailing chord as a straight edge.
+    for (; i + 1 < n; i++) {
+      total += Math.hypot(seq.getX(i + 1) - seq.getX(i), seq.getY(i + 1) - seq.getY(i));
+    }
+    return total;
+  }
+
   @Override
   protected CircularString copyInternal() {
     return new CircularString(getCoordinateSequence().copy(), getFactory());

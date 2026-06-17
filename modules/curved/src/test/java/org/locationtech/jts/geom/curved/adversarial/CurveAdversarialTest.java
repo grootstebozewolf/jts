@@ -22,19 +22,17 @@ import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
  * JUnit exercising the curve adversarial hunter + ref runner (in the spirit
  * of OrientationDDRobustnessTest + RocqRefRunnerTest from locationtech/jts#1197).
  * <p>
- * Currently demonstrates that the phase-1 linearised CircularString.getLength()
- * deviates from the analytical circular arc length on adversarial inputs
- * (near-flat, extreme magnitude, etc.). This populates concrete counterexamples
- * for the M-LEN-* red TAGs in CurveAwarenessSpecTest.
- * <p>
- * When native arc length / area etc. are implemented, flip the assertions to
- * "no (or bounded) deviations" and add the vector cases as regression.
+ * Now that native circular arc length is implemented (M-LEN-CS, #1195),
+ * {@link CircularString#getLength()} returns the analytical {@code r*theta}
+ * length, so these assertions verify it agrees with the exact oracle on the
+ * committed reference vectors and across the adversarial generators (the
+ * previous chord-vs-arc deviations are gone; only fp-level residuals remain).
  */
 public class CurveAdversarialTest extends TestCase {
 
   public void testLoadArcLengthVectors() throws Exception {
-    // The "artifact" we prepared (inspired by the orientation_proof_vectors.txt
-    // added in PR#1197 and exported from the proofs side).
+    // The committed oracle artifact (exact ARC_LENGTH outputs of the Rocq/Coq
+    // development), re-validated on load against the in-Java oracle.
     List<CurveRefRunner.ArcLengthCase> cases =
         CurveRefRunner.loadArcLengthCases(
             "/org/locationtech/jts/geom/curved/rocqref/curve_arc_length_vectors.txt");
@@ -46,43 +44,27 @@ public class CurveAdversarialTest extends TestCase {
     }
   }
 
-  public void testHunterFindsArcLengthDeviationsOnAdversarialInputs() {
-    // Run a modest search; the phase-1 impl (chord lengths) must deviate on
-    // the generators that produce non-trivial arcs.
-    List<CurveCounterexampleHunter.Mismatch> bad =
-        CurveCounterexampleHunter.huntArcLength(2_000);
-    // We expect to find many (near-flat small-sagitta arcs have chord vs arc
-    // difference; extreme scales stress fp too).
-    assertTrue("hunter should discover counterexamples for linearised length on curves; found " + bad.size(),
-        bad.size() > 0);
-    // Spot-check one
-    CurveCounterexampleHunter.Mismatch m = bad.get(0);
-    assertTrue(m.delta > 0);
-    assertTrue(m.input instanceof CircularString);
-  }
-
-  public void testKnownNearFlatCaseFromVectorsDeviatesUnderLinearImpl() throws Exception {
+  public void testCircularStringLengthMatchesOracleVectors() throws Exception {
     List<CurveRefRunner.ArcLengthCase> cases =
         CurveRefRunner.loadArcLengthCases(
             "/org/locationtech/jts/geom/curved/rocqref/curve_arc_length_vectors.txt");
-    // Demonstrate on the small-sagitta (near-flat) reference case that the
-    // phase-1 linearised length deviates from the exact circular value.
-    // (The vectors file is the "artifact" prepared in the style of #1197.)
-    boolean checkedOne = false;
     for (CurveRefRunner.ArcLengthCase c : cases) {
-      if (Math.abs(c.my) > 1e-4 && Math.abs(c.my) < 0.01) { // near-flat-ish sagitta
-        CircularString arc = make3pt(c.sx, c.sy, c.mx, c.my, c.ex, c.ey);
-        double lin = arc.getLength();
-        // For small sagitta the chord-vs-arc deviation is O(sag^2) -- often < 1e-6 relative.
-        // The important thing is that the vector loaded, the oracle matches the claimed,
-        // and the hunter (below) reliably finds larger-deviation adversarial cases.
-        assertEquals("oracle roundtrip for loaded vector case", c.expectedLength, 
-            CurveRefRunner.exactCircularArcLength(c.sx, c.sy, c.mx, c.my, c.ex, c.ey), 1e-9);
-        checkedOne = true;
-        break;
-      }
+      double len = make3pt(c.sx, c.sy, c.mx, c.my, c.ex, c.ey).getLength();
+      assertEquals("CircularString.getLength must equal the exact arc length for " + c,
+          c.expectedLength, len, 1e-9 * Math.max(1.0, Math.abs(c.expectedLength)));
     }
-    assertTrue("should have exercised at least one near-flat-ish vector case", checkedOne);
+  }
+
+  public void testNoChordVsArcDeviationOnAdversarialInputs() {
+    // The hunter compares CircularString.getLength() against the in-Java oracle.
+    // With native arc length implemented, the large chord-vs-arc gaps it used to
+    // surface are gone; any residual must be fp-level (<= 1e-6 relative).
+    List<CurveCounterexampleHunter.Mismatch> bad =
+        CurveCounterexampleHunter.huntArcLength(2_000);
+    for (CurveCounterexampleHunter.Mismatch m : bad) {
+      assertTrue("residual arc-length deviation must be fp-level, was " + m,
+          m.delta <= 1e-6 * Math.max(1.0, Math.abs(m.exactLength)));
+    }
   }
 
   private static CircularString make3pt(double sx, double sy, double mx, double my,
