@@ -11,10 +11,13 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 
 /**
@@ -147,6 +150,75 @@ public class CurvePolygon extends Polygon implements Linearizable {
       area -= Math.abs(ringSignedArea(structuralHoles[i]));
     }
     return area;
+  }
+
+  /**
+   * The area-weighted centroid, accounting for the circular segments of curved
+   * ({@link CircularString}) rings (C-AREA, JTS #1195): for each ring the
+   * endpoint-polygon area moments are corrected by the per-arc circular-segment
+   * moments (segment area times {@link CircularArcs#segmentCentroid}); holes are
+   * subtracted. For rings with no arcs this equals the ordinary polygon
+   * centroid. A disk expressed as a closed {@code CircularString} shell thus has
+   * its centroid at the circle centre.
+   */
+  @Override
+  public Point getCentroid() {
+    if (isEmpty() || structuralShell == null) return super.getCentroid();
+    double[] s = ringMoment(structuralShell);
+    double area = Math.abs(s[0]);
+    double mx = Math.signum(s[0]) * s[1];
+    double my = Math.signum(s[0]) * s[2];
+    for (int i = 0; i < structuralHoles.length; i++) {
+      double[] h = ringMoment(structuralHoles[i]);
+      area -= Math.abs(h[0]);
+      mx -= Math.signum(h[0]) * h[1];
+      my -= Math.signum(h[0]) * h[2];
+    }
+    if (area == 0.0) return super.getCentroid();
+    return getFactory().createPoint(new Coordinate(mx / area, my / area));
+  }
+
+  /**
+   * Signed area moments {@code [A, Mx, My]} of a (possibly curved) ring, where
+   * {@code Mx = integral(x) dA} and {@code My = integral(y) dA} over the enclosed
+   * region: the endpoint-polygon shoelace moments plus, for each arc, the signed
+   * segment area times its centroid. For a non-curved ring this is the ordinary
+   * polygon moment.
+   */
+  private static double[] ringMoment(LineString ring) {
+    CoordinateSequence seq = ring.getCoordinateSequence();
+    int n = seq.size();
+    double a = 0, mx = 0, my = 0;
+    if (n < 3) return new double[]{ 0, 0, 0 };
+    if (ring instanceof CircularString) {
+      int i = 0;
+      for (; i + 2 < n; i += 2) {
+        double sx = seq.getX(i),     sy = seq.getY(i);
+        double mmx = seq.getX(i + 1), mmy = seq.getY(i + 1);
+        double ex = seq.getX(i + 2), ey = seq.getY(i + 2);
+        double cross = sx * ey - ex * sy;
+        a += 0.5 * cross;
+        mx += (sx + ex) * cross / 6.0;
+        my += (sy + ey) * cross / 6.0;
+        double segA = CircularArcs.signedSegmentArea(sx, sy, mmx, mmy, ex, ey);
+        double[] segC = CircularArcs.segmentCentroid(sx, sy, mmx, mmy, ex, ey);
+        a += segA;
+        mx += segA * segC[0];
+        my += segA * segC[1];
+      }
+      for (; i + 1 < n; i++) {
+        double sx = seq.getX(i), sy = seq.getY(i), ex = seq.getX(i + 1), ey = seq.getY(i + 1);
+        double cross = sx * ey - ex * sy;
+        a += 0.5 * cross; mx += (sx + ex) * cross / 6.0; my += (sy + ey) * cross / 6.0;
+      }
+      return new double[]{ a, mx, my };
+    }
+    for (int i = 0; i < n - 1; i++) {
+      double sx = seq.getX(i), sy = seq.getY(i), ex = seq.getX(i + 1), ey = seq.getY(i + 1);
+      double cross = sx * ey - ex * sy;
+      a += 0.5 * cross; mx += (sx + ex) * cross / 6.0; my += (sy + ey) * cross / 6.0;
+    }
+    return new double[]{ a, mx, my };
   }
 
   /**
