@@ -11,6 +11,8 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import java.math.BigInteger;
+
 /**
  * Analytical helpers for single circular arcs defined by three control points
  * (start, mid, end), per the SQL/MM CIRCULARSTRING model.
@@ -18,6 +20,14 @@ package org.locationtech.jts.geom.curved;
 final class CircularArcs {
 
   private CircularArcs() {}
+
+  /**
+   * Outcome of snapping an arc's control points to a fixed grid (PRC-SN): the
+   * snapped points are degenerate ({@link #DEGEN}), the arc survives because its
+   * circumcentre also lands on the grid ({@link #PRESERVE}), or it must be
+   * linearised because the snapped centre is off-grid ({@link #DENSIFY}).
+   */
+  enum SnapDecision { PRESERVE, DENSIFY, DEGEN }
 
   /**
    * Length of the circular arc through the three control points, i.e.
@@ -61,5 +71,61 @@ final class CircularArcs {
     t %= twoPi;
     if (t < 0) t += twoPi;
     return t;
+  }
+
+  /**
+   * Snaps an ordinate to the fixed grid of the given scale: {@code rint(v*scale)/scale}
+   * (the same rounding as {@link org.locationtech.jts.geom.PrecisionModel} FIXED).
+   */
+  static double snapToScale(double v, double scale) {
+    return Math.rint(v * scale) / scale;
+  }
+
+  /**
+   * Classifies what happens to the circular arc through {@code (s, m, e)} when its
+   * three control points are snapped to the fixed grid of the given integer
+   * {@code scale} (PRC-SN, JTS #1195):
+   * <ul>
+   *   <li>{@link SnapDecision#DEGEN} — the snapped points are collinear/coincident
+   *       (no circle), so there is no arc to preserve;</li>
+   *   <li>{@link SnapDecision#PRESERVE} — the snapped arc's circumcentre also lands
+   *       exactly on the grid, so its centre / radius / sweep are grid-representable
+   *       and the arc survives snapping unchanged in identity;</li>
+   *   <li>{@link SnapDecision#DENSIFY} — the snapped centre is off-grid, so the arc
+   *       can no longer be represented exactly and must be linearised.</li>
+   * </ul>
+   * The on-grid test is exact: the snapped control points are integers in grid
+   * units, so the circumcentre lies on the grid iff the determinant {@code d}
+   * divides both centre numerators exactly. {@link BigInteger} avoids overflow and
+   * matches the oracle's make-precise rational arithmetic with no tolerance.
+   */
+  static SnapDecision snapDecision(double sx, double sy, double mx, double my,
+                                   double ex, double ey, long scale) {
+    BigInteger gxs = grid(sx, scale), gys = grid(sy, scale);
+    BigInteger gxm = grid(mx, scale), gym = grid(my, scale);
+    BigInteger gxe = grid(ex, scale), gye = grid(ey, scale);
+    // d = 2 * signed area of the snapped triple; zero iff collinear (degenerate).
+    BigInteger d = gxs.multiply(gym.subtract(gye))
+        .add(gxm.multiply(gye.subtract(gys)))
+        .add(gxe.multiply(gys.subtract(gym)))
+        .shiftLeft(1);
+    if (d.signum() == 0) return SnapDecision.DEGEN;
+    BigInteger s2 = gxs.multiply(gxs).add(gys.multiply(gys));
+    BigInteger m2 = gxm.multiply(gxm).add(gym.multiply(gym));
+    BigInteger e2 = gxe.multiply(gxe).add(gye.multiply(gye));
+    BigInteger numCx = s2.multiply(gym.subtract(gye))
+        .add(m2.multiply(gye.subtract(gys)))
+        .add(e2.multiply(gys.subtract(gym)));
+    BigInteger numCy = s2.multiply(gxe.subtract(gxm))
+        .add(m2.multiply(gxs.subtract(gxe)))
+        .add(e2.multiply(gxm.subtract(gxs)));
+    boolean centreOnGrid = numCx.remainder(d).signum() == 0
+        && numCy.remainder(d).signum() == 0;
+    return centreOnGrid ? SnapDecision.PRESERVE : SnapDecision.DENSIFY;
+  }
+
+  /** Snapped ordinate in exact integer grid units: {@code round(v*scale)}. */
+  private static BigInteger grid(double v, long scale) {
+    return BigInteger.valueOf(Math.round(v * (double) scale));
   }
 }
