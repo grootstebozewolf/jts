@@ -108,6 +108,72 @@ final class CircularArcs {
     return trimmed;
   }
 
+  /**
+   * Intersection points of the circular arc through {@code (sA, mA, eA)} with the
+   * circular arc through {@code (sB, mB, eB)} (N-AA, JTS #1195). Returns each
+   * {@code [x, y]} lying on both arcs' swept spans (each directed sweep
+   * start-&gt;mid-&gt;end). Returns 0, 1, or 2 points; empty when the underlying
+   * circles miss or are tangent off the spans, when either triple is collinear
+   * (no circle), or when the crossings fall outside either span. Two arcs on the
+   * same circle (concentric, including coincident) share a sub-arc rather than
+   * isolated points and are reported as no intersections.
+   */
+  static double[][] intersectArc(double sax, double say, double max, double may, double eax, double eay,
+                                 double sbx, double sby, double mbx, double mby, double ebx, double eby) {
+    double dA = 2 * (sax * (may - eay) + max * (eay - say) + eax * (say - may));
+    double dB = 2 * (sbx * (mby - eby) + mbx * (eby - sby) + ebx * (sby - mby));
+    if (dA == 0.0 || dB == 0.0) return new double[0][];     // a collinear triple: no circle
+    double a2 = sax * sax + say * say, b2 = max * max + may * may, c2 = eax * eax + eay * eay;
+    double cax = (a2 * (may - eay) + b2 * (eay - say) + c2 * (say - may)) / dA;
+    double cay = (a2 * (eax - max) + b2 * (sax - eax) + c2 * (max - sax)) / dA;
+    double rA = Math.hypot(sax - cax, say - cay);
+    double p2 = sbx * sbx + sby * sby, q2 = mbx * mbx + mby * mby, t2 = ebx * ebx + eby * eby;
+    double cbx = (p2 * (mby - eby) + q2 * (eby - sby) + t2 * (sby - mby)) / dB;
+    double cby = (p2 * (ebx - mbx) + q2 * (sbx - ebx) + t2 * (mbx - sbx)) / dB;
+    double rB = Math.hypot(sbx - cbx, sby - cby);
+    if (!Double.isFinite(rA) || !Double.isFinite(rB) || rA == 0.0 || rB == 0.0) return new double[0][];
+
+    double dx = cbx - cax, dy = cby - cay;
+    double dd = Math.hypot(dx, dy);
+    final double EPS = 1e-9;
+    if (dd == 0.0) return new double[0][];                  // concentric / coincident: no isolated points
+    if (dd > rA + rB + EPS || dd < Math.abs(rA - rB) - EPS) return new double[0][];   // circles miss
+
+    // radical line: |X-CA|^2 = rA^2, |X-CB|^2 = rB^2 -> X = mid +/- h * perp
+    double a = (rA * rA - rB * rB + dd * dd) / (2 * dd);
+    double h2 = rA * rA - a * a;
+    double h = h2 > 0 ? Math.sqrt(h2) : 0.0;                // h2 ~ 0: tangent (single point)
+    double mx = cax + a * dx / dd, my = cay + a * dy / dd;
+    double[][] cand = (h == 0.0)
+        ? new double[][]{ { mx - h * dy / dd, my + h * dx / dd } }
+        : new double[][]{ { mx - h * dy / dd, my + h * dx / dd }, { mx + h * dy / dd, my - h * dx / dd } };
+
+    double aa0 = Math.atan2(say - cay, sax - cax);
+    double aam = Math.atan2(may - cay, max - cax);
+    double aae = Math.atan2(eay - cay, eax - cax);
+    boolean accw = dA > 0;
+    double thetaA = directedSweep(aa0, aam, accw) + directedSweep(aam, aae, accw);
+    double ba0 = Math.atan2(sby - cby, sbx - cbx);
+    double bam = Math.atan2(mby - cby, mbx - cbx);
+    double bae = Math.atan2(eby - cby, ebx - cbx);
+    boolean bccw = dB > 0;
+    double thetaB = directedSweep(ba0, bam, bccw) + directedSweep(bam, bae, bccw);
+
+    double[][] out = new double[cand.length][];
+    int n = 0;
+    for (double[] pt : cand) {
+      double swA = directedSweep(aa0, Math.atan2(pt[1] - cay, pt[0] - cax), accw);
+      if (!(swA <= thetaA + EPS || swA >= 2 * Math.PI - EPS)) continue;
+      double swB = directedSweep(ba0, Math.atan2(pt[1] - cby, pt[0] - cbx), bccw);
+      if (!(swB <= thetaB + EPS || swB >= 2 * Math.PI - EPS)) continue;
+      out[n++] = pt;
+    }
+    if (n == out.length) return out;
+    double[][] trimmed = new double[n][];
+    System.arraycopy(out, 0, trimmed, 0, n);
+    return trimmed;
+  }
+
   /** Positive angular turn from {@code from} to {@code to} in the given direction, in [0, 2*pi). */
   private static double directedSweep(double from, double to, boolean ccw) {
     double t = ccw ? (to - from) : (from - to);
