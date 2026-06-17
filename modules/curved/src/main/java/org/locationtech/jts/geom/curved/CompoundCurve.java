@@ -38,8 +38,13 @@ public class CompoundCurve extends LineString implements Linearizable {
     return new CompoundCurve(getCoordinateSequence().copy(), getFactory());
   }
 
+  /**
+   * Linearises the (flat phase-1) arc pieces to a chord polyline whose sagitta is
+   * at most {@code tolerance} (DSF, JTS #1195); {@code tolerance <= 0} returns the
+   * bare control points. Collinear (straight) pieces contribute their chord.
+   */
   @Override
   public Geometry toLinear(double tolerance) {
-    return getFactory().createLineString(getCoordinateSequence().copy());
+    return ArcTessellation.toPolyline(getCoordinateSequence(), tolerance, getFactory());
   }
 }

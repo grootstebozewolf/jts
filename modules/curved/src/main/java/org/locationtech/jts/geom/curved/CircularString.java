@@ -70,8 +70,15 @@ public class CircularString extends LineString implements Linearizable {
     return new CircularString(getCoordinateSequence().copy(), getFactory());
   }
 
+  /**
+   * Linearises the arcs to a chord polyline whose sagitta is at most
+   * {@code tolerance} (DSF, JTS #1195): each arc is sampled with
+   * {@link CircularArcs#tessellate} so the points lie on the arc. A
+   * {@code tolerance <= 0} returns the bare control points (the phase-1 view used
+   * by the structural ring derivations).
+   */
   @Override
   public Geometry toLinear(double tolerance) {
-    return getFactory().createLineString(getCoordinateSequence().copy());
+    return ArcTessellation.toPolyline(getCoordinateSequence(), tolerance, getFactory());
   }
 }

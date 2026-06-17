@@ -62,4 +62,45 @@ final class CircularArcs {
     if (t < 0) t += twoPi;
     return t;
   }
+
+  /**
+   * Samples the circular arc through {@code (s, m, e)} into a chord polyline whose
+   * sagitta (max distance from any chord to the true arc) is at most
+   * {@code tolerance} (DSF, JTS #1195). Splitting the sweep {@code theta} into
+   * {@code m} equal sub-arcs of half-angle {@code phi = theta/(2m)} gives sagitta
+   * {@code r*(1 - cos phi)}, so {@code m = ceil(theta / (2*acos(1 - tolerance/r)))}.
+   * The returned points lie exactly on the circle (start and end are the exact
+   * control points); {@code tolerance <= 0}, a collinear triple, or a degenerate
+   * circle yield the bare chord {@code [s, e]}.
+   */
+  static double[][] tessellate(double sx, double sy, double mx, double my,
+                               double ex, double ey, double tolerance) {
+    double[][] chord = { { sx, sy }, { ex, ey } };
+    if (tolerance <= 0.0) return chord;
+    double d = 2 * (sx * (my - ey) + mx * (ey - sy) + ex * (sy - my));
+    if (d == 0.0) return chord;
+    double s2 = sx * sx + sy * sy, m2 = mx * mx + my * my, e2 = ex * ex + ey * ey;
+    double cx = (s2 * (my - ey) + m2 * (ey - sy) + e2 * (sy - my)) / d;
+    double cy = (s2 * (ex - mx) + m2 * (sx - ex) + e2 * (mx - sx)) / d;
+    double r = Math.hypot(sx - cx, sy - cy);
+    if (!Double.isFinite(r) || r == 0.0) return chord;
+
+    double a0 = Math.atan2(sy - cy, sx - cx);
+    double am = Math.atan2(my - cy, mx - cx);
+    double ae = Math.atan2(ey - cy, ex - cx);
+    boolean ccw = d > 0;
+    double theta = directedSweep(a0, am, ccw) + directedSweep(am, ae, ccw);
+
+    double phiMax = Math.acos(Math.max(-1.0, Math.min(1.0, 1.0 - tolerance / r)));
+    int seg = (phiMax <= 0.0) ? 1 : Math.max(1, (int) Math.ceil(theta / (2 * phiMax)));
+    double dir = ccw ? 1.0 : -1.0;
+    double[][] pts = new double[seg + 1][];
+    for (int k = 0; k <= seg; k++) {
+      double ang = a0 + dir * theta * k / seg;
+      pts[k] = new double[]{ cx + r * Math.cos(ang), cy + r * Math.sin(ang) };
+    }
+    pts[0] = new double[]{ sx, sy };          // exact endpoints (avoid trig round-off)
+    pts[seg] = new double[]{ ex, ey };
+    return pts;
+  }
 }
