@@ -11,10 +11,12 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Point;
 
 /**
  * A connected sequence of circular arcs, where each consecutive triple of
@@ -63,6 +65,39 @@ public class CircularString extends LineString implements Linearizable {
       total += Math.hypot(seq.getX(i + 1) - seq.getX(i), seq.getY(i + 1) - seq.getY(i));
     }
     return total;
+  }
+
+  /**
+   * The arc-length-weighted centroid of the circular arcs (C-LIN, JTS #1195):
+   * the centre of mass of each arc (at {@code r*sin(theta/2)/(theta/2)} from its
+   * centre along the bisector) weighted by its arc length, rather than the
+   * chord-polyline centroid inherited from {@link LineString}. A semicircular
+   * arc thus has its centroid at {@code 2R/pi} from the diameter, not the chord
+   * midpoint.
+   */
+  @Override
+  public Point getCentroid() {
+    CoordinateSequence seq = getCoordinateSequence();
+    int n = seq.size();
+    if (n < 3) return super.getCentroid();
+    double wsum = 0, xsum = 0, ysum = 0;
+    int i = 0;
+    for (; i + 2 < n; i += 2) {
+      double sx = seq.getX(i),     sy = seq.getY(i);
+      double mx = seq.getX(i + 1), my = seq.getY(i + 1);
+      double ex = seq.getX(i + 2), ey = seq.getY(i + 2);
+      double w = CircularArcs.arcLength(sx, sy, mx, my, ex, ey);
+      double[] c = CircularArcs.arcCentroid(sx, sy, mx, my, ex, ey);
+      wsum += w; xsum += c[0] * w; ysum += c[1] * w;
+    }
+    for (; i + 1 < n; i++) {                 // dangling straight edge
+      double sx = seq.getX(i),     sy = seq.getY(i);
+      double ex = seq.getX(i + 1), ey = seq.getY(i + 1);
+      double w = Math.hypot(ex - sx, ey - sy);
+      wsum += w; xsum += 0.5 * (sx + ex) * w; ysum += 0.5 * (sy + ey) * w;
+    }
+    if (wsum == 0.0) return super.getCentroid();
+    return getFactory().createPoint(new Coordinate(xsum / wsum, ysum / wsum));
   }
 
   @Override
