@@ -62,4 +62,30 @@ final class CircularArcs {
     if (t < 0) t += twoPi;
     return t;
   }
+
+  /**
+   * The arc through {@code (s, m, e)} offset radially by signed distance {@code d}
+   * (OFF, JTS #1195): the concentric arc with the same centre and angular sweep
+   * and radius {@code r + d}, returned as its three control points (each original
+   * control point pushed radially to the new radius). Returns {@code null} when
+   * the offset collapses ({@code r + d <= 0}) or the triple is collinear (no
+   * circle). A {@code CircularString} offset to one side uses {@code +d} and the
+   * other side {@code -d} — the R±d parallel arcs.
+   */
+  static double[] offsetArc(double sx, double sy, double mx, double my, double ex, double ey, double d) {
+    double det = 2 * (sx * (my - ey) + mx * (ey - sy) + ex * (sy - my));
+    if (det == 0.0) return null;                       // collinear: no circle
+    double s2 = sx*sx+sy*sy, m2 = mx*mx+my*my, e2 = ex*ex+ey*ey;
+    double cx = (s2*(my-ey) + m2*(ey-sy) + e2*(sy-my)) / det;
+    double cy = (s2*(ex-mx) + m2*(sx-ex) + e2*(mx-sx)) / det;
+    double r = Math.hypot(sx - cx, sy - cy);
+    if (!Double.isFinite(r) || r == 0.0) return null;
+    double rn = r + d;
+    if (rn <= 0.0) return null;                        // collapses to the centre or inverts -> empty
+    double k = rn / r;                                 // radial scale about the centre
+    return new double[]{
+        cx + (sx-cx)*k, cy + (sy-cy)*k,
+        cx + (mx-cx)*k, cy + (my-cy)*k,
+        cx + (ex-cx)*k, cy + (ey-cy)*k };
+  }
 }
