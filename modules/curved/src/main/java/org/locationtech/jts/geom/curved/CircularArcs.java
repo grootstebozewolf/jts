@@ -217,6 +217,39 @@ final class CircularArcs {
     return best;
   }
 
+  /**
+   * Minimum distance between the circular arc through {@code (s, m, e)} and the
+   * line segment {@code (p, q)} (D-AA family, JTS #1195). Zero when they
+   * intersect; otherwise the smallest gap over the arc endpoints projected onto
+   * the segment, the segment endpoints projected onto the arc, and the interior
+   * closest approach (the circle points whose tangent is parallel to the segment,
+   * clamped to the arc sweep and the segment extent). A collinear (non-circular)
+   * triple falls back to its chord segment.
+   */
+  static double distanceArcToSegment(double sx, double sy, double mx, double my, double ex, double ey,
+                                     double px, double py, double qx, double qy) {
+    if (intersectSegment(sx,sy,mx,my,ex,ey, px,py, qx,qy).length > 0) return 0.0;
+    double[] c = circleParams(sx,sy,mx,my,ex,ey);
+    if (c == null) {                                   // degenerate arc -> chord segment
+      return Math.min(
+          Math.min(distancePointToSegment(sx,sy, px,py,qx,qy), distancePointToSegment(ex,ey, px,py,qx,qy)),
+          Math.min(distancePointToSegment(px,py, sx,sy,ex,ey), distancePointToSegment(qx,qy, sx,sy,ex,ey)));
+    }
+    double best = Math.min(distancePointToSegment(sx,sy, px,py,qx,qy),
+                           distancePointToSegment(ex,ey, px,py,qx,qy));
+    best = Math.min(best, pointToArcOrChord(c, sx,sy,ex,ey, px,py));
+    best = Math.min(best, pointToArcOrChord(c, sx,sy,ex,ey, qx,qy));
+    double dx = qx - px, dy = qy - py, len = Math.hypot(dx, dy);
+    if (len > 0.0) {
+      double nx = -dy / len, ny = dx / len;            // unit normal to the segment
+      for (int s = -1; s <= 1; s += 2) {
+        double ax = c[0] + s * c[2] * nx, ay = c[1] + s * c[2] * ny;
+        if (onSpan(c, ax, ay)) best = Math.min(best, distancePointToSegment(ax, ay, px,py, qx,qy));
+      }
+    }
+    return best;
+  }
+
   /** Circle of an arc as {cx, cy, r, startAngle, signedSweep}, or null if collinear/degenerate. */
   private static double[] circleParams(double sx, double sy, double mx, double my, double ex, double ey) {
     double d = 2 * (sx * (my - ey) + mx * (ey - sy) + ex * (sy - my));
