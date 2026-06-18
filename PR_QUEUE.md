@@ -122,8 +122,9 @@ Part of #1195. Depends on ①.
 ### ⑦ `feat: N-AL circular arc / line-segment intersection (#1195)` — head `feature/sfa-curve-N-AL`
 Adds `CircularArcs.intersectSegment`: exact circle-line solve clamped to the arc
 sweep and segment range (0/1/2 points).
-- Verified analytically (the oracle's `ARC_LINE_XY` is only a single-point
-  projection); a future `ARC_SEGMENT_XY` oracle mode would bit-pin it.
+- Bit-pinned against the oracle `ARC_SEGMENT_XY` mode (the proper arc-segment
+  enumerator; the old `ARC_LINE_XY` single-point projection is superseded) —
+  24 committed vectors + 400 random pairs.
 
 Part of #1195. Depends on ①.
 
@@ -183,7 +184,7 @@ Part of #1195. Depends on ⑪.
 
 ## Not in this queue
 
-- **Oracle wishlist (next):** `ARC_SEGMENT_XY` (W1, would bit-pin N-AL),
+- **Oracle wishlist:** `ARC_SEGMENT_XY` (W1 ✅ delivered — N-AL now bit-pinned),
   `ARC_ARC_DISTANCE` (W2 → D-AA), `CP_VALID`/`RING_SIMPLE` (W3 → V-CP),
   `ARC_OFFSET_XY` (W4 → BUF/OFF), `CURVE_RELATE_MATRIX` (W5 → R-PR/R-CONT).
   See [proofs#224](https://github.com/grootstebozewolf/NetTopologySuite.Proofs/issues/224)
