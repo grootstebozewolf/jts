@@ -77,4 +77,36 @@ public class CircularArcsIntersectionTest extends TestCase {
     assertEquals(1, pts.length);
     assertTrue(has(pts, 3, 0));
   }
+
+  /**
+   * Pins counts and points against the exact ARC_SEGMENT_XY oracle
+   * (NetTopologySuite.Proofs Rocq/Coq extraction), over 0/1/2 crossings, a
+   * tangent, a clipped segment, and major / clockwise / offset arcs.
+   */
+  public void testMatchesOracleVectors() throws Exception {
+    java.io.InputStream in = getClass().getResourceAsStream(
+        "/org/locationtech/jts/geom/curved/rocqref/curve_arc_segment_vectors.txt");
+    assertNotNull("arc-segment vectors resource", in);
+    java.io.BufferedReader r = new java.io.BufferedReader(
+        new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
+    String line; int checked = 0;
+    while ((line = r.readLine()) != null) {
+      String s = line.trim();
+      if (s.isEmpty() || s.startsWith("#")) continue;
+      String[] t = s.split("\\s+");
+      double[] v = new double[10];
+      for (int i = 0; i < 10; i++) v[i] = Double.parseDouble(t[i]);
+      int cnt = Integer.parseInt(t[10]);
+      double[][] got = CircularArcs.intersectSegment(
+          v[0],v[1], v[2],v[3], v[4],v[5], v[6],v[7], v[8],v[9]);
+      assertEquals("count for " + s, cnt, got.length);
+      for (int k = 0; k < cnt; k++) {
+        double ex = Double.parseDouble(t[11 + 2*k]), ey = Double.parseDouble(t[12 + 2*k]);
+        assertTrue("expected point (" + ex + "," + ey + ") for " + s, has(got, ex, ey));
+      }
+      checked++;
+    }
+    r.close();
+    assertTrue("should have checked oracle vectors", checked >= 10);
+  }
 }
