@@ -109,6 +109,86 @@ final class ArcRelate {
     return boundariesIntersect(a, b) && !interiorsShareArea(a, b);
   }
 
+  /** Two areal shells never satisfy OGC {@code crosses} (equal dimension, 2-D intersection). */
+  static boolean crosses(CoordinateSequence a, CoordinateSequence b) {
+    return false;
+  }
+
+  // ---- point operand: a single point against the curved areal region {@code area} (R-CONT) ----
+
+  /** The area contains the point: it lies strictly in the interior. */
+  static boolean containsPoint(CoordinateSequence area, double x, double y) {
+    return locate(area, x, y) == IN;
+  }
+
+  /** The point lies in the area (interior or boundary). */
+  static boolean intersectsPoint(CoordinateSequence area, double x, double y) {
+    return locate(area, x, y) != OUT;
+  }
+
+  /** The point lies on the area's boundary (interiors disjoint). */
+  static boolean touchesPoint(CoordinateSequence area, double x, double y) {
+    return locate(area, x, y) == ON;
+  }
+
+  // ---- lineal operand: an open curved control sequence {@code line} against the area (R-CONT) ----
+
+  /** The line meets the area (interior or boundary). */
+  static boolean intersectsLine(CoordinateSequence area, CoordinateSequence line) {
+    LineCounts c = lineCounts(area, line);
+    return c.in > 0 || c.on > 0 || boundariesIntersect(area, line);
+  }
+
+  /** No point of the line lies outside the area and the line enters the interior (area covers line). */
+  static boolean containsLine(CoordinateSequence area, CoordinateSequence line) {
+    LineCounts c = lineCounts(area, line);
+    return c.out == 0 && c.in > 0;
+  }
+
+  /** The line has points strictly inside and strictly outside the area — it crosses the boundary. */
+  static boolean crossesLine(CoordinateSequence area, CoordinateSequence line) {
+    LineCounts c = lineCounts(area, line);
+    return c.in > 0 && c.out > 0;
+  }
+
+  /** The line meets the area only on its boundary (the line interior never enters the area interior). */
+  static boolean touchesLine(CoordinateSequence area, CoordinateSequence line) {
+    LineCounts c = lineCounts(area, line);
+    return c.in == 0 && (c.on > 0 || boundariesIntersect(area, line));
+  }
+
+  /** Disjoint: the line nowhere meets the area. */
+  static boolean disjointLine(CoordinateSequence area, CoordinateSequence line) {
+    return !intersectsLine(area, line);
+  }
+
+  private static final class LineCounts { int in, on, out; }
+
+  /** Classify the line's two endpoints plus dense per-piece interior samples against the area. */
+  private static LineCounts lineCounts(CoordinateSequence area, CoordinateSequence line) {
+    LineCounts c = new LineCounts();
+    int n = line.size();
+    tallyLine(c, area, line.getX(0), line.getY(0));
+    tallyLine(c, area, line.getX(n - 1), line.getY(n - 1));
+    for (int i = 0; i + 2 < n; i += 2) {
+      double[] pc = piece(line, i);
+      for (int k = 1; k < SAMPLES_PER_PIECE; k++) {
+        double[] pt = pointOnPiece(pc, (double) k / SAMPLES_PER_PIECE);
+        tallyLine(c, area, pt[0], pt[1]);
+      }
+    }
+    return c;
+  }
+
+  private static void tallyLine(LineCounts c, CoordinateSequence area, double x, double y) {
+    switch (locate(area, x, y)) {
+      case IN:  c.in++;  break;
+      case ON:  c.on++;  break;
+      default:  c.out++;
+    }
+  }
+
+
   /** II=2: the two regions overlap on positive area (shared interior). */
   private static boolean interiorsShareArea(CoordinateSequence a, CoordinateSequence b) {
     // a transversal crossing or nesting puts a whole boundary sub-arc of one
@@ -140,7 +220,16 @@ final class ArcRelate {
 
   private static int locate(CoordinateSequence ring, double x, double y) {
     if (onBoundary(ring, x, y)) return ON;
-    return ArcRingLocation.isInteriorPoint(ring, x, y) ? IN : OUT;
+    // ArcRingLocation's horizontal ray cast is degenerate when the query y aligns
+    // with a ring vertex (the scan line grazes the vertex, and the shared vertex
+    // of two arcs can be double-counted within the sweep tolerance). Probe just
+    // above and below by more than that tolerance: a strictly interior/exterior
+    // point agrees on both; disagreement means the point sits within the offset of
+    // the boundary (treat as ON, having already missed the exact onBoundary test).
+    boolean above = ArcRingLocation.isInteriorPoint(ring, x, y + 1e-6);
+    boolean below = ArcRingLocation.isInteriorPoint(ring, x, y - 1e-6);
+    if (above == below) return above ? IN : OUT;
+    return ON;
   }
 
   // ---- geometry: piece extraction, sampling, on-boundary, exact intersection ----
@@ -149,8 +238,12 @@ final class ArcRelate {
     return new double[]{ s.getX(i), s.getY(i), s.getX(i+1), s.getY(i+1), s.getX(i+2), s.getY(i+2) };
   }
 
+  // A piece is an arc iff its control triple is not (near-)collinear. The test is
+  // edge-length-relative so a chord built from a computed midpoint — whose exact
+  // determinant is a non-zero rounding crumb (~1e-15) — is robustly read as a
+  // chord rather than a spurious giant-radius arc. Kept consistent with circle().
   private static boolean isArc(double[] p) {
-    return 2 * (p[0]*(p[3]-p[5]) + p[2]*(p[5]-p[1]) + p[4]*(p[1]-p[3])) != 0.0;
+    return circle(p) != null;
   }
 
   /** Point at parameter {@code t in (0,1)} along a piece (sweep fraction for an arc, lerp for a chord). */
@@ -203,7 +296,11 @@ final class ArcRelate {
   private static double[] circle(double[] p) {
     double sx=p[0],sy=p[1],mx=p[2],my=p[3],ex=p[4],ey=p[5];
     double d = 2 * (sx*(my-ey) + mx*(ey-sy) + ex*(sy-my));
-    if (d == 0.0) return null;
+    // |d| is twice the (s,m,e) triangle area = |sm|*|me|*sin(bend); treat a
+    // (near-)collinear triple as a chord, edge-length-relative so it is invariant
+    // to translation/scale and ignores ~1e-15 rounding from a computed midpoint.
+    double el1=Math.hypot(mx-sx,my-sy), el2=Math.hypot(ex-mx,ey-my);
+    if (Math.abs(d) <= 1e-9 * el1 * el2) return null;
     double s2=sx*sx+sy*sy, m2=mx*mx+my*my, e2=ex*ex+ey*ey;
     double cx=(s2*(my-ey)+m2*(ey-sy)+e2*(sy-my))/d;
     double cy=(s2*(ex-mx)+m2*(sx-ex)+e2*(mx-sx))/d;
