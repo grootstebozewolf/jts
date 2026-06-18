@@ -131,6 +131,17 @@ public class CurvePolygon extends Polygon implements Linearizable {
     return "CurvePolygon";
   }
 
+  /**
+   * Arc-aware validity (V-CP, JTS #1195): the structural rings are validated as
+   * true arcs — each ring closed and arc-simple, holes nested in the shell, holes
+   * mutually disjoint — rather than via the inherited chord-linearisation check.
+   * Orientation-agnostic, like {@code Polygon.isValid()}.
+   */
+  @Override
+  public boolean isValid() {
+    return CurvePolygonValidity.isValid(this);
+  }
+
   @Override
   public CurvePolygon reverse() {
     return (CurvePolygon) super.reverse();

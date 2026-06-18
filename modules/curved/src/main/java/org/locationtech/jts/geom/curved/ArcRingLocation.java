@@ -32,7 +32,21 @@ final class ArcRingLocation {
 
   private ArcRingLocation() {}
 
+  /**
+   * Strictly-interior test, robust to the horizontal-ray vertex-scanline
+   * degeneracy: when the query y aligns with a ring vertex y the scan line grazes
+   * the vertex (and a shared vertex of two arcs can be double-counted within the
+   * sweep tolerance). Probe just above and below the query; a strictly
+   * interior/exterior point agrees on both. On disagreement the query lies within
+   * the offset of the boundary, so it is not strictly interior.
+   */
   static boolean isInteriorPoint(CoordinateSequence ring, double qx, double qy) {
+    boolean above = rayParityOdd(ring, qx, qy + 1e-6);
+    boolean below = rayParityOdd(ring, qx, qy - 1e-6);
+    return above == below && above;
+  }
+
+  private static boolean rayParityOdd(CoordinateSequence ring, double qx, double qy) {
     int n = ring.size();
     int crossings = 0;
     for (int i = 0; i + 2 < n; i += 2) {
