@@ -33,6 +33,20 @@ public class CompoundCurve extends LineString implements Linearizable {
     return "CompoundCurve";
   }
 
+  /**
+   * A {@code CompoundCurve} is class-equivalent only to another
+   * {@code CompoundCurve} — never to a plain {@link LineString} with the same
+   * control points (R-EQ, JTS #1195), overriding the lenient
+   * {@code instanceof LineString} test inherited from {@link LineString} so
+   * {@code equalsExact} / {@code equalsNorm} distinguish a curve from its chord
+   * polyline. (The converse {@code lineString.equalsExact(compoundCurve)} still
+   * runs the core lenient check; full symmetry would require a core change.)
+   */
+  @Override
+  protected boolean isEquivalentClass(Geometry other) {
+    return other != null && getClass() == other.getClass();
+  }
+
   @Override
   protected CompoundCurve copyInternal() {
     return new CompoundCurve(getCoordinateSequence().copy(), getFactory());

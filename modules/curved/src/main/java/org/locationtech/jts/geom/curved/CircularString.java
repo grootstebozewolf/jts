@@ -38,6 +38,22 @@ public class CircularString extends LineString implements Linearizable {
     return "CircularString";
   }
 
+  /**
+   * A {@code CircularString} is class-equivalent only to another
+   * {@code CircularString} — never to a plain {@link LineString} with the same
+   * control points (R-EQ, JTS #1195). The arc through the three controls is a
+   * different geometry than the chord polyline through them, so
+   * {@code equalsExact} / {@code equalsNorm} must distinguish them; this overrides
+   * the lenient {@code instanceof LineString} test inherited from
+   * {@link LineString}. (The converse {@code lineString.equalsExact(circularString)}
+   * still runs the core {@code LineString} lenient check and returns true; full
+   * symmetry would require a core change.)
+   */
+  @Override
+  protected boolean isEquivalentClass(Geometry other) {
+    return other != null && getClass() == other.getClass();
+  }
+
   @Override
   protected CircularString copyInternal() {
     return new CircularString(getCoordinateSequence().copy(), getFactory());
