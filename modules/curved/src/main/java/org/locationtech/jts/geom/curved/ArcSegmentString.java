@@ -155,6 +155,17 @@ public final class ArcSegmentString {
     return 2 * (p[0]*(p[3]-p[5]) + p[2]*(p[5]-p[1]) + p[4]*(p[1]-p[3])) != 0.0;
   }
 
+  /**
+   * Mid control point for the sub-arc of {@code arc} from {@code (px,py)} to
+   * {@code (qx,qy)} (both on the arc), recomputed on the arc's circle at the
+   * sub-arc's angular midpoint. Collinear (chord) pieces return the chord midpoint.
+   */
+  static double[] midOnArc(double[] arc, double px, double py, double qx, double qy) {
+    double[] c = circle(arc);
+    if (c == null) return new double[]{ 0.5*(px+qx), 0.5*(py+qy) };
+    return arcMid(c, new double[]{ px, py }, new double[]{ qx, qy });
+  }
+
   /** {cx, cy, r, a0, signedSweep} of the arc, or null if collinear/degenerate. */
   private static double[] circle(double[] p) {
     double sx=p[0],sy=p[1],mx=p[2],my=p[3],ex=p[4],ey=p[5];
