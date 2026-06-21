@@ -63,6 +63,13 @@ import test.jts.GeometryTestCase;
  *
  * <p>Run on demand: {@code mvn -pl modules/curved test
  * -Dtest=MultiCompositeMemberSpec}.
+ *
+ * <p>Oracle note: F-MC / F-MS are <em>structural</em> foundation TAGs (member
+ * subtype preservation through MultiCurve / MultiSurface read, copy and WKT
+ * round-trip). The contract is representation and API shape, not a geometric
+ * quantity the NetTopologySuite.Proofs oracle computes, so no oracle vector pin
+ * applies; the arc geometry the members carry is oracle-pinned on the numeric
+ * TAGs (length, area, distance, intersection, relate, ...).
  */
 public class MultiCompositeMemberSpec extends GeometryTestCase {
 
