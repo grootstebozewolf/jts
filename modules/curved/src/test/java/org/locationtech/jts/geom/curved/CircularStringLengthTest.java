@@ -55,12 +55,46 @@ public class CircularStringLengthTest extends TestCase {
   public void testLengthMatchesOracleVectors() throws Exception {
     List<CurveRefRunner.ArcLengthCase> cases = CurveRefRunner.loadArcLengthCases(VECTORS);
     assertTrue("vectors loaded", cases.size() >= 5);
+    int degenerate = 0;
     for (CurveRefRunner.ArcLengthCase c : cases) {
       CircularString cs = arc(c.sx, c.sy, c.mx, c.my, c.ex, c.ey);
       double len = cs.getLength();
       assertEquals("arc length for " + c, c.expectedLength, len,
           1e-9 * Math.max(1.0, Math.abs(c.expectedLength)));
+      if (c.degenerate) {
+        degenerate++;
+        // The oracle declined this triple; the implementation must still return a
+        // finite length (the chord), never NaN/Infinity.
+        assertTrue("degenerate arc must be finite: " + c, Double.isFinite(len));
+        assertEquals("degenerate arc falls back to the chord: " + c,
+            Math.hypot(c.ex - c.sx, c.ey - c.sy), len, 1e-12);
+      }
     }
+    assertTrue("vector set should exercise degenerate (DEGENERATE) triples", degenerate > 0);
+  }
+
+  /**
+   * Arc-awareness guard (the core M-LEN-CS requirement): for a genuinely curved
+   * arc, {@link CircularString#getLength()} must exceed the inscribed control-point
+   * polyline length {@code |s-m| + |m-e|} that the inherited {@link
+   * org.locationtech.jts.geom.LineString} behaviour would report. A regression to
+   * the chord polyline would make these equal.
+   */
+  public void testLengthIsArcAwareNotInscribedPolyline() throws Exception {
+    List<CurveRefRunner.ArcLengthCase> cases = CurveRefRunner.loadArcLengthCases(VECTORS);
+    int curved = 0;
+    for (CurveRefRunner.ArcLengthCase c : cases) {
+      if (c.degenerate) continue;
+      double polyline = Math.hypot(c.mx - c.sx, c.my - c.sy)
+                      + Math.hypot(c.ex - c.mx, c.ey - c.my);
+      double len = arc(c.sx, c.sy, c.mx, c.my, c.ex, c.ey).getLength();
+      // An arc is never shorter than its inscribed chords.
+      assertTrue("arc length must be >= inscribed polyline for " + c,
+          len >= polyline - 1e-9 * Math.max(1.0, polyline));
+      // For arcs that are clearly curved, the excess must be real (not chord behaviour).
+      if (len > polyline * (1 + 1e-6)) curved++;
+    }
+    assertTrue("vector set should contain clearly-curved arcs", curved >= 10);
   }
 
   /** A multi-arc CircularString length is the sum of its arc lengths. */

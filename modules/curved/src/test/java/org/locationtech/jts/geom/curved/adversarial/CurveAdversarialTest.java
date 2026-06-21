@@ -40,7 +40,11 @@ public class CurveAdversarialTest extends TestCase {
     for (CurveRefRunner.ArcLengthCase c : cases) {
       double derived = CurveRefRunner.exactCircularArcLength(
           c.sx, c.sy, c.mx, c.my, c.ex, c.ey);
-      assertEquals("vector case must match oracle", c.expectedLength, derived, 1e-9);
+      // c.expectedLength is the oracle's certified ARC_LENGTH; the in-Java
+      // reference reproduces it to fp precision (relative, since arcs range over
+      // many magnitudes here).
+      assertEquals("vector case must match oracle", c.expectedLength, derived,
+          1e-7 * Math.max(1.0, Math.abs(c.expectedLength)));
     }
   }
 

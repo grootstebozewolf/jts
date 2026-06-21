@@ -47,19 +47,33 @@ public final class CurveRefRunner {
   public static final class ArcLengthCase {
     public final double sx, sy, mx, my, ex, ey;
     public final double expectedLength;
+    /**
+     * True when the oracle declined the triple as {@code DEGENERATE} (no circle
+     * is defined: collinear or coincident control points). For these the agreed
+     * fallback &mdash; shared by the implementation and the in-Java reference
+     * &mdash; is the chord length {@code |end - start|}, carried in
+     * {@link #expectedLength}.
+     */
+    public final boolean degenerate;
 
     public ArcLengthCase(double sx, double sy, double mx, double my,
                          double ex, double ey, double expectedLength) {
+      this(sx, sy, mx, my, ex, ey, expectedLength, false);
+    }
+
+    public ArcLengthCase(double sx, double sy, double mx, double my,
+                         double ex, double ey, double expectedLength, boolean degenerate) {
       this.sx = sx; this.sy = sy;
       this.mx = mx; this.my = my;
       this.ex = ex; this.ey = ey;
       this.expectedLength = expectedLength;
+      this.degenerate = degenerate;
     }
 
     @Override
     public String toString() {
-      return String.format("Arc((%.6g,%.6g)-(%.6g,%.6g)-(%.6g,%.6g)) len=%.12g",
-          sx, sy, mx, my, ex, ey, expectedLength);
+      return String.format("Arc((%.6g,%.6g)-(%.6g,%.6g)-(%.6g,%.6g)) len=%.12g%s",
+          sx, sy, mx, my, ex, ey, expectedLength, degenerate ? " [DEGENERATE]" : "");
     }
   }
 
@@ -135,15 +149,23 @@ public final class CurveRefRunner {
       double my = Double.parseDouble(tok[3]);
       double ex = Double.parseDouble(tok[4]);
       double ey = Double.parseDouble(tok[5]);
-      double claimed = Double.parseDouble(tok[6]);
       double derived = exactCircularArcLength(sx, sy, mx, my, ex, ey);
-      // Tolerate small fp noise for the generated demo vectors (real Rocq exports
-      // will be validated more strictly, as in #1197's loadProofCases).
-      if (Math.abs(claimed - derived) > 1e-6 * Math.max(1.0, Math.abs(derived))) {
-        throw new IllegalStateException("line " + lineNo
-            + ": claimed " + claimed + " disagrees with exact " + derived);
+      // The oracle marks triples with no defined circle (collinear/coincident)
+      // as DEGENERATE; the agreed fallback is the chord length, which is exactly
+      // what exactCircularArcLength (and the implementation) return there.
+      if ("DEGENERATE".equals(tok[6])) {
+        cases.add(new ArcLengthCase(sx, sy, mx, my, ex, ey, derived, true));
+        continue;
       }
-      cases.add(new ArcLengthCase(sx, sy, mx, my, ex, ey, derived));
+      double claimed = Double.parseDouble(tok[6]);
+      // Cross-check the oracle's value against the in-Java reference. These are
+      // genuine ARC_LENGTH outputs of the extracted oracle, so the agreement is
+      // tight; a stale or corrupt export fails the build (cf. #1197 loadProofCases).
+      if (Math.abs(claimed - derived) > 1e-7 * Math.max(1.0, Math.abs(derived))) {
+        throw new IllegalStateException("line " + lineNo
+            + ": oracle value " + claimed + " disagrees with in-Java reference " + derived);
+      }
+      cases.add(new ArcLengthCase(sx, sy, mx, my, ex, ey, claimed));
     }
     return cases;
   }
