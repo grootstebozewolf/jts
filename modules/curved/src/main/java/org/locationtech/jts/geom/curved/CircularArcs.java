@@ -11,6 +11,8 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import java.math.BigDecimal;
+
 /**
  * Analytical helpers for single circular arcs defined by three control points
  * (start, mid, end), per the SQL/MM CIRCULARSTRING model.
@@ -18,6 +20,41 @@ package org.locationtech.jts.geom.curved;
 final class CircularArcs {
 
   private CircularArcs() {}
+
+  /**
+   * Exact sign of the in-circumcircle predicate for the point {@code d} against
+   * the circle through {@code (a, b, c)} (INC, #1195: the robustness primitive for
+   * curved-geometry triangulation/TIN and for detecting concyclic arc control
+   * points when merging consecutive arcs).
+   * <p>
+   * Returns {@code +1} when {@code d} lies strictly inside the circumcircle of a
+   * counter-clockwise triangle {@code (a, b, c)}, {@code -1} when outside, and
+   * {@code 0} when the four points are exactly concyclic; the sign is negated for
+   * a clockwise triangle (the standard incircle determinant convention). Computed
+   * with {@link BigDecimal} from the exact binary value of each {@code double}
+   * (every coordinate is dyadic), so the result is exact &mdash; there is no
+   * floating-point tolerance band.
+   */
+  static int inCircleSign(double ax, double ay, double bx, double by,
+                          double cx, double cy, double dx, double dy) {
+    BigDecimal a1 = exact(ax, dx), a2 = exact(ay, dy);
+    BigDecimal b1 = exact(bx, dx), b2 = exact(by, dy);
+    BigDecimal c1 = exact(cx, dx), c2 = exact(cy, dy);
+    BigDecimal a3 = a1.multiply(a1).add(a2.multiply(a2));
+    BigDecimal b3 = b1.multiply(b1).add(b2.multiply(b2));
+    BigDecimal c3 = c1.multiply(c1).add(c2.multiply(c2));
+    // 3x3 determinant | a1 a2 a3 ; b1 b2 b3 ; c1 c2 c3 |
+    BigDecimal det =
+        a1.multiply(b2.multiply(c3).subtract(b3.multiply(c2)))
+         .subtract(a2.multiply(b1.multiply(c3).subtract(b3.multiply(c1))))
+         .add(a3.multiply(b1.multiply(c2).subtract(b2.multiply(c1))));
+    return det.signum();
+  }
+
+  /** Exact (p - q) for two doubles, as a BigDecimal holding the true binary value. */
+  private static BigDecimal exact(double p, double q) {
+    return new BigDecimal(p).subtract(new BigDecimal(q));
+  }
 
   /**
    * Length of the circular arc through the three control points, i.e.
