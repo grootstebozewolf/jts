@@ -27,6 +27,14 @@ import junit.textui.TestRunner;
  * is the lenient {@code instanceof LineString}; without the override a curve would
  * compare equal to its chord {@code LineString}. The override restores
  * exact-class equivalence on the curved side.
+ * <p>
+ * Oracle note: R-EQ is a structural-equality API contract ({@code equalsExact} /
+ * {@code equalsTopo} / {@code equalsNorm} discrimination by exact class and
+ * control points), not a geometric quantity the NetTopologySuite.Proofs oracle
+ * computes. There is therefore no oracle vector pin for this TAG; it is verified
+ * by the structural assertions below. (The orientation / arc-geometry oracles
+ * back the numeric TAGs — length, area, distance, intersection, etc. — not
+ * equality semantics.)
  */
 public class CurveEqualsExactTest extends TestCase {
 
