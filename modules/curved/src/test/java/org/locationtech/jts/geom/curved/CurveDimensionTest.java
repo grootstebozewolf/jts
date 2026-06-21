@@ -27,6 +27,13 @@ import junit.textui.TestRunner;
  * JTS supertypes (CircularString/CompoundCurve/MultiCurve are lineal = 1;
  * CurvePolygon/MultiSurface/PolyhedralSurface/Triangle/Tin are areal = 2);
  * this test pins that mapping so a future refactor can't regress it.
+ * <p>
+ * Oracle note: M-DIM is a topological-dimension API contract (a small integer
+ * per type), not a geometric quantity the NetTopologySuite.Proofs oracle
+ * computes, so there is no oracle vector pin for this TAG -- it is verified by
+ * the type-to-dimension assertions below. The oracle backs the metric/decidable
+ * TAGs (length, area, distance, intersection, orientation, snap), not type
+ * metadata.
  */
 public class CurveDimensionTest extends TestCase {
 
