@@ -1,5 +1,13 @@
 # Arc-aware ring orientation / signed-area vectors for JTS Curve EPIC (#1195, V-CP).
 #
+# VERIFIED PROOF SOURCE: NetTopologySuite.Proofs Rocq/Coq-extracted oracle
+# (OCaml + Zarith/GMP), built by CI -- repo grootstebozewolf/NetTopologySuite.Proofs,
+# run 27898361647, artifact 7773429562 (oracle-bin-linux); zip sha256
+# b1b9f236e69cf6607519d89b6610e1e97fd613ce7833479846949961a073d573, binary sha256
+# 8d86bb4e3d4157795b4dfa7791e7aa8ce638d6741fa455f16aced407d3977fe8. Every vector
+# below was re-verified faithful to this artifact (control-point triples fed as
+# A=arc / C=chord boundary segments). Oracle is not vendored / not a build dependency.
+#
 # Oracle RING_ORIENTATION (Rocq/Coq): CCW/CW label + arc-aware signed area
 # (endpoint shoelace + per-arc circular-segment correction).
 #
