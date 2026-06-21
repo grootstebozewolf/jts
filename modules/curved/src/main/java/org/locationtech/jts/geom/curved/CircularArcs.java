@@ -108,6 +108,59 @@ final class CircularArcs {
     return trimmed;
   }
 
+  /**
+   * Whether the circular arc through {@code (s, m, e)} passes through the unit
+   * grid cell centred on the integer pixel {@code (ix, iy)} &mdash; the closed
+   * square {@code [ix-0.5, ix+0.5] x [iy-0.5, iy+0.5]} (PIX, #1195: arc-aware grid
+   * coverage / rasterisation, e.g. for TestBuilder display and snap-to-grid).
+   * <p>
+   * The arc meets the cell iff one of its endpoints lies in the (closed) cell, or
+   * the arc crosses one of the four cell edges. This builds directly on the
+   * arc/segment intersection primitive ({@link #intersectSegment}, N-AL): a 1-D
+   * arc that enters the cell interior must cross its boundary unless it starts or
+   * ends inside. A collinear (non-circular) triple falls back to its chord.
+   */
+  static boolean passesThroughPixel(double sx, double sy, double mx, double my,
+                                    double ex, double ey, long ix, long iy) {
+    double x0 = ix - 0.5, x1 = ix + 0.5, y0 = iy - 0.5, y1 = iy + 0.5;
+    // an endpoint inside the closed cell
+    if (inBox(sx, sy, x0, x1, y0, y1) || inBox(ex, ey, x0, x1, y0, y1)) return true;
+    double d = 2 * (sx * (my - ey) + mx * (ey - sy) + ex * (sy - my));
+    if (d == 0.0) {
+      // degenerate: treat as the chord segment start->end
+      return segmentMeetsBox(sx, sy, ex, ey, x0, x1, y0, y1);
+    }
+    // the arc crosses one of the four cell edges
+    return intersectSegment(sx, sy, mx, my, ex, ey, x0, y0, x1, y0).length > 0   // bottom
+        || intersectSegment(sx, sy, mx, my, ex, ey, x1, y0, x1, y1).length > 0   // right
+        || intersectSegment(sx, sy, mx, my, ex, ey, x1, y1, x0, y1).length > 0   // top
+        || intersectSegment(sx, sy, mx, my, ex, ey, x0, y1, x0, y0).length > 0;  // left
+  }
+
+  private static boolean inBox(double x, double y, double x0, double x1, double y0, double y1) {
+    return x >= x0 && x <= x1 && y >= y0 && y <= y1;
+  }
+
+  /** Whether the segment (ax,ay)-(bx,by) meets the closed box (chord fallback). */
+  private static boolean segmentMeetsBox(double ax, double ay, double bx, double by,
+                                         double x0, double x1, double y0, double y1) {
+    if (inBox(ax, ay, x0, x1, y0, y1) || inBox(bx, by, x0, x1, y0, y1)) return true;
+    return segCross(ax, ay, bx, by, x0, y0, x1, y0)
+        || segCross(ax, ay, bx, by, x1, y0, x1, y1)
+        || segCross(ax, ay, bx, by, x1, y1, x0, y1)
+        || segCross(ax, ay, bx, by, x0, y1, x0, y0);
+  }
+
+  private static boolean segCross(double ax, double ay, double bx, double by,
+                                  double cx, double cy, double dx, double dy) {
+    double d1 = (dx - cx) * (ay - cy) - (dy - cy) * (ax - cx);
+    double d2 = (dx - cx) * (by - cy) - (dy - cy) * (bx - cx);
+    double d3 = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+    double d4 = (bx - ax) * (dy - ay) - (by - ay) * (dx - ax);
+    return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0))
+        && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+  }
+
   /** Positive angular turn from {@code from} to {@code to} in the given direction, in [0, 2*pi). */
   private static double directedSweep(double from, double to, boolean ccw) {
     double t = ccw ? (to - from) : (from - to);
