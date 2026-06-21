@@ -56,10 +56,17 @@ import org.locationtech.jts.geom.Coordinate;
  * coordinates to avoid them.
  * <p>
  * The ground truth here is entirely self-contained: {@link RocqRefRunner#refSignExact}
- * (BigDecimal, exact for dyadic doubles). As an aside, every verdict above was
- * also spot-checked against an external GMP-backed exact-integer orientation
- * oracle and agreed in all cases; that oracle is a nicety for corroboration, not
- * a dependency of these tests.
+ * (BigDecimal, exact for dyadic doubles). As corroboration, the three
+ * {@link #KNOWN_COUNTEREXAMPLES} were also fed to the Rocq-extracted
+ * exact-arithmetic oracle (OCaml + Zarith/GMP) built by NetTopologySuite.Proofs
+ * CI (artifact {@code oracle-bin-linux}, run 27898361647 / artifact 7773429562,
+ * binary sha256 {@code 8d86bb4e3d4157795b4dfa7791e7aa8ce638d6741fa455f16aced407d3977fe8}).
+ * In its {@code ORIENT_EXACT} mode the oracle reports {@code POS} (counter-clockwise,
+ * exact sign +1) for all three -- agreeing with {@code refSignExact} and
+ * contradicting {@link Orientation#index}'s {@code 0} -- and its exact
+ * orientation/incircle/two-sum verdicts matched the in-code reference on every
+ * case checked. That oracle is a nicety for corroboration, not a dependency of
+ * these tests, and is not vendored.
  */
 public class DDCounterexampleHunter {
 
