@@ -26,6 +26,15 @@ import junit.textui.TestRunner;
  * non-similarity, because a shear / non-uniform scale maps a circle to an ellipse
  * arc JTS does not model. The non-similarity result equals transforming the
  * densified arc, rather than a {@code CircularString} through off-circle points.
+ * <p>
+ * Oracle note: AT-NS has no NetTopologySuite.Proofs oracle vector pin. The
+ * non-similarity image of a circular arc is an <i>elliptic</i> arc, which #1195
+ * explicitly defers (the oracle models circular arcs only). The verifiable
+ * contract here is therefore structural and is pinned by the tests below: the
+ * similarity/non-similarity classification ({@code isSimilarity}), and that a
+ * non-similarity result equals transforming the tessellated (densified) arc.
+ * Circular-arc quantities under <i>similarities</i> remain oracle-pinned on their
+ * own TAGs (M-LEN-CS length, C-AREA centroid, etc.).
  */
 public class CurvedAffineTransformationTest extends TestCase {
 
