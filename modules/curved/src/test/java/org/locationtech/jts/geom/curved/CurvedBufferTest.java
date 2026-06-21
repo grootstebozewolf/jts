@@ -58,15 +58,45 @@ public class CurvedBufferTest extends TestCase {
   }
   private static CurvePolygon cp(CircularString shell) { return GF.createCurvePolygon(shell); }
 
-  // ---- oracle BUFFER_REGION committed areas (canonical build ff72bb5a) ----
+  /** The labelled convex source rings used by the oracle BUFFER_REGION vectors. */
+  private static CircularString shapeByLabel(String label) {
+    switch (label) {
+      case "disk5":    return disk(0, 0, 5);
+      case "stadium":  return stadium();
+      case "square10": return square10();
+      case "triangle": return triangle();
+      default: throw new IllegalArgumentException("unknown shape label: " + label);
+    }
+  }
 
-  public void testOraclePinnedAreas() {
-    assertArcArea("disk d=2",      CurvedBuffer.buffer(cp(disk(0,0,5)),  2.0), 153.93804002589985);
-    assertArcArea("disk d=-2",     CurvedBuffer.buffer(cp(disk(0,0,5)), -2.0),  28.274333882308138);
-    assertArcArea("stadium d=1",   CurvedBuffer.buffer(cp(stadium()),    1.0),  64.27433388230814);
-    assertArcArea("stadium d=-1",  CurvedBuffer.buffer(cp(stadium()),   -1.0),  15.141592653589793);
-    assertArcArea("square d=1.5",  CurvedBuffer.buffer(cp(square10()),   1.5), 167.068583470577);
-    assertArcArea("triangle d=1",  CurvedBuffer.buffer(cp(triangle()),   1.0),  55.266108150186895);
+  // ---- oracle BUFFER_REGION signed-area certificates ----
+
+  /**
+   * Pins {@link CurvedBuffer} to the exact buffer-region areas certified by the
+   * NetTopologySuite.Proofs extracted oracle (BUFFER_REGION mode). The committed
+   * {@code curve_buffer_region_vectors.txt} are the oracle's AREA outputs for the
+   * source ring fed as A (arc) / C (chord) boundary segments plus a signed
+   * distance; every value reproduces from the canonical artifact (run 27898361647).
+   */
+  public void testOraclePinnedAreas() throws Exception {
+    java.io.InputStream in = getClass().getResourceAsStream(
+        "/org/locationtech/jts/geom/curved/rocqref/curve_buffer_region_vectors.txt");
+    assertNotNull("buffer vectors resource", in);
+    java.io.BufferedReader r = new java.io.BufferedReader(
+        new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
+    String line; int checked = 0;
+    while ((line = r.readLine()) != null) {
+      String s = line.trim();
+      if (s.isEmpty() || s.startsWith("#")) continue;
+      String[] t = s.split("\\s+");
+      String label = t[0];
+      double d = Double.parseDouble(t[1]);
+      double expected = Double.parseDouble(t[2]);
+      assertArcArea(label + " d=" + d, CurvedBuffer.buffer(cp(shapeByLabel(label)), d), expected);
+      checked++;
+    }
+    r.close();
+    assertTrue("should have checked oracle buffer vectors", checked >= 6);
   }
 
   public void testAnalyticCircle() {

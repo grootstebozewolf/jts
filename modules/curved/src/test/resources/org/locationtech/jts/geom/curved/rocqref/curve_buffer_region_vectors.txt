@@ -1,0 +1,39 @@
+# Curved convex-ring buffer area reference vectors for JTS Curve EPIC (#1195, BUFFER_REGION).
+#
+# Signed-area certificate for the arc-aware buffer of a convex curved ring (BUF-1 positive / BUF-NEG negative). The ring boundary is fed as A (arc) / C (chord) segments and a signed distance; the oracle returns the buffer region and its exact AREA. Covers disk, stadium (caps+sides), square and triangle shells over positive and (where defined) negative offsets.
+#
+# VERIFIED PROOF SOURCE: the NetTopologySuite.Proofs Rocq/Coq-extracted
+# exact-arithmetic oracle (OCaml + Zarith/GMP), mode BUFFER_REGION. Built by CI:
+#   repo grootstebozewolf/NetTopologySuite.Proofs, run 27898361647, artifact 7773429562
+#   (oracle-bin-linux); zip sha256 b1b9f236e69cf6607519d89b6610e1e97fd613ce7833479846949961a073d573,
+#   binary sha256 8d86bb4e3d4157795b4dfa7791e7aa8ce638d6741fa455f16aced407d3977fe8.
+# Every expected value below is the oracle's verdict. The oracle is not
+# vendored and is not a build dependency; these committed vectors are the
+# durable, reproducible proof artifact a JTS implementation is pinned to.
+
+#
+# Format: shapeLabel  distance  expectedBufferArea
+
+disk5     0.5  95.03317777109125
+disk5     1.0  113.09733552923255
+disk5     2.0  153.93804002589985
+disk5     3.0  201.06192982974676
+disk5     -1.0  50.26548245743669
+disk5     -2.0  28.274333882308138
+disk5     -3.0  12.566370614359172
+disk5     -4.0  3.141592653589793
+stadium   0.5  49.63495408493621
+stadium   1.0  64.27433388230814
+stadium   1.5  80.48451000647496
+stadium   2.0  98.26548245743669
+stadium   -0.5  25.068583470577035
+stadium   -1.0  15.141592653589793
+square10  0.5  120.78539816339746
+square10  1.0  143.14159265358978
+square10  1.5  167.068583470577
+square10  2.0  192.56637061435916
+square10  3.0  248.27433388230816
+triangle  0.5  40.84765591169601
+triangle  1.0  55.266108150186895
+triangle  1.5  71.25535671547269
+triangle  2.0  88.81540160755337
