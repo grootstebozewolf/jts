@@ -133,4 +133,54 @@ public class CurvedDensifierTest extends TestCase {
     t = Math.max(0, Math.min(1, t));
     return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
   }
+
+  /**
+   * Oracle bound (DSF): the densified polyline of a circular arc is inscribed, so
+   * its length is never greater than the exact arc length (a densifier that
+   * sampled <i>off</i> the arc would overshoot it), and a fine densification
+   * recovers nearly all of it. Each committed vector is an arc and its exact
+   * NetTopologySuite.Proofs ARC_LENGTH; we densify to a fine fraction of the arc's
+   * circumradius and bracket the polyline length by the oracle value.
+   */
+  public void testDensifiedLengthBracketedByOracle() throws Exception {
+    java.io.InputStream in = getClass().getResourceAsStream(
+        "/org/locationtech/jts/geom/curved/rocqref/curve_densify_length_vectors.txt");
+    assertNotNull("densify length vectors resource", in);
+    java.io.BufferedReader r = new java.io.BufferedReader(
+        new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
+    String s; int checked = 0;
+    while ((s = r.readLine()) != null) {
+      s = s.trim();
+      if (s.isEmpty() || s.startsWith("#")) continue;
+      String[] t = s.split("\\s+");
+      double sx = Double.parseDouble(t[0]), sy = Double.parseDouble(t[1]);
+      double mx = Double.parseDouble(t[2]), my = Double.parseDouble(t[3]);
+      double ex = Double.parseDouble(t[4]), ey = Double.parseDouble(t[5]);
+      double exactLen = Double.parseDouble(t[6]);
+      double rad = circumradius(sx, sy, mx, my, ex, ey);
+      double tol = rad * 2e-3;                       // fine sagitta relative to size
+      LineString lin = (LineString) cs(sx, sy, mx, my, ex, ey).toLinear(tol);
+      Coordinate[] c = lin.getCoordinates();
+      double polyLen = 0;
+      for (int i = 0; i + 1 < c.length; i++) polyLen += c[i].distance(c[i + 1]);
+      // inscribed: never longer than the true arc
+      assertTrue("polyline " + polyLen + " must not exceed arc " + exactLen + " for " + s,
+          polyLen <= exactLen + 1e-9 * Math.max(1.0, exactLen));
+      // fine densification recovers nearly all of the arc (not just the chord)
+      assertTrue("polyline " + polyLen + " too short vs arc " + exactLen + " for " + s,
+          polyLen >= exactLen * (1 - 1e-2));
+      checked++;
+    }
+    r.close();
+    assertTrue("should have checked oracle vectors", checked >= 10);
+  }
+
+  private static double circumradius(double sx, double sy, double mx, double my,
+                                     double ex, double ey) {
+    double d = 2 * (sx * (my - ey) + mx * (ey - sy) + ex * (sy - my));
+    double s2 = sx * sx + sy * sy, m2 = mx * mx + my * my, e2 = ex * ex + ey * ey;
+    double cx = (s2 * (my - ey) + m2 * (ey - sy) + e2 * (sy - my)) / d;
+    double cy = (s2 * (ex - mx) + m2 * (sx - ex) + e2 * (mx - sx)) / d;
+    return Math.hypot(sx - cx, sy - cy);
+  }
 }
