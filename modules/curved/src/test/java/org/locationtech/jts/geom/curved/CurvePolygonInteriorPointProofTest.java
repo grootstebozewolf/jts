@@ -92,4 +92,18 @@ public class CurvePolygonInteriorPointProofTest extends GeometryTestCase {
     CurvePolygon cp = readCP("CURVEPOLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))");
     assertTrue(cp.toLinear(0.02).contains(cp.getInteriorPoint()));
   }
+
+  // ---------------------------------------------------------------------------
+  // Oracle note (C-IP): an oracle pin of the containment decision was prototyped
+  // (oracle POINT_IN_CURVE_RING on disk rings vs the densified contains check
+  // above) and intentionally dropped. On this branch CurvePolygon.toLinear returns
+  // the CHORD polygon (the inscribed control-point ring), so the contains check is
+  // conservative: a point in a circular-segment region (between the chord polygon
+  // and the true arc) is correctly inside the disk per the exact oracle but
+  // outside the chord polygon. That is a faithful difference, not a defect --
+  // arc-aware toLinear tessellation is the DSF TAG's contribution. The
+  // interior-point insideness used here is therefore verified conservatively
+  // (inside the chord polygon implies inside the curved region), and the EXACT
+  // point-in-curve-ring oracle pin lives on V-CP / R-PR / R-CONT.
+  // ---------------------------------------------------------------------------
 }
