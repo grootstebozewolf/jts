@@ -93,4 +93,19 @@ public class CurvedSimplifierTest extends TestCase {
       assertTrue("matches core DP on " + ls, expected.equalsExact(actual));
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Oracle note (S-DP): the NetTopologySuite.Proofs oracle's SIMPLIFY mode
+  // implements a DIFFERENT Douglas-Peucker variant than JTS core
+  // DouglasPeuckerSimplifier. On an equal-deviation zigzag
+  // (0,0)(1,3)(2,0)(3,3)(4,0)(5,3)(6,0) at tolerance 2.0 the oracle retains all 7
+  // vertices while JTS retains 5; the two recurse/keep differently once a sub-span
+  // baseline rotates. JTS's simplifier is the authoritative shipping reference for
+  // this TAG (and CurvedDouglasPeuckerSimplifier delegates the LineString path to
+  // it verbatim, pinned by testPlainLineStringMatchesCore above). The oracle is
+  // therefore intentionally NOT used to pin the simplification path: doing so would
+  // assert equivalence between two distinct algorithms. Curve-awareness (the actual
+  // S-DP requirement: arcs are preserved, not collapsed to chords) is pinned by the
+  // CircularString/CompoundCurve/CurvePolygon cases above.
+  // ---------------------------------------------------------------------------
 }
