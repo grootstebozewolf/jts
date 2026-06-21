@@ -108,6 +108,33 @@ final class CircularArcs {
     return trimmed;
   }
 
+  /**
+   * Whether the segment {@code (p, q)} <i>straddles</i> the supporting circle of
+   * the arc through {@code (s, m, e)} &mdash; i.e. exactly one endpoint lies
+   * strictly inside that circle (CCIRC, #1195: a fast circle-membership clip /
+   * Delaunay-style predicate for curved geometry).
+   * <p>
+   * This is endpoint membership, not transversal crossing: a secant whose two
+   * endpoints are both outside (it dips through the circle and back out) does not
+   * straddle, and an endpoint exactly on the circle counts as not-inside. The test
+   * reduces to the sign of {@code |p - C|^2 - r^2} versus {@code |q - C|^2 - r^2}.
+   * A collinear (non-circular) triple has no circle and returns {@code false}.
+   */
+  static boolean chordCrossesCircle(double sx, double sy, double mx, double my,
+                                    double ex, double ey, double px, double py,
+                                    double qx, double qy) {
+    double d = 2 * (sx * (my - ey) + mx * (ey - sy) + ex * (sy - my));
+    if (d == 0.0) return false;                          // collinear: no circle
+    double s2 = sx * sx + sy * sy, m2 = mx * mx + my * my, e2 = ex * ex + ey * ey;
+    double cx = (s2 * (my - ey) + m2 * (ey - sy) + e2 * (sy - my)) / d;
+    double cy = (s2 * (ex - mx) + m2 * (sx - ex) + e2 * (mx - sx)) / d;
+    if (!Double.isFinite(cx) || !Double.isFinite(cy)) return false;
+    double r2 = (sx - cx) * (sx - cx) + (sy - cy) * (sy - cy);
+    double dp = (px - cx) * (px - cx) + (py - cy) * (py - cy) - r2;
+    double dq = (qx - cx) * (qx - cx) + (qy - cy) * (qy - cy) - r2;
+    return (dp < 0) != (dq < 0);                         // exactly one endpoint strictly inside
+  }
+
   /** Positive angular turn from {@code from} to {@code to} in the given direction, in [0, 2*pi). */
   private static double directedSweep(double from, double to, boolean ccw) {
     double t = ccw ? (to - from) : (from - to);
