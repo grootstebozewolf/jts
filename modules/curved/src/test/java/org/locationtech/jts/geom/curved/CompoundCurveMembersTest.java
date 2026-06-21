@@ -158,4 +158,32 @@ public class CompoundCurveMembersTest extends GeometryTestCase {
     // Also via the Geometry path (the one the meter exercises)
     assertEquals(expected, g.getLength(), 1e-9);
   }
+
+  /**
+   * Pins compound-curve total length (M-LEN-CC) to the verified oracle: each
+   * committed vector is a chained COMPOUNDCURVE WKT whose expected total is the
+   * sum of the oracle ARC_LENGTH of its circular-arc members plus the chord
+   * lengths of its straight members. {@code getLength()} must reproduce it.
+   */
+  public void testCompoundLengthMatchesOracleVectors() throws Exception {
+    java.io.InputStream in = getClass().getResourceAsStream(
+        "/org/locationtech/jts/geom/curved/rocqref/curve_compound_length_vectors.txt");
+    assertNotNull("compound length vectors resource", in);
+    java.io.BufferedReader r = new java.io.BufferedReader(
+        new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
+    String s; int checked = 0;
+    while ((s = r.readLine()) != null) {
+      s = s.trim();
+      if (s.isEmpty() || s.startsWith("#")) continue;
+      int bar = s.indexOf('|');
+      double expected = Double.parseDouble(s.substring(0, bar).trim());
+      String wkt = s.substring(bar + 1).trim();
+      Geometry g = new CurvedWKTReader().read(wkt);
+      assertEquals("compound length for " + wkt, expected, g.getLength(),
+          1e-9 * Math.max(1.0, expected));
+      checked++;
+    }
+    r.close();
+    assertTrue("should have checked oracle vectors", checked >= 8);
+  }
 }
