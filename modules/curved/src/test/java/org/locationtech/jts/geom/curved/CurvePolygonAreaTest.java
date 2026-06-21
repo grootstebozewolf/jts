@@ -49,6 +49,28 @@ public class CurvePolygonAreaTest extends TestCase {
     assertEquals(DISK, disk.getArea(), 1e-6 * DISK);
   }
 
+  /**
+   * Arc-awareness guard (the core M-AREA-CP requirement): a disk built from
+   * arcs must have area &pi;R&sup2;, strictly greater than the inscribed
+   * control-point polygon the inherited {@link org.locationtech.jts.geom.Polygon}
+   * behaviour would measure. A regression that dropped the circular-segment
+   * correction would collapse the two.
+   */
+  public void testAreaIsArcAwareNotControlPolygon() {
+    double q = R / Math.sqrt(2);
+    double[] xy = {10,0, q,q, 0,10, -q,q, -10,0, -q,-q, 0,-10, q,-q, 10,0};
+    CurvePolygon disk = gf.createCurvePolygon(cs(xy));
+    // Shoelace area of the control points (the inscribed polygon).
+    double poly = 0;
+    for (int i = 0; i + 2 < xy.length; i += 2)
+      poly += xy[i] * xy[i + 3] - xy[i + 2] * xy[i + 1];
+    poly = Math.abs(poly) / 2;
+    assertTrue("control polygon must be inscribed (< disk)", poly < DISK - 1.0);
+    assertEquals("arc-aware area is the full disk", DISK, disk.getArea(), 1e-6 * DISK);
+    assertTrue("disk area must exceed the inscribed control polygon",
+        disk.getArea() > poly + 1.0);
+  }
+
   /** Disk as four quarter arcs. */
   public void testDiskAreaFourArcs() {
     double q = R / Math.sqrt(2);
