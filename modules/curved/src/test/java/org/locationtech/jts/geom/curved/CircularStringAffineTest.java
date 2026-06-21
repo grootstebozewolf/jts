@@ -110,4 +110,17 @@ public class CircularStringAffineTest extends TestCase {
     double uy = (a2*(c.x-b.x) + b2*(a.x-c.x) + c2*(b.x-a.x)) / d;
     return Math.hypot(a.x-ux, a.y-uy);
   }
+
+  /**
+   * Oracle note (AT-S): a "transform then measure" cross-check against the oracle's
+   * ARC_LENGTH was prototyped but is intentionally NOT pinned here. On this branch
+   * {@link CircularString#getLength()} is still the inherited chord-polyline length
+   * (arc-aware length is the separate M-LEN-CS TAG), so the transformed length is
+   * the polyline sum, not r*theta -- e.g. for an arc scaled by k=1.657 the oracle
+   * arc length is 26.695 while the transformed getLength() is the chord polyline
+   * 26.359. The existing tests pin what AT-S actually guarantees: a similarity maps
+   * a CircularString to a CircularString whose control points are the transformed
+   * controls (so the circumradius scales by the similarity factor), independent of
+   * how length is later defined. The arc-length oracle pin lives on M-LEN-CS.
+   */
 }
