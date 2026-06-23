@@ -27,6 +27,8 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.curved.CircularString;
+import org.locationtech.jts.geom.curved.CompoundCurve;
+import org.locationtech.jts.geom.curved.CurvePolygon;
 import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
 import org.locationtech.jts.geom.curved.Tin;
 import org.locationtech.jts.geom.curved.Triangle;
@@ -74,6 +76,34 @@ public class GeometryCombiner
         : new CurvedGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
     CircularString line = cgf.createCircularString(geomFactory.getCoordinateSequenceFactory().create(pts));
     return combine(orig, line);
+  }
+
+  public Geometry addCompoundCurve(Geometry orig, Coordinate[] pts)
+  {
+    CurvedGeometryFactory cgf = (geomFactory instanceof CurvedGeometryFactory)
+        ? (CurvedGeometryFactory) geomFactory
+        : new CurvedGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
+    CompoundCurve line = cgf.createCompoundCurve(geomFactory.getCoordinateSequenceFactory().create(pts));
+    return combine(orig, line);
+  }
+
+  public Geometry addCurvePolygon(Geometry orig, Coordinate[] pts)
+  {
+    CurvedGeometryFactory cgf = (geomFactory instanceof CurvedGeometryFactory)
+        ? (CurvedGeometryFactory) geomFactory
+        : new CurvedGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
+    // Close the ring if not already closed
+    Coordinate[] ring;
+    if (pts.length >= 3 && !pts[0].equals2D(pts[pts.length - 1])) {
+      ring = new Coordinate[pts.length + 1];
+      System.arraycopy(pts, 0, ring, 0, pts.length);
+      ring[pts.length] = new Coordinate(pts[0]);
+    } else {
+      ring = pts;
+    }
+    CircularString shell = cgf.createCircularString(geomFactory.getCoordinateSequenceFactory().create(ring));
+    CurvePolygon poly = cgf.createCurvePolygon(shell);
+    return combine(orig, poly);
   }
 
   /**

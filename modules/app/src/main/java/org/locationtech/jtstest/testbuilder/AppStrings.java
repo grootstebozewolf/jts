@@ -56,6 +56,8 @@ public class AppStrings {
   static final String TIP_DRAW_POINT = "Draw Point";
   static final String TIP_DRAW_LINE = "<html>Draw LineString<br><br>Add Pt: Left-Click<br>Stream: Left-Drag</html>";
   static final String TIP_DRAW_CIRCULAR = "<html>Draw CircularString<br><br>Each triple of points becomes one arc.<br>Add Pt: Left-Click<br>Stream: Left-Drag</html>";
+  static final String TIP_DRAW_COMPOUNDCURVE = "<html>Draw CompoundCurve<br><br>Each triple of points becomes one arc or chord.<br>Add Pt: Left-Click<br>Stream: Left-Drag</html>";
+  static final String TIP_DRAW_CURVEPOLYGON = "<html>Draw CurvePolygon<br><br>Click control points; right-click to close and commit.<br>Add Pt: Left-Click<br>Stream: Left-Drag</html>";
   static final String TIP_DRAW_TRIANGLE = "<html>Draw Triangle<br><br>Click the three corners; the tool auto-finishes on the third click.</html>";
   static final String TIP_DRAW_TIN = "<html>Draw TIN<br><br>Each triple of clicks adds one triangular patch.<br>Double-click to finalise the TIN.</html>";
   static final String TIP_DRAW_POLY = "<html>Draw Polygon<br><br>Add Pt: Left-Click<br>Stream: Left-Drag</html>";

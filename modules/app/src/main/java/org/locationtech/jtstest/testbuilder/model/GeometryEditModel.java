@@ -286,6 +286,14 @@ public class GeometryEditModel
       Coordinate[] tinPts = CoordinateArrays.toCoordinateArray(coordList);
       newGeom = creator.addTin(getGeometry(), tinPts);
       break;
+    case GeometryType.COMPOUNDCURVE:
+      Coordinate[] ccPts = CoordinateArrays.toCoordinateArray(coordList);
+      newGeom = creator.addCompoundCurve(getGeometry(), ccPts);
+      break;
+    case GeometryType.CURVEPOLYGON:
+      Coordinate[] cpPts = CoordinateArrays.toCoordinateArray(coordList);
+      newGeom = creator.addCurvePolygon(getGeometry(), cpPts);
+      break;
     case GeometryType.POINT:
       newGeom = creator.addPoint(getGeometry(), (Coordinate) coordList.get(0));      
       break;

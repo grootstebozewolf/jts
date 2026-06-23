@@ -38,6 +38,8 @@ public class JTSTestBuilderToolBar {
   JToggleButton drawPolygonButton;
   JToggleButton drawLineStringButton;
   JToggleButton drawCircularStringButton;
+  JToggleButton drawCompoundCurveButton;
+  JToggleButton drawCurvePolygonButton;
   JToggleButton drawTriangleButton;
   JToggleButton drawTinButton;
   JToggleButton drawPointButton;
@@ -63,6 +65,10 @@ public class JTSTestBuilderToolBar {
   private final ImageIcon drawLineStringBIcon = new ImageIcon(this.getClass().getResource("DrawLineStringB.png"));
   private final ImageIcon drawCircularStringIcon = new ImageIcon(this.getClass().getResource("DrawCircularString.png"));
   private final ImageIcon drawCircularStringBIcon = new ImageIcon(this.getClass().getResource("DrawCircularStringB.png"));
+  private final ImageIcon drawCompoundCurveIcon = new ImageIcon(this.getClass().getResource("DrawCompoundCurve.png"));
+  private final ImageIcon drawCompoundCurveBIcon = new ImageIcon(this.getClass().getResource("DrawCompoundCurveB.png"));
+  private final ImageIcon drawCurvePolygonIcon = new ImageIcon(this.getClass().getResource("DrawCurvePolygon.png"));
+  private final ImageIcon drawCurvePolygonBIcon = new ImageIcon(this.getClass().getResource("DrawCurvePolygonB.png"));
   private final ImageIcon drawTriangleIcon = new ImageIcon(this.getClass().getResource("DrawTriangle.png"));
   private final ImageIcon drawTriangleBIcon = new ImageIcon(this.getClass().getResource("DrawTriangleB.png"));
   private final ImageIcon drawTinIcon = new ImageIcon(this.getClass().getResource("DrawTin.png"));
@@ -218,6 +224,20 @@ public class JTSTestBuilderToolBar {
               controller().modeDrawCircularString();
             }
           });
+      drawCompoundCurveButton = createToggleButton(
+          AppStrings.TIP_DRAW_COMPOUNDCURVE, drawCompoundCurveIcon,
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+              controller().modeDrawCompoundCurve();
+            }
+          });
+      drawCurvePolygonButton = createToggleButton(
+          AppStrings.TIP_DRAW_CURVEPOLYGON, drawCurvePolygonIcon,
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+              controller().modeDrawCurvePolygon();
+            }
+          });
       drawTriangleButton = createToggleButton(
           AppStrings.TIP_DRAW_TRIANGLE, drawTriangleIcon,
           new java.awt.event.ActionListener() {
@@ -310,6 +330,8 @@ public class JTSTestBuilderToolBar {
           ,drawPolygonButton
           ,drawLineStringButton
           ,drawCircularStringButton
+          ,drawCompoundCurveButton
+          ,drawCurvePolygonButton
           ,drawTriangleButton
           ,drawTinButton
           ,drawPointButton
@@ -338,7 +360,7 @@ public class JTSTestBuilderToolBar {
         extractComponentButton,
         
         strut(20),
-        drawRectangleButton,drawPolygonButton,drawLineStringButton,drawCircularStringButton,drawTriangleButton,drawTinButton,
+        drawRectangleButton,drawPolygonButton,drawLineStringButton,drawCircularStringButton,drawCompoundCurveButton,drawCurvePolygonButton,drawTriangleButton,drawTinButton,
         drawPointButton,
         strut(20),
         btnMove, btnEditVertex,
@@ -370,6 +392,8 @@ public class JTSTestBuilderToolBar {
     drawPolygonButton.setIcon(index == 0 ? drawPolygonIcon : drawPolygonBIcon);
     drawLineStringButton.setIcon(index == 0 ? drawLineStringIcon : drawLineStringBIcon);
     drawCircularStringButton.setIcon(index == 0 ? drawCircularStringIcon : drawCircularStringBIcon);
+    drawCompoundCurveButton.setIcon(index == 0 ? drawCompoundCurveIcon : drawCompoundCurveBIcon);
+    drawCurvePolygonButton.setIcon(index == 0 ? drawCurvePolygonIcon : drawCurvePolygonBIcon);
     drawTriangleButton.setIcon(index == 0 ? drawTriangleIcon : drawTriangleBIcon);
     drawTinButton.setIcon(index == 0 ? drawTinIcon : drawTinBIcon);
     drawPointButton.setIcon(index == 0 ? drawPointIcon : drawPointBIcon);
