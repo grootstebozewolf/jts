@@ -40,14 +40,16 @@
                 </configuration>
             </plugin>
             <!--
-              Curve-Awareness Spec class (CurveAwarenessSpecTest under
-              spec/curveawareness/) is intentionally red. It documents
-              the operations that aren't yet curve-aware, one failing
-              test method per TAG. CI stays green by default; contributors
-              run the spec class explicitly with
-                mvn test -Dtest=CurveAwarenessSpecTest
-              The surviving method count is the live progress meter.
-              See locationtech/jts#1195 (SFA Curve Awareness epic) section 11.
+              Spec / red-test and probe suites under spec/curveawareness/
+              are intentionally red (CurveAwarenessSpecTest) or print-only
+              (probe spikes). They document operations that aren't yet
+              curve-aware, one failing test method per TAG, plus per-spike
+              probe runs. CI stays green by default; contributors run them
+              explicitly with
+                mvn -pl modules/curved test -Dtest=<SpecOrProbeClass>
+              The surviving method count of CurveAwarenessSpecTest is the
+              live progress meter.
+              See locationtech/jts#1195 (SFA Curve Awareness epic) §11.
             -->
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>

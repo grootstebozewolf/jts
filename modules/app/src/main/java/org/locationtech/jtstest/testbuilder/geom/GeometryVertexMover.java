@@ -21,6 +21,14 @@ public class GeometryVertexMover
 
   public static Geometry move(Geometry geom, Coordinate fromLoc, Coordinate toLoc)
   {
+    // Curve geometries (CompoundCurve / CircularString / ClothoidSegment)
+    // all extend LineString, so GeometryEditor.CoordinateOperation would
+    // call factory.createLineString(...) and silently strip the subtype,
+    // also flattening CompoundCurve member structure. Detect those cases
+    // first and route through the curve-aware helper; everything else
+    // takes the generic editor path unchanged.
+    Geometry curveAware = CurveAwareVertexOps.move(geom, fromLoc, toLoc);
+    if (curveAware != null) return curveAware;
     GeometryEditor editor = new GeometryEditor();
     editor.setCopyUserData(true);
     return editor.edit(geom, new MoveVertexOperation(fromLoc, toLoc));

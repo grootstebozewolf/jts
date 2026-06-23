@@ -18,9 +18,12 @@ import java.util.Locale;
 
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curved.CircularString;
 import org.locationtech.jts.geom.curved.ClothoidSegment;
 import org.locationtech.jts.geom.curved.CompoundCurve;
+import org.locationtech.jts.geom.curved.MultiCurve;
+import org.locationtech.jts.geom.curved.MultiSurface;
 import org.locationtech.jts.io.Ordinate;
 import org.locationtech.jts.io.OrdinateFormat;
 import org.locationtech.jts.io.WKTConstants;
@@ -36,13 +39,27 @@ import org.locationtech.jts.io.WKTWriter;
  * keyword, so e.g. {@code CircularString (1 2, 3 4, 5 6)} comes out
  * correctly via the {@code LineString} formatter.
  *
- * <p>{@link CompoundCurve} is the exception: emitting its concatenated
- * coordinate sequence as a flat {@code COMPOUNDCURVE (x1 y1, …)} loses
- * the segment structure. This writer overrides
- * {@link #appendOtherGeometryTaggedText} to walk
- * {@code CompoundCurve.getMembers()} and emit each member tagged
- * (CIRCULARSTRING) or untagged (raw {@code (…)} for LineString),
- * round-tripping cleanly through {@link CurvedWKTReader}.
+ * <p>This subclass uses the {@link #appendOtherGeometryTaggedText}
+ * extension hook to handle the composite types whose flat-coordinate
+ * emission would otherwise lose member structure:
+ *
+ * <ul>
+ *   <li><b>COMPOUNDCURVE</b> — walks {@code getMembers()} and emits each
+ *       member tagged (CIRCULARSTRING / CLOTHOID) or untagged (raw
+ *       {@code (…)} for plain LineString), round-tripping cleanly
+ *       through {@link CurvedWKTReader}.</li>
+ *   <li><b>MULTICURVE</b> — emits {@code CIRCULARSTRING (…)} or
+ *       {@code COMPOUNDCURVE (…)} for non-plain members, body-only
+ *       parentheses for plain {@code LineString} members.</li>
+ *   <li><b>MULTISURFACE</b> — emits {@code CURVEPOLYGON (…)} for
+ *       {@code CurvePolygon} members, body-only parentheses for plain
+ *       {@code Polygon} members.</li>
+ * </ul>
+ *
+ * <p>Closes F-MC-WKT and F-MS-WKT (locationtech/jts#1195). The
+ * reader-side preservation of member subtypes already works on the
+ * current Phase-1 base via {@code CurvedWKTReader.readCurveMember /
+ * readSurfaceMember}; only the writer side needed to learn.
  */
 public class CurvedWKTWriter extends WKTWriter {
 
@@ -61,6 +78,14 @@ public class CurvedWKTWriter extends WKTWriter {
     if (geometry instanceof CompoundCurve) {
       appendCompoundCurveTaggedText(
           (CompoundCurve) geometry, outputOrdinates, useFormatting, level, writer, formatter);
+      return true;
+    }
+    if (geometry instanceof MultiCurve) {
+      writeMultiCurveText((MultiCurve) geometry, outputOrdinates, writer);
+      return true;
+    }
+    if (geometry instanceof MultiSurface) {
+      writeMultiSurfaceText((MultiSurface) geometry, outputOrdinates, writer);
       return true;
     }
     return false;
@@ -105,5 +130,61 @@ public class CurvedWKTWriter extends WKTWriter {
     writer.write(", ");
     writer.write(formatter.format(cs.getLength()));
     writer.write(")");
+  }
+
+  private void writeMultiCurveText(MultiCurve mc, EnumSet<Ordinate> outputOrdinates, Writer writer)
+      throws IOException {
+    writer.write(mc.getGeometryType().toUpperCase(Locale.ROOT));
+    appendOrdinateText(outputOrdinates, writer);
+    if (mc.isEmpty()) {
+      writer.write(" EMPTY");
+      return;
+    }
+    writer.write(" (");
+    for (int i = 0; i < mc.getNumGeometries(); i++) {
+      if (i > 0) writer.write(", ");
+      Geometry m = mc.getGeometryN(i);
+      // Plain LineString members emit body-only (OGC SFA conventional).
+      // Curve-typed members emit the tagged form so the reader recovers
+      // their subtype on round-trip.
+      if (m.getClass() == LineString.class) {
+        writer.write(emitBodyOnly(m));
+      } else {
+        writer.write(new CurvedWKTWriter().write(m));
+      }
+    }
+    writer.write(")");
+  }
+
+  private void writeMultiSurfaceText(MultiSurface ms, EnumSet<Ordinate> outputOrdinates, Writer writer)
+      throws IOException {
+    writer.write(ms.getGeometryType().toUpperCase(Locale.ROOT));
+    appendOrdinateText(outputOrdinates, writer);
+    if (ms.isEmpty()) {
+      writer.write(" EMPTY");
+      return;
+    }
+    writer.write(" (");
+    for (int i = 0; i < ms.getNumGeometries(); i++) {
+      if (i > 0) writer.write(", ");
+      Geometry m = ms.getGeometryN(i);
+      if (m.getClass() == Polygon.class) {
+        writer.write(emitBodyOnly(m));
+      } else {
+        writer.write(new CurvedWKTWriter().write(m));
+      }
+    }
+    writer.write(")");
+  }
+
+  /**
+   * Body-only emission for plain LineString / Polygon members.
+   * Strips the leading keyword (e.g. "LINESTRING ", "POLYGON ") so that
+   * the result reads as a bare parenthesised body within a multi-composite.
+   */
+  private static String emitBodyOnly(Geometry plainMember) {
+    String full = new CurvedWKTWriter().write(plainMember);
+    int firstParen = full.indexOf('(');
+    return firstParen < 0 ? full : full.substring(firstParen);
   }
 }

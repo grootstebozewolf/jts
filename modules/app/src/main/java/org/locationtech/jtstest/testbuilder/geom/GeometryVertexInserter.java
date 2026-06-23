@@ -19,11 +19,17 @@ import org.locationtech.jts.geom.util.GeometryEditor;
 
 public class GeometryVertexInserter 
 {
-  public static Geometry insert(Geometry geom, 
-      LineString line, 
+  public static Geometry insert(Geometry geom,
+      LineString line,
       int segIndex,
       Coordinate newVertex)
   {
+    // Routing identical to GeometryVertexMover: curve geometries get
+    // member-aware insert that preserves CompoundCurve structure and
+    // refuses on arc/clothoid members (analytic curves can't absorb
+    // a free vertex). Plain Geometry falls through to GeometryEditor.
+    Geometry curveAware = CurveAwareVertexOps.insert(geom, line, segIndex, newVertex);
+    if (curveAware != null) return curveAware;
     GeometryEditor editor = new GeometryEditor();
     editor.setCopyUserData(true);
     return editor.edit(geom, new InsertVertexOperation(line, segIndex, newVertex));
