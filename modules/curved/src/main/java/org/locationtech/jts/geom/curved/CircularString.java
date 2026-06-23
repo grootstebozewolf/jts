@@ -80,6 +80,11 @@ public class CircularString extends LineString implements Linearizable {
   }
 
   @Override
+  public Geometry buffer(double distance) {
+    return CurvedBuffer.buffer(this, distance);
+  }
+
+  @Override
   public Geometry toLinear(double tolerance) {
     return toLinear(tolerance, Collections.<Coordinate>emptyList());
   }

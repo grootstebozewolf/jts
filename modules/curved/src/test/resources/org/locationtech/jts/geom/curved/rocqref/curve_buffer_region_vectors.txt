@@ -1,0 +1,21 @@
+# Oracle BUFFER_REGION area certificates (NetTopologySuite.Proofs).
+# Format: <shape-label> <signed-distance> <expected-arc-area>
+# Generated from oracle_bin BUFFER_REGION mode; reproduced by CurvedBufferTest.testOraclePinnedAreas.
+#
+# disk5    : CCW circle r=5 centre (0,0) — 2-arc ring
+# stadium  : CCW stadium caps r=2 at x=±3, straight sides y=±2
+# square10 : CCW square (0,0)-(10,10) — 4 collinear (chord) sides
+# triangle : CCW triangle (0,0),(8,0),(4,7) — 3 collinear sides
+disk5 1 113.09733552923255
+disk5 2 153.93804002589985
+disk5 3 201.06192982974676
+disk5 4 254.46900494077323
+stadium 1 64.27433388230814
+stadium 2 98.26548245743669
+stadium 3 138.53981633974485
+square10 1 143.14159265358978
+square10 2 192.56637061435916
+square10 3 248.27433388230816
+triangle 1 55.266108150186895
+triangle 2 88.81540160755335
+triangle 3 128.64788037209945
