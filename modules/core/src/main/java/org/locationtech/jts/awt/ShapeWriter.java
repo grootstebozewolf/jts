@@ -24,6 +24,7 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Triangle;
 
 
 
@@ -251,52 +252,61 @@ public class ShapeWriter
 		GeneralPath path = new GeneralPath();
 
 		for (int i = 0; i < mls.getNumGeometries(); i++) {
-			CircularString CircularString = (CircularString) mls.getGeometryN(i);
-			path.append(toShape(CircularString), false);
+			CircularString arc = (CircularString) mls.getGeometryN(i);
+			path.append(toShape(arc), false);
 		}
 		return path;
 	}
-	private boolean IsColinear(double x1, double y1,
-	double x2, double y2,
-	double x3, double y3)
+
+	private boolean isColinear(double x1, double y1, double x2, double y2, double x3, double y3)
 	{
-		return y2 - y1 / x2- x1 == y3 - y1 / x3 - x1;
+		return Math.abs( (x2 - x1)*(y3 - y1) - (x3 - x1)*(y2 - y1) ) < 1e-10;
 	}
 
-	private GeneralPath toShape(CircularString CircularString)
+	private GeneralPath toShape(CircularString cs)
 	{
 		GeneralPath shape = new GeneralPath();
-			
-		Coordinate arcStart = CircularString.getCoordinateN(0);
-		transformPoint(arcStart, transPoint);
-		double arcStartX = transPoint.getX();
-		double arcStartY = transPoint.getY();
-		shape.moveTo((float) arcStartX, (float) arcStartY);
+		Coordinate[] pts = cs.getCoordinates();
+		if (pts.length < 3) return shape;
 		
-		int n = CircularString.getNumPoints() - 1;
-		//int count = 0;
-		for (int i = 1; i <= n; i = i + 2) {
-			Coordinate arcMid = CircularString.getCoordinateN(i-1);
-			transformPoint(arcMid, transPoint);
-			double arcMidX = transPoint.getX();
-			double arcMidY = transPoint.getY();
-			Coordinate arcEnd = CircularString.getCoordinateN(i);
-			transformPoint(arcEnd, transPoint);
-			double arcEndX = transPoint.getX();
-			double arcEndY = transPoint.getY();
+		transformPoint(pts[0], transPoint);
+		shape.moveTo((float) transPoint.getX(), (float) transPoint.getY());
+		
+		for (int i = 2; i < pts.length; i += 2) {
+			Coordinate s = pts[i-2];
+			Coordinate m = pts[i-1];
+			Coordinate e = pts[i];
+			transformPoint(s, transPoint); double sx = transPoint.getX(); double sy = transPoint.getY();
+			transformPoint(m, transPoint); double mx = transPoint.getX(); double my = transPoint.getY();
+			transformPoint(e, transPoint); double ex = transPoint.getX(); double ey = transPoint.getY();
 
-			if(IsColinear(arcStartX, arcStartY, arcMidX, arcMidY, arcEndX, arcEndY))
-			{
-				shape.lineTo((float)arcEndX, (float)arcEndY);
+			if (isColinear(sx, sy, mx, my, ex, ey)) {
+				shape.lineTo((float)ex, (float)ey);
+			} else {
+				Coordinate c1 = new Coordinate(sx, sy);
+				Coordinate c2 = new Coordinate(mx, my);
+				Coordinate c3 = new Coordinate(ex, ey);
+				Coordinate cen = Triangle.circumcentre(c1, c2, c3);
+				double cx = cen.x;
+				double cy = cen.y;
+				double r = Math.hypot(sx - cx, sy - cy);
+				double a1 = Math.atan2(sy - cy, sx - cx);
+				double a2 = Math.atan2(ey - cy, ex - cx);
+				// determine sweep using orientation of s,m,e
+				double orient = (mx - sx)*(ey - sy) - (my - sy)*(ex - sx);
+				double theta = a2 - a1;
+				if (orient > 0) {
+					if (theta < 0) theta += 2 * Math.PI;
+				} else {
+					if (theta > 0) theta -= 2 * Math.PI;
+				}
+				double k = 4.0 / 3.0 * Math.tan(theta / 4.0);
+				double cp1x = cx + r * (Math.cos(a1) - k * Math.sin(a1));
+				double cp1y = cy + r * (Math.sin(a1) + k * Math.cos(a1));
+				double cp2x = cx + r * (Math.cos(a2) + k * Math.sin(a2));
+				double cp2y = cy + r * (Math.sin(a2) - k * Math.cos(a2));
+				shape.curveTo((float)cp1x, (float)cp1y, (float)cp2x, (float)cp2y, (float)ex, (float)ey);
 			}
-			else
-			{
-				//Get center of circle
-				//Calculate best fit of bezier curve from mid point
-				shape.curveTo((float)arcStartX, (float)arcStartY, (float)arcMidX, (float)arcMidY, (float)arcEndX, (float)arcEndY);
-			}			
-			arcStartX = arcEndX;	  
-			arcStartY = arcEndY;	  
 		}
 		return shape;
 	}
