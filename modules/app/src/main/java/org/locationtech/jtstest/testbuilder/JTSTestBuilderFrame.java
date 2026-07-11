@@ -45,6 +45,14 @@ import org.locationtech.jtstest.testbuilder.model.TestBuilderModel;
 import org.locationtech.jtstest.testbuilder.model.TestCaseEdit;
 import org.locationtech.jtstest.testbuilder.ui.SwingUtil;
 import org.locationtech.jtstest.testbuilder.ui.dnd.FileDrop;
+import org.locationtech.jtstest.testbuilder.ui.tools.DeleteVertexTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.EditVertexTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.ExtractComponentTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.InfoTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.CircularStringTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.LineStringTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.PanTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.PointTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.RectangleTool;
 import org.locationtech.jtstest.util.StringUtil;
 

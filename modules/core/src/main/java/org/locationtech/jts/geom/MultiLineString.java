@@ -42,8 +42,6 @@ public class MultiLineString
     super(lineStrings, new GeometryFactory(precisionModel, SRID));
   }
 
-
-
   /**
    * @param lineStrings
    *            the <code>LineString</code>s for this <code>MultiLineString</code>,
