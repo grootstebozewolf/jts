@@ -286,7 +286,10 @@ public class ShapeWriter
 			double arcEndX = transPoint.getX();
 			double arcEndY = transPoint.getY();
 
-			if (isColinear(arcStartX, arcStartY, arcMidX, arcMidY, arcEndX, arcEndY))
+			// Decide colinearity in *model* space (the geometric property of the arc).
+			// Using view coords + fixed tol breaks under non-identity transforms (e.g. zoom in GeometryPainter).
+			// Circumcentre already uses model coords; keep the decision consistent.
+			if (isColinear(arcStart.x, arcStart.y, arcMidOrig.x, arcMidOrig.y, arcEndOrig.x, arcEndOrig.y))
 			{
 				shape.lineTo((float)arcEndX, (float)arcEndY);
 			}
