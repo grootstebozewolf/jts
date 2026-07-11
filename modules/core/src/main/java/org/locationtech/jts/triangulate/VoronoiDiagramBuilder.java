@@ -2,9 +2,9 @@
  * Copyright (c) 2016 Vivid Solutions.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License 2.0
+ * are made available under the terms of the Eclipse Public License v1.0
  * and Eclipse Distribution License v. 1.0 which accompanies this distribution.
- * The Eclipse Public License is available at http://www.eclipse.org/legal/epl-v20.html
+ * The Eclipse Public License is available at http://www.eclipse.org/legal/epl-v10.html
  * and the Eclipse Distribution License is available at
  *
  * http://www.eclipse.org/org/documents/edl-v10.php.
@@ -17,6 +17,7 @@ import java.util.List;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateArrays;
+import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -61,13 +62,19 @@ public class VoronoiDiagramBuilder
 	/**
 	 * Sets the sites (point or vertices) which will be diagrammed.
 	 * All vertices of the given geometry will be used as sites.
+	 * Duplicate removal (exact or tolerance-based) is performed in create().
 	 * 
 	 * @param geom the geometry from which the sites will be extracted.
 	 */
 	public void setSites(Geometry geom)
 	{
-		// remove any duplicate points (they will cause the triangulation to fail)
-		siteCoords = DelaunayTriangulationBuilder.extractUniqueCoordinates(geom);
+		if (geom == null) {
+			siteCoords = new ArrayList();
+			return;
+		}
+		// store raw; dedup (considering tolerance) happens at create time
+		Coordinate[] coords = geom.getCoordinates();
+		siteCoords = new ArrayList(java.util.Arrays.asList(coords));
 	}
 	
 	/**
@@ -78,8 +85,8 @@ public class VoronoiDiagramBuilder
 	 */
 	public void setSites(Collection coords)
 	{
-		// remove any duplicate points (they will cause the triangulation to fail)
-		siteCoords = DelaunayTriangulationBuilder.unique(CoordinateArrays.toCoordinateArray(coords));
+		// store raw; dedup (considering tolerance) happens at create time
+		siteCoords = (coords == null) ? new ArrayList() : new ArrayList(coords);
 	}
 	
 	/**
@@ -109,21 +116,24 @@ public class VoronoiDiagramBuilder
 	{
 		if (subdiv != null) return;
 		
+		Coordinate[] coords = CoordinateArrays.toCoordinateArray(siteCoords);
+		CoordinateList uniqueSiteCoords = DelaunayTriangulationBuilder.unique(coords, tolerance);
+		Envelope siteEnv = DelaunayTriangulationBuilder.envelope(uniqueSiteCoords);
 		diagramEnv = clipEnv;
 		if (diagramEnv == null) {
 		  /** 
-		   * If no user-provided clip envelope, 
-		   * use one which encloses all the sites,
-		   * with a 50% buffer around the edges.
+		   * If no user-provided clip env, 
+		   * create one which encloses all the sites,
+		   * with a buffer around the edges.
 		   */
-  		diagramEnv = DelaunayTriangulationBuilder.envelope(siteCoords);
-  		// add a 50% buffer around the sites envelope
+  		diagramEnv = siteEnv;
+  		// add a buffer around the sites envelope
   		double expandBy = diagramEnv.getDiameter();
   		diagramEnv.expandBy(expandBy);
 		}
 
-		List vertices = DelaunayTriangulationBuilder.toVertices(siteCoords);
-		subdiv = new QuadEdgeSubdivision(diagramEnv, tolerance);
+		List vertices = DelaunayTriangulationBuilder.toVertices(uniqueSiteCoords);
+		subdiv = new QuadEdgeSubdivision(siteEnv, tolerance);
 		IncrementalDelaunayTriangulator triangulator = new IncrementalDelaunayTriangulator(subdiv);
 		triangulator.insertSites(vertices);
 	}
