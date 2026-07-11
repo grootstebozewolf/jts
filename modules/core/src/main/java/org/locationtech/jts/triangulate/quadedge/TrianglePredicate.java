@@ -109,15 +109,23 @@ public class TrianglePredicate
   }
 
   /**
+   * The unit roundoff for IEEE 754 double precision (round-to-nearest-even):
+   * the largest value for which {@code 1.0 + DOUBLE_EPS == 1.0}.
+   * This is Shewchuk's <tt>epsilon</tt>, computed by the <tt>exactinit()</tt>
+   * bisection in the original (C) predicates code.
+   */
+  private static final double DOUBLE_EPS = 0x1.0p-53;
+
+  /**
    * A filter bound for the in-circle determinant,
    * following Shewchuk's "Stage A" error analysis
-   * (iccerrboundA = (10 + 96 * epsilon) * epsilon, with epsilon = 2^-53).
+   * (iccerrboundA = (10 + 96 * epsilon) * epsilon).
    * If the magnitude of the determinant computed in double precision
    * exceeds this bound (scaled by the permanent of the matrix)
    * the sign of the determinant is certain to be correct.
    */
   private static final double IN_CIRCLE_ERR_BOUND =
-      (10.0 + 96.0 * 1.1102230246251565E-16) * 1.1102230246251565E-16;
+      (10.0 + 96.0 * DOUBLE_EPS) * DOUBLE_EPS;
 
   /**
    * Tests if a point is inside the circle defined by
