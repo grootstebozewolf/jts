@@ -35,6 +35,7 @@ import org.locationtech.jtstest.testbuilder.ui.tools.DeleteByBoxTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.EditVertexTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.ExtractComponentTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.InfoTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.CircularStringTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.LineStringTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.PanTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.PointTool;
@@ -246,6 +247,10 @@ public class JTSTestBuilderController
 
   public void modeDrawLineString() {
     setTool(LineStringTool.getInstance());
+  }    
+
+  public void modeDrawCircularString() {
+    setTool(CircularStringTool.getInstance());
   }
 
   public void modeDrawPoint() {
