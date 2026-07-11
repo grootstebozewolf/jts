@@ -934,12 +934,23 @@ public class QuadEdgeSubdivision {
     coordList.addAll(cellPts, false);
     coordList.closeRing();
     
-    if (coordList.size() < 4) {
-      System.out.println(coordList);
-      coordList.add(coordList.get(coordList.size()-1), true);
+    Coordinate[] pts = coordList.toCoordinateArray();
+    if (pts.length < 4) {
+      // ensure ctor always receives >=4 points (or safely produce empty to omit degenerate);
+      // padding keeps surrounding-vertex walk logic intact; with upstream dedup+robust fixes,
+      // normal sites should produce >=3 distinct circumcentres -> >=4 ring pts.
+      CoordinateList padded = new CoordinateList();
+      for (int i = 0; i < pts.length; i++) padded.add(pts[i], false);
+      Coordinate last = (pts.length > 0) ? pts[pts.length - 1] : new Coordinate(0, 0);
+      while (padded.size() < 4) {
+        padded.add(last, true);
+      }
+      if (!padded.get(padded.size() - 1).equals2D(padded.get(0))) {
+        padded.add(padded.get(0), false);
+      }
+      pts = padded.toCoordinateArray();
     }
     
-    Coordinate[] pts = coordList.toCoordinateArray();
     Polygon cellPoly = geomFact.createPolygon(geomFact.createLinearRing(pts));
     
     Vertex v = startQE.orig();

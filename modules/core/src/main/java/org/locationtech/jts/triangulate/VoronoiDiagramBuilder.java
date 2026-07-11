@@ -17,6 +17,7 @@ import java.util.List;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateArrays;
+import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -61,13 +62,19 @@ public class VoronoiDiagramBuilder
 	/**
 	 * Sets the sites (point or vertices) which will be diagrammed.
 	 * All vertices of the given geometry will be used as sites.
+	 * Duplicate removal (exact or tolerance-based) is performed in create().
 	 * 
 	 * @param geom the geometry from which the sites will be extracted.
 	 */
 	public void setSites(Geometry geom)
 	{
-		// remove any duplicate points (they will cause the triangulation to fail)
-		siteCoords = DelaunayTriangulationBuilder.extractUniqueCoordinates(geom);
+		if (geom == null) {
+			siteCoords = new ArrayList();
+			return;
+		}
+		// store raw; dedup (considering tolerance) happens at create time
+		Coordinate[] coords = geom.getCoordinates();
+		siteCoords = new ArrayList(java.util.Arrays.asList(coords));
 	}
 	
 	/**
@@ -78,8 +85,8 @@ public class VoronoiDiagramBuilder
 	 */
 	public void setSites(Collection coords)
 	{
-		// remove any duplicate points (they will cause the triangulation to fail)
-		siteCoords = DelaunayTriangulationBuilder.unique(CoordinateArrays.toCoordinateArray(coords));
+		// store raw; dedup (considering tolerance) happens at create time
+		siteCoords = (coords == null) ? new ArrayList() : new ArrayList(coords);
 	}
 	
 	/**
@@ -109,7 +116,9 @@ public class VoronoiDiagramBuilder
 	{
 		if (subdiv != null) return;
 		
-		Envelope siteEnv = DelaunayTriangulationBuilder.envelope(siteCoords);
+		Coordinate[] coords = CoordinateArrays.toCoordinateArray(siteCoords);
+		CoordinateList uniqueSiteCoords = DelaunayTriangulationBuilder.unique(coords, tolerance);
+		Envelope siteEnv = DelaunayTriangulationBuilder.envelope(uniqueSiteCoords);
 		diagramEnv = clipEnv;
 		if (diagramEnv == null) {
 		  /** 
@@ -123,7 +132,7 @@ public class VoronoiDiagramBuilder
   		diagramEnv.expandBy(expandBy);
 		}
 
-		List vertices = DelaunayTriangulationBuilder.toVertices(siteCoords);
+		List vertices = DelaunayTriangulationBuilder.toVertices(uniqueSiteCoords);
 		subdiv = new QuadEdgeSubdivision(siteEnv, tolerance);
 		IncrementalDelaunayTriangulator triangulator = new IncrementalDelaunayTriangulator(subdiv);
 		triangulator.insertSites(vertices);

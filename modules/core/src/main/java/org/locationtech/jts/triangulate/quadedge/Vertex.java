@@ -15,6 +15,7 @@ package org.locationtech.jts.triangulate.quadedge;
 
 import org.locationtech.jts.algorithm.HCoordinate;
 import org.locationtech.jts.algorithm.NotRepresentableException;
+import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
 
 /**
@@ -210,15 +211,12 @@ public class Vertex
       System.out.println("CCW failure");
      //*/
 
-    	// is equal to the signed area of the triangle
-    	
-      return (b.p.x - p.x) * (c.p.y - p.y) 
-           - (b.p.y - p.y) * (c.p.x - p.x) > 0;
+      // use robust orientation predicate (non-robust raw arithmetic preserved above in comments)
+      return Orientation.index(p, b.p, c.p) == Orientation.COUNTERCLOCKWISE;
       
-      // original rolled code
-      //boolean isCCW = triArea(this, b, c) > 0;
-      //return isCCW;
-      
+      // original non-robust:
+      // return (b.p.x - p.x) * (c.p.y - p.y) 
+      //      - (b.p.y - p.y) * (c.p.x - p.x) > 0;
     }
 
     public final boolean rightOf(QuadEdge e) {

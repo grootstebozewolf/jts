@@ -26,6 +26,8 @@ import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.index.kdtree.KdNode;
+import org.locationtech.jts.index.kdtree.KdTree;
 import org.locationtech.jts.triangulate.quadedge.QuadEdgeSubdivision;
 import org.locationtech.jts.triangulate.quadedge.Vertex;
 
@@ -42,6 +44,7 @@ public class DelaunayTriangulationBuilder
 {
 	/**
 	 * Extracts the unique {@link Coordinate}s from the given {@link Geometry}.
+	 * Uses exact equality (tolerance = 0).
 	 * @param geom the geometry to extract from
 	 * @return a List of the unique Coordinates
 	 */
@@ -51,14 +54,45 @@ public class DelaunayTriangulationBuilder
 			return new CoordinateList();
 		
 		Coordinate[] coords = geom.getCoordinates();
-		return unique(coords);
+		return unique(coords, 0.0);
 	}
 	
 	public static CoordinateList unique(Coordinate[] coords)
 	{
-	  Coordinate[] coordsCopy = CoordinateArrays.copyDeep(coords);
-		Arrays.sort(coordsCopy);
-		CoordinateList coordList = new CoordinateList(coordsCopy, false);
+		return unique(coords, 0.0);
+	}
+	
+	/**
+	 * Extracts unique coordinates using the given tolerance for snapping near-coincident points.
+	 * When tolerance > 0, uses KdTree to deduplicate sites within tolerance.
+	 * This helper can be used directly for testing tolerance-based deduplication on Coordinate arrays.
+	 * @param coords the coordinates
+	 * @param tolerance the tolerance distance; 0.0 means exact uniqueness
+	 * @return CoordinateList of unique (snapped) sites
+	 */
+	public static CoordinateList unique(Coordinate[] coords, double tolerance)
+	{
+		if (coords == null || coords.length == 0)
+			return new CoordinateList();
+		if (tolerance <= 0.0) {
+			Coordinate[] coordsCopy = CoordinateArrays.copyDeep(coords);
+			Arrays.sort(coordsCopy);
+			CoordinateList coordList = new CoordinateList(coordsCopy, false);
+			return coordList;
+		}
+		// tolerance > 0: use KdTree to snap near-coincident points
+		KdTree kdTree = new KdTree(tolerance);
+		for (int i = 0; i < coords.length; i++) {
+			kdTree.insert(coords[i]);
+		}
+		// query full extent to retrieve the distinct snapped nodes
+		Envelope env = envelope(java.util.Arrays.asList(coords));
+		env.expandBy(tolerance + 1.0); // ensure all nodes are covered
+		List<KdNode> nodes = kdTree.query(env);
+		CoordinateList coordList = new CoordinateList();
+		for (KdNode node : nodes) {
+			coordList.add(node.getCoordinate(), false);
+		}
 		return coordList;
 	}
 	
@@ -108,13 +142,19 @@ public class DelaunayTriangulationBuilder
 	/**
 	 * Sets the sites (vertices) which will be triangulated.
 	 * All vertices of the given geometry will be used as sites.
+	 * Duplicate removal (exact or tolerance-based) is performed in create().
 	 * 
 	 * @param geom the geometry from which the sites will be extracted.
 	 */
 	public void setSites(Geometry geom)
 	{
-		// remove any duplicate points (they will cause the triangulation to fail)
-		siteCoords = extractUniqueCoordinates(geom);
+		if (geom == null) {
+			siteCoords = new ArrayList();
+			return;
+		}
+		// store raw; dedup (considering tolerance) happens at create time
+		Coordinate[] coords = geom.getCoordinates();
+		siteCoords = new ArrayList(java.util.Arrays.asList(coords));
 	}
 	
 	/**
@@ -125,8 +165,8 @@ public class DelaunayTriangulationBuilder
 	 */
 	public void setSites(Collection coords)
 	{
-		// remove any duplicate points (they will cause the triangulation to fail)
-		siteCoords = unique(CoordinateArrays.toCoordinateArray(coords));
+		// store raw; dedup (considering tolerance) happens at create time
+		siteCoords = (coords == null) ? new ArrayList() : new ArrayList(coords);
 	}
 	
 	/**
@@ -145,8 +185,10 @@ public class DelaunayTriangulationBuilder
 	{
 		if (subdiv != null) return;
 		
-		Envelope siteEnv = envelope(siteCoords);
-		List vertices = toVertices(siteCoords);
+		Coordinate[] coords = CoordinateArrays.toCoordinateArray(siteCoords);
+		CoordinateList uniqueSiteCoords = unique(coords, tolerance);
+		Envelope siteEnv = envelope(uniqueSiteCoords);
+		List vertices = toVertices(uniqueSiteCoords);
 		subdiv = new QuadEdgeSubdivision(siteEnv, tolerance);
 		IncrementalDelaunayTriangulator triangulator = new IncrementalDelaunayTriangulator(subdiv);
 		triangulator.insertSites(vertices);
