@@ -899,7 +899,11 @@ public class QuadEdgeSubdivision {
     Collection edges = getVertexUniqueEdges(false);
     for (Iterator i = edges.iterator(); i.hasNext(); ) {
     	QuadEdge qe = (QuadEdge) i.next();
-      cells.add(getVoronoiCellPolygon(qe, geomFact));
+      Polygon cell = getVoronoiCellPolygon(qe, geomFact);
+      // safely omit degenerate/empty cells produced by the per-site walk (e.g. insufficient distinct circumcentres)
+      if (cell != null && !cell.isEmpty()) {
+        cells.add(cell);
+      }
     }
     return cells;
   }
@@ -935,20 +939,14 @@ public class QuadEdgeSubdivision {
     coordList.closeRing();
     
     Coordinate[] pts = coordList.toCoordinateArray();
-    if (pts.length < 4) {
-      // ensure ctor always receives >=4 points (or safely produce empty to omit degenerate);
-      // padding keeps surrounding-vertex walk logic intact; with upstream dedup+robust fixes,
-      // normal sites should produce >=3 distinct circumcentres -> >=4 ring pts.
-      CoordinateList padded = new CoordinateList();
-      for (int i = 0; i < pts.length; i++) padded.add(pts[i], false);
-      Coordinate last = (pts.length > 0) ? pts[pts.length - 1] : new Coordinate(0, 0);
-      while (padded.size() < 4) {
-        padded.add(last, true);
-      }
-      if (!padded.get(padded.size() - 1).equals2D(padded.get(0))) {
-        padded.add(padded.get(0), false);
-      }
-      pts = padded.toCoordinateArray();
+    // Safely omit degenerate cells (too few points after walk, or would produce invalid/degenerate ring
+    // with consecutive repeats). This prevents "Invalid number of points..." and keeps diagram.isValid() true.
+    // The surrounding-vertex walk + circumcentre logic is left intact; callers in getVoronoiCellPolygons filter.
+    if (pts.length < 4 || !isValidRingCandidate(pts)) {
+      Polygon empty = geomFact.createPolygon();
+      Vertex v = startQE.orig();
+      empty.setUserData(v.getCoordinate());
+      return empty;
     }
     
     Polygon cellPoly = geomFact.createPolygon(geomFact.createLinearRing(pts));
@@ -956,6 +954,24 @@ public class QuadEdgeSubdivision {
     Vertex v = startQE.orig();
     cellPoly.setUserData(v.getCoordinate());
     return cellPoly;
+  }
+
+  /**
+   * Returns true if the coordinate array (after closeRing) has enough distinct points
+   * to form a valid non-degenerate LinearRing (>=4 pts with at least 3 distinct positions).
+   */
+  private static boolean isValidRingCandidate(Coordinate[] pts) {
+    if (pts.length < 4) return false;
+    int distinct = 0;
+    Coordinate prev = null;
+    for (int i = 0; i < pts.length; i++) {
+      Coordinate c = pts[i];
+      if (prev == null || !c.equals2D(prev)) {
+        distinct++;
+      }
+      prev = c;
+    }
+    return distinct >= 3;  // need at least triangle for a real cell
   }
   
 }
