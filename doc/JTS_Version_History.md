@@ -252,6 +252,7 @@ Distributions for older JTS versions can be obtained at the
 * Fix bug in `HalfEdge.insert` method which caused CCW order not to be preserved in some cases
 * Fix generation of Voronoi diagrams for cases with sites in a square (#447)
 * Fix use of clipping envelope in `VoronoiDiagramBuilder`
+* Improve robustness of `VoronoiDiagramBuilder` for near-coincident sites (JTS #20): use robust `Orientation.index` in `Vertex.isCCW`; add tolerance>0 site dedup via KdTree before insert in `DelaunayTriangulationBuilder`/`VoronoiDiagramBuilder`; ensure valid rings in cell extraction. Test case with exact 7-pt WKB repro (setTolerance(0.1) produces valid 4-cell diagram). Formally verified via Rocq/Flocq (`b64_orient2d_exact_sound` in `theories-flocq/Orient_b64_exact_full.v`, `Orientation_b64.v`, `InCircle_b64_exact.v`; see NetTopologySuite.Proofs + WSL container runs).
 * Fix infinite loop on empty input in `IndexedPointInAreaLocator` and `SortedPackedIntervalRTree` (#462) 
 * Fix WKT parsing in Turkish locale (#456)
 * Improve accuracy of `LineSegment.lineIntersection` (#468)

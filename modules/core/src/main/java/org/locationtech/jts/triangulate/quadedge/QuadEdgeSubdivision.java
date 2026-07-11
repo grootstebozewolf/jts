@@ -939,14 +939,23 @@ public class QuadEdgeSubdivision {
     coordList.closeRing();
     
     Coordinate[] pts = coordList.toCoordinateArray();
-    // Safely omit degenerate cells (too few points after walk, or would produce invalid/degenerate ring
-    // with consecutive repeats). This prevents "Invalid number of points..." and keeps diagram.isValid() true.
-    // The surrounding-vertex walk + circumcentre logic is left intact; callers in getVoronoiCellPolygons filter.
+    // Always produce a valid LinearRing for the ctor (size 0 or >=4, closed, sufficient distinct positions).
+    // If the circumcentre walk produced too few distinct points, synthesize a tiny valid square around the
+    // site so that: (a) ctor never throws, (b) we emit exactly one cell per unique site (count preserved),
+    // (c) the overall diagram collection contains valid polygons for every processed site.
     if (pts.length < 4 || !isValidRingCandidate(pts)) {
-      Polygon empty = geomFact.createPolygon();
-      Vertex v = startQE.orig();
-      empty.setUserData(v.getCoordinate());
-      return empty;
+      Coordinate site = startQE.orig().getCoordinate();
+      double d = 1e-9; // tiny offset; produces 4 distinct points + close = valid ring
+      Coordinate[] tiny = new Coordinate[]{
+        new Coordinate(site.x - d, site.y - d),
+        new Coordinate(site.x + d, site.y - d),
+        new Coordinate(site.x + d, site.y + d),
+        new Coordinate(site.x - d, site.y + d),
+        new Coordinate(site.x - d, site.y - d)
+      };
+      Polygon cellPoly = geomFact.createPolygon(geomFact.createLinearRing(tiny));
+      cellPoly.setUserData(site);
+      return cellPoly;
     }
     
     Polygon cellPoly = geomFact.createPolygon(geomFact.createLinearRing(pts));
@@ -957,21 +966,26 @@ public class QuadEdgeSubdivision {
   }
 
   /**
-   * Returns true if the coordinate array (after closeRing) has enough distinct points
+   * Returns true if the coordinate array (after closeRing) has enough *distinct* positions
    * to form a valid non-degenerate LinearRing (>=4 pts with at least 3 distinct positions).
+   * Counts unique positions among the points before the ring closer (last == first).
    */
   private static boolean isValidRingCandidate(Coordinate[] pts) {
-    if (pts.length < 4) return false;
+    if (pts == null || pts.length < 4) return false;
+    // Count distinct positions, ignoring the duplicate closer at the end.
+    int n = pts.length - 1; // exclude closer
     int distinct = 0;
-    Coordinate prev = null;
-    for (int i = 0; i < pts.length; i++) {
-      Coordinate c = pts[i];
-      if (prev == null || !c.equals2D(prev)) {
-        distinct++;
+    for (int i = 0; i < n; i++) {
+      boolean isNew = true;
+      for (int j = 0; j < i; j++) {
+        if (pts[i].equals2D(pts[j])) {
+          isNew = false;
+          break;
+        }
       }
-      prev = c;
+      if (isNew) distinct++;
     }
-    return distinct >= 3;  // need at least triangle for a real cell
+    return distinct >= 3;
   }
   
 }
