@@ -205,7 +205,7 @@ public class Vertex
       //-- robust orientation test, to avoid triangulation errors
       //-- caused by predicate failure for nearly-collinear points
       return Orientation.index(p, b.p, c.p) == Orientation.COUNTERCLOCKWISE;
-    }
+  }
 
     public final boolean rightOf(QuadEdge e) {
         return isCCW(e.dest(), e.orig());
