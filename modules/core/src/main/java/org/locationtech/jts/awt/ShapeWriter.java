@@ -16,6 +16,7 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Triangle;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.CircularString;
@@ -251,52 +252,89 @@ public class ShapeWriter
 		GeneralPath path = new GeneralPath();
 
 		for (int i = 0; i < mls.getNumGeometries(); i++) {
-			CircularString CircularString = (CircularString) mls.getGeometryN(i);
-			path.append(toShape(CircularString), false);
+			CircularString circularString = (CircularString) mls.getGeometryN(i);
+			path.append(toShape(circularString), false);
 		}
 		return path;
 	}
-	private boolean IsColinear(double x1, double y1,
-	double x2, double y2,
-	double x3, double y3)
+
+	private boolean isColinear(double x1, double y1,
+		double x2, double y2,
+		double x3, double y3)
 	{
-		return y2 - y1 / x2- x1 == y3 - y1 / x3 - x1;
+		return Math.abs((x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1)) < 1e-10;
 	}
 
-	private GeneralPath toShape(CircularString CircularString)
+	private GeneralPath toShape(CircularString circularString)
 	{
 		GeneralPath shape = new GeneralPath();
 			
-		Coordinate arcStart = CircularString.getCoordinateN(0);
+		Coordinate arcStart = circularString.getCoordinateN(0);
 		transformPoint(arcStart, transPoint);
 		double arcStartX = transPoint.getX();
 		double arcStartY = transPoint.getY();
 		shape.moveTo((float) arcStartX, (float) arcStartY);
 		
-		int n = CircularString.getNumPoints() - 1;
-		//int count = 0;
-		for (int i = 1; i <= n; i = i + 2) {
-			Coordinate arcMid = CircularString.getCoordinateN(i-1);
-			transformPoint(arcMid, transPoint);
+		int n = circularString.getNumPoints() - 1;
+		for (int i = 2; i <= n; i += 2) {
+			Coordinate arcMidOrig = circularString.getCoordinateN(i - 1);
+			transformPoint(arcMidOrig, transPoint);
 			double arcMidX = transPoint.getX();
 			double arcMidY = transPoint.getY();
-			Coordinate arcEnd = CircularString.getCoordinateN(i);
-			transformPoint(arcEnd, transPoint);
+			Coordinate arcEndOrig = circularString.getCoordinateN(i);
+			transformPoint(arcEndOrig, transPoint);
 			double arcEndX = transPoint.getX();
 			double arcEndY = transPoint.getY();
 
-			if(IsColinear(arcStartX, arcStartY, arcMidX, arcMidY, arcEndX, arcEndY))
+			if (isColinear(arcStartX, arcStartY, arcMidX, arcMidY, arcEndX, arcEndY))
 			{
 				shape.lineTo((float)arcEndX, (float)arcEndY);
 			}
 			else
 			{
-				//Get center of circle
-				//Calculate best fit of bezier curve from mid point
-				shape.curveTo((float)arcStartX, (float)arcStartY, (float)arcMidX, (float)arcMidY, (float)arcEndX, (float)arcEndY);
+				// compute cubic Bezier approximation to circular arc using circumcentre + k formula
+				Coordinate center = Triangle.circumcentre(arcStart, arcMidOrig, arcEndOrig);
+				double cx = center.x;
+				double cy = center.y;
+				double dx1 = arcStart.x - cx;
+				double dy1 = arcStart.y - cy;
+				double dx2 = arcEndOrig.x - cx;
+				double dy2 = arcEndOrig.y - cy;
+				double startAng = Math.atan2(dy1, dx1);
+				double endAng = Math.atan2(dy2, dx2);
+				double sweep = endAng - startAng;
+				// choose sweep direction using orientation of the three points (use mid to decide arc)
+				double orient = (arcMidOrig.x - arcStart.x) * (arcEndOrig.y - arcStart.y)
+				              - (arcMidOrig.y - arcStart.y) * (arcEndOrig.x - arcStart.x);
+				if (orient > 0 && sweep < 0) sweep += 2 * Math.PI;
+				if (orient < 0 && sweep > 0) sweep -= 2 * Math.PI;
+				double theta = sweep;
+				double k = 4.0 / 3.0 * Math.tan(theta / 4.0);
+				// control points (in model coords)
+				double p1x = arcStart.x + k * (-dy1);
+				double p1y = arcStart.y + k * (dx1);
+				double p2x = arcEndOrig.x + k * (dy2);
+				double p2y = arcEndOrig.y + k * (-dx2);
+				if (theta < 0) {
+					p1x = arcStart.x + k * (dy1);
+					p1y = arcStart.y + k * (-dx1);
+					p2x = arcEndOrig.x + k * (-dy2);
+					p2y = arcEndOrig.y + k * (dx2);
+				}
+				// transform control points
+				Coordinate cp1 = new Coordinate(p1x, p1y);
+				Coordinate cp2 = new Coordinate(p2x, p2y);
+				transformPoint(cp1, transPoint);
+				double cp1X = transPoint.getX();
+				double cp1Y = transPoint.getY();
+				transformPoint(cp2, transPoint);
+				double cp2X = transPoint.getX();
+				double cp2Y = transPoint.getY();
+				shape.curveTo((float)cp1X, (float)cp1Y, (float)cp2X, (float)cp2Y, (float)arcEndX, (float)arcEndY);
 			}			
 			arcStartX = arcEndX;	  
 			arcStartY = arcEndY;	  
+			arcStart = arcEndOrig;
 		}
 		return shape;
 	}
