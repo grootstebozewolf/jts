@@ -1,8 +1,12 @@
 package org.locationtech.jts.awt;
 
 import java.awt.Shape;
+import java.awt.geom.PathIterator;
 
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CircularString;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
@@ -45,7 +49,7 @@ public class PolygonShapeTest extends GeometryTestCase {
     });
     ShapeWriter sw = new ShapeWriter();
     Shape shp = sw.toShape(cs);
-    assertNotNull("toShape must return non-null Shape for CircularString arc", shp);
+    assertTrue("toShape must return non-null Shape for CircularString arc", shp != null);
 
     // Walk the path to prove the arc logic (cubic or line) was executed
     PathIterator pi = shp.getPathIterator(null);
