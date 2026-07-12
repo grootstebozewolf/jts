@@ -56,6 +56,7 @@ Distributions for older JTS versions can be obtained at the
 * Fix `BufferOp` to handle geometries with all-invalid coordinate lists (#1165)
 * Fix CoordinateList.clone() to copy correctly (#1168)
 * Add Voronoi snapping heuristic to fix invalid diagram topology (#1174)
+* Fix `VoronoiDiagramBuilder` robustness on near-coincident points (tolerance-based dedup + safe cell construction; closes #20, stacked on #1212). See [doc/issue20-verification.md](doc/issue20-verification.md).
 * Fix `LineSegment.project` to handle segments projecting onto a single endpoint (#1179)
 * Fix DD equals and compareTo (#1186)
 * Fix `RelateNG.computeLineEnds` incorrectly skipping boundary points for disjoint line components (#1175)
