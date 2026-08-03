@@ -114,20 +114,46 @@ public class GeometryFunctions
 		return g.getFactory().createMultiPointFromCoords(pts);
 	}
 	
+	/**
+	 * Adds the rings of B as holes in A.
+	 * <p>
+	 * Both inputs are linearised first, because {@code getExteriorRing()} on a
+	 * CurvePolygon is the flat control-point view: a circle of radius 5 came
+	 * through as its inscribed square, so a CURVEPOLYGON shell with a CURVEPOLYGON
+	 * hole gave area 32 instead of {@code 25*pi - 9*pi} = 50.265. Non-curve input
+	 * is returned unchanged by {@code linearizeForOps}, so plain polygons are
+	 * unaffected. The result is necessarily a plain Polygon -- it is assembled
+	 * from LinearRings -- so curve identity cannot be preserved here at any
+	 * tolerance, only the shape.
+	 * <p>
+	 * The input checks replace two unguarded casts that leaked a raw
+	 * ClassCastException, reported for a CircularString A but equally true of a
+	 * plain LineString: this function needs polygonal input and the failure had
+	 * nothing to do with curves. The messages match
+	 * {@code EditFunctions.addHole}, which already guarded properly, so the two
+	 * refuse the same input the same way.
+	 */
 	public static Geometry addHoles(Geometry g, Geometry holeGeom) {
 	  //TODO: support adding to MultiPolygon
-	  Polygon poly = (Polygon) g;
+	  Geometry linear = CurveFunctions.linearizeForOps(g);
+	  if (! (linear instanceof Polygon))
+	    throw new IllegalArgumentException("A is not a polygon");
+	  Geometry linearHoles = CurveFunctions.linearizeForOps(holeGeom);
+
+	  Polygon poly = (Polygon) linear;
 	  LinearRing shell = poly.getExteriorRing();
 	  List<LinearRing> holes = new ArrayList<LinearRing>();
-	  
+
     for (int i = 0; i < poly.getNumInteriorRing(); i++) {
       holes.add(poly.getInteriorRingN(i));
     }
-    for (int i = 0; i < holeGeom.getNumGeometries(); i++) {
-      Polygon holePoly = (Polygon) holeGeom.getGeometryN(i);
-      holes.add(holePoly.getExteriorRing());
+    for (int i = 0; i < linearHoles.getNumGeometries(); i++) {
+      Geometry member = linearHoles.getGeometryN(i);
+      if (! (member instanceof Polygon))
+        throw new IllegalArgumentException("B must be polygonal");
+      holes.add(((Polygon) member).getExteriorRing());
     }
-	  
+
     return g.getFactory().createPolygon(shell, GeometryFactory.toLinearRingArray(holes));
 	}
 }
