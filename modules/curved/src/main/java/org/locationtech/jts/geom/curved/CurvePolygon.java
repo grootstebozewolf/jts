@@ -245,6 +245,36 @@ public class CurvePolygon extends Polygon implements Linearizable {
   }
 
   /**
+   * The length of the structural rings, so an arc ring contributes its arc
+   * length rather than the chords through its control points.
+   * <p>
+   * The inherited {@code Polygon.getLength()} sums the flat
+   * {@code getExteriorRing()} view, which for a circle expressed as two
+   * semicircular arcs is the inscribed square -- {@code 8*sqrt(2)} instead of
+   * {@code 4*pi} for radius 2. That radius is where the defect hides, since
+   * {@code 2*pi*r} and {@code pi*r^2} are both {@code 4*pi} there and the wrong
+   * length sits next to a correct-looking area.
+   * <p>
+   * Each ring is asked for its own length, so the arc integration stays in
+   * {@code CircularString.getLength()} and {@code CompoundCurve.getLength()}
+   * where it already lived; this method only had the summation missing.
+   * <p>
+   * Equivalent to {@code getBoundary().getLength()} by the OGC definition of a
+   * surface's length, and asserted to be so, but computed without building the
+   * boundary geometry. An all-linear CurvePolygon defers to the inherited
+   * implementation so its value is bit-for-bit unchanged.
+   */
+  @Override
+  public double getLength() {
+    if (isEmpty() || !hasCurvedRing()) return super.getLength();
+    double length = structuralShell.getLength();
+    for (int i = 0; i < structuralHoles.length; i++) {
+      length += structuralHoles[i].getLength();
+    }
+    return length;
+  }
+
+  /**
    * Signed area enclosed by one ring, via the contour integral
    * {@code 1/2 * integral(x dy - y dx)}. Arc pieces use the closed-form arc
    * term; straight pieces use the shoelace term. A CompoundCurve ring is the
