@@ -25,61 +25,109 @@ import org.locationtech.jtstest.util.ClassUtil;
 import org.locationtech.jtstest.util.io.WKBDumper;
 
 
-public class WriterFunctions 
+public class WriterFunctions
 {
+  /**
+   * Linearises curve input before handing it to a jts-core writer.
+   * <p>
+   * Every writer below lives in jts-core, takes a {@link Geometry}, and
+   * dispatches on {@code instanceof Polygon} / {@code LineString} -- which the
+   * curve types satisfy, since they extend those. So each one serialises
+   * {@code getCoordinates()}, and for a curve that is only its control points:
+   * a circle exported as its inscribed square, area 8 rather than 4*pi. Silently
+   * the wrong shape, not merely a lost curve. Same shape of gap as
+   * {@code HullFunctions}, and the same remedy, since a static entry point
+   * offers no virtual call for a curve type to override.
+   * <p>
+   * <b>What survives.</b> Neither GML2 nor KML nor GeoJSON has any
+   * representation of a circular arc, so the arc cannot be preserved by any
+   * choice made here; the only question is whether the exported shape is right.
+   * WKB is the exception -- SQL/MM defines curve type codes 8 to 12 -- but
+   * reading and writing those is claim 1195-e and unimplemented, so densifying
+   * is strictly better than the wrong type-3 output it replaces. When 1195-e
+   * lands, {@link #writeWKB} and {@link #dumpWKB} should use the curve-aware
+   * writer instead of coming through here.
+   * <p>
+   * Non-curve input is returned as the same object, so a plain geometry
+   * serialises byte-for-byte as it did before; that is asserted for all four
+   * writers in {@code WriterFunctionsCurveTest}.
+   * <p>
+   * The cost is verbosity: at {@code linearizeForOps}' 1e-6 of extent, a circle
+   * becomes about 1570 vertices. Callers who want a coarser export should
+   * linearise deliberately with {@code Curve -> toLinear} at a tolerance of their
+   * choosing and write the result.
+   */
+  private static Geometry exportable(Geometry geom) {
+    return CurveFunctions.linearizeForOps(geom);
+  }
+
   public static String writeKML(Geometry geom)
   {
     if (geom == null) return "";
     KMLWriter writer = new KMLWriter();
-    return writer.write(geom);
+    return writer.write(exportable(geom));
   }
-  
+
   public static String writeGML(Geometry geom)
   {
     if (geom == null) return "";
-    return (new GMLWriter()).write(geom);
+    return (new GMLWriter()).write(exportable(geom));
   }
 
+  /**
+   * Deliberately not routed through {@link #exportable}. Oracle SDO_GEOMETRY
+   * does represent circular arcs (element type 1005/2005 with interpretation 2),
+   * so densifying here would discard something the target format can carry --
+   * the same argument that makes densifying WKB a stopgap rather than a fix. The
+   * writer is loaded dynamically and is not on this build's classpath, so the
+   * arc-aware behaviour cannot be implemented or tested here either way.
+   */
   public static String writeOra(Geometry g) throws SecurityException, IllegalArgumentException, ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException
   {
     if (g == null) return "";
     // call dynamically to avoid dependency on OraWriter
-    String sql = (String) ClassUtil.dynamicCall("com.vividsolutions.jts.io.oracle.OraWriter", 
-        "writeSQL", 
-        new Class[] { Geometry.class }, 
+    String sql = (String) ClassUtil.dynamicCall("com.vividsolutions.jts.io.oracle.OraWriter",
+        "writeSQL",
+        new Class[] { Geometry.class },
         new Object[] { g });
     return sql;
     //return (new OraWriter(null)).writeSQL(g);
   }
-  
+
   public static String writeWKB(Geometry g)
   {
     if (g == null) return "";
-    return WKBWriter.toHex((new WKBWriter().write(g)));
+    return WKBWriter.toHex((new WKBWriter().write(exportable(g))));
   }
-  
+
   public static String dumpWKB(Geometry g)
   {
     if (g == null) return "";
-    byte[] wkb = (new WKBWriter().write(g));
+    byte[] wkb = (new WKBWriter().write(exportable(g)));
     return WKBDumper.dump(wkb);
   }
-  
+
+  /**
+   * Also fixes the type name: the writer reported
+   * {@code "type":"CurvePolygon"}, which is not one of the seven types RFC 7946
+   * defines, and {@code GeoJsonReader} threw a ParseException on it. The
+   * linearised geometry really is a Polygon, so the name is now honest.
+   */
   public static String writeGeoJSON(Geometry g)
   {
     if (g == null) return "";
-    return (new GeoJsonWriter().write(g));
+    return (new GeoJsonWriter().write(exportable(g)));
   }
-  
+
   public static String writeGeoJSONFixDecimal(Geometry g,
       @Metadata(title="Num Decimals")
       int numDecimals)
   {
     if (g == null) return "";
-    return (new GeoJsonWriter(numDecimals).write(g));
+    return (new GeoJsonWriter(numDecimals).write(exportable(g)));
   }
 
   public static String writeSVG(Geometry a, Geometry b) {
-    return SVGTestWriter.writeSVG(a, b);
+    return SVGTestWriter.writeSVG(exportable(a), exportable(b));
   }
 }
