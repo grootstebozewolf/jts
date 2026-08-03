@@ -76,9 +76,18 @@ public class DistanceFunctions {
 	
   @Metadata(description="Oriented discrete Hausdorff distance line from A to B, densified")
   public static Geometry orientedDiscreteHausdorffLineDensify(Geometry a, Geometry b, 
-      @Metadata(title="Densify fraction")
+      @Metadata(title="Densify fraction (0..1]")
       double frac)  
   {   
+    // Core rejects out-of-range fractions with a message that names neither the
+    // parameter nor its meaning; a visual-QA session passed 10.0 here, reading
+    // the knob as a distance like the tolerances nearby. Say what it is.
+    if (frac <= 0.0 || frac > 1.0) {
+      throw new IllegalArgumentException(
+          "Densify fraction must be in (0, 1] -- it subdivides each segment to "
+          + "that FRACTION of its length (e.g. 0.05), it is not a distance; got "
+          + frac);
+    }
     return DiscreteHausdorffDistance.orientedDistanceLine(arc(a), arc(b), frac);
   }
 

@@ -61,7 +61,17 @@ public class Viewport implements PointTransformation
   private java.awt.geom.Point2D.Double srcPt = new java.awt.geom.Point2D.Double(0, 0);
   private java.awt.geom.Point2D.Double destPt = new java.awt.geom.Point2D.Double(0, 0);
 
-  private Dimension viewSize;
+  /**
+   * The panel's laid-out size. Initialised empty rather than left null: the
+   * render worker runs on a background thread and can request the
+   * model-to-view transform before Swing has laid the panel out (before
+   * {@link #update(Dimension)} has ever run), which crashed the render pass
+   * with an NPE from {@link #updateModelToViewTransform()}. An empty dimension
+   * makes every pre-layout transform and query well-defined -- a render into a
+   * 0x0 view draws nothing, which is what a pre-layout render should draw --
+   * and the first real layout replaces it.
+   */
+  private Dimension viewSize = new Dimension(0, 0);
 
   public Viewport(GeometryEditPanel panel) {
     this.panel = panel;

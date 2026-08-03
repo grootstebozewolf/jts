@@ -200,6 +200,25 @@ public class DistanceFunctionsCurveTest extends TestCase {
         DistanceFunctions.nearestPoints(p, read("POINT (2 6)")).getLength(), 0.0);
   }
 
+  /**
+   * A visual-QA session passed 10.0 as the densify fraction, reading the knob as
+   * a distance like the tolerances on the neighbouring functions, and got core's
+   * "Fraction is not in range (0.0 - 1.0]" -- correct, but naming neither the
+   * parameter nor its meaning. The refusal must say what the knob is.
+   */
+  public void testDensifyFractionRefusalNamesTheContract() throws Exception {
+    try {
+      DistanceFunctions.orientedDiscreteHausdorffLineDensify(
+          read(ARC), read(BASELINE), 10.0);
+      fail("a fraction of 10.0 must be refused");
+    }
+    catch (IllegalArgumentException e) {
+      assertTrue("message should say it is a fraction, not a distance: "
+          + e.getMessage(),
+          e.getMessage().contains("FRACTION") && e.getMessage().contains("10.0"));
+    }
+  }
+
   /** Guard: identical curves are at distance zero however measured. */
   public void testIdenticalCurvesAtZero() throws Exception {
     assertEquals(0.0, DistanceFunctions.orientedDiscreteHausdorffDistance(
