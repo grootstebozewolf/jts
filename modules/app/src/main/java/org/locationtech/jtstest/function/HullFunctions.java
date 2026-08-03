@@ -17,46 +17,64 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jtstest.geomfunction.Metadata;
 
 public class HullFunctions {
+  /**
+   * Arc-aware without help: {@code convexHull()} is an instance method, so the
+   * curve types override it (see {@code CurveOps}).
+   */
   public static Geometry convexHull(Geometry g) {      return g.convexHull();  }
- 
-  public static Geometry concaveHullPoints(Geometry geom, 
+
+  /**
+   * The ConcaveHull entry points below are <em>static</em> and take a
+   * {@link Geometry}, so there is no virtual call for a curve type to override,
+   * and jts-core cannot see the curve types to linearise on its own. Left alone
+   * they build from {@code getCoordinates()} -- for a curve, only its control
+   * points -- and silently return a plausible hull of the wrong shape.
+   * <p>
+   * So the caller linearises. Non-curves pass through {@code linearizeForOps}
+   * untouched, which is why this can be applied unconditionally.
+   */
+  private static Geometry arcAware(Geometry geom) {
+    return CurveFunctions.linearizeForOps(geom);
+  }
+
+  public static Geometry concaveHullPoints(Geometry geom,
       @Metadata(title="Max Edge Length")
       double maxLen) {
-    return ConcaveHull.concaveHullByLength(geom, maxLen);
+    return ConcaveHull.concaveHullByLength(arcAware(geom), maxLen);
   }
-  
-  public static Geometry concaveHullPointsWithHoles(Geometry geom, 
+
+  public static Geometry concaveHullPointsWithHoles(Geometry geom,
       @Metadata(title="Max Edge Length")
       double maxLen) {
-    return ConcaveHull.concaveHullByLength(geom, maxLen, true);
+    return ConcaveHull.concaveHullByLength(arcAware(geom), maxLen, true);
   }
-  
-  public static Geometry concaveHullPointsByLenRatio(Geometry geom, 
+
+  public static Geometry concaveHullPointsByLenRatio(Geometry geom,
       @Metadata(title="Length Ratio")
       double maxLenRatio) {
-    return ConcaveHull.concaveHullByLengthRatio(geom, maxLenRatio);
+    return ConcaveHull.concaveHullByLengthRatio(arcAware(geom), maxLenRatio);
   }
-  
-  public static Geometry concaveHullPointsWithHolesByLenRatio(Geometry geom, 
+
+  public static Geometry concaveHullPointsWithHolesByLenRatio(Geometry geom,
       @Metadata(title="Length Ratio")
       double maxLenRatio) {
-    return ConcaveHull.concaveHullByLengthRatio(geom, maxLenRatio, true);
+    return ConcaveHull.concaveHullByLengthRatio(arcAware(geom), maxLenRatio, true);
   }
-  
-  public static Geometry alphaShape(Geometry geom, 
+
+  public static Geometry alphaShape(Geometry geom,
       @Metadata(title="Alpha (Radius)")
       double alpha) {
-    return ConcaveHull.alphaShape(geom, alpha, false);
+    return ConcaveHull.alphaShape(arcAware(geom), alpha, false);
   }
-  
-  public static Geometry alphaShapeWithHoles(Geometry geom, 
+
+  public static Geometry alphaShapeWithHoles(Geometry geom,
       @Metadata(title="Alpha (Radius)")
       double alpha) {
-    return ConcaveHull.alphaShape(geom, alpha, true);
+    return ConcaveHull.alphaShape(arcAware(geom), alpha, true);
   }
-  
+
   public static double concaveHullLenGuess(Geometry geom) {
-    return ConcaveHull.uniformGridEdgeLength(geom);
+    return ConcaveHull.uniformGridEdgeLength(arcAware(geom));
   }
   
   /**
@@ -82,43 +100,43 @@ public class HullFunctions {
   public static Geometry concaveHullPolygons(Geometry geom, 
       @Metadata(title="Max Edge Length")
       double maxEdgeLen) {
-    return ConcaveHullOfPolygons.concaveHullByLength(geom, maxEdgeLen);
+    return ConcaveHullOfPolygons.concaveHullByLength(arcAware(geom), maxEdgeLen);
   }
   
   public static Geometry concaveHullPolygonsWithHoles(Geometry geom, 
       @Metadata(title="Max Edge Length")
       double maxEdgeLen) {
-    return ConcaveHullOfPolygons.concaveHullByLength(geom, maxEdgeLen, false, true);
+    return ConcaveHullOfPolygons.concaveHullByLength(arcAware(geom), maxEdgeLen, false, true);
   }
   
   public static Geometry concaveHullPolygonsTight(Geometry geom, 
       @Metadata(title="Max Edge Length")
       double maxEdgeLen) {
-    return ConcaveHullOfPolygons.concaveHullByLength(geom, maxEdgeLen, true, false);
+    return ConcaveHullOfPolygons.concaveHullByLength(arcAware(geom), maxEdgeLen, true, false);
   }
   
   public static Geometry concaveHullPolygonsByLenRatio(Geometry geom, 
       @Metadata(title="Edge Length Ratio")
       double maxEdgeLenRatio) {
-    return ConcaveHullOfPolygons.concaveHullByLengthRatio(geom, maxEdgeLenRatio);
+    return ConcaveHullOfPolygons.concaveHullByLengthRatio(arcAware(geom), maxEdgeLenRatio);
   }
   
   public static Geometry concaveHullPolygonsTightByLenRatio(Geometry geom, 
       @Metadata(title="Edge Length Ratio")
       double maxEdgeLenRatio) {
-    return ConcaveHullOfPolygons.concaveHullByLengthRatio(geom, maxEdgeLenRatio, true, false);
+    return ConcaveHullOfPolygons.concaveHullByLengthRatio(arcAware(geom), maxEdgeLenRatio, true, false);
   }
   
   public static Geometry concaveFill(Geometry geom, 
       @Metadata(title="Max Edge Length")
       double maxEdgeLen) {
-    return ConcaveHullOfPolygons.concaveFillByLength(geom, maxEdgeLen);
+    return ConcaveHullOfPolygons.concaveFillByLength(arcAware(geom), maxEdgeLen);
   }
   
   public static Geometry concaveFillByLenRatio(Geometry geom, 
       @Metadata(title="Edge Length Ratio")
       double maxEdgeLenRatio) {
-    return ConcaveHullOfPolygons.concaveFillByLengthRatio(geom, maxEdgeLenRatio);
+    return ConcaveHullOfPolygons.concaveFillByLengthRatio(arcAware(geom), maxEdgeLenRatio);
   }
   
 }

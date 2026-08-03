@@ -11,6 +11,7 @@
  */
 package org.locationtech.jtstest.function;
 
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.curved.Linearizable;
@@ -25,6 +26,20 @@ import org.locationtech.jtstest.geomfunction.Metadata;
  * is the only way to see that polyline at a tolerance you choose.
  */
 public class CurveFunctions {
+
+  /**
+   * Densification tolerance as a fraction of the geometry's extent, used when a
+   * caller must linearise but has no tolerance of its own to offer -- notably
+   * the static jts-core entry points, which take a {@code Geometry} and so
+   * cannot dispatch to a curve override.
+   * <p>
+   * Deliberately the same value as {@code CurveOps.TOLERANCE_FRACTION} inside
+   * jts-curved, so a function reached through a static entry point agrees with
+   * the equivalent instance method. The constant is repeated rather than shared
+   * because {@code CurveOps} is package-private; if it is ever promoted to
+   * public API this should defer to it.
+   */
+  private static final double OPS_TOLERANCE_FRACTION = 1.0e-6;
 
   /**
    * Linearises every curve in a geometry, replacing each arc with a polyline
@@ -44,6 +59,21 @@ public class CurveFunctions {
       @Metadata(title = "Tolerance")
       double tolerance) {
     return linearize(g, tolerance);
+  }
+
+  /**
+   * Linearises at {@link #OPS_TOLERANCE_FRACTION} of the geometry's extent, for
+   * callers that must hand a curve to an operation which cannot see curve types.
+   * <p>
+   * Scaling by extent keeps the relative accuracy uniform, so a 1-unit arc and a
+   * 10000-unit arc are approximated equally well. Geometries with no curve in
+   * them are returned unchanged, so this is safe to apply unconditionally.
+   */
+  public static Geometry linearizeForOps(Geometry g) {
+    if (g == null || g.isEmpty()) return g;
+    Envelope env = g.getEnvelopeInternal();
+    double extent = Math.max(env.getWidth(), env.getHeight());
+    return linearize(g, (extent > 0.0 ? extent : 1.0) * OPS_TOLERANCE_FRACTION);
   }
 
   /**
