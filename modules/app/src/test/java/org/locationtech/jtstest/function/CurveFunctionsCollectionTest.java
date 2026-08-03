@@ -98,11 +98,17 @@ public class CurveFunctionsCollectionTest extends TestCase {
         + hull.getArea(), hull.getArea() >= 32.0);
   }
 
-  /** The same regression on the fill entry point. */
+  /**
+   * The same regression on the fill entry point.
+   * <p>
+   * {@code concaveFillByLength} returns the fill <em>between</em> the polygons,
+   * not the polygons plus the fill, so the expected area is the gap alone: the
+   * two 4x4 squares sit at x 0-4 and 6-10, leaving a 2 wide by 4 tall gap.
+   */
   public void testConcaveFillAcceptsMultiPolygon() throws Exception {
     Geometry fill = HullFunctions.concaveFill(read(MULTIPOLYGON), 5.0);
-    assertTrue("fill should be at least the 32 of the two input squares, got "
-        + fill.getArea(), fill.getArea() >= 32.0);
+    assertEquals("fill should be the 2x4 gap between the squares",
+        8.0, fill.getArea(), 1.0e-9);
   }
 
   /** A curve inside a collection must still be linearised. */

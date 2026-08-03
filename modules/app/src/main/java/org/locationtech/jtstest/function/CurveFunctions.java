@@ -14,6 +14,11 @@ package org.locationtech.jtstest.function;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.MultiLineString;
+import org.locationtech.jts.geom.MultiPolygon;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curved.Linearizable;
 import org.locationtech.jtstest.geomfunction.Metadata;
 
@@ -113,6 +118,11 @@ public class CurveFunctions {
   /**
    * Shared with {@link BufferFunctions}, which must linearise before handing a
    * curve to the chord-based buffer curve builder.
+   * <p>
+   * A geometry with no curve anywhere in it is returned as <em>the same
+   * object</em>, not a copy. That is what makes this safe to apply
+   * unconditionally: a caller passing plain input cannot be affected at all, so
+   * no operation and no writer needs to know whether the arc-awareness shim ran.
    */
   public static Geometry linearize(Geometry g, double tolerance) {
     if (g == null || g.isEmpty()) return g;
@@ -120,11 +130,55 @@ public class CurveFunctions {
     if (g instanceof GeometryCollection) {
       int n = g.getNumGeometries();
       Geometry[] members = new Geometry[n];
+      boolean changed = false;
       for (int i = 0; i < n; i++) {
-        members[i] = linearize(g.getGeometryN(i), tolerance);
+        Geometry member = g.getGeometryN(i);
+        members[i] = linearize(member, tolerance);
+        changed |= members[i] != member;
       }
-      return g.getFactory().createGeometryCollection(members);
+      if (!changed) return g;
+      return rebuild((GeometryCollection) g, members);
     }
     return g;
+  }
+
+  /**
+   * Rebuilds a collection whose members have been linearised, keeping the
+   * collection's own type.
+   * <p>
+   * Rebuilding unconditionally with {@code createGeometryCollection} was a
+   * defect: it downgraded {@code MULTIPOLYGON} and {@code MULTILINESTRING} even
+   * when no member was curved, and {@code ConcaveHullOfPolygons} then rejected
+   * the result with "Input must be polygonal". Only reached when a member
+   * actually changed, so a curve-free collection never gets here.
+   * <p>
+   * The member-type checks are not redundant with the collection type: a
+   * {@code CurvedGeometryFactory} can put a {@code CircularString} inside a plain
+   * {@code MULTILINESTRING}, and linearising it yields a {@code LineString}
+   * again, but nothing guarantees that for every future curve type. If a member
+   * no longer fits its collection, a GeometryCollection is the honest answer.
+   * {@code MULTIPOINT} needs no branch: a point is never a curve, so a MultiPoint
+   * can never report a change and never reaches this method.
+   */
+  private static Geometry rebuild(GeometryCollection original, Geometry[] members) {
+    GeometryFactory f = original.getFactory();
+    if (original instanceof MultiPolygon && allInstanceOf(members, Polygon.class)) {
+      Polygon[] polygons = new Polygon[members.length];
+      System.arraycopy(members, 0, polygons, 0, members.length);
+      return f.createMultiPolygon(polygons);
+    }
+    if (original instanceof MultiLineString && allInstanceOf(members, LineString.class)) {
+      LineString[] lines = new LineString[members.length];
+      System.arraycopy(members, 0, lines, 0, members.length);
+      return f.createMultiLineString(lines);
+    }
+    return f.createGeometryCollection(members);
+  }
+
+  private static boolean allInstanceOf(Geometry[] members, Class<?> type) {
+    for (int i = 0; i < members.length; i++) {
+      if (!type.isInstance(members[i])) return false;
+    }
+    return true;
   }
 }
