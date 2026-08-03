@@ -27,6 +27,17 @@ import org.locationtech.jts.geom.OctagonalEnvelope;
 import org.locationtech.jtstest.geomfunction.Metadata;
 
 public class ConstructionFunctions {
+  /**
+   * MaximumInscribedCircle and LargestEmptyCircle measure from coordinates, so
+   * curve input was fitted against its control polygon: the circle inscribed in
+   * a radius-5 arc disc came back 3.5355 = 5/sqrt(2), the diamond's answer.
+   * Same caller-side shim as the rest of the statics; plain input passes
+   * through as the same object.
+   */
+  private static Geometry arc(Geometry g) {
+    return CurveFunctions.linearizeForOps(g);
+  }
+
   public static Geometry octagonalEnvelope(Geometry g) { return OctagonalEnvelope.octagonalEnvelope(g); }
   
   public static Geometry minimumDiameter(Geometry g) {      return (new MinimumDiameter(g)).getDiameter();  }
@@ -58,7 +69,7 @@ public class ConstructionFunctions {
   public static Geometry maxInscribedCircle(Geometry g,
       @Metadata(title="Distance tolerance")
       double tolerance) { 
-    MaximumInscribedCircle mic = new MaximumInscribedCircle(g, tolerance); 
+    MaximumInscribedCircle mic = new MaximumInscribedCircle(arc(g), tolerance); 
     Coordinate center = mic.getCenter().getCoordinate();
     Coordinate radiusPt = mic.getRadiusPoint().getCoordinate();
     LineString radiusLine = g.getFactory().createLineString(new Coordinate[] { center, radiusPt });
@@ -69,14 +80,14 @@ public class ConstructionFunctions {
   public static Geometry maxInscribedCircleCenter(Geometry g,
       @Metadata(title="Distance tolerance")
       double tolerance) { 
-    return MaximumInscribedCircle.getCenter(g, tolerance); 
+    return MaximumInscribedCircle.getCenter(arc(g), tolerance); 
   }
   
   @Metadata(description="Constructs a radius line of the Maximum Inscribed Circle of a polygonal geometry")
   public static Geometry maxInscribedCircleRadius(Geometry g,
       @Metadata(title="Distance tolerance")
       double tolerance) { 
-    MaximumInscribedCircle mic = new MaximumInscribedCircle(g, tolerance); 
+    MaximumInscribedCircle mic = new MaximumInscribedCircle(arc(g), tolerance); 
     return mic.getRadiusLine(); 
   }
 
@@ -84,7 +95,7 @@ public class ConstructionFunctions {
   public static double maxInscribedCircleRadiusLen(Geometry g,
       @Metadata(title="Distance tolerance")
       double tolerance) { 
-    MaximumInscribedCircle mic = new MaximumInscribedCircle(g, tolerance); 
+    MaximumInscribedCircle mic = new MaximumInscribedCircle(arc(g), tolerance); 
     return mic.getRadiusLine().getLength(); 
   }
 
@@ -94,7 +105,7 @@ public class ConstructionFunctions {
   public static Geometry largestEmptyCircle(Geometry obstacles, Geometry boundary,
       @Metadata(title="Accuracy distance tolerance")
       double tolerance) { 
-    LineString radiusLine = LargestEmptyCircle.getRadiusLine(obstacles, boundary, tolerance);
+    LineString radiusLine = LargestEmptyCircle.getRadiusLine(arc(obstacles), arc(boundary), tolerance);
     return circleByRadiusLine(radiusLine, 60);
   }
   
@@ -102,14 +113,14 @@ public class ConstructionFunctions {
   public static Geometry largestEmptyCircleCenter(Geometry obstacles, Geometry boundary,
       @Metadata(title="Accuracy distance tolerance")
       double tolerance) { 
-    return LargestEmptyCircle.getCenter(obstacles, boundary, tolerance); 
+    return LargestEmptyCircle.getCenter(arc(obstacles), arc(boundary), tolerance); 
   }
   
   @Metadata(description="Computes a radius line of the Largest Empty Circle in a set of obstacles")
   public static Geometry largestEmptyCircleRadius(Geometry obstacles, Geometry boundary, 
       @Metadata(title="Accuracy distance tolerance")
       double tolerance) { 
-    return LargestEmptyCircle.getRadiusLine(obstacles, boundary, tolerance); 
+    return LargestEmptyCircle.getRadiusLine(arc(obstacles), arc(boundary), tolerance); 
   }
   
   //--------------------------------------------
@@ -118,6 +129,12 @@ public class ConstructionFunctions {
   public static Geometry circleByRadiusLine(Geometry radiusLine,
       @Metadata(title="Number of vertices")
       int nPts) {
+    // nPts = 1 used to die inside LinearRing's constructor ("found 2 - must
+    // be 0 or >= 3"), naming neither the parameter nor its bound.
+    if (nPts < 3) {
+      throw new IllegalArgumentException(
+          "Number of vertices must be at least 3 to form a ring; got " + nPts);
+    }
     Coordinate[] radiusPts = radiusLine.getCoordinates();
     Coordinate center = radiusPts[0];
     Coordinate radiusPt = radiusPts[1];

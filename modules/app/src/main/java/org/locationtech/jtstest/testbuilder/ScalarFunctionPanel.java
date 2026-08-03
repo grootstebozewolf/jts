@@ -149,11 +149,16 @@ extends JPanel implements FunctionPanel
   
   public Object getResult() {
     Object result = null;
+    // The timer exists for every exit path: the early return below used to
+    // leave it null (no function selected, or no geometry A), and
+    // ResultController.executeScalarFunction dereferenced it on the EDT --
+    // an NPE from clicking Exec on an empty panel.
+    timer = new Stopwatch();
     if (currentFunc == null || JTSTestBuilder.controller().getGeometryA() == null)
       return null;
     
     try {
-      timer = new Stopwatch();
+      timer.reset();
       result = currentFunc.invoke(JTSTestBuilder.controller().getGeometryA(), getFunctionParams());
       timer.stop();
     }

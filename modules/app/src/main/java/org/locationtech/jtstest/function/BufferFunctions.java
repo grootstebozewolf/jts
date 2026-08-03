@@ -155,10 +155,19 @@ public class BufferFunctions {
     return simpGeom;
   }
 
+  /**
+   * Validates against the same linearised geometry the buffer effectively used.
+   * g.buffer() is arc-aware (CRV-OPS densifies the arc), but
+   * BufferResultValidator measures from coordinates -- the chords -- and the
+   * arc of CIRCULARSTRING (1 0, 1 1, 0 1) bulges 0.207 outside its chords, so
+   * the validator rejected a correct 0.1 buffer as "too small (0.066)". One
+   * function was comparing two different geometries and blaming the answer.
+   */
   public static Geometry bufferValidated(Geometry g, double distance)
   {
-    Geometry buf = g.buffer(distance);
-    String errMsg = BufferResultValidator.isValidMsg(g, distance, buf);
+    Geometry input = CurveFunctions.linearizeForOps(g);
+    Geometry buf = input.buffer(distance);
+    String errMsg = BufferResultValidator.isValidMsg(input, distance, buf);
     if (errMsg != null)
       throw new IllegalStateException("Buffer Validation error: " + errMsg);
     return buf;
@@ -166,8 +175,9 @@ public class BufferFunctions {
 
   public static Geometry bufferValidatedGeom(Geometry g, double distance)
   {
-    Geometry buf = g.buffer(distance);
-    BufferResultValidator validator = new BufferResultValidator(g, distance, buf);    
+    Geometry input = CurveFunctions.linearizeForOps(g);
+    Geometry buf = input.buffer(distance);
+    BufferResultValidator validator = new BufferResultValidator(input, distance, buf);
     boolean isValid = validator.isValid();
     return validator.getErrorIndicator();
   }

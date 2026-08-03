@@ -257,4 +257,205 @@ public class DistanceFunctionsCurveTest extends TestCase {
         read(ARC), read(ARC)), 1.0e-9);
     assertEquals(0.0, DistanceFunctions.frechetDistance(read(ARC), read(ARC)), 1.0e-9);
   }
+
+  // -- multi-arc visual QA (TestBuilder, clipped directed Hausdorff) ------------
+
+  /**
+   * Multi-arc CircularString pair from TestBuilder visual QA:
+   * <pre>
+   *   A = CIRCULARSTRING (120 260, 310 370, 606 306, 970 330, 1000 410)   // 2 arcs
+   *   B = CIRCULARSTRING (160 230, 290 320, 495 329, 650 230, 900 210,
+   *                       940 210, 1000 300)                              // 3 arcs
+   * </pre>
+   * Two different directed-Hausdorff readings, both correct for their contract:
+   * <ul>
+   *   <li><b>clipped</b> {@code clippedDirectedHausdorffLine}: project A onto B,
+   *       then DHD of the projection — mid-course gap
+   *       {@code LINESTRING (927.71 279.65, 973.79 227.98)} length ≈ 69.23.</li>
+   *   <li><b>full</b> {@code directedHausdorffLine}: max-min over the entire
+   *       curves. A's free end {@code (1000 410)} is 110 from B's free end
+   *       {@code (1000 300)}; continuous sampling agrees. That is not a bug —
+   *       free ends dominate full DHD; use clipped for path-to-path matching.</li>
+   * </ul>
+   */
+  public void testClippedDirectedHausdorffMultiArcVisualQA() throws Exception {
+    Geometry a = multiArcA();
+    Geometry b = multiArcB();
+    Geometry line = DistanceFunctions.clippedDirectedHausdorffLine(a, b);
+
+    assertEquals("clipped DHD is a 2-point realizing segment", 2, line.getNumPoints());
+    // TestBuilder pin (25 ms run): length of the attaining pair.
+    final double expectedClippedLen = 69.23113704161247;
+    assertEquals("clipped directed Hausdorff length on multi-arc pair",
+        expectedClippedLen, line.getLength(), 0.05);
+
+    // Endpoints of the realizing segment (A-side sample, nearest on B).
+    org.locationtech.jts.geom.Coordinate[] pts = line.getCoordinates();
+    assertEquals(927.7146567580749, pts[0].x, 0.5);
+    assertEquals(279.65144471735493, pts[0].y, 0.5);
+    assertEquals(973.7932297797964, pts[1].x, 0.5);
+    assertEquals(227.98215553745234, pts[1].y, 0.5);
+  }
+
+  /**
+   * Full {@code directedHausdorffLine} on the multi-arc pair realises the free
+   * ends {@code LINESTRING (1000 410, 1000 300)} of length 110 — continuous
+   * directed Hausdorff agrees (radial foot from A's end onto B's last circle
+   * is outside the arc, so nearest is B's endpoint). TestBuilder visual QA
+   * flagged this as "wrong" when expecting path-to-path; it is correct full
+   * DHD. Use {@link DistanceFunctions#clippedDirectedHausdorffLine} for the
+   * mid-course ~69 reading.
+   */
+  public void testDirectedHausdorffLineMultiArcFreeEndDominates() throws Exception {
+    Geometry a = multiArcA();
+    Geometry b = multiArcB();
+    Geometry line = DistanceFunctions.directedHausdorffLine(a, b);
+
+    assertEquals(2, line.getNumPoints());
+    assertEquals("full directed Hausdorff = free-end gap 110",
+        110.0, line.getLength(), 0.05);
+
+    org.locationtech.jts.geom.Coordinate[] pts = line.getCoordinates();
+    assertEquals(1000.0, pts[0].x, 0.5);
+    assertEquals(410.0, pts[0].y, 0.5);
+    assertEquals(1000.0, pts[1].x, 0.5);
+    assertEquals(300.0, pts[1].y, 0.5);
+
+    // Full reading strictly larger than clipped path-to-path reading.
+    double clipped = DistanceFunctions.clippedDirectedHausdorffLine(a, b).getLength();
+    assertTrue("full DHD " + line.getLength() + " > clipped " + clipped,
+        line.getLength() > clipped + 1.0);
+  }
+
+  private static Geometry multiArcA() throws Exception {
+    return read("CIRCULARSTRING (120 260, 310 370, 606 306, 970 330, 1000 410)");
+  }
+
+  private static Geometry multiArcB() throws Exception {
+    return read(
+        "CIRCULARSTRING (160 230, 290 320, 495 329, 650 230, 900 210, 940 210, 1000 300)");
+  }
+
+  /**
+   * {@code directedHausdorffLineTol(A,B,10)}: {@code distTol} is approximation
+   * accuracy in map units, not a free-end clip. Full DHD still realises the free
+   * ends at length 110 (continuous). A large tol must not densify at 1e-6 of
+   * extent — linearise at the tol so the call stays cheap. Path-to-path mid-course
+   * gap remains {@link DistanceFunctions#clippedDirectedHausdorffLine}.
+   */
+  public void testDirectedHausdorffLineTolMultiArcAccuracyNotClip() throws Exception {
+    Geometry a = multiArcA();
+    Geometry b = multiArcB();
+    Geometry line = DistanceFunctions.directedHausdorffLineTol(a, b, 10.0);
+
+    assertEquals(2, line.getNumPoints());
+    assertEquals("tol form still reports full free-end DHD = 110 (not clipped ~69)",
+        110.0, line.getLength(), 0.5);
+    org.locationtech.jts.geom.Coordinate[] pts = line.getCoordinates();
+    assertEquals(1000.0, pts[0].x, 1.0);
+    assertEquals(410.0, pts[0].y, 1.0);
+    assertEquals(1000.0, pts[1].x, 1.0);
+    assertEquals(300.0, pts[1].y, 1.0);
+
+    // Linearise-for-tol must be much coarser than ops densify on this ~880-unit
+    // pair (ops would be ~1e-6 * extent vertices; tol=10 is a handful of chords).
+    Geometry dense = CurveFunctions.linearizeForOps(a);
+    Geometry coarse = CurveFunctions.linearizeForDistanceTol(a, 10.0);
+    assertTrue("tol=10 linearise must be coarser than ops linearise: ops="
+        + dense.getNumPoints() + " tol10=" + coarse.getNumPoints(),
+        coarse.getNumPoints() < dense.getNumPoints() / 10
+            || coarse.getNumPoints() < 50);
+  }
+
+  /** Negative accuracy is refused with a message that names the contract. */
+  public void testDirectedHausdorffLineTolRefusesNegative() throws Exception {
+    try {
+      DistanceFunctions.directedHausdorffLineTol(multiArcA(), multiArcB(), -1.0);
+      fail("negative accuracy must be refused");
+    }
+    catch (IllegalArgumentException e) {
+      assertTrue("message names accuracy, not densify: " + e.getMessage(),
+          e.getMessage().toLowerCase().contains("tolerance")
+              || e.getMessage().toLowerCase().contains("non-negative"));
+    }
+  }
+
+  // -- Fréchet free-end lower bound (TestBuilder visual QA) -------------------
+
+  /**
+   * Multi-arc path pair from TestBuilder (7 control points each = 3 arcs):
+   * <pre>
+   *   A = CIRCULARSTRING (120 330, 240 340, 280 410, 245 494, 344 496, 452 445, 520 460)
+   *   B = CIRCULARSTRING (120 310, 250 330, 295 412, 330 450, 380 450, 440 420, 522 365)
+   * </pre>
+   * Two correct readings of the same pair:
+   * <ul>
+   *   <li><b>Fréchet</b> realises free ends {@code (520 460)–(522 365)} length ≈ 95.02
+   *       (monotone coupling must finish at the ends).</li>
+   *   <li><b>Clipped directed Hausdorff</b> realises mid-course
+   *       {@code LINESTRING (258.99 510.45, 315.17 441.04)} length ≈ 89.30
+   *       (project A onto B, then DHD of the projection).</li>
+   * </ul>
+   */
+  public void testFrechetDistanceLineMultiArcFreeEndsDominate() throws Exception {
+    Geometry a = multiArcPathA();
+    Geometry b = multiArcPathB();
+
+    double endEnd = a.getCoordinates()[a.getNumPoints() - 1]
+        .distance(b.getCoordinates()[b.getNumPoints() - 1]);
+    assertEquals(95.02105029939419, endEnd, 1e-6);
+
+    Geometry leash = DistanceFunctions.frechetDistanceLine(a, b);
+    assertEquals(2, leash.getNumPoints());
+    // Fréchet ≥ end-end; on this pair the max leash is exactly the free ends.
+    assertEquals("Fréchet leash length = free-end gap", endEnd, leash.getLength(), 0.5);
+
+    org.locationtech.jts.geom.Coordinate[] pts = leash.getCoordinates();
+    assertEquals(520.0, pts[0].x, 1.0);
+    assertEquals(460.0, pts[0].y, 1.0);
+    assertEquals(522.0, pts[1].x, 1.0);
+    assertEquals(365.0, pts[1].y, 1.0);
+
+    double frechet = DistanceFunctions.frechetDistance(a, b);
+    assertEquals(endEnd, frechet, 0.5);
+    assertTrue("Fréchet " + frechet + " must be >= end-end " + endEnd,
+        frechet + 1e-6 >= endEnd);
+  }
+
+  /**
+   * Same multi-arc path pair: {@code clippedDirectedHausdorffLine} mid-course
+   * pin from TestBuilder (29 ms). Realising segment
+   * {@code LINESTRING (258.987 510.451, 315.169 441.041)} length ≈ 89.298 —
+   * the path-to-path gap Fréchet free-ends do not report.
+   */
+  public void testClippedDirectedHausdorffMultiArcPathVisualQA() throws Exception {
+    Geometry a = multiArcPathA();
+    Geometry b = multiArcPathB();
+    Geometry line = DistanceFunctions.clippedDirectedHausdorffLine(a, b);
+
+    assertEquals(2, line.getNumPoints());
+    final double expectedLen = 89.2982753626349;
+    assertEquals("clipped directed Hausdorff mid-course gap",
+        expectedLen, line.getLength(), 0.5);
+
+    org.locationtech.jts.geom.Coordinate[] pts = line.getCoordinates();
+    assertEquals(258.98693364714956, pts[0].x, 1.0);
+    assertEquals(510.45121476129685, pts[0].y, 1.0);
+    assertEquals(315.1689111441109, pts[1].x, 1.0);
+    assertEquals(441.0410758241654, pts[1].y, 1.0);
+
+    // Distinct from Fréchet free-end pair (ends of A/B).
+    assertTrue("clipped realizing point is not A's free end",
+        pts[0].distance(a.getCoordinates()[a.getNumPoints() - 1]) > 50.0);
+  }
+
+  private static Geometry multiArcPathA() throws Exception {
+    return read(
+        "CIRCULARSTRING (120 330, 240 340, 280 410, 245 494, 344 496, 452 445, 520 460)");
+  }
+
+  private static Geometry multiArcPathB() throws Exception {
+    return read(
+        "CIRCULARSTRING (120 310, 250 330, 295 412, 330 450, 380 450, 440 420, 522 365)");
+  }
 }

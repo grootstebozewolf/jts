@@ -227,10 +227,13 @@ public class ResultController
     Object result = scalarPanel.getResult();
     frame().setCursorNormal();
     
+    // Belt and braces with ScalarFunctionPanel.getResult(), which now sets the
+    // timer on every path: a null here must degrade to a blank time, not an NPE
+    // on the event thread.
     Stopwatch timer = scalarPanel.getTimer();
-    String timeString = timer.getTimeString();
-    
-    frame().getResultValuePanel().setResult(opName, timer.getTimeString(), result);
+    String timeString = timer == null ? "" : timer.getTimeString();
+
+    frame().getResultValuePanel().setResult(opName, timeString, result);
 
     resultLogEntry(functionInvocation(scalarPanel), timeString, result);
   }

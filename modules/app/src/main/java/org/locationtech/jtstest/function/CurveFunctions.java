@@ -132,6 +132,39 @@ public class CurveFunctions {
     return linearizeAtFraction(g, HULL_TOLERANCE_FRACTION);
   }
 
+  /**
+   * Linearises curves for a directed-Hausdorff call that has an explicit
+   * distance accuracy {@code distTol}.
+   * <p>
+   * Chord error is taken as {@code max(opsFraction·extent, distTol)} so a large
+   * tolerance (e.g. TestBuilder {@code directedHausdorffLineTol(..., 10)}) does
+   * not still densify at 1e-6 of extent and then pay for a dense segment queue.
+   * Smaller than ops sampling is not requested: {@code distTol} of 0 falls back
+   * to {@link #linearizeForOps}.
+   * <p>
+   * {@code distTol} is <em>not</em> a free-end clip and <em>not</em> a densify
+   * fraction — it only caps how finely arcs are replaced by chords before the
+   * core directed-Hausdorff search.
+   */
+  public static Geometry linearizeForDistanceTol(Geometry g, double distTol) {
+    if (g == null || g.isEmpty()) return g;
+    if (distTol < 0.0) {
+      throw new IllegalArgumentException(
+          "Distance tolerance must be non-negative (accuracy of the Hausdorff "
+          + "approximation in coordinate units, not a densify fraction); got "
+          + distTol);
+    }
+    Envelope env = g.getEnvelopeInternal();
+    double extent = Math.max(env.getWidth(), env.getHeight());
+    double opsTol = (extent > 0.0 ? extent : 1.0) * OPS_TOLERANCE_FRACTION;
+    if (distTol == 0.0) {
+      return linearize(g, opsTol);
+    }
+    // Coarser of the two: never sample denser than ops, and never denser than
+    // the accuracy the caller asked for.
+    return linearize(g, Math.max(opsTol, distTol));
+  }
+
   private static Geometry linearizeAtFraction(Geometry g, double fraction) {
     if (g == null || g.isEmpty()) return g;
     Envelope env = g.getEnvelopeInternal();

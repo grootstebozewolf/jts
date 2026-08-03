@@ -57,6 +57,17 @@ public class DistanceFunctions {
     return a.getFactory().createLineString(pts);
   }
 
+  /**
+   * Discrete Fréchet distance after arc linearise (quadratic sampler).
+   * <p>
+   * Fréchet couplings are monotone and must join starts to starts and ends to
+   * ends, so the value is always at least {@code d(startA,startB)} and
+   * {@code d(endA,endB)}. Free ends that diverge (e.g. A ends at
+   * {@code (520 460)} vs B at {@code (522 365)} → leash ≥ 95) routinely
+   * <em>are</em> the realizing pair — that is the metric, not a sampling bug.
+   * Mid-course gap alone is not what this returns.
+   */
+  @Metadata(description="Discrete Fréchet after arc linearise (monotone coupling; free ends lower-bound the leash — often the realizing pair)")
   public static double frechetDistance(Geometry a, Geometry b)  
   {   
     // Quadratic DP: coarser sampling, or a curve pair runs for 20 seconds.
@@ -65,6 +76,12 @@ public class DistanceFunctions {
         CurveFunctions.linearizeForQuadratic(a), CurveFunctions.linearizeForQuadratic(b));
   }
 
+  /**
+   * Realizing leash segment for {@link #frechetDistance} (pair of points on A and B
+   * that attain the discrete Fréchet value). Same free-end lower bound as the
+   * distance: see that method.
+   */
+  @Metadata(description="Discrete Fréchet realizing leash segment (free ends often dominate — not path-only mid-course gap)")
   public static Geometry frechetDistanceLine(Geometry a, Geometry b)  
   {   
     DiscreteFrechetDistance dist = new DiscreteFrechetDistance(
@@ -114,31 +131,65 @@ public class DistanceFunctions {
     return a.getFactory().createLineString(pts);
   }
   
-  @Metadata(description="Directed Hausdorff distance from A to B, up to tolerance")
+  /**
+   * Full directed Hausdorff distance h(A,B) with an explicit accuracy tolerance.
+   * <p>
+   * {@code distTol} is the <em>approximation accuracy</em> in coordinate units
+   * (how close the realizing pair is to the true max-min). It is <b>not</b> a
+   * free-end clip, a densify fraction, or a path-matching window. Free endpoints
+   * still dominate when they stick past the target — use
+   * {@link #clippedDirectedHausdorffLine} for mid-course path comparison.
+   * <p>
+   * Arc linearisation is matched to {@code distTol} (coarser tolerance → fewer
+   * chords → faster); previously every call densified at 1e-6 of extent and a
+   * visual-QA run with {@code distTol = 10} paid for a dense polyline then a
+   * long segment queue (~40 ms) only to report the free-end pair again.
+   */
+  @Metadata(description="Directed Hausdorff h(A,B): distTol = accuracy in map units (NOT free-end clip / densify frac). Free ends dominate → use clippedDirectedHausdorffLine for paths")
   public static double directedHausdorffDistance(Geometry a, Geometry b, 
-      @Metadata(title="Distance tolerance")
+      @Metadata(title="Accuracy (map units, not densify frac)")
       double distTol)  
   {   
-    return DirectedHausdorffDistance.distance(arc(a), arc(b), distTol);
+    Geometry la = CurveFunctions.linearizeForDistanceTol(a, distTol);
+    Geometry lb = CurveFunctions.linearizeForDistanceTol(b, distTol);
+    return DirectedHausdorffDistance.distance(la, lb, distTol);
   }
   
-  @Metadata(description="Directed Hausdorff distance line from A to B, up to tolerance")
+  /**
+   * Realizing segment for {@link #directedHausdorffDistance}. Same contract:
+   * full-extent DHD, free ends can dominate, {@code distTol} is accuracy only.
+   * Path-to-path → {@link #clippedDirectedHausdorffLine}.
+   */
+  @Metadata(description="Directed Hausdorff segment h(A,B): distTol = accuracy in map units (NOT free-end clip). Free ends dominate → clippedDirectedHausdorffLine for paths")
   public static Geometry directedHausdorffLineTol(Geometry a, Geometry b, 
-      @Metadata(title="Distance tolerance")
+      @Metadata(title="Accuracy (map units, not densify frac)")
       double distTol)  
   {   
-    Coordinate[] pts = DirectedHausdorffDistance.distancePoints(arc(a), arc(b), distTol);
+    Geometry la = CurveFunctions.linearizeForDistanceTol(a, distTol);
+    Geometry lb = CurveFunctions.linearizeForDistanceTol(b, distTol);
+    Coordinate[] pts = DirectedHausdorffDistance.distancePoints(la, lb, distTol);
     return a.getFactory().createLineString(pts);
   }
   
-  @Metadata(description="Directed Hausdorff distance line from A to B")
+  /**
+   * Full directed Hausdorff realizing segment from A to B (after arc linearise).
+   * <p>
+   * This is the true max-min over the <em>entire</em> geometries. Free endpoints
+   * of A that stick past B routinely dominate — e.g. multi-arc A ending at
+   * {@code (1000 410)} against B ending at {@code (1000 300)} realises
+   * {@code LINESTRING (1000 410, 1000 300)} of length 110, which is continuous
+   * and correct, but is not a path-to-path mismatch. For comparing two routes
+   * of similar extent use {@link #clippedDirectedHausdorffLine}, which projects
+   * A onto B first and reports the mid-course gap (~69 on that same pair).
+   */
+  @Metadata(description="Directed Hausdorff realizing segment h(A,B) after arc linearise (FULL extent — free ends dominate; path matching → clippedDirectedHausdorffLine)")
   public static Geometry directedHausdorffLine(Geometry a, Geometry b)  
   {   
     Coordinate[] pts = DirectedHausdorffDistance.distancePoints(arc(a), arc(b));
     return a.getFactory().createLineString(pts);
   }
   
-  @Metadata(description="Hausdorff distance between A and B, up to tolerance")
+  @Metadata(description="Symmetric Hausdorff realizing segment after arc linearise (full extent — free ends can dominate)")
   public static Geometry hausdorffLine(Geometry a, Geometry b)  
   {   
     Coordinate[] pts = DirectedHausdorffDistance.hausdorffDistancePoints(arc(a), arc(b));
