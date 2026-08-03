@@ -75,12 +75,12 @@ public class WKTMultiSurfaceTest extends GeometryTestCase {
     assertTrue("Expected emitted WKT to mention MULTISURFACE but was: " + emitted,
         emitted.toUpperCase().contains("MULTISURFACE"));
     Geometry g2 = new CurvedWKTReader().read(emitted);
-    // Phase-1: the writer collapses inner CurvePolygon members to untagged
-    // polygon bodies, so re-reading yields MultiSurface[Polygon] instead of
-    // MultiSurface[CurvePolygon]. Polygon.isEquivalentClass is strict, so a
-    // direct checkEqual against the original would fail (LineString's lenient
-    // isEquivalentClass masks the same issue inside MultiCurve). Verify
-    // structural fidelity instead via WKT stability and linearised equality.
+    // The writer now tags curved inner members (FCP-WKT), so their rings
+    // survive the round trip. A direct checkEqual against the original would
+    // still fail on Polygon.isEquivalentClass, which is strict about the
+    // concrete class (LineString's lenient version masks the same issue inside
+    // MultiCurve). So verify structural fidelity via WKT stability plus
+    // linearised equality.
     String emitted2 = new CurvedWKTWriter().write(g2);
     assertEquals(emitted, emitted2);
     checkEqual(

@@ -38,13 +38,23 @@ import org.locationtech.jts.io.WKTWriter;
  * keyword, so e.g. {@code CircularString (1 2, 3 4, 5 6)} comes out
  * correctly via the {@code LineString} formatter.
  *
- * <p>{@link CompoundCurve} is the exception: emitting its concatenated
- * coordinate sequence as a flat {@code COMPOUNDCURVE (x1 y1, …)} loses
- * the segment structure. This writer overrides
- * {@link #appendOtherGeometryTaggedText} to walk
- * {@code CompoundCurve.getMembers()} and emit each member tagged
- * (CIRCULARSTRING) or untagged (raw {@code (…)} for LineString),
- * round-tripping cleanly through {@link CurvedWKTReader}.
+ * <p>The exceptions are the composite types, whose structure is lost if their
+ * concatenated coordinates are emitted flat. This writer overrides
+ * {@link #appendOtherGeometryTaggedText} to walk each one and tag its parts,
+ * so they round-trip cleanly through {@link CurvedWKTReader}:
+ *
+ * <ul>
+ * <li>{@link CompoundCurve} — walks {@code getMembers()}, emitting each member
+ *     tagged ({@code CIRCULARSTRING}) or untagged (bare {@code (…)}).
+ * <li>{@link CurvePolygon} — walks the structural rings, emitting each tagged
+ *     ({@code CIRCULARSTRING}, nested {@code COMPOUNDCURVE}) or bare.
+ * <li>{@link MultiSurface} — emits curved members with their
+ *     {@code CURVEPOLYGON} tag so their rings survive.
+ * </ul>
+ *
+ * <p>Each override is gated on actually containing a curve, so an all-linear
+ * geometry still goes through the inherited formatter and its output is
+ * unchanged.
  */
 public class CurvedWKTWriter extends WKTWriter {
 
