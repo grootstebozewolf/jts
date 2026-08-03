@@ -84,16 +84,24 @@ public class CurvePolygonToLinearTest extends GeometryTestCase {
   }
 
   /**
-   * Densifying an arc shell that bulges outside its control polygon must not
-   * shrink the covered area below the chord approximation.
+   * A densified arc shell is sandwiched between the chord polygon through its
+   * control points and the exact arc area: densifying an outward-bulging arc
+   * recovers area the chords miss, but an inscribed polygon can never reach
+   * the true arc area.
    */
-  public void testDensifiedAreaIsAtLeastChordArea() throws Exception {
+  public void testDensifiedAreaLiesBetweenChordAndExact() throws Exception {
     CurvePolygon g = readCP(ARC_SHELL);
-    double chordArea = g.getArea();
+    // getExteriorRing() is the flat control-point view, so this is the chord
+    // polygon; getArea() is the exact arc area (CRV-AREA).
+    double chordArea = g.getFactory().createPolygon(g.getExteriorRing()).getArea();
+    double exactArea = g.getArea();
     double flatArea = g.toLinear(0.01).getArea();
     assertTrue("densified area " + flatArea
-        + " should be >= chord area " + chordArea,
-        flatArea >= chordArea - 1.0e-9);
+        + " should exceed the chord area " + chordArea,
+        flatArea > chordArea);
+    assertTrue("densified area " + flatArea
+        + " cannot exceed the exact arc area " + exactArea,
+        flatArea <= exactArea + 1.0e-9);
   }
 
   /** An all-linear CurvePolygon linearises to the same ring, unchanged. */

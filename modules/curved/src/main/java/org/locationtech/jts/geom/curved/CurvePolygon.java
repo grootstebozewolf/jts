@@ -11,6 +11,8 @@
  */
 package org.locationtech.jts.geom.curved;
 
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
@@ -163,6 +165,73 @@ public class CurvePolygon extends Polygon implements Linearizable {
     }
     LinearRing shell = (LinearRing) getExteriorRing().copy();
     return new CurvePolygon(shell, holes, f);
+  }
+
+  /**
+   * The area enclosed by the structural rings, so arc rings contribute the
+   * area they actually sweep rather than the polygon through their control
+   * points.
+   * <p>
+   * The inherited {@code Polygon.getArea()} shoelaces the flat
+   * {@code getExteriorRing()} view, which for a circle expressed as two
+   * semicircular arcs is the inscribed quadrilateral -- 8 instead of
+   * {@code 4*pi} for radius 2.
+   * <p>
+   * Follows {@code Polygon} semantics: the magnitude of the shell's area less
+   * the magnitude of each hole's, so the result is independent of ring
+   * orientation.
+   */
+  @Override
+  public double getArea() {
+    if (isEmpty()) return 0.0;
+    double area = Math.abs(signedRingArea(structuralShell));
+    for (int i = 0; i < structuralHoles.length; i++) {
+      area -= Math.abs(signedRingArea(structuralHoles[i]));
+    }
+    return area;
+  }
+
+  /**
+   * Signed area enclosed by one ring, via the contour integral
+   * {@code 1/2 * integral(x dy - y dx)}. Arc pieces use the closed-form arc
+   * term; straight pieces use the shoelace term. A CompoundCurve ring is the
+   * sum over its members, which together close the loop.
+   */
+  private static double signedRingArea(LineString ring) {
+    if (ring == null) return 0.0;
+    if (ring instanceof CompoundCurve) {
+      CompoundCurve cc = (CompoundCurve) ring;
+      double area = 0.0;
+      for (int i = 0; i < cc.getNumMembers(); i++) {
+        area += signedRingArea(cc.getMemberN(i));
+      }
+      return area;
+    }
+    CoordinateSequence seq = ring.getCoordinateSequence();
+    if (ring instanceof CircularString && seq.size() >= 3) {
+      double area = 0.0;
+      for (int i = 0; i + 2 < seq.size(); i += 2) {
+        area += CircularArcDensifier.arcAreaContribution(
+            seq.getCoordinate(i), seq.getCoordinate(i + 1), seq.getCoordinate(i + 2));
+      }
+      return area;
+    }
+    return shoelace(seq);
+  }
+
+  /**
+   * Shoelace contour term over consecutive vertices. Over a closed ring this is
+   * the signed area; over an open piece it is that piece's contribution to the
+   * enclosing contour.
+   */
+  private static double shoelace(CoordinateSequence seq) {
+    double sum = 0.0;
+    for (int i = 0; i + 1 < seq.size(); i++) {
+      Coordinate p = seq.getCoordinate(i);
+      Coordinate q = seq.getCoordinate(i + 1);
+      sum += p.x * q.y - q.x * p.y;
+    }
+    return 0.5 * sum;
   }
 
   /**

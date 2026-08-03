@@ -237,6 +237,41 @@ public final class CircularArcDensifier {
     return c.r * signedSweep(a0, a1, ccw);
   }
 
+  /**
+   * The arc's contribution to the contour integral
+   * {@code 1/2 * integral(x dy - y dx)}, whose value over a closed boundary is
+   * the signed enclosed area (Green's theorem).
+   * <p>
+   * For an arc on centre {@code (cx, cy)} radius {@code r} sweeping
+   * {@code a0 -> a1} this evaluates in closed form to
+   * <pre>
+   *   1/2 * [ r^2 (a1 - a0)
+   *           + cx * r * (sin a1 - sin a0)
+   *           - cy * r * (cos a1 - cos a0) ]
+   * </pre>
+   * The sweep is signed by traversal direction, so the result needs no
+   * orientation heuristic and composes by simple summation with the shoelace
+   * terms of any straight pieces in the same ring.
+   * <p>
+   * Degenerate (colinear or coincident) triples describe no arc and contribute
+   * the straight chord {@code start..end}.
+   */
+  public static double arcAreaContribution(Coordinate start, Coordinate mid, Coordinate end) {
+    Circle c = Circle.fromThreePoints(start, mid, end);
+    if (c == null) {
+      return 0.5 * (start.x * end.y - end.x * start.y);
+    }
+    double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
+    double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
+    double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
+    boolean ccw = isMidInCcwSweep(a0, aMid, a1);
+    double sweep = signedSweep(a0, a1, ccw);
+    double delta = ccw ? sweep : -sweep;
+    return 0.5 * (c.r * c.r * delta
+        + c.cx * c.r * (Math.sin(a0 + delta) - Math.sin(a0))
+        - c.cy * c.r * (Math.cos(a0 + delta) - Math.cos(a0)));
+  }
+
   /** Circumcircle of three points, or {@code null} if colinear. */
   private static final class Circle {
     final double cx, cy, r;
