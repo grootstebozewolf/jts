@@ -69,9 +69,18 @@ public class CurvePredicateTest extends GeometryTestCase {
   /** Inside the circle (4.243 < 5), outside the control diamond (6 > 5). */
   private static final String BULGE_POINT = "POINT (3 3)";
 
-  /** Wholly inside the circle, wholly outside the diamond. */
+  /**
+   * Wholly inside the circle, wholly outside the diamond. The far corner
+   * {@code (3.4, 3.4)} is at distance 4.808 &lt; 5; the near corner
+   * {@code (3.2, 3.2)} has {@code |x|+|y| = 6.4 > 5}.
+   * <p>
+   * The first version of this square ran to 3.6, whose far corner sits at
+   * distance 5.091 -- outside the circle -- and the arc-aware {@code covers}
+   * correctly answered false against the test's wrong premise. The predicate
+   * under test refuted its own test data; only the square changed.
+   */
   private static final String BULGE_SQUARE =
-      "POLYGON ((3.3 3.3, 3.6 3.3, 3.6 3.6, 3.3 3.6, 3.3 3.3))";
+      "POLYGON ((3.2 3.2, 3.4 3.2, 3.4 3.4, 3.2 3.4, 3.2 3.2))";
 
   /** Crosses the chord (0 5)-(5 0) at (3.5, 1.5); the arc there is at y=3.571. */
   private static final String CHORD_ONLY_SEGMENT = "LINESTRING (3.5 1, 3.5 2)";

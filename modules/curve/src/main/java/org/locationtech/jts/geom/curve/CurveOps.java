@@ -13,6 +13,7 @@ package org.locationtech.jts.geom.curve;
 
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.IntersectionMatrix;
 
 /**
  * Routes the inherited jts-core spatial operations through a densified copy of
@@ -142,5 +143,70 @@ public final class CurveOps {
 
   static Geometry symDifference(Geometry curve, Geometry other) {
     return linearise(curve).symDifference(linearise(other));
+  }
+
+  // -- Predicates (CRV-REL) -------------------------------------------------
+  //
+  // The inherited predicates evaluate getCoordinates(), judging a curve by its
+  // control polygon: contains(POINT (3 3)) was false for the radius-5 circle
+  // (the point is 4.243 from the centre), and a CircularString "intersected"
+  // segments that only touch the chords. Booleans have no tolerance to hide in.
+  //
+  // Every predicate is overridden individually, because in this core almost
+  // none of them route through this.relate(other): touches, intersects, within,
+  // contains, overlaps, covers, coveredBy, relate and equalsTopo each call a
+  // GeometryRelate static (the RelateNG entry points), which no override can
+  // intercept. Only crosses still goes through this.relate(g). An earlier
+  // version of this comment claimed one relate override would carry the family;
+  // the three contains/covers failures that survived it are why each predicate
+  // now has its own. disjoint is the exception -- core defines it as
+  // !intersects(g), so it follows the intersects override.
+  //
+  // Verdicts are evaluated on inscribed copies, so input within TOLERANCE_FRACTION
+  // of a boundary transition is undecidable here -- the same band the overlay
+  // ratchet's margin gate refuses to decide in. The reverse direction
+  // (plain.contains(curve)) dispatches on the plain type and remains chord-based.
+
+  static IntersectionMatrix relate(Geometry curve, Geometry other) {
+    return linearise(curve).relate(linearise(other));
+  }
+
+  static boolean intersects(Geometry curve, Geometry other) {
+    return linearise(curve).intersects(linearise(other));
+  }
+
+  static boolean within(Geometry curve, Geometry other) {
+    return linearise(curve).within(linearise(other));
+  }
+
+  static boolean coveredBy(Geometry curve, Geometry other) {
+    return linearise(curve).coveredBy(linearise(other));
+  }
+  static boolean touches(Geometry curve, Geometry other) {
+    return linearise(curve).touches(linearise(other));
+  }
+
+  static boolean contains(Geometry curve, Geometry other) {
+    return linearise(curve).contains(linearise(other));
+  }
+
+  static boolean overlaps(Geometry curve, Geometry other) {
+    return linearise(curve).overlaps(linearise(other));
+  }
+
+  static boolean covers(Geometry curve, Geometry other) {
+    return linearise(curve).covers(linearise(other));
+  }
+
+  static boolean crosses(Geometry curve, Geometry other) {
+    return linearise(curve).crosses(linearise(other));
+  }
+
+  static boolean relate(Geometry curve, Geometry other, String pattern) {
+    return linearise(curve).relate(linearise(other), pattern);
+  }
+
+  static boolean equalsTopo(Geometry curve, Geometry other) {
+    return linearise(curve).equalsTopo(linearise(other));
   }
 }

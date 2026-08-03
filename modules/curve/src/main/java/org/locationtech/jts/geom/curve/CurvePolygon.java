@@ -15,6 +15,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
@@ -440,5 +441,66 @@ public class CurvePolygon extends Polygon implements Linearizable {
   @Override
   public Geometry symDifference(Geometry other) {
     return CurveOps.symDifference(this, other);
+  }
+
+  // -- Spatial predicates (CRV-REL) -----------------------------------------
+  // Each predicate is overridden individually: in this core they dispatch to
+  // GeometryRelate statics rather than through this.relate(g), so no single
+  // override carries the family -- see CurveOps. disjoint is inherited as
+  // !intersects(g), so it follows the intersects override.
+
+  @Override
+  public IntersectionMatrix relate(Geometry g) {
+    return CurveOps.relate(this, g);
+  }
+
+  @Override
+  public boolean relate(Geometry g, String intersectionPattern) {
+    return CurveOps.relate(this, g, intersectionPattern);
+  }
+
+  @Override
+  public boolean intersects(Geometry g) {
+    return CurveOps.intersects(this, g);
+  }
+
+  @Override
+  public boolean touches(Geometry g) {
+    return CurveOps.touches(this, g);
+  }
+
+  @Override
+  public boolean crosses(Geometry g) {
+    return CurveOps.crosses(this, g);
+  }
+
+  @Override
+  public boolean within(Geometry g) {
+    return CurveOps.within(this, g);
+  }
+
+  @Override
+  public boolean contains(Geometry g) {
+    return CurveOps.contains(this, g);
+  }
+
+  @Override
+  public boolean overlaps(Geometry g) {
+    return CurveOps.overlaps(this, g);
+  }
+
+  @Override
+  public boolean covers(Geometry g) {
+    return CurveOps.covers(this, g);
+  }
+
+  @Override
+  public boolean coveredBy(Geometry g) {
+    return CurveOps.coveredBy(this, g);
+  }
+
+  @Override
+  public boolean equalsTopo(Geometry g) {
+    return CurveOps.equalsTopo(this, g);
   }
 }
