@@ -168,7 +168,13 @@ public class OverlayNGCurve {
     // flagging it would be a false warning -- and a flag that cries wolf on plain
     // input is one callers learn to ignore.
     isApproximate = CurveOps.tolerance(a) > 0.0 || CurveOps.tolerance(b) > 0.0;
-    return org.locationtech.jts.operation.overlayng.OverlayNG.overlay(
+    // OverlayNGRobust rather than bare OverlayNG: since this class now backs the
+    // instance methods (CurveOps routes intersection/union/difference/
+    // symDifference here), the fall-through must keep the snapping fallbacks
+    // Geometry's own overlay path has -- a noding failure on hard input should
+    // degrade to a snapped answer, not to a TopologyException the plain-geometry
+    // path would have survived.
+    return org.locationtech.jts.operation.overlayng.OverlayNGRobust.overlay(
         CurveOps.linearise(a), CurveOps.linearise(b), opCode);
   }
 

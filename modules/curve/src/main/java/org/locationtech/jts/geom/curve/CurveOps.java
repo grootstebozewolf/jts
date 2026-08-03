@@ -14,6 +14,7 @@ package org.locationtech.jts.geom.curve;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.IntersectionMatrix;
+import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
 
 /**
  * Routes the inherited jts-core spatial operations through a densified copy of
@@ -24,7 +25,6 @@ import org.locationtech.jts.geom.IntersectionMatrix;
  * {@code BufferOp}) live in jts-core and have no visibility of the curve types,
  * since jts-curve depends on core rather than the reverse. Densifying at the
  * boundary is what lets them stay untouched.
- * <p>
  * <p>
  * {@link #linearise(Geometry)} and {@link #TOLERANCE_FRACTION} are public because
  * {@code org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve} needs the
@@ -110,39 +110,34 @@ public final class CurveOps {
   // control points: two concentric circles of radius 5 and 3 intersected in 18
   // rather than 9*pi, and unioned to 50 rather than 25*pi.
   //
-  // Unlike getArea() or getLength() there is no closed form to reach for, and
-  // unlike addHole this is not structural. Overlay has to node the linework, and
-  // noding arcs exactly would require arc-arc intersection and arc splitting --
-  // a subsystem, not a shim -- so the result is a densified plain geometry and
-  // the arc does not survive. That is a property of the operation, not of the
-  // tolerance: no tolerance choice returns a CurvePolygon here.
-  //
-  // Densifying also removes an inconsistency that was breaking core outright.
-  // OverlayNG cross-checks the result's area against the operands', and a
-  // CurvePolygon reported an arc-aware getArea() of 78.54 while its
-  // getCoordinates() enclosed 50, so UNION and DIFFERENCE threw
-  // TopologyException("Result area inconsistent with overlay operation"). Handing
-  // core a densified operand gives it one self-consistent geometry instead of a
-  // geometry that disagreed with itself.
+  // Delegated to OverlayNGCurve, the single overlay implementation, so the
+  // instance methods inherit the ratchet: A.intersection(A) returns A itself,
+  // a nested pair returns the inner operand untouched, a disjoint CUP returns a
+  // MultiSurface with arcs intact, and only genuinely crossing operands are
+  // densified and noded. An earlier version of this block densified
+  // unconditionally and stated that "no tolerance choice returns a CurvePolygon
+  // here" -- true of the noded path, which still cannot preserve an arc (that
+  // needs arc-arc intersection and splitting, a subsystem not a shim), but not
+  // of the algebra and retention stages in front of it.
   //
   // The no-argument Geometry.union() is deliberately NOT routed here: for a
   // single CurvePolygon it already returns the geometry itself, area exact, and
   // densifying would replace an exact answer with an approximate one.
 
   static Geometry intersection(Geometry curve, Geometry other) {
-    return linearise(curve).intersection(linearise(other));
+    return OverlayNGCurve.intersection(curve, other);
   }
 
   static Geometry union(Geometry curve, Geometry other) {
-    return linearise(curve).union(linearise(other));
+    return OverlayNGCurve.union(curve, other);
   }
 
   static Geometry difference(Geometry curve, Geometry other) {
-    return linearise(curve).difference(linearise(other));
+    return OverlayNGCurve.difference(curve, other);
   }
 
   static Geometry symDifference(Geometry curve, Geometry other) {
-    return linearise(curve).symDifference(linearise(other));
+    return OverlayNGCurve.symDifference(curve, other);
   }
 
   // -- Predicates (CRV-REL) -------------------------------------------------
