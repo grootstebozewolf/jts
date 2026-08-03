@@ -22,9 +22,28 @@ import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.operation.union.UnionStrategy;
 
 public class OverlayNGRobustFunctions {
+  /**
+   * Densifies curve operands before handing them to core.
+   * <p>
+   * These are static entry points taking a {@link Geometry}, so a curve type has
+   * no virtual call to override, and left alone they node the chords through the
+   * control points: two concentric circles of radius 5 and 3 intersected in 18
+   * rather than 9*pi. Worse, a CurvePolygon reports an arc-aware area while its
+   * coordinates enclose the chord area, and OverlayNG's own cross-check rejected
+   * that contradiction with
+   * {@code TopologyException("Result area inconsistent with overlay operation")}.
+   * <p>
+   * Non-curve input is returned as the same object, so nothing without an arc is
+   * affected. The arc cannot survive an overlay at any tolerance -- see
+   * {@code CurveOps} -- so the result is a densified plain geometry by necessity.
+   */
+  private static Geometry arc(Geometry g) {
+    return CurveFunctions.linearizeForOps(g);
+  }
+
   
   private static Geometry overlay(Geometry a, Geometry b, int opcode) {
-    return OverlayNGRobust.overlay(a, b, opcode );
+    return OverlayNGRobust.overlay(arc(a), arc(b), opcode );
   }
   
   public static Geometry difference(Geometry a, Geometry b) {
@@ -65,7 +84,7 @@ public class OverlayNGRobustFunctions {
       }
       
     };
-    UnaryUnionOp op = new UnaryUnionOp(a);
+    UnaryUnionOp op = new UnaryUnionOp(arc(a));
     op.setUnionFunction(unionFun);
     return op.union();
   }
