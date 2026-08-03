@@ -3,6 +3,13 @@ name: GitHub CI
 on: [push, pull_request]
 
 jobs:
+  naming-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Forbid 'Curved' stem (use 'Curve' -- see RENAME_CONTRACT.md)
+        run: bash dev/check-no-curved.sh
+
   build-and-test:
     runs-on: ubuntu-latest
 
