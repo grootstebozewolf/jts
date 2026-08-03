@@ -47,9 +47,15 @@ import junit.textui.TestRunner;
  * IO-WRT and DIFF-SEG, because {@code getExteriorRing()} is the flat
  * control-point view.
  * <p>
- * The output is necessarily a plain Polygon: it is assembled from
- * {@code LinearRing}s, so curve identity cannot survive whatever tolerance is
- * used. What can be preserved, and now is, is the shape.
+ * <b>Superseded in part by ADD-HOLE-CURVE.</b> This claim was first made green by
+ * densifying both inputs, on the assumption that the output had to be a plain
+ * Polygon assembled from LinearRings. That assumption was wrong: adding a hole is
+ * a structural operation and {@code CurvePolygon}'s Option-A constructor can hold
+ * the arcs, so the exact answer was available all along. The area assertions here
+ * still hold -- and now hold exactly rather than to a tolerance -- but the
+ * vertex-count assertion that expected a densified hole has been removed, because
+ * a densified hole is no longer the desired outcome. See
+ * {@code AddHoleCurveStructureTest}, which asserts the structural result.
  */
 public class AddHoleCurveTest extends TestCase {
 
@@ -98,15 +104,16 @@ public class AddHoleCurveTest extends TestCase {
     assertEquals("annulus area should be 16*pi", TRUE_AREA, result.getArea(), AREA_TOL);
   }
 
-  /** The hole must be a densified ring, not four control points. */
-  public void testTheHoleIsDensified() throws Exception {
+  /**
+   * The hole must be present as a hole. How it is represented is
+   * ADD-HOLE-CURVE's claim, not this one -- an earlier version of this test
+   * required a densified ring, which is exactly the outcome that turned out to be
+   * avoidable.
+   */
+  public void testTheHoleIsAdded() throws Exception {
     Geometry result = GeometryFunctions.addHoles(read(CURVE_POLY_A), read(CURVE_POLY_B));
     assertEquals("one hole", 1,
         ((org.locationtech.jts.geom.Polygon) result).getNumInteriorRing());
-    assertTrue("hole should follow the arc, got "
-        + ((org.locationtech.jts.geom.Polygon) result).getInteriorRingN(0).getNumPoints()
-        + " points",
-        ((org.locationtech.jts.geom.Polygon) result).getInteriorRingN(0).getNumPoints() > 100);
   }
 
   /** Whatever the sampling, the result must be usable. */

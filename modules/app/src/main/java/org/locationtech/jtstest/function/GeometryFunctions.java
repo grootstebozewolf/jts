@@ -117,43 +117,43 @@ public class GeometryFunctions
 	/**
 	 * Adds the rings of B as holes in A.
 	 * <p>
-	 * Both inputs are linearised first, because {@code getExteriorRing()} on a
-	 * CurvePolygon is the flat control-point view: a circle of radius 5 came
-	 * through as its inscribed square, so a CURVEPOLYGON shell with a CURVEPOLYGON
-	 * hole gave area 32 instead of {@code 25*pi - 9*pi} = 50.265. Non-curve input
-	 * is returned unchanged by {@code linearizeForOps}, so plain polygons are
-	 * unaffected. The result is necessarily a plain Polygon -- it is assembled
-	 * from LinearRings -- so curve identity cannot be preserved here at any
-	 * tolerance, only the shape.
+	 * Works on the structural rings, so an arc ring stays an arc: a CURVEPOLYGON
+	 * shell with a CURVEPOLYGON hole yields
+	 * {@code CURVEPOLYGON (CIRCULARSTRING (...), CIRCULARSTRING (...))} with its
+	 * ten control points and an area of exactly {@code 16*pi}. Reading
+	 * {@code getExteriorRing()} instead gave the flat control-point view and an
+	 * area of 32; densifying first gave the right shape but 3146 vertices and no
+	 * arc. Neither is necessary -- assembling a polygon from rings evaluates
+	 * nothing, so it need approximate nothing.
+	 * <p>
+	 * A geometry with no arc anywhere still comes back as a plain Polygon with
+	 * exactly its input vertices.
 	 * <p>
 	 * The input checks replace two unguarded casts that leaked a raw
 	 * ClassCastException, reported for a CircularString A but equally true of a
-	 * plain LineString: this function needs polygonal input and the failure had
+	 * plain LineString: this function needs polygonal input and that failure had
 	 * nothing to do with curves. The messages match
 	 * {@code EditFunctions.addHole}, which already guarded properly, so the two
 	 * refuse the same input the same way.
 	 */
 	public static Geometry addHoles(Geometry g, Geometry holeGeom) {
 	  //TODO: support adding to MultiPolygon
-	  Geometry linear = CurveFunctions.linearizeForOps(g);
-	  if (! (linear instanceof Polygon))
+	  if (! (g instanceof Polygon))
 	    throw new IllegalArgumentException("A is not a polygon");
-	  Geometry linearHoles = CurveFunctions.linearizeForOps(holeGeom);
 
-	  Polygon poly = (Polygon) linear;
-	  LinearRing shell = poly.getExteriorRing();
-	  List<LinearRing> holes = new ArrayList<LinearRing>();
-
-    for (int i = 0; i < poly.getNumInteriorRing(); i++) {
-      holes.add(poly.getInteriorRingN(i));
+	  LineString shell = CurveFunctions.structuralShell(g);
+	  List<LineString> holes = new ArrayList<LineString>();
+	  LineString[] existing = CurveFunctions.structuralHoles(g);
+    for (int i = 0; i < existing.length; i++) {
+      holes.add(existing[i]);
     }
-    for (int i = 0; i < linearHoles.getNumGeometries(); i++) {
-      Geometry member = linearHoles.getGeometryN(i);
+    for (int i = 0; i < holeGeom.getNumGeometries(); i++) {
+      Geometry member = holeGeom.getGeometryN(i);
       if (! (member instanceof Polygon))
         throw new IllegalArgumentException("B must be polygonal");
-      holes.add(((Polygon) member).getExteriorRing());
+      holes.add(CurveFunctions.structuralShell(member));
     }
 
-    return g.getFactory().createPolygon(shell, GeometryFactory.toLinearRingArray(holes));
+    return CurveFunctions.buildPolygon(shell, holes, g.getFactory());
 	}
 }

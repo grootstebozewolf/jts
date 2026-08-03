@@ -11,14 +11,20 @@
  */
 package org.locationtech.jtstest.function;
 
+import java.util.List;
+
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.curved.CircularString;
+import org.locationtech.jts.geom.curved.CompoundCurve;
+import org.locationtech.jts.geom.curved.CurvePolygon;
 import org.locationtech.jts.geom.curved.Linearizable;
 import org.locationtech.jtstest.geomfunction.Metadata;
 
@@ -180,5 +186,88 @@ public class CurveFunctions {
       if (!type.isInstance(members[i])) return false;
     }
     return true;
+  }
+
+  // -- Structural ring access, for operations that need not sample the arc ----
+  //
+  // Linearising is the remedy when the consumer cannot represent a curve: the
+  // core writers, the triangulation hulls, the segment extractors. It is the
+  // wrong remedy for a purely structural operation whose result type is itself a
+  // curve type -- assembling a polygon from rings evaluates nothing, so it need
+  // approximate nothing. Densification is the fallback of last resort, not of
+  // choice; these helpers are how a caller avoids it.
+
+  /**
+   * The structural exterior ring of a polygonal geometry -- the arc itself for a
+   * {@link CurvePolygon}, rather than the flat control-point view
+   * {@code getExteriorRing()} returns. A bare {@link LineString} is its own ring,
+   * which is how a closed {@code CircularString} can serve as one.
+   *
+   * @return the ring, or {@code null} if the geometry has none
+   */
+  public static LineString structuralShell(Geometry g) {
+    if (g instanceof CurvePolygon) return ((CurvePolygon) g).getExteriorCurve();
+    if (g instanceof Polygon) return ((Polygon) g).getExteriorRing();
+    if (g instanceof LineString) return (LineString) g;
+    return null;
+  }
+
+  /** The structural interior rings, the counterpart to {@link #structuralShell}. */
+  public static LineString[] structuralHoles(Geometry g) {
+    if (g instanceof CurvePolygon) {
+      CurvePolygon cp = (CurvePolygon) g;
+      LineString[] holes = new LineString[cp.getNumInteriorRing()];
+      for (int i = 0; i < holes.length; i++) {
+        holes[i] = cp.getInteriorCurveN(i);
+      }
+      return holes;
+    }
+    if (g instanceof Polygon) {
+      Polygon p = (Polygon) g;
+      LineString[] holes = new LineString[p.getNumInteriorRing()];
+      for (int i = 0; i < holes.length; i++) {
+        holes[i] = p.getInteriorRingN(i);
+      }
+      return holes;
+    }
+    return new LineString[0];
+  }
+
+  /** True if this ring carries an arc, so a polygon built from it must be curved. */
+  public static boolean isCurveRing(LineString ring) {
+    return ring instanceof CircularString || ring instanceof CompoundCurve;
+  }
+
+  /**
+   * Assembles a polygon from structural rings, choosing the narrowest type that
+   * can hold them: a {@link CurvePolygon} when any ring is an arc, otherwise a
+   * plain {@link Polygon}.
+   * <p>
+   * The plain branch matters as much as the curved one. A geometry that never had
+   * an arc -- including an all-linear CurvePolygon, whose rings are LinearRings --
+   * comes back as a plain Polygon with exactly its input vertices, so nothing that
+   * did not involve a curve changes type or value.
+   */
+  public static Geometry buildPolygon(LineString shell, List<LineString> holes,
+      GeometryFactory factory) {
+    boolean anyCurve = isCurveRing(shell);
+    for (int i = 0; i < holes.size() && !anyCurve; i++) {
+      anyCurve = isCurveRing(holes.get(i));
+    }
+    if (anyCurve) {
+      return new CurvePolygon(shell, holes.toArray(new LineString[holes.size()]),
+          factory);
+    }
+    LinearRing[] linearHoles = new LinearRing[holes.size()];
+    for (int i = 0; i < linearHoles.length; i++) {
+      linearHoles[i] = toLinearRing(holes.get(i), factory);
+    }
+    return factory.createPolygon(toLinearRing(shell, factory), linearHoles);
+  }
+
+  private static LinearRing toLinearRing(LineString ring, GeometryFactory factory) {
+    if (ring == null) return null;
+    if (ring instanceof LinearRing) return (LinearRing) ring;
+    return factory.createLinearRing(ring.getCoordinates());
   }
 }

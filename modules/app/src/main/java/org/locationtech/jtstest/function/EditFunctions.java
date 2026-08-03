@@ -11,12 +11,13 @@
  */
 package org.locationtech.jtstest.function;
 
-import org.locationtech.jts.geom.Coordinate;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.locationtech.jts.geom.CoordinateArrays;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jtstest.geomfunction.Metadata;
 
@@ -25,19 +26,23 @@ public class EditFunctions {
   /**
    * Adds a closed line or polygon B as a hole in polygon A.
    * <p>
-   * Both inputs are linearised first: {@code getExteriorRing()} on a CurvePolygon
-   * is the flat control-point view, so a CURVEPOLYGON circle of radius 5 with a
-   * radius-3 CURVEPOLYGON hole gave area 32 rather than {@code 25*pi - 9*pi} =
-   * 50.265. Non-curve input is returned unchanged, so plain polygons behave
-   * exactly as before, and the result is a plain Polygon either way since it is
-   * built from LinearRings.
+   * Works on the structural rings, so an arc ring stays an arc: a CURVEPOLYGON
+   * circle of radius 5 with a radius-3 arc hole yields
+   * {@code CURVEPOLYGON (CIRCULARSTRING (...), CIRCULARSTRING (...))}, area
+   * exactly {@code 25*pi - 9*pi} = 50.265, rather than the 32 the flat
+   * {@code getExteriorRing()} view gave or the 3146-vertex polygon densifying
+   * gave. A closed {@code CircularString} is accepted as a hole in its own right,
+   * since this function has always taken a closed line, and it too stays an arc.
+   * <p>
+   * A geometry with no arc anywhere still comes back as a plain Polygon with
+   * exactly its input vertices.
    * <p>
    * The input checks are unchanged and were already correct: a CircularString is
-   * a LineString, and "A is not a polygon" is the right answer for it -- linearising
-   * a CircularString yields a LineString, which still fails the check, as it
-   * should. That refusal was reported as a bug but is not one; the genuine defect
-   * was the CURVEPOLYGON case above, which passed the check and returned the
-   * wrong shape.
+   * a LineString, so "A is not a polygon" is the right answer for it. That
+   * refusal was reported as a bug but is not one -- a hole cannot be added to a
+   * line, and a plain LINESTRING is refused identically. The genuine defect was
+   * the CURVEPOLYGON case above, which passed the checks and returned the wrong
+   * shape.
    */
   @Metadata(description="Add a hole (closed line or polygon) to a polygon")
   public static Geometry addHole(
@@ -45,35 +50,24 @@ public class EditFunctions {
       Geometry hole) {
     GeometryFactory factory = polyGeom.getFactory();
 
-    Geometry linearPoly = CurveFunctions.linearizeForOps(polyGeom);
-    Geometry linearHole = CurveFunctions.linearizeForOps(hole);
-
     // input checks
-    boolean isPolygonal = linearPoly instanceof Polygon;
+    boolean isPolygonal = polyGeom instanceof Polygon;
     if (! isPolygonal)
       throw new IllegalArgumentException("A is not a polygon");
-    if (! (linearHole instanceof Polygon || linearHole instanceof LineString))
+    if (! (hole instanceof Polygon || hole instanceof LineString))
       throw new IllegalArgumentException("B must be a polygon or line");
-    Coordinate[] holePts = extractLine(linearHole);
-    if (! CoordinateArrays.isRing(holePts)) {
+    LineString holeRing = CurveFunctions.structuralShell(hole);
+    if (! CoordinateArrays.isRing(holeRing.getCoordinates())) {
       throw new IllegalArgumentException("B is not a valid ring");
     }
 
-    Polygon polygon = (Polygon) linearPoly;
-    LinearRing shell = (LinearRing) polygon.getExteriorRing().copy();
-    
-    LinearRing[] holes = new LinearRing[ polygon.getNumInteriorRing() + 1 ];
-    for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
-      holes[i] = (LinearRing) polygon.getInteriorRingN(i).copy();
+    LineString shell = (LineString) CurveFunctions.structuralShell(polyGeom).copy();
+    List<LineString> holes = new ArrayList<LineString>();
+    LineString[] existing = CurveFunctions.structuralHoles(polyGeom);
+    for (int i = 0; i < existing.length; i++) {
+      holes.add((LineString) existing[i].copy());
     }
-    holes[holes.length - 1] = factory.createLinearRing(holePts);
-    return factory.createPolygon(shell, holes);
-  }
-
-  private static Coordinate[] extractLine(Geometry hole) {
-    if (hole instanceof Polygon) {
-      return ((Polygon) hole).getExteriorRing().getCoordinates();
-    }
-    return hole.getCoordinates();
+    holes.add((LineString) holeRing.copy());
+    return CurveFunctions.buildPolygon(shell, holes, factory);
   }
 }
