@@ -41,14 +41,23 @@ public class CurvePolygon extends Polygon implements Linearizable {
    */
   private final LineString structuralShell;
 
+  /**
+   * The structural holes as supplied by the caller, in the same order as the
+   * legacy {@link LinearRing} holes. Never {@code null} once constructed;
+   * empty for a shell-only polygon.
+   */
+  private final LineString[] structuralHoles;
+
   public CurvePolygon(LinearRing shell, LinearRing[] holes, GeometryFactory factory) {
     super(shell, holes, factory);
     this.structuralShell = shell;
+    this.structuralHoles = holes == null ? new LineString[0] : holes.clone();
   }
 
   public CurvePolygon(GeometryFactory factory) {
     super(null, null, factory);
     this.structuralShell = null;
+    this.structuralHoles = new LineString[0];
   }
 
   /**
@@ -58,9 +67,27 @@ public class CurvePolygon extends Polygon implements Linearizable {
    * the shell's control points, or passes a {@link LinearRing} straight
    * through.
    */
-  public CurvePolygon(LineString structuralShell, LinearRing[] holes, GeometryFactory factory) {
-    super(deriveLinearShell(structuralShell, factory), holes, factory);
+  public CurvePolygon(LineString structuralShell, LineString[] structuralHoles,
+      GeometryFactory factory) {
+    super(deriveLinearShell(structuralShell, factory),
+        deriveLinearHoles(structuralHoles, factory), factory);
     this.structuralShell = structuralShell;
+    this.structuralHoles = structuralHoles == null
+        ? new LineString[0] : structuralHoles.clone();
+  }
+
+  /**
+   * Derives the legacy flat holes from the structural ones, on the same
+   * control-point basis as {@link #deriveLinearShell}.
+   */
+  private static LinearRing[] deriveLinearHoles(LineString[] structuralHoles,
+      GeometryFactory factory) {
+    if (structuralHoles == null) return null;
+    LinearRing[] flat = new LinearRing[structuralHoles.length];
+    for (int i = 0; i < structuralHoles.length; i++) {
+      flat[i] = deriveLinearShell(structuralHoles[i], factory);
+    }
+    return flat;
   }
 
   /**
@@ -95,6 +122,18 @@ public class CurvePolygon extends Polygon implements Linearizable {
     return structuralShell;
   }
 
+  /**
+   * Option-A structural accessor for interior rings, the counterpart to
+   * {@link #getExteriorCurve()}. Returns the hole as supplied by the caller,
+   * which may be a {@code CircularString}, {@code CompoundCurve},
+   * {@link LinearRing}, or plain {@link LineString}.
+   *
+   * @param n the hole index, as used by {@link #getInteriorRingN(int)}
+   */
+  public LineString getInteriorCurveN(int n) {
+    return structuralHoles[n];
+  }
+
   @Override
   public String getGeometryType() {
     return "CurvePolygon";
@@ -105,13 +144,22 @@ public class CurvePolygon extends Polygon implements Linearizable {
     GeometryFactory f = getFactory();
     if (isEmpty()) return new CurvePolygon(f);
     int holeCount = getNumInteriorRing();
+    boolean anyCurved = structuralShell != null && !(structuralShell instanceof LinearRing);
+    for (int i = 0; i < structuralHoles.length && !anyCurved; i++) {
+      anyCurved = !(structuralHoles[i] instanceof LinearRing);
+    }
+    if (anyCurved) {
+      LineString shellCopy = structuralShell == null
+          ? null : (LineString) structuralShell.copy();
+      LineString[] holeCopies = new LineString[structuralHoles.length];
+      for (int i = 0; i < structuralHoles.length; i++) {
+        holeCopies[i] = (LineString) structuralHoles[i].copy();
+      }
+      return new CurvePolygon(shellCopy, holeCopies, f);
+    }
     LinearRing[] holes = new LinearRing[holeCount];
     for (int i = 0; i < holeCount; i++) {
       holes[i] = (LinearRing) getInteriorRingN(i).copy();
-    }
-    if (structuralShell != null && !(structuralShell instanceof LinearRing)) {
-      LineString shellCopy = (LineString) structuralShell.copy();
-      return new CurvePolygon(shellCopy, holes, f);
     }
     LinearRing shell = (LinearRing) getExteriorRing().copy();
     return new CurvePolygon(shell, holes, f);

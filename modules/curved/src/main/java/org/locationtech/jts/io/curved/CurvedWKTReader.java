@@ -173,24 +173,22 @@ public class CurvedWKTReader extends WKTReader {
       throws IOException, ParseException {
     String tok = getNextEmptyOrOpener(tokenizer);
     if (tok.equals(WKTConstants.EMPTY)) return new CurvePolygon(geometryFactory);
-    // Option-A spike (FCP-S / FCP-DOVE): preserve the first member as a structural
-    // LineString (may be CircularString / CompoundCurve / plain LineString) and
-    // pass it to the structural-aware CurvePolygon constructor. Holes still
-    // linearise to LinearRings -- separate sub-TAG (FCP-H) when symmetry lands.
+    // Option A (FCP-S / FCP-H): preserve every member as a structural LineString
+    // (may be CircularString / CompoundCurve / plain LineString). CurvePolygon
+    // derives the legacy LinearRing shell and holes from their control points.
     LineString structuralShell = null;
-    List<LinearRing> holes = new ArrayList<LinearRing>();
-    boolean first = true;
+    List<LineString> structuralHoles = new ArrayList<LineString>();
     do {
       LineString member = readCurveMember(tokenizer, ordinateFlags);
-      if (first) {
+      if (structuralShell == null) {
         structuralShell = member;
-        first = false;
       } else {
-        holes.add(geometryFactory.createLinearRing(member.getCoordinates()));
+        structuralHoles.add(member);
       }
       tok = getNextCloserOrComma(tokenizer);
     } while (tok.equals(","));
-    return new CurvePolygon(structuralShell, holes.toArray(new LinearRing[0]), geometryFactory);
+    return new CurvePolygon(structuralShell,
+        structuralHoles.toArray(new LineString[0]), geometryFactory);
   }
 
   private MultiCurve readMultiCurveText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
