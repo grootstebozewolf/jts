@@ -24,12 +24,18 @@ import org.locationtech.jts.geom.Geometry;
  * since jts-curved depends on core rather than the reverse. Densifying at the
  * boundary is what lets them stay untouched.
  * <p>
+ * <p>
+ * {@link #linearise(Geometry)} and {@link #TOLERANCE_FRACTION} are public because
+ * {@code org.locationtech.jts.operation.overlayng.curved.OverlayNGCurve} needs the
+ * same tolerance from another package; duplicating the constant would let the two
+ * drift. The remaining methods stay package-private.
+ * <p>
  * Results are therefore approximations bounded by {@link #TOLERANCE_FRACTION},
  * not exact arc answers. Where an exact closed form exists it is used directly
  * instead -- see {@code CircularString.getLength()},
  * {@code CurvePolygon.getArea()} and {@code CircularArcDensifier.expandEnvelope}.
  */
-final class CurveOps {
+public final class CurveOps {
 
   /**
    * Densification tolerance as a fraction of the geometry's extent.
@@ -39,7 +45,7 @@ final class CurveOps {
    * pixels. Scaling by extent keeps the relative accuracy uniform: a 1-unit arc
    * and a 10000-unit arc are approximated equally well.
    */
-  static final double TOLERANCE_FRACTION = 1.0e-6;
+  public static final double TOLERANCE_FRACTION = 1.0e-6;
 
   private CurveOps() { }
 
@@ -48,7 +54,7 @@ final class CurveOps {
    * unchanged. Applied to both operands so a curve-to-curve operation sees
    * arcs on both sides.
    */
-  static Geometry linearise(Geometry g) {
+  public static Geometry linearise(Geometry g) {
     if (!(g instanceof Linearizable)) return g;
     Envelope env = g.getEnvelopeInternal();
     double extent = Math.max(env.getWidth(), env.getHeight());
