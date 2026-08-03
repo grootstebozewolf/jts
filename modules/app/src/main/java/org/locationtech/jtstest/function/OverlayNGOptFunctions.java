@@ -32,9 +32,25 @@ import org.locationtech.jtstest.geomfunction.Metadata;
  *
  */
 public class OverlayNGOptFunctions {
+
+  /**
+   * Densifies a curve so a decision can be made about it.
+   * <p>
+   * Used for the <em>predicate</em> and for the fall-through overlay, never for
+   * the answer: when a filter fires, the original operand is returned untouched,
+   * which is exact. The chord ring of an arc circle is its inscribed polygon, so
+   * a filter reading control points can conclude that a geometry wholly inside
+   * the circle is disjoint from it -- the opposite verdict, not a rounding of it.
+   * <p>
+   * Non-curve input is returned as the same object, so the prepared-geometry
+   * cache and the plain-input timings this class exists to measure are unaffected.
+   */
+  private static Geometry arc(Geometry g) {
+    return CurveFunctions.linearizeForOps(g);
+  }
   
   private static Geometry fastCoversIntersection(Geometry a, Geometry b) {
-    IntersectionMatrix im = a.relate(b);
+    IntersectionMatrix im = arc(a).relate(arc(b));
     if (! im.isIntersects()) return createEmpty(a);
     if (im.isCovers()) return b.copy();
     if (im.isCoveredBy()) return a.copy();
@@ -47,7 +63,7 @@ public class OverlayNGOptFunctions {
   }
   
   private static Geometry fastCoversDifference(Geometry a, Geometry b) {
-    IntersectionMatrix im = a.relate(b);
+    IntersectionMatrix im = arc(a).relate(arc(b));
     if (! im.isIntersects()) return a.copy();
     if (im.isCoveredBy()) return createEmpty(a);
     // null indicates full overlay required
@@ -79,15 +95,17 @@ public class OverlayNGOptFunctions {
    */
   public static Geometry intersectionOrigPrep(Geometry a, Geometry b) {
     PreparedGeometry pg = cacheFetch(a);
-    if (! pg.intersects(b)) return null;
-    if (pg.covers(b)) return b.copy();
+    Geometry bArc = arc(b);
+    if (! pg.intersects(bArc)) return null;
+    if (pg.covers(bArc)) return b.copy();
     return a.intersection(b);
   }
   
   public static Geometry intersectionOrigPrepNoCache(Geometry a, Geometry b) {
-    PreparedGeometry pg = (new PreparedGeometryFactory()).create(a);
-    if (! pg.intersects(b)) return null;
-    if (pg.covers(b)) return b.copy();
+    PreparedGeometry pg = (new PreparedGeometryFactory()).create(arc(a));
+    Geometry bArc = arc(b);
+    if (! pg.intersects(bArc)) return null;
+    if (pg.covers(bArc)) return b.copy();
     return a.intersection(b);
   }
   
@@ -95,27 +113,28 @@ public class OverlayNGOptFunctions {
       @Metadata(title="Grid Scale") double scaleFactor) {
     Geometry intFast = fastCoversIntersection(a, b);
     if (intFast != null) return intFast;
-    return OverlayNG.overlay(a, b, INTERSECTION, new PrecisionModel(scaleFactor));
+    return OverlayNG.overlay(arc(a), arc(b), INTERSECTION, new PrecisionModel(scaleFactor));
   }
   
   public static Geometry intersectionPrepSR(Geometry a, Geometry b,
       @Metadata(title="Grid Scale") double scaleFactor) {
     PreparedGeometry pg = cacheFetch(a);
-    if (! pg.intersects(b)) return null;
-    if (pg.covers(b)) return b.copy();
-    return OverlayNG.overlay(a, b, INTERSECTION, new PrecisionModel(scaleFactor));
+    Geometry bArc = arc(b);
+    if (! pg.intersects(bArc)) return null;
+    if (pg.covers(bArc)) return b.copy();
+    return OverlayNG.overlay(arc(a), arc(b), INTERSECTION, new PrecisionModel(scaleFactor));
   }
   
   public static Geometry difference(Geometry a, Geometry b) {
     Geometry intFast = fastCoversDifference(a, b);
     if (intFast != null) return intFast;
-    return OverlayNGRobust.overlay(a, b, DIFFERENCE);
+    return OverlayNGRobust.overlay(arc(a), arc(b), DIFFERENCE);
   }
   
   public static Geometry intersection(Geometry a, Geometry b) {
     Geometry intFast = fastCoversIntersection(a, b);
     if (intFast != null) return intFast;
-    return OverlayNGRobust.overlay(a, b, INTERSECTION);
+    return OverlayNGRobust.overlay(arc(a), arc(b), INTERSECTION);
   }
   
   /**
@@ -128,16 +147,18 @@ public class OverlayNGOptFunctions {
    */
   public static Geometry intersectionPrep(Geometry a, Geometry b) {
     PreparedGeometry pg = cacheFetch(a);
-    if (! pg.intersects(b)) return null;
-    if (pg.covers(b)) return b.copy();
-    return OverlayNGRobust.overlay(a, b, OverlayNG.INTERSECTION);
+    Geometry bArc = arc(b);
+    if (! pg.intersects(bArc)) return null;
+    if (pg.covers(bArc)) return b.copy();
+    return OverlayNGRobust.overlay(arc(a), arc(b), OverlayNG.INTERSECTION);
   }
   
   public static Geometry intersectionPrepNoCache(Geometry a, Geometry b) {
-    PreparedGeometry pg = (new PreparedGeometryFactory()).create(a);
-    if (! pg.intersects(b)) return null;
-    if (pg.covers(b)) return b.copy();
-    return OverlayNGRobust.overlay(a, b, OverlayNG.INTERSECTION);
+    PreparedGeometry pg = (new PreparedGeometryFactory()).create(arc(a));
+    Geometry bArc = arc(b);
+    if (! pg.intersects(bArc)) return null;
+    if (pg.covers(bArc)) return b.copy();
+    return OverlayNGRobust.overlay(arc(a), arc(b), OverlayNG.INTERSECTION);
   }
   
   private static Geometry cacheKey = null;
@@ -147,7 +168,7 @@ public class OverlayNGOptFunctions {
   private static PreparedGeometry cacheFetch(Geometry g) {
     if (g != cacheKey) {
       cacheKey = g;
-      cache = (new PreparedGeometryFactory()).create(g);
+      cache = (new PreparedGeometryFactory()).create(arc(g));
     }
     return cache;
   }
