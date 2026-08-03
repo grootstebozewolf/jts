@@ -28,7 +28,9 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.curved.CircularString;
 import org.locationtech.jts.geom.curved.CompoundCurve;
+import org.locationtech.jts.geom.curved.CurvePolygon;
 import org.locationtech.jts.geom.curved.MultiCurve;
+import org.locationtech.jts.geom.curved.MultiSurface;
 
 /**
  * A {@link ShapeWriter} that renders the OGC SFA / ISO 19125-2 curve
@@ -65,7 +67,82 @@ public class CurvedShapeWriter extends ShapeWriter {
     if (geometry instanceof CircularString) return toShape((CircularString) geometry);
     if (geometry instanceof CompoundCurve) return toShape((CompoundCurve) geometry);
     if (geometry instanceof MultiCurve) return toShape((MultiCurve) geometry);
+    if (geometry instanceof CurvePolygon && hasCurvedRing((CurvePolygon) geometry)) {
+      return toShape((CurvePolygon) geometry);
+    }
+    if (geometry instanceof MultiSurface && hasCurvedMember((MultiSurface) geometry)) {
+      return toShape((MultiSurface) geometry);
+    }
     return null;
+  }
+
+  /**
+   * True if any structural ring is a curve. An all-linear CurvePolygon is left
+   * to the inherited {@link ShapeWriter} polygon path, so its rendering is
+   * unchanged.
+   */
+  private static boolean hasCurvedRing(CurvePolygon cp) {
+    if (cp.isEmpty()) return false;
+    if (isCurve(cp.getExteriorCurve())) return true;
+    for (int i = 0; i < cp.getNumInteriorRing(); i++) {
+      if (isCurve(cp.getInteriorCurveN(i))) return true;
+    }
+    return false;
+  }
+
+  private static boolean hasCurvedMember(MultiSurface ms) {
+    for (int i = 0; i < ms.getNumGeometries(); i++) {
+      Geometry m = ms.getGeometryN(i);
+      if (m instanceof CurvePolygon && hasCurvedRing((CurvePolygon) m)) return true;
+    }
+    return false;
+  }
+
+  private static boolean isCurve(LineString ring) {
+    return ring instanceof CircularString || ring instanceof CompoundCurve;
+  }
+
+  private Shape toShape(MultiSurface ms) {
+    GeneralPath path = new GeneralPath();
+    for (int i = 0; i < ms.getNumGeometries(); i++) {
+      Geometry m = ms.getGeometryN(i);
+      if (m instanceof CurvePolygon && hasCurvedRing((CurvePolygon) m)) {
+        path.append(toShape((CurvePolygon) m), false);
+      } else {
+        path.append(toShape(m), false);
+      }
+    }
+    return path;
+  }
+
+  /** Each ring becomes its own closed subpath, so holes render as holes. */
+  private Shape toShape(CurvePolygon cp) {
+    GeneralPath path = new GeneralPath();
+    if (cp.isEmpty()) return path;
+    appendRing(path, cp.getExteriorCurve());
+    for (int i = 0; i < cp.getNumInteriorRing(); i++) {
+      appendRing(path, cp.getInteriorCurveN(i));
+    }
+    return path;
+  }
+
+  private void appendRing(GeneralPath path, LineString ring) {
+    if (ring == null || ring.isEmpty()) return;
+    if (ring instanceof CompoundCurve) {
+      path.append(toShape((CompoundCurve) ring), false);
+      path.closePath();
+      return;
+    }
+    CoordinateSequence seq = ring.getCoordinateSequence();
+    moveToView(path, seq.getCoordinate(0));
+    if (ring instanceof CircularString) {
+      appendCircularStringSegments(path, seq);
+    } else {
+      for (int j = 1; j < seq.size(); j++) {
+        lineToView(path, seq.getCoordinate(j));
+      }
+    }
+    path.closePath();
   }
 
   private Shape toShape(MultiCurve mc) {
