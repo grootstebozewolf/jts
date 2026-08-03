@@ -169,6 +169,45 @@ public class CurvePolygon extends Polygon implements Linearizable {
   }
 
   /**
+   * The boundary as the polygon's curve rings: the shell alone when there are
+   * no holes, otherwise a {@link MultiCurve} of shell and holes.
+   * <p>
+   * The inherited {@code Polygon.getBoundary()} builds from the flat
+   * {@code getExteriorRing()} view, so the boundary of a circle came back as
+   * the inscribed quadrilateral -- the wrong length, and not even lying on the
+   * polygon's edge.
+   * <p>
+   * An all-linear CurvePolygon defers to the inherited implementation, so its
+   * boundary type and value are unchanged.
+   */
+  @Override
+  public Geometry getBoundary() {
+    if (isEmpty() || !hasCurvedRing()) return super.getBoundary();
+    if (structuralHoles.length == 0) {
+      return (Geometry) structuralShell.copy();
+    }
+    LineString[] rings = new LineString[1 + structuralHoles.length];
+    rings[0] = (LineString) structuralShell.copy();
+    for (int i = 0; i < structuralHoles.length; i++) {
+      rings[i + 1] = (LineString) structuralHoles[i].copy();
+    }
+    return new MultiCurve(rings, getFactory());
+  }
+
+  /** True if any structural ring is a curve rather than a plain line. */
+  private boolean hasCurvedRing() {
+    if (isCurve(structuralShell)) return true;
+    for (int i = 0; i < structuralHoles.length; i++) {
+      if (isCurve(structuralHoles[i])) return true;
+    }
+    return false;
+  }
+
+  private static boolean isCurve(LineString ring) {
+    return ring instanceof CircularString || ring instanceof CompoundCurve;
+  }
+
+  /**
    * The envelope of the structural shell, which bounds the whole polygon.
    * <p>
    * The inherited {@code Polygon.computeEnvelopeInternal()} uses the flat
