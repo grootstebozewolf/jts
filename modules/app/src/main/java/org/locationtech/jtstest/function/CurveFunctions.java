@@ -42,6 +42,27 @@ public class CurveFunctions {
   private static final double OPS_TOLERANCE_FRACTION = 1.0e-6;
 
   /**
+   * Densification tolerance for the triangulation-based hulls, coarser than
+   * {@link #OPS_TOLERANCE_FRACTION} by two orders of magnitude.
+   * <p>
+   * A concave hull is a function of the input <em>point set</em>, so sampling a
+   * 1-D curve more finely changes the question rather than refining the answer:
+   * the hull erodes down onto the curve and the result becomes a ribbon whose
+   * width is one sampling step. At 1e-6 that ribbon was 0.02 wide on a 10-unit
+   * geometry -- a hairline that renders as a bowtie -- and the area did not
+   * converge with density. This is not arc-specific; core's {@code Densifier} on
+   * a plain LineString pinches identically.
+   * <p>
+   * So the tolerance here matches what the hull can resolve rather than what a
+   * distance predicate wants. Deliberately <em>not</em> the same constant as the
+   * operations above: {@code convexHull} and {@code distance} converge as
+   * sampling tightens, these do not. A pinch stays intrinsic at sufficient zoom;
+   * this only keeps the default from being degenerate. Callers wanting a
+   * specific sampling should linearise explicitly with {@link #toLinear} first.
+   */
+  private static final double HULL_TOLERANCE_FRACTION = 1.0e-4;
+
+  /**
    * Linearises every curve in a geometry, replacing each arc with a polyline
    * whose deviation from the true arc is at most {@code tolerance}.
    * <p>
@@ -70,10 +91,23 @@ public class CurveFunctions {
    * them are returned unchanged, so this is safe to apply unconditionally.
    */
   public static Geometry linearizeForOps(Geometry g) {
+    return linearizeAtFraction(g, OPS_TOLERANCE_FRACTION);
+  }
+
+  /**
+   * Linearises at {@link #HULL_TOLERANCE_FRACTION} of the geometry's extent, for
+   * the triangulation-based hulls, which cannot resolve detail finer than their
+   * own erosion threshold.
+   */
+  public static Geometry linearizeForHull(Geometry g) {
+    return linearizeAtFraction(g, HULL_TOLERANCE_FRACTION);
+  }
+
+  private static Geometry linearizeAtFraction(Geometry g, double fraction) {
     if (g == null || g.isEmpty()) return g;
     Envelope env = g.getEnvelopeInternal();
     double extent = Math.max(env.getWidth(), env.getHeight());
-    return linearize(g, (extent > 0.0 ? extent : 1.0) * OPS_TOLERANCE_FRACTION);
+    return linearize(g, (extent > 0.0 ? extent : 1.0) * fraction);
   }
 
   /**

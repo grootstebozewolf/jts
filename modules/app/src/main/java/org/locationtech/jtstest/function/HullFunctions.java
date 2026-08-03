@@ -30,11 +30,16 @@ public class HullFunctions {
    * they build from {@code getCoordinates()} -- for a curve, only its control
    * points -- and silently return a plausible hull of the wrong shape.
    * <p>
-   * So the caller linearises. Non-curves pass through {@code linearizeForOps}
-   * untouched, which is why this can be applied unconditionally.
+   * So the caller linearises. Non-curves pass through untouched, which is why
+   * this can be applied unconditionally.
+   * <p>
+   * The tolerance is {@code linearizeForHull}'s, deliberately coarser than the
+   * one {@code convexHull} and {@code distance} use: those converge as the
+   * sampling tightens, whereas a point-set concave hull erodes onto the curve
+   * and degenerates into a one-chord-wide ribbon.
    */
   private static Geometry arcAware(Geometry geom) {
-    return CurveFunctions.linearizeForOps(geom);
+    return CurveFunctions.linearizeForHull(geom);
   }
 
   public static Geometry concaveHullPoints(Geometry geom,

@@ -96,11 +96,23 @@ public class HullFunctionsCurveTest extends TestCase {
         + tight + ")", loose > tight * 1.5);
   }
 
-  /** At the loosest ratio the hull must reach the arc's bulge. */
+  /**
+   * At the loosest ratio the hull must reach the arc's bulge.
+   * <p>
+   * The bound is the densification tolerance, not a round number: the hull is
+   * built from an inscribed polyline, so the exact arc extremum sits at most one
+   * chord-deviation outside it. That deviation is
+   * {@code HULL_TOLERANCE_FRACTION} (1e-4) of the 10-unit extent, i.e. 0.001, and
+   * the observed gap is 0.00074. Doubling it leaves margin without letting a
+   * genuine regression -- the control-point hull was 1.464 short -- slip through.
+   */
   public void testHullReachesTheArcBulge() throws Exception {
+    double densifyTolerance = 10.0 * 1.0e-4;
     Geometry hull = HullFunctions.concaveHullPointsWithHolesByLenRatio(read(COMPOUND), 1.0);
     double gap = hull.distance(bulgePoint());
-    assertTrue("hull should reach the arc bulge at 135 degrees, gap was " + gap, gap < 1.0e-3);
+    assertTrue("hull should reach the arc bulge at 135 degrees to within the "
+        + densifyTolerance + " densification tolerance, gap was " + gap,
+        gap < 2.0 * densifyTolerance);
   }
 
   /** The hull must have far more vertices than the five of the control-point hull. */
