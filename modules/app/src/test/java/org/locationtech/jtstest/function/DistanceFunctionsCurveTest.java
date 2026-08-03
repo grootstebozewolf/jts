@@ -219,6 +219,38 @@ public class DistanceFunctionsCurveTest extends TestCase {
     }
   }
 
+  /**
+   * Performance canary for the quadratic algorithm, asserted by vertex count
+   * rather than wall clock so it cannot flake. At the operations tolerance a
+   * radius-5 circle is ~1570 vertices and a curve-to-curve Frechet ran 20
+   * seconds in visual QA; the quadratic sampler must keep the DP small. The
+   * accuracy price is bounded by the sampling step (~0.2 here) and the
+   * dominance assertions above still hold under it.
+   */
+  public void testQuadraticSamplerKeepsFrechetTractable() throws Exception {
+    Geometry circle = read("CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0)");
+    int nOps = CurveFunctions.linearizeForOps(circle).getNumPoints();
+    int nQuad = CurveFunctions.linearizeForQuadratic(circle).getNumPoints();
+    assertTrue("ops sampling is dense by design, got " + nOps, nOps > 1000);
+    assertTrue("quadratic sampling must stay tractable, got " + nQuad,
+        nQuad < 400);
+  }
+
+  /** The projectOnLine cast died as a raw CCE on collection input; refuse clearly. */
+  public void testClippedHausdorffRefusesNonLines() throws Exception {
+    try {
+      DistanceFunctions.clippedDirectedHausdorffLine(
+          read("GEOMETRYCOLLECTION (POINT (0 0), LINESTRING (1 1, 2 2))"),
+          read(BASELINE));
+      fail("a GeometryCollection must be refused, not ClassCastException'd");
+    }
+    catch (IllegalArgumentException e) {
+      assertTrue("message names the contract: " + e.getMessage(),
+          e.getMessage().contains("LineString")
+              && e.getMessage().contains("GeometryCollection"));
+    }
+  }
+
   /** Guard: identical curves are at distance zero however measured. */
   public void testIdenticalCurvesAtZero() throws Exception {
     assertEquals(0.0, DistanceFunctions.orientedDiscreteHausdorffDistance(

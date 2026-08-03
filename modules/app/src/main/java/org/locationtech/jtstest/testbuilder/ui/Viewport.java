@@ -56,7 +56,15 @@ public class Viewport implements PointTransformation
   private PrecisionModel scalePM = new PrecisionModel(scale);
   private NumberFormat scaleFormat;
   
-  private Envelope viewEnvInModel;
+  /**
+   * Initialised empty for the same reason {@link #viewSize} is: the render
+   * worker can paint before the first layout, and fixing the viewSize NPE let
+   * that pre-layout pass run far enough to hit this field instead
+   * (GridElement.drawLinedGrid, "modelEnv is null"). An empty envelope draws a
+   * degenerate grid into a 0x0 view -- invisible -- and the first real
+   * update() replaces it.
+   */
+  private Envelope viewEnvInModel = new Envelope();
   private AffineTransform modelToViewTransform;
   private java.awt.geom.Point2D.Double srcPt = new java.awt.geom.Point2D.Double(0, 0);
   private java.awt.geom.Point2D.Double destPt = new java.awt.geom.Point2D.Double(0, 0);

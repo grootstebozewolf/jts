@@ -59,12 +59,16 @@ public class DistanceFunctions {
 
   public static double frechetDistance(Geometry a, Geometry b)  
   {   
-    return DiscreteFrechetDistance.distance(arc(a), arc(b));
+    // Quadratic DP: coarser sampling, or a curve pair runs for 20 seconds.
+    // Error bound and rationale on CurveFunctions.linearizeForQuadratic.
+    return DiscreteFrechetDistance.distance(
+        CurveFunctions.linearizeForQuadratic(a), CurveFunctions.linearizeForQuadratic(b));
   }
 
   public static Geometry frechetDistanceLine(Geometry a, Geometry b)  
   {   
-    DiscreteFrechetDistance dist = new DiscreteFrechetDistance(arc(a), arc(b));
+    DiscreteFrechetDistance dist = new DiscreteFrechetDistance(
+        CurveFunctions.linearizeForQuadratic(a), CurveFunctions.linearizeForQuadratic(b));
     return a.getFactory().createLineString(dist.getCoordinates());
   }
 
@@ -94,8 +98,19 @@ public class DistanceFunctions {
   @Metadata(description="Clipped directed Hausdorff distance from A to B")
   public static Geometry clippedDirectedHausdorffLine(Geometry a, Geometry b)  
   {   
-    Geometry clippedLine = LinearReferencingFunctions.project(arc(a), arc(b));
-    Coordinate[] pts = DirectedHausdorffDistance.distancePoints(clippedLine, arc(b));
+    Geometry la = arc(a);
+    Geometry lb = arc(b);
+    // projectOnLine casts its input to LineString; a GeometryCollection reached
+    // it in visual QA and died as a raw ClassCastException. Refuse with the
+    // contract instead.
+    if (!(la instanceof LineString) || !(lb instanceof LineString)) {
+      throw new IllegalArgumentException(
+          "clippedDirectedHausdorffLine needs single LineStrings (linear "
+          + "referencing projects onto one line); got "
+          + la.getGeometryType() + " and " + lb.getGeometryType());
+    }
+    Geometry clippedLine = LinearReferencingFunctions.project(la, lb);
+    Coordinate[] pts = DirectedHausdorffDistance.distancePoints(clippedLine, lb);
     return a.getFactory().createLineString(pts);
   }
   

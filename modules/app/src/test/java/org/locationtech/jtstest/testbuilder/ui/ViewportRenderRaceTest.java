@@ -55,6 +55,21 @@ public class ViewportRenderRaceTest extends TestCase {
         vp.getModelToViewTransform());
   }
 
+  /**
+   * The second null in the same race, unmasked by fixing the first: with
+   * viewSize defaulted, the pre-layout render survives drawAxes and reaches
+   * GridElement.drawLinedGrid, which reads getModelEnv() -- also only set by
+   * update(). Both fields now default, so the whole pre-layout paint is
+   * defined.
+   */
+  public void testModelEnvBeforeLayoutDoesNotThrow() {
+    Viewport vp = new Viewport(null);
+    assertNotNull("a pre-layout model envelope must exist rather than NPE",
+        vp.getModelEnv());
+    assertNotNull("and grid drawing reads its extremes",
+        Double.valueOf(vp.getModelEnv().getMinX()));
+  }
+
   /** The call GridElement.drawAxes actually makes. */
   public void testToViewBeforeLayoutDoesNotThrow() {
     Viewport vp = new Viewport(null);

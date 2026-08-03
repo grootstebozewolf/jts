@@ -114,6 +114,24 @@ public class CurveFunctions {
     return linearizeAtFraction(g, HULL_TOLERANCE_FRACTION);
   }
 
+  /**
+   * Linearises for algorithms whose cost is quadratic in the vertex count, at
+   * {@link #HULL_TOLERANCE_FRACTION} of the extent.
+   * <p>
+   * {@code DiscreteFrechetDistance} fills an n-by-m table. At the operations
+   * tolerance (1e-6 of extent) a circle becomes ~1570 vertices and a
+   * curve-to-curve Frechet ran for 20 seconds in a visual-QA session; at 1e-4 it
+   * becomes ~160 and completes instantly. The price is stated rather than
+   * hidden: the discrete Frechet error is bounded by the sampling step, which
+   * for chord tolerance t on radius r is about {@code sqrt(8*r*t)} -- 0.2 units
+   * on a radius-5 circle here, against 1e-5-scale error elsewhere. For a
+   * TestBuilder measure that is the right trade; a caller wanting tighter error
+   * can linearise explicitly and pay the quadratic bill knowingly.
+   */
+  public static Geometry linearizeForQuadratic(Geometry g) {
+    return linearizeAtFraction(g, HULL_TOLERANCE_FRACTION);
+  }
+
   private static Geometry linearizeAtFraction(Geometry g, double fraction) {
     if (g == null || g.isEmpty()) return g;
     Envelope env = g.getEnvelopeInternal();
