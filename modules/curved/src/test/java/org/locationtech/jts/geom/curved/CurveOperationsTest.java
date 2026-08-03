@@ -64,13 +64,24 @@ public class CurveOperationsTest extends GeometryTestCase {
         .createPoint(new Coordinate(x, y));
   }
 
-  /** The hull of the 270-degree arc reaches the arc's extrema. */
-  public void testConvexHullCoversArcExtrema() throws Exception {
+  /**
+   * The hull reaches the arc's extrema, to within the densification tolerance.
+   * <p>
+   * It cannot strictly <em>cover</em> them: a densified arc is an inscribed
+   * polyline, so it lies just inside the true arc and the exact extremum sits
+   * marginally outside the hull. This differs from the envelope, which must
+   * over-cover and so uses the exact axis extremes. The failing behaviour it
+   * replaces was not marginal -- the hull was the control-point triangle, a
+   * whole radius short.
+   */
+  public void testConvexHullReachesArcExtrema() throws Exception {
     Geometry hull = readCurve(ARC_270).convexHull();
-    assertTrue("hull " + hull + " must cover the arc top (0,1)",
-        hull.covers(point(0, 1)));
-    assertTrue("hull " + hull + " must cover the arc left (-1,0)",
-        hull.covers(point(-1, 0)));
+    assertTrue("hull should reach the arc top (0,1), gap was "
+        + hull.distance(point(0, 1)),
+        hull.distance(point(0, 1)) < 1.0e-4);
+    assertTrue("hull should reach the arc left (-1,0), gap was "
+        + hull.distance(point(-1, 0)),
+        hull.distance(point(-1, 0)) < 1.0e-4);
   }
 
   /** The hull of a 270-degree unit arc approaches the circle's area. */

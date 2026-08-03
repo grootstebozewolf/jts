@@ -184,4 +184,39 @@ public class CompoundCurve extends LineString implements Linearizable {
     }
     return factory.getCoordinateSequenceFactory().create(all.toArray(new Coordinate[0]));
   }
+
+  // -- Arc-aware spatial operations (CRV-OPS) ------------------------------
+  // The jts-core implementations walk getCoordinates(), which for a curve is
+  // only the control points. Route them through a densified copy instead; see
+  // CurveOps for the tolerance rationale and its limits.
+
+  @Override
+  public Geometry convexHull() {
+    return CurveOps.convexHull(this);
+  }
+
+  @Override
+  public double distance(Geometry g) {
+    return CurveOps.distance(this, g);
+  }
+
+  @Override
+  public boolean isWithinDistance(Geometry g, double distance) {
+    return CurveOps.isWithinDistance(this, g, distance);
+  }
+
+  @Override
+  public Geometry buffer(double distance) {
+    return CurveOps.buffer(this, distance);
+  }
+
+  @Override
+  public Geometry buffer(double distance, int quadrantSegments) {
+    return CurveOps.buffer(this, distance, quadrantSegments);
+  }
+
+  @Override
+  public Geometry buffer(double distance, int quadrantSegments, int endCapStyle) {
+    return CurveOps.buffer(this, distance, quadrantSegments, endCapStyle);
+  }
 }
