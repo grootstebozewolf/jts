@@ -22,6 +22,7 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
+import org.locationtech.jts.geom.curve.MultiCurve;
 import org.locationtech.jts.geom.curve.MultiSurface;
 import org.locationtech.jts.io.Ordinate;
 import org.locationtech.jts.io.OrdinateFormat;
@@ -80,12 +81,65 @@ public class CurveWKTWriter extends WKTWriter {
           (CurvePolygon) geometry, outputOrdinates, useFormatting, level, writer, formatter);
       return true;
     }
+    if (geometry instanceof MultiCurve && hasCurveMember((MultiCurve) geometry)) {
+      appendMultiCurveTaggedText(
+          (MultiCurve) geometry, outputOrdinates, useFormatting, level, writer, formatter);
+      return true;
+    }
     if (geometry instanceof MultiSurface && hasCurveMember((MultiSurface) geometry)) {
       appendMultiSurfaceTaggedText(
           (MultiSurface) geometry, outputOrdinates, useFormatting, level, writer, formatter);
       return true;
     }
     return false;
+  }
+
+  private static boolean hasCurveMember(MultiCurve mc) {
+    for (int i = 0; i < mc.getNumGeometries(); i++) {
+      Geometry m = mc.getGeometryN(i);
+      if (m instanceof CircularString || m instanceof CompoundCurve) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Emits {@code MULTICURVE (CIRCULARSTRING (...), (...))} -- arc members carry
+   * their tag, compound members nest as {@code COMPOUNDCURVE (...)}, plain
+   * members stay bare -- so the members round-trip through
+   * {@link CurveWKTReader}. Missing before FCT-COLL because nothing built an
+   * arc-bearing MultiCurve through the inherited creators: the factory boxed
+   * arcs into plain MultiLineStrings first, and the erasure upstream masked the
+   * writer gap downstream. The inherited flat formatter wrote the arc's control
+   * points as a straight untagged line, which read back as a plain LineString.
+   * An all-plain MultiCurve still uses the inherited formatter unchanged.
+   */
+  private void appendMultiCurveTaggedText(
+      MultiCurve mc, EnumSet<Ordinate> outputOrdinates, boolean useFormatting,
+      int level, Writer writer, OrdinateFormat formatter) throws IOException {
+    writer.write(mc.getGeometryType().toUpperCase(Locale.ROOT));
+    writer.write(" ");
+    appendOrdinateText(outputOrdinates, writer);
+    if (mc.isEmpty()) {
+      writer.write(WKTConstants.EMPTY);
+      return;
+    }
+    writer.write("(");
+    for (int i = 0; i < mc.getNumGeometries(); i++) {
+      if (i > 0) writer.write(", ");
+      LineString m = (LineString) mc.getGeometryN(i);
+      if (m instanceof CompoundCurve) {
+        appendCompoundCurveTaggedText(
+            (CompoundCurve) m, outputOrdinates, useFormatting, level, writer, formatter);
+        continue;
+      }
+      if (m instanceof CircularString) {
+        writer.write(WKTConstants.CIRCULARSTRING);
+        writer.write(" ");
+      }
+      appendSequenceText(m.getCoordinateSequence(), outputOrdinates, useFormatting,
+          level, false, writer, formatter);
+    }
+    writer.write(")");
   }
 
   private static boolean hasCurveMember(MultiSurface ms) {

@@ -13,6 +13,7 @@ package org.locationtech.jts.geom.curve;
 
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFactory;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
@@ -75,6 +76,75 @@ public class CurveGeometryFactory extends GeometryFactory {
 
   public MultiCurve createMultiCurve(LineString[] members) {
     return new MultiCurve(members, this);
+  }
+
+  /**
+   * Returns a {@link MultiCurve} when any member carries an arc, otherwise the
+   * plain {@code MultiLineString} core would build.
+   * <p>
+   * Without this, every collection-building path erased curve identity: the
+   * TestBuilder combiner adds a drawn arc to an existing one via
+   * {@code buildGeometry}, which landed here and boxed both into a plain
+   * MultiLineString -- whose WKT then writes the arc's control points as a
+   * straight line. {@code MultiCurve extends MultiLineString}, so the upgrade is
+   * invisible to callers that only wanted the supertype.
+   */
+  @Override
+  public org.locationtech.jts.geom.MultiLineString createMultiLineString(LineString[] members) {
+    if (hasCurveMember(members)) {
+      return new MultiCurve(members, this);
+    }
+    return super.createMultiLineString(members);
+  }
+
+  /** The polygonal counterpart: any {@link CurvePolygon} member makes a MultiSurface. */
+  @Override
+  public org.locationtech.jts.geom.MultiPolygon createMultiPolygon(Polygon[] members) {
+    if (members != null) {
+      for (Polygon m : members) {
+        if (m instanceof CurvePolygon) {
+          return new MultiSurface(members, this);
+        }
+      }
+    }
+    return super.createMultiPolygon(members);
+  }
+
+  /**
+   * Core's {@code buildGeometry} decides homogeneity by exact class, so a
+   * {@code CircularString} next to a plain {@code LineString} -- mixed lineal,
+   * exactly what {@code MULTICURVE} exists to hold -- degraded to a
+   * {@code GEOMETRYCOLLECTION}. Dimension-homogeneous input with a curve member
+   * routes to the multi creators above; everything else defers to core,
+   * including the surface-next-to-bare-curve case, for which a
+   * GeometryCollection is the honest answer.
+   */
+  @Override
+  public Geometry buildGeometry(java.util.Collection geomList) {
+    if (geomList != null && geomList.size() > 1) {
+      boolean allLineal = true, allPolygonal = true, anyCurve = false;
+      for (Object o : geomList) {
+        allLineal &= o instanceof LineString;
+        allPolygonal &= o instanceof Polygon;
+        anyCurve |= o instanceof Linearizable;
+      }
+      if (anyCurve && allLineal) {
+        return createMultiLineString(
+            (LineString[]) geomList.toArray(new LineString[0]));
+      }
+      if (anyCurve && allPolygonal) {
+        return createMultiPolygon((Polygon[]) geomList.toArray(new Polygon[0]));
+      }
+    }
+    return super.buildGeometry(geomList);
+  }
+
+  private static boolean hasCurveMember(LineString[] members) {
+    if (members == null) return false;
+    for (LineString m : members) {
+      if (m instanceof CircularString || m instanceof CompoundCurve) return true;
+    }
+    return false;
   }
 
   public MultiSurface createMultiSurface(Polygon[] members) {
