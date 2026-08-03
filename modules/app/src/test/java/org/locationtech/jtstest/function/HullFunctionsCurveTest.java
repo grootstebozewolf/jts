@@ -184,8 +184,12 @@ public class HullFunctionsCurveTest extends TestCase {
    * {@code LINESTRING (0 0, 5 5, 10 0, 10 10)} pinches identically, 5.30 down to
    * 0.0674 as the step shrinks. The tolerance for this family therefore has to
    * match what the hull can resolve rather than what a distance predicate wants.
-   * A pinch remains intrinsic at sufficient zoom; the requirement is only that
-   * the default not be degenerate.
+   * <b>What this does and does not guarantee.</b> It is a floor against the
+   * hairline, not a no-pinch guarantee. The waist settles at roughly one chord
+   * whatever the parameter -- 0.1988 here for every max-edge-length from 0.3 to
+   * 5.0 -- so a curve input still renders as a pinched bowtie, only at a visible
+   * width. Removing the pinch is not possible for a point-set hull of a sampled
+   * curve; see the known-limitation note on {@code HullFunctions.arcAware}.
    */
   public void testHullDoesNotCollapseToAHairline() throws Exception {
     Geometry hull = HullFunctions.concaveHullPointsWithHolesByLenRatio(read(COMPOUND), 0.5);

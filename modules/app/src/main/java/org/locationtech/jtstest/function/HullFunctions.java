@@ -37,6 +37,23 @@ public class HullFunctions {
    * one {@code convexHull} and {@code distance} use: those converge as the
    * sampling tightens, whereas a point-set concave hull erodes onto the curve
    * and degenerates into a one-chord-wide ribbon.
+   * <p>
+   * <b>Known limitation.</b> Coarsening rescales that ribbon, it does not remove
+   * it. The waist settles at roughly one chord regardless of the parameter --
+   * 0.1988 on a 10-unit compound curve, 0.3970 on a 4-unit curve polygon, for
+   * every max-edge-length from 0.3 to 5.0 -- so a curve input still renders as a
+   * pinched bowtie, just at a visible width rather than a hairline. Only two
+   * settings escape it: a length ratio of 1.0, which effectively disables erosion
+   * and converges on the convex hull, and an alpha radius large enough to bridge
+   * the ribbon.
+   * <p>
+   * This is inherent rather than a defect in the linearisation. These operations
+   * are defined over a point set (or, for {@code ConcaveHullOfPolygons}, over
+   * polygons -- which is why those throw on a 1-D curve instead), and sampling a
+   * curve into a point cloud has no well-posed concave hull: the answer is a
+   * function of the sampling. Accepted as-is; callers wanting control should
+   * linearise deliberately with {@code Curve -> toLinear} and hull the result,
+   * or supply genuinely 2-D input.
    */
   private static Geometry arcAware(Geometry geom) {
     return CurveFunctions.linearizeForHull(geom);
