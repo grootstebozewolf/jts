@@ -80,4 +80,45 @@ final class CurveOps {
       int endCapStyle) {
     return linearise(curve).buffer(distance, quadrantSegments, endCapStyle);
   }
+
+  // -- Overlay ------------------------------------------------------------
+  //
+  // Left to the inherited implementations, these node the chords through the
+  // control points: two concentric circles of radius 5 and 3 intersected in 18
+  // rather than 9*pi, and unioned to 50 rather than 25*pi.
+  //
+  // Unlike getArea() or getLength() there is no closed form to reach for, and
+  // unlike addHole this is not structural. Overlay has to node the linework, and
+  // noding arcs exactly would require arc-arc intersection and arc splitting --
+  // a subsystem, not a shim -- so the result is a densified plain geometry and
+  // the arc does not survive. That is a property of the operation, not of the
+  // tolerance: no tolerance choice returns a CurvePolygon here.
+  //
+  // Densifying also removes an inconsistency that was breaking core outright.
+  // OverlayNG cross-checks the result's area against the operands', and a
+  // CurvePolygon reported an arc-aware getArea() of 78.54 while its
+  // getCoordinates() enclosed 50, so UNION and DIFFERENCE threw
+  // TopologyException("Result area inconsistent with overlay operation"). Handing
+  // core a densified operand gives it one self-consistent geometry instead of a
+  // geometry that disagreed with itself.
+  //
+  // The no-argument Geometry.union() is deliberately NOT routed here: for a
+  // single CurvePolygon it already returns the geometry itself, area exact, and
+  // densifying would replace an exact answer with an approximate one.
+
+  static Geometry intersection(Geometry curve, Geometry other) {
+    return linearise(curve).intersection(linearise(other));
+  }
+
+  static Geometry union(Geometry curve, Geometry other) {
+    return linearise(curve).union(linearise(other));
+  }
+
+  static Geometry difference(Geometry curve, Geometry other) {
+    return linearise(curve).difference(linearise(other));
+  }
+
+  static Geometry symDifference(Geometry curve, Geometry other) {
+    return linearise(curve).symDifference(linearise(other));
+  }
 }

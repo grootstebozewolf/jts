@@ -415,4 +415,30 @@ public class CurvePolygon extends Polygon implements Linearizable {
   public Geometry buffer(double distance, int quadrantSegments, int endCapStyle) {
     return CurveOps.buffer(this, distance, quadrantSegments, endCapStyle);
   }
+
+  // -- Overlay (OVL-OPS) ---------------------------------------------------
+  // Densified on both sides: overlay must node the linework, and the inherited
+  // implementations node the chords through the control points. See CurveOps for
+  // why no tolerance returns a curve type here, and for the OverlayNG
+  // TopologyException this also resolves.
+
+  @Override
+  public Geometry intersection(Geometry other) {
+    return CurveOps.intersection(this, other);
+  }
+
+  @Override
+  public Geometry union(Geometry other) {
+    return CurveOps.union(this, other);
+  }
+
+  @Override
+  public Geometry difference(Geometry other) {
+    return CurveOps.difference(this, other);
+  }
+
+  @Override
+  public Geometry symDifference(Geometry other) {
+    return CurveOps.symDifference(this, other);
+  }
 }
