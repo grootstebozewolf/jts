@@ -81,6 +81,19 @@ public class CompoundCurveMemberPreservationTest extends GeometryTestCase {
     checkEqual(original, twice);
   }
 
+  /**
+   * Precondition for member reversal: CircularString has no reverseInternal
+   * override either, so on its own it also downgrades to a plain LineString.
+   */
+  public void testCircularStringReverseKeepsType() throws Exception {
+    Geometry reversed = new CurvedWKTReader()
+        .read("CIRCULARSTRING (0 0, 1 1, 2 0)").reverse();
+    assertEquals("CircularString.reverse() must not downgrade the type",
+        "CircularString", reversed.getGeometryType());
+    assertEquals("arc control points should reverse",
+        3, reversed.getNumPoints());
+  }
+
   /** Guard: copy() already preserves members and must keep doing so. */
   public void testCopyKeepsMembers() throws Exception {
     CompoundCurve copy = (CompoundCurve) readCC(LINE_THEN_ARC).copy();

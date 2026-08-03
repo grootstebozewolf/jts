@@ -91,6 +91,23 @@ public class CompoundCurve extends LineString implements Linearizable {
     return new CompoundCurve(copies, getFactory());
   }
 
+  /**
+   * Reverses the chain, staying a CompoundCurve.
+   * <p>
+   * Without this the inherited {@code LineString.reverseInternal()} rebuilds a
+   * plain {@link LineString} from the concatenated sequence and the segment
+   * structure is lost. Reversing a chain means reversing the member order
+   * <em>and</em> each member, so the members still join end-to-start.
+   */
+  @Override
+  protected CompoundCurve reverseInternal() {
+    LineString[] reversed = new LineString[members.length];
+    for (int i = 0; i < members.length; i++) {
+      reversed[i] = members[members.length - 1 - i].reverse();
+    }
+    return new CompoundCurve(reversed, getFactory());
+  }
+
   @Override
   public Geometry toLinear(double tolerance) {
     GeometryFactory f = getFactory();

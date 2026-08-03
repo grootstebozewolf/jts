@@ -17,6 +17,7 @@ import java.util.List;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.CoordinateSequences;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
@@ -46,6 +47,22 @@ public class CircularString extends LineString implements Linearizable {
   @Override
   protected CircularString copyInternal() {
     return new CircularString(getCoordinateSequence().copy(), getFactory());
+  }
+
+  /**
+   * Reverses the control-point sequence, staying a CircularString.
+   * <p>
+   * Without this the inherited {@code LineString.reverseInternal()} rebuilds a
+   * plain {@link org.locationtech.jts.geom.LineString} and the arc identity is
+   * lost. Reversing the control points of an arc traverses the same arc in the
+   * opposite direction: the start and end swap and the interior point stays
+   * interior, so the circle through them is unchanged.
+   */
+  @Override
+  protected CircularString reverseInternal() {
+    CoordinateSequence seq = getCoordinateSequence().copy();
+    CoordinateSequences.reverse(seq);
+    return new CircularString(seq, getFactory());
   }
 
   @Override
