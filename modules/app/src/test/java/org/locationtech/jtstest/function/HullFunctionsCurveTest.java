@@ -140,6 +140,57 @@ public class HullFunctionsCurveTest extends TestCase {
         area > CONTROL_POINT_AREA + 10.0);
   }
 
+  /**
+   * The narrowest span between two ring vertices that are far apart along the
+   * ring -- a pinch shows up as a tiny value where the boundary doubles back on
+   * itself. Neighbours are skipped so ordinary short edges do not count.
+   */
+  private static double waistOf(Geometry hull) {
+    Coordinate[] c = ((org.locationtech.jts.geom.Polygon) hull)
+        .getExteriorRing().getCoordinates();
+    int n = c.length - 1;
+    double waist = Double.MAX_VALUE;
+    for (int i = 0; i < n; i++) {
+      for (int j = i + 1; j < n; j++) {
+        if (Math.min(j - i, n - (j - i)) < 5) continue;
+        waist = Math.min(waist, c[i].distance(c[j]));
+      }
+    }
+    return waist;
+  }
+
+  /**
+   * The hull must not collapse to a hairline ribbon.
+   * <p>
+   * ConcaveHull is a point-set operation, so sampling a 1-D curve ever more
+   * finely does not refine the answer -- the hull erodes down onto the curve and
+   * the result becomes a ribbon whose width is one sampling step. Densifying at
+   * {@code CurveOps}' 1e-6 of extent gave a waist of 0.0200 on a 10-unit
+   * geometry, which renders as a bowtie.
+   * <p>
+   * Nothing here is arc-specific: core's {@code Densifier} on a plain
+   * {@code LINESTRING (0 0, 5 5, 10 0, 10 10)} pinches identically, 5.30 down to
+   * 0.0674 as the step shrinks. The tolerance for this family therefore has to
+   * match what the hull can resolve rather than what a distance predicate wants.
+   * A pinch remains intrinsic at sufficient zoom; the requirement is only that
+   * the default not be degenerate.
+   */
+  public void testHullDoesNotCollapseToAHairline() throws Exception {
+    Geometry hull = HullFunctions.concaveHullPointsWithHolesByLenRatio(read(COMPOUND), 0.5);
+    double waist = waistOf(hull);
+    assertTrue("hull waist " + waist + " should stay above 1% of the 10-unit extent",
+        waist > 0.1);
+  }
+
+  /** Whatever the sampling, the result must be a usable polygon. */
+  public void testHullIsValidAndSimple() throws Exception {
+    for (double ratio : new double[] { 0.0, 0.3, 0.5, 0.7, 1.0 }) {
+      Geometry hull = HullFunctions.concaveHullPointsWithHolesByLenRatio(read(COMPOUND), ratio);
+      assertTrue("ratio " + ratio + " should be valid", hull.isValid());
+      assertTrue("ratio " + ratio + " should be simple", hull.isSimple());
+    }
+  }
+
   /** Guard: a plain LineString is unaffected by any linearisation. */
   public void testPlainLineStringUnchanged() throws Exception {
     Geometry line = read("LINESTRING (0 0, 10 0, 10 10, 0 10, 0 0)");
