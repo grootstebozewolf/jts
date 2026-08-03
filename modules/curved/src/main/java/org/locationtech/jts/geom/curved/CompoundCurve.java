@@ -92,6 +92,22 @@ public class CompoundCurve extends LineString implements Linearizable {
   }
 
   /**
+   * The sum of the members' lengths, so arc members contribute their true arc
+   * length rather than the chords through their control points.
+   * <p>
+   * The inherited {@code LineString.getLength()} walks the concatenated
+   * sequence as straight segments and understates any arc member.
+   */
+  @Override
+  public double getLength() {
+    double total = 0.0;
+    for (int i = 0; i < members.length; i++) {
+      total += members[i].getLength();
+    }
+    return total;
+  }
+
+  /**
    * Reverses the chain, staying a CompoundCurve.
    * <p>
    * Without this the inherited {@code LineString.reverseInternal()} rebuilds a

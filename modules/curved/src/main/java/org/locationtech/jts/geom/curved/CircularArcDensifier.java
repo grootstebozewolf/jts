@@ -218,6 +218,25 @@ public final class CircularArcDensifier {
     }
   }
 
+  /**
+   * True arc length of the arc through three control points: {@code r * sweep}.
+   * <p>
+   * Degenerate (colinear or coincident) triples describe no arc, so the result
+   * degrades to the straight-line distance {@code start..end} -- the same
+   * fallback {@link #densifyArc} makes.
+   *
+   * @return the arc length, never negative
+   */
+  public static double arcLength(Coordinate start, Coordinate mid, Coordinate end) {
+    Circle c = Circle.fromThreePoints(start, mid, end);
+    if (c == null) return start.distance(end);
+    double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
+    double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
+    double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
+    boolean ccw = isMidInCcwSweep(a0, aMid, a1);
+    return c.r * signedSweep(a0, a1, ccw);
+  }
+
   /** Circumcircle of three points, or {@code null} if colinear. */
   private static final class Circle {
     final double cx, cy, r;

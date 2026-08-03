@@ -50,6 +50,28 @@ public class CircularString extends LineString implements Linearizable {
   }
 
   /**
+   * The true arc length, summed over the arcs formed by each overlapping
+   * control-point triple.
+   * <p>
+   * The inherited {@code LineString.getLength()} walks the control points as
+   * straight segments, which returns the inscribed chord length -- for a
+   * semicircle {@code 2r*sqrt(2)} instead of {@code pi*r}, about 10% short.
+   * Colinear triples contribute their straight-line distance.
+   */
+  @Override
+  public double getLength() {
+    CoordinateSequence seq = getCoordinateSequence();
+    int n = seq.size();
+    if (n < 3) return super.getLength();
+    double total = 0.0;
+    for (int i = 0; i + 2 < n; i += 2) {
+      total += CircularArcDensifier.arcLength(
+          seq.getCoordinate(i), seq.getCoordinate(i + 1), seq.getCoordinate(i + 2));
+    }
+    return total;
+  }
+
+  /**
    * Reverses the control-point sequence, staying a CircularString.
    * <p>
    * Without this the inherited {@code LineString.reverseInternal()} rebuilds a
