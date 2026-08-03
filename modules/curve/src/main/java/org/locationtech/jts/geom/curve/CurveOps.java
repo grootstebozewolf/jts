@@ -56,10 +56,26 @@ public final class CurveOps {
    */
   public static Geometry linearise(Geometry g) {
     if (!(g instanceof Linearizable)) return g;
+    return ((Linearizable) g).toLinear(tolerance(g));
+  }
+
+  /**
+   * The densification tolerance {@link #linearise(Geometry)} would use for this
+   * geometry, and therefore the maximum distance by which its densified copy
+   * deviates from the true arc. Zero for a geometry with no arc, whose linearised
+   * form is itself.
+   * <p>
+   * Public so a caller deciding something on densified copies can tell how far
+   * from the boundary of that decision it needs to be before the answer is safe.
+   * The densified ring is inscribed, so it lies within this distance <em>inside</em>
+   * the true arc, and a predicate evaluated on it can differ from the truth only
+   * within that band.
+   */
+  public static double tolerance(Geometry g) {
+    if (!(g instanceof Linearizable)) return 0.0;
     Envelope env = g.getEnvelopeInternal();
     double extent = Math.max(env.getWidth(), env.getHeight());
-    double tolerance = (extent > 0.0 ? extent : 1.0) * TOLERANCE_FRACTION;
-    return ((Linearizable) g).toLinear(tolerance);
+    return (extent > 0.0 ? extent : 1.0) * TOLERANCE_FRACTION;
   }
 
   static Geometry convexHull(Geometry curve) {

@@ -14,9 +14,11 @@ package org.locationtech.jts.operation.overlayng.curve;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurveOps;
 import org.locationtech.jts.geom.curve.CurvePolygon;
+import org.locationtech.jts.geom.curve.MultiSurface;
 
 /**
  * Curve-aware overlay: the four set operations on geometries whose rings may be
@@ -137,9 +139,14 @@ public class OverlayNGCurve {
    * an arc, so the answer is accurate only to {@link CurveOps#TOLERANCE_FRACTION}.
    * <p>
    * False when the answer was exact: an algebraic identity (G1&ndash;G4), an empty
-   * operand (G5), or an operand returned unchanged (R1). In the R1 case the
+   * operand (G5), an operand returned unchanged (R1), or an operand with no arc in
+   * it at all, which is handed to core untouched. In the R1 case the
    * <em>answer</em> is exact even though the <em>decision</em> to return it was
    * made on densified copies.
+   * <p>
+   * So this is false for every plain-geometry overlay, which is part of V3: routing
+   * plain input through this class must be indistinguishable from calling stock
+   * {@code OverlayNG}, honesty flag included.
    */
   public boolean isApproximate() {
     return isApproximate;
@@ -156,7 +163,11 @@ public class OverlayNGCurve {
     Geometry retained = retainOperand(opCode);      // R1
     if (retained != null) return retained;
 
-    isApproximate = true;                           // R2
+    // R2. Approximate only if something was actually densified: for operands with
+    // no arc, linearise returns them unchanged and core's answer is exact, so
+    // flagging it would be a false warning -- and a flag that cries wolf on plain
+    // input is one callers learn to ignore.
+    isApproximate = CurveOps.tolerance(a) > 0.0 || CurveOps.tolerance(b) > 0.0;
     return org.locationtech.jts.operation.overlayng.OverlayNG.overlay(
         CurveOps.linearise(a), CurveOps.linearise(b), opCode);
   }
@@ -246,16 +257,23 @@ public class OverlayNGCurve {
    * @return the answer, or {@code null} to fall through to core
    */
   private Geometry retainOperand(int opCode) {
-    IntersectionMatrix im = CurveOps.linearise(a).relate(CurveOps.linearise(b));
+    Geometry la = CurveOps.linearise(a);
+    Geometry lb = CurveOps.linearise(b);
+
+    if (!isDecisive(la, lb)) return null;
+
+    IntersectionMatrix im = la.relate(lb);
     if (!im.isIntersects()) {
       if (opCode == INTERSECTION) return empty(opCode);
       if (opCode == DIFFERENCE) return a.copy();
-      return null;                       // CUP and XOR need both operands
+      // Disjoint CUP and XOR are both operands side by side, which a MultiSurface
+      // holds exactly, arcs intact. Null falls through if they are not polygonal.
+      return bothOperands();
     }
     if (im.isCovers()) {
       if (opCode == INTERSECTION) return b.copy();
       if (opCode == UNION) return a.copy();
-      return null;
+      return null;                       // SUB is an annulus, XOR likewise
     }
     if (im.isCoveredBy()) {
       if (opCode == INTERSECTION) return a.copy();
@@ -264,6 +282,50 @@ public class OverlayNGCurve {
       return null;
     }
     return null;
+  }
+
+  /**
+   * True if the operands are far enough apart, boundary to boundary, that the
+   * densification cannot have changed the topological verdict.
+   * <p>
+   * Every retention decision is made on inscribed copies, which lie up to
+   * {@link CurveOps#tolerance(Geometry)} <em>inside</em> the true arcs. So a
+   * verdict can only be wrong within a band of that width: two arcs that truly
+   * touch can look disjoint, and a geometry that truly pokes out can look
+   * covered. Requiring the boundaries to be separated by more than the summed
+   * tolerance puts the decision outside that band, and anything closer falls
+   * through to core -- which is also approximate, but computes the sliver rather
+   * than dropping it.
+   * <p>
+   * This matters most for SUB and least for CAP, because the failure modes have
+   * opposite polarity. A wrong disjoint verdict makes SUB return {@code a}
+   * unchanged -- it fails to erase, and the result looks entirely plausible, so
+   * nothing downstream can detect it. The same wrong verdict makes CAP return
+   * empty, which under-claims by a sliver of order tolerance times chord length.
+   * It matters for the new disjoint CUP and XOR path more than either: two
+   * operands that truly touch have a single connected union, and returning a
+   * two-member MultiSurface would be wrong in <em>topology</em>, not just area.
+   * <p>
+   * Plain operands have zero tolerance, so the gate is satisfied trivially and
+   * non-curve behaviour is unchanged.
+   */
+  private boolean isDecisive(Geometry la, Geometry lb) {
+    double margin = CurveOps.tolerance(a) + CurveOps.tolerance(b);
+    if (margin <= 0.0) return true;
+    return la.getBoundary().distance(lb.getBoundary()) > margin;
+  }
+
+  /**
+   * The two operands as one geometry, arcs intact -- the exact answer for a
+   * disjoint CUP or XOR.
+   *
+   * @return a MultiSurface, or {@code null} if either operand is not polygonal,
+   *         in which case core is the honest fallback
+   */
+  private Geometry bothOperands() {
+    if (!(a instanceof Polygon) || !(b instanceof Polygon)) return null;
+    return new MultiSurface(
+        new Polygon[] { (Polygon) a.copy(), (Polygon) b.copy() }, a.getFactory());
   }
 
   // -- helpers ------------------------------------------------------------
