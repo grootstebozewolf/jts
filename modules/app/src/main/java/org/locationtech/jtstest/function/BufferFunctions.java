@@ -17,11 +17,9 @@ import java.util.List;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.curved.Linearizable;
 import org.locationtech.jts.geom.util.GeometryMapper;
 import org.locationtech.jts.geom.util.GeometryMapper.MapOp;
 import org.locationtech.jts.geom.util.LinearComponentExtracter;
@@ -108,23 +106,15 @@ public class BufferFunctions {
     return buildCurveSet(input, dist, bufParams);
 	}
 
+  /**
+   * The buffer curve builder is chord-based, so a curve must be densified
+   * first. The tolerance is tied to the buffer distance rather than chosen:
+   * deviation that is small relative to the offset cannot show up in the
+   * result. Use {@code Curve.toLinear} to linearise at a tolerance of your own.
+   */
   private static Geometry linearizeForBuffer(Geometry g, double bufferDistance) {
     double tol = Math.max(0.001, Math.abs(bufferDistance) / 100.0);
-    return linearizeRecurse(g, tol);
-  }
-
-  private static Geometry linearizeRecurse(Geometry g, double tol) {
-    if (g == null || g.isEmpty()) return g;
-    if (g instanceof Linearizable) return ((Linearizable) g).toLinear(tol);
-    if (g instanceof GeometryCollection) {
-      int n = g.getNumGeometries();
-      Geometry[] members = new Geometry[n];
-      for (int i = 0; i < n; i++) {
-        members[i] = linearizeRecurse(g.getGeometryN(i), tol);
-      }
-      return g.getFactory().createGeometryCollection(members);
-    }
-    return g;
+    return CurveFunctions.linearize(g, tol);
   }
 
   private static Geometry buildCurveSet(Geometry g, double dist, BufferParameters bufParams)
