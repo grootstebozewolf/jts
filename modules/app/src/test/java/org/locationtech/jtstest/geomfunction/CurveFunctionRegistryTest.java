@@ -14,9 +14,9 @@ package org.locationtech.jtstest.geomfunction;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
-import org.locationtech.jts.geom.curved.Linearizable;
-import org.locationtech.jts.io.curved.CurvedWKTReader;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.geom.curve.Linearizable;
+import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -28,9 +28,9 @@ import junit.textui.TestRunner;
  * user chooses.
  * <p>
  * Everything else about curves is reachable from the UI -- they can be drawn
- * ({@code CircularStringTool}), parsed ({@code CurvedWKTReader} in
- * {@code TestBuilderModel}), written ({@code CurvedWKTWriter}) and rendered as
- * true arcs ({@code CurvedShapeWriter} in {@code GeometryPainter}). The one
+ * ({@code CircularStringTool}), parsed ({@code CurveWKTReader} in
+ * {@code TestBuilderModel}), written ({@code CurveWKTWriter}) and rendered as
+ * true arcs ({@code CurveShapeWriter} in {@code GeometryPainter}). The one
  * missing piece is {@code Linearizable.toLinear}, the operation that turns an
  * arc into the polyline every legacy consumer actually receives.
  * <p>
@@ -69,7 +69,7 @@ public class CurveFunctionRegistryTest extends TestCase {
   }
 
   private static Geometry read(String wkt) throws Exception {
-    return new CurvedWKTReader(new CurvedGeometryFactory()).read(wkt);
+    return new CurveWKTReader(new CurveGeometryFactory()).read(wkt);
   }
 
   private static Geometry apply(String wkt, double tolerance) throws Exception {

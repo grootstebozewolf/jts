@@ -35,7 +35,7 @@ import org.locationtech.jtstest.testbuilder.model.GeometryType;
  *       fanning from the click point to every <em>visible</em> boundary
  *       edge of the current triangulation.</li>
  *   <li><b>Finish</b>: double-click commits the accumulated patches as
- *       a {@link org.locationtech.jts.geom.curved.Tin}.</li>
+ *       a {@link org.locationtech.jts.geom.curve.Tin}.</li>
  * </ul>
  *
  * <h3>Visibility test</h3>

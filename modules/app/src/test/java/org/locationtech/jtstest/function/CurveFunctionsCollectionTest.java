@@ -12,8 +12,8 @@
 package org.locationtech.jtstest.function;
 
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
-import org.locationtech.jts.io.curved.CurvedWKTReader;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -57,7 +57,7 @@ public class CurveFunctionsCollectionTest extends TestCase {
   public CurveFunctionsCollectionTest(String name) { super(name); }
 
   private static Geometry read(String wkt) throws Exception {
-    return new CurvedWKTReader(new CurvedGeometryFactory()).read(wkt);
+    return new CurveWKTReader(new CurveGeometryFactory()).read(wkt);
   }
 
   private static Geometry linearized(String wkt) throws Exception {
@@ -112,7 +112,7 @@ public class CurveFunctionsCollectionTest extends TestCase {
   }
 
   /** A curve inside a collection must still be linearised. */
-  public void testCurvedMemberInCollectionIsLinearised() throws Exception {
+  public void testCurveMemberInCollectionIsLinearised() throws Exception {
     Geometry g = linearized("GEOMETRYCOLLECTION (POINT (0 0), "
         + "CIRCULARSTRING (-2 0, 0 2, 2 0, 0 -2, -2 0))");
     assertEquals("collection type is kept", "GeometryCollection", g.getGeometryType());

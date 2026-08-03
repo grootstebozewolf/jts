@@ -14,8 +14,8 @@ package org.locationtech.jtstest.function;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
-import org.locationtech.jts.io.curved.CurvedWKTReader;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -35,7 +35,7 @@ import junit.textui.TestRunner;
  * instance method, so {@code CompoundCurve} overrides it and it is arc-aware
  * (area 61.59 for this input). {@code ConcaveHull.concaveHullByLengthRatio} is
  * <em>static</em> and takes a {@code Geometry}: there is no virtual dispatch to
- * hook, and jts-core cannot see the curve types, so no override in jts-curved
+ * hook, and jts-core cannot see the curve types, so no override in jts-curve
  * can reach it. The caller must linearise.
  * <p>
  * Two tells that this is degeneracy rather than a slightly-wrong hull:
@@ -62,7 +62,7 @@ public class HullFunctionsCurveTest extends TestCase {
   public HullFunctionsCurveTest(String name) { super(name); }
 
   private static Geometry read(String wkt) throws Exception {
-    return new CurvedWKTReader(new CurvedGeometryFactory()).read(wkt);
+    return new CurveWKTReader(new CurveGeometryFactory()).read(wkt);
   }
 
   /**

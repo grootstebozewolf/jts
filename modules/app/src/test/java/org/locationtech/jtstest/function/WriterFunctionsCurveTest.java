@@ -13,9 +13,9 @@ package org.locationtech.jtstest.function;
 
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.io.WKBReader;
-import org.locationtech.jts.io.curved.CurvedWKTReader;
+import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jts.io.geojson.GeoJsonReader;
 import org.locationtech.jts.io.gml2.GMLReader;
 
@@ -92,7 +92,7 @@ public class WriterFunctionsCurveTest extends TestCase {
   public WriterFunctionsCurveTest(String name) { super(name); }
 
   private static Geometry read(String wkt) throws Exception {
-    return new CurvedWKTReader(new CurvedGeometryFactory()).read(wkt);
+    return new CurveWKTReader(new CurveGeometryFactory()).read(wkt);
   }
 
   private static Geometry viaGML(Geometry g) throws Exception {

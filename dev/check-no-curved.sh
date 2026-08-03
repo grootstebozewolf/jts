@@ -32,6 +32,11 @@ check () {
 check "F1 Curved<Cap> identifier (e.g. CurvedGeometryFactory, FooCurvedBar)" 'Curved[A-Z]'
 check "F2 .curved /curved \\curved package or path segment"    '[./\]curved\b'
 check "F3 jts-curved Maven artifactId or module name"          '\bjts-curved\b'
+# F4 closes a gap F2 left. A Maven <module>curved</module> entry has no path
+# delimiter before the stem, so F2's [./\] prefix never matched it: the guard
+# reported OK while modules/pom.xml still pointed at a directory that had been
+# renamed, and the build failed where the guard had passed. Found that way.
+check "F4 <module>curved</module> Maven module element"        '>curved<'
 
 if [ "$violations" -ne 0 ]; then
   echo "Found $violations banned-stem group(s). Rename to 'Curve' or add to the"

@@ -20,7 +20,7 @@
     <modules>
         <module>core</module>
         <module>io</module>
-        <module>curved</module>
+        <module>curve</module>
     </modules>
 
     <profiles>

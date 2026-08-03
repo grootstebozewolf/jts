@@ -22,10 +22,10 @@ import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.curved.CircularString;
-import org.locationtech.jts.geom.curved.CompoundCurve;
-import org.locationtech.jts.geom.curved.CurvePolygon;
-import org.locationtech.jts.geom.curved.Linearizable;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jts.geom.curve.CurvePolygon;
+import org.locationtech.jts.geom.curve.Linearizable;
 import org.locationtech.jtstest.geomfunction.Metadata;
 
 /**
@@ -45,7 +45,7 @@ public class CurveFunctions {
    * cannot dispatch to a curve override.
    * <p>
    * Deliberately the same value as {@code CurveOps.TOLERANCE_FRACTION} inside
-   * jts-curved, so a function reached through a static entry point agrees with
+   * jts-curve, so a function reached through a static entry point agrees with
    * the equivalent instance method. The constant is repeated rather than shared
    * because {@code CurveOps} is package-private; if it is ever promoted to
    * public API this should defer to it.
@@ -159,7 +159,7 @@ public class CurveFunctions {
    * actually changed, so a curve-free collection never gets here.
    * <p>
    * The member-type checks are not redundant with the collection type: a
-   * {@code CurvedGeometryFactory} can put a {@code CircularString} inside a plain
+   * {@code CurveGeometryFactory} can put a {@code CircularString} inside a plain
    * {@code MULTILINESTRING}, and linearising it yields a {@code LineString}
    * again, but nothing guarantees that for every future curve type. If a member
    * no longer fits its collection, a GeometryCollection is the honest answer.

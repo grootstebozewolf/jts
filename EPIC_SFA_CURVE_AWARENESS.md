@@ -3,7 +3,7 @@
 > **AI Disclosure** *(per the [Eclipse Foundation Generative AI Usage Guidelines for Committers](https://www.eclipse.org/projects/guidelines/genai/))*
 >
 > This document and the companion red-test class
-> `modules/curved/src/test/java/org/locationtech/jts/spec/curveawareness/CurveAwarenessSpecTest.java`
+> `modules/curve/src/test/java/org/locationtech/jts/spec/curveawareness/CurveAwarenessSpecTest.java`
 > were largely AI-generated. The human contributor has reviewed and verified the
 > technical content (cross-module impact, risk register, phase dependencies, TAG
 > scope) for correctness. The AI-generated portions are made available under
@@ -24,7 +24,7 @@
 
 Make JTS preserve OGC SFA / ISO 19125-2 curve geometries — `CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON`, `MULTICURVE`, `MULTISURFACE`, `TRIANGLE` — through every algorithm where the math is sound, instead of silently linearising to flat parents on the way in.
 
-Today `jts-curved` is a Phase-1 stand-in: types parse, round-trip WKT *coordinates*, and exist in the type hierarchy, but `jts-core` ignores their identity and densifies on contact. This epic tracks the lift, operation by operation.
+Today `jts-curve` is a Phase-1 stand-in: types parse, round-trip WKT *coordinates*, and exist in the type hierarchy, but `jts-core` ignores their identity and densifies on contact. This epic tracks the lift, operation by operation.
 
 ## 2. Why
 
@@ -52,7 +52,7 @@ Today `jts-curved` is a Phase-1 stand-in: types parse, round-trip WKT *coordinat
 |---|---|
 | `arch:` | Structural `CompoundCurve` — segment-aware `copy` / `toLinear` |
 | `arch:` | Member-structured WKT round-trip for `CompoundCurve` |
-| `arch:` | `CurvedShapeWriter` walks `CompoundCurve` members, arc-renders |
+| `arch:` | `CurveShapeWriter` walks `CompoundCurve` members, arc-renders |
 | `feat:` | `LineHandlingFunctions.mergeCurves` (arc-aware sibling of `mergeLines`) |
 | `fix:`  | Anchor member control points in `CompoundCurve.toLinear` (no junction drift) |
 | `fix:`  | Block-comment paste regression in WKT panel |
@@ -67,8 +67,8 @@ We are **not** opening 49 separate issues. Fragmenting the project board, spammi
 
 ### Single source of truth: `CurveAwarenessSpecTest`
 
-- Path: `modules/curved/src/test/java/org/locationtech/jts/spec/curveawareness/CurveAwarenessSpecTest.java`
-- Run: `mvn -pl modules/curved test -Dtest=CurveAwarenessSpecTest`
+- Path: `modules/curve/src/test/java/org/locationtech/jts/spec/curveawareness/CurveAwarenessSpecTest.java`
+- Run: `mvn -pl modules/curve test -Dtest=CurveAwarenessSpecTest`
 - Starts with **49 failing methods**, one per TAG. Each `fail("TAG: …")` documents the spec.
 - **When a TAG ships, delete its red-test method** — don't edit it green. Remaining method count is the live progress meter.
 - Local silence while working: `mvn -Dtest='!CurveAwarenessSpecTest' test`.
@@ -97,7 +97,7 @@ Examples:
 
 ## 6. Cross-module impact
 
-Most TAGs ship purely inside `jts-curved` (extension module, opt-in). A handful require touching `jts-core` and therefore need a maintainer review up-front. Calling them out before they're proposed:
+Most TAGs ship purely inside `jts-curve` (extension module, opt-in). A handful require touching `jts-core` and therefore need a maintainer review up-front. Calling them out before they're proposed:
 
 | TAG group | jts-core change? | Notes |
 |---|---|---|
@@ -107,9 +107,9 @@ Most TAGs ship purely inside `jts-curved` (extension module, opt-in). A handful 
 | **R-PR, R-CONT** | Indirect | `RelateOp` lives in core; if N-SS is the seam, no further core change needed. |
 | **PLG** | **Yes** | `Polygonizer` lives in core; needs to accept `CompoundCurve` edges. |
 | **PRC-SN** | Yes | `PrecisionModel.makePrecise` integration. |
-| **DSF** | Yes (or shadow) | `Densifier` lives in core; alternative is to wrap and shadow it from `jts-curved`. |
+| **DSF** | Yes (or shadow) | `Densifier` lives in core; alternative is to wrap and shadow it from `jts-curve`. |
 
-Everything else is jts-curved-only or `jts-app` (TestBuilder).
+Everything else is jts-curve-only or `jts-app` (TestBuilder).
 
 ## 7. Risks / open questions
 
@@ -134,14 +134,14 @@ The epic closes when **all** of:
 
 Phases group TAGs that share dependencies or naturally land together. Within a phase, TAGs are usually independently shippable. Cross-phase dependencies are noted explicitly per phase.
 
-### Phase 1 — Foundations (jts-curved structural completeness)
+### Phase 1 — Foundations (jts-curve structural completeness)
 
 Mirror the `CompoundCurve` work onto the remaining composite types.
 
 - **F-CP** Structural `CurvePolygon` — `CompoundCurve` shell + holes; `copyInternal`, `toLinear`, WKT reader/writer preserve structure.
 - **F-MC** Structural `MultiCurve` — preserves member subtypes (`LineString` / `CircularString` / `CompoundCurve`).
 - **F-MS** Structural `MultiSurface` — preserves `Polygon` vs `CurvePolygon` member subtypes.
-- **F-RD** `CurvedShapeWriter` for `CurvePolygon` rings, `MultiCurve` and `MultiSurface` members.
+- **F-RD** `CurveShapeWriter` for `CurvePolygon` rings, `MultiCurve` and `MultiSurface` members.
 
 **Hard prereq for:** all of Phase 2 (you can't return a `CompoundCurve` boundary of a `CurvePolygon` whose ring isn't a `CompoundCurve` to begin with).
 
@@ -237,11 +237,11 @@ After Phase 1 finishes, Phases 2 / 3 / 4 / 5 / 7 can run in parallel; Phase 6 wa
   </plugin>
   ```
 
-  Contributors run it explicitly with `mvn -pl modules/curved test -Dtest=CurveAwarenessSpecTest` (which overrides the exclude). The remaining-method count is still the live progress meter, but it doesn't break CI on every push.
+  Contributors run it explicitly with `mvn -pl modules/curve test -Dtest=CurveAwarenessSpecTest` (which overrides the exclude). The remaining-method count is still the live progress meter, but it doesn't break CI on every push.
 
 ## 12. References
 
 - OGC Simple Feature Access 1.2.1 / ISO 19125-2.
-- `jts-curved` source: `modules/curved/`.
+- `jts-curve` source: `modules/curve/`.
 - Spike branch: `feature/sfa-curve-buffer-spike` on `grootstebozewolf/jts`.
 - `CurveAwarenessSpecTest` (live progress meter).

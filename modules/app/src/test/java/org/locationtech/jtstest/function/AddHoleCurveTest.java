@@ -12,8 +12,8 @@
 package org.locationtech.jtstest.function;
 
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
-import org.locationtech.jts.io.curved.CurvedWKTReader;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -86,7 +86,7 @@ public class AddHoleCurveTest extends TestCase {
   public AddHoleCurveTest(String name) { super(name); }
 
   private static Geometry read(String wkt) throws Exception {
-    return new CurvedWKTReader(new CurvedGeometryFactory()).read(wkt);
+    return new CurveWKTReader(new CurveGeometryFactory()).read(wkt);
   }
 
   // -- 2. the curve defect -------------------------------------------------

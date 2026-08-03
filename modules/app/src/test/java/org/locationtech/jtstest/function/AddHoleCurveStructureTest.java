@@ -13,11 +13,11 @@ package org.locationtech.jtstest.function;
 
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.curved.CircularString;
-import org.locationtech.jts.geom.curved.CurvePolygon;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
-import org.locationtech.jts.io.curved.CurvedWKTReader;
-import org.locationtech.jts.io.curved.CurvedWKTWriter;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.CurvePolygon;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.io.curve.CurveWKTReader;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -83,7 +83,7 @@ public class AddHoleCurveStructureTest extends TestCase {
   public AddHoleCurveStructureTest(String name) { super(name); }
 
   private static Geometry read(String wkt) throws Exception {
-    return new CurvedWKTReader(new CurvedGeometryFactory()).read(wkt);
+    return new CurveWKTReader(new CurveGeometryFactory()).read(wkt);
   }
 
   /**
@@ -92,7 +92,7 @@ public class AddHoleCurveStructureTest extends TestCase {
    */
   private static void assertSameCurveGeometry(String message, Geometry actual)
       throws Exception {
-    String wkt = new CurvedWKTWriter().write(actual);
+    String wkt = new CurveWKTWriter().write(actual);
     Geometry reparsed = read(wkt);
     assertTrue(message + "\n  expected: " + EXPECTED + "\n  actual:   " + wkt,
         read(EXPECTED).equalsExact(reparsed));

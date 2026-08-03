@@ -12,8 +12,8 @@
 package org.locationtech.jtstest.function;
 
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
-import org.locationtech.jts.io.curved.CurvedWKTReader;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -81,7 +81,7 @@ public class OverlayOptCurveTest extends TestCase {
   public OverlayOptCurveTest(String name) { super(name); }
 
   private static Geometry read(String wkt) throws Exception {
-    return new CurvedWKTReader(new CurvedGeometryFactory()).read(wkt);
+    return new CurveWKTReader(new CurveGeometryFactory()).read(wkt);
   }
 
   private static Geometry a() throws Exception { return read(A); }

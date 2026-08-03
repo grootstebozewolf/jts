@@ -27,6 +27,7 @@ The CI naming guard (`dev/check-no-curved.sh`) rejects three patterns:
 | F1 | `Curved[A-Z]` | Any identifier containing `Curved` followed by a capital letter — at the start (`CurvedGeometryFactory`) or in the middle (`BufferCurveWithParamsCurvedTest`, `test_distanceOpForCurvedInputs`). Case-sensitive: the lowercase English word "curved" in comments stays allowed. |
 | F2 | `[./\\]curved\b` | Package segments (`…geom.curved;`), import paths, directory paths (`modules/curved/`), JPMS module names. Leading char must be `.`, `/`, or `\`; trailing is a word boundary so `;`, `<`, `"`, end-of-line all qualify. |
 | F3 | `\bjts-curved\b` | The old Maven artifactId; appears in `pom.xml`, dependency declarations, READMEs. |
+| F4 | `>curved<` | A Maven `<module>curved</module>` entry. Added 2026-08-03 because F2 could not see it: the stem has no `.`, `/` or `\` in front of it there, so the guard reported OK while `modules/pom.xml` still named a directory that had been renamed, and the build broke where the guard had passed. |
 
 ## What's *not* banned (by design)
 
