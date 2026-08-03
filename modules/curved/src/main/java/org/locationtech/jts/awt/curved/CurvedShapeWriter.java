@@ -102,8 +102,18 @@ public class CurvedShapeWriter extends ShapeWriter {
     return ring instanceof CircularString || ring instanceof CompoundCurve;
   }
 
+  /**
+   * Members are appended into one path, so it carries the same
+   * {@link GeneralPath#WIND_EVEN_ODD} rule the members need -- appending copies
+   * segments, not winding rules, so a member's own rule would be discarded.
+   * <p>
+   * This matches how core renders a MultiPolygon: {@code ShapeCollectionPathIterator}
+   * reports {@code WIND_EVEN_ODD} across all components. It inherits core's
+   * consequence too -- overlapping members cancel where they overlap -- which
+   * core documents on {@code ShapeWriter.toShape(Geometry)}.
+   */
   private Shape toShape(MultiSurface ms) {
-    GeneralPath path = new GeneralPath();
+    GeneralPath path = new GeneralPath(GeneralPath.WIND_EVEN_ODD);
     for (int i = 0; i < ms.getNumGeometries(); i++) {
       Geometry m = ms.getGeometryN(i);
       if (m instanceof CurvePolygon && hasCurvedRing((CurvePolygon) m)) {
@@ -115,9 +125,26 @@ public class CurvedShapeWriter extends ShapeWriter {
     return path;
   }
 
-  /** Each ring becomes its own closed subpath, so holes render as holes. */
+  /**
+   * Each ring becomes its own closed subpath, under
+   * {@link GeneralPath#WIND_EVEN_ODD} so that holes render as holes.
+   * <p>
+   * The rule is not incidental. Under the {@code GeneralPath} default of
+   * {@code WIND_NON_ZERO} a hole cancels the shell only when the two rings wind
+   * in opposite directions; wound the same way, the winding number inside the
+   * hole is 2 and it fills in. WKT does not constrain ring orientation and
+   * nothing normalises it on the way in, so relying on the input is not an
+   * option.
+   * <p>
+   * Core reached the same conclusion for the same reason: {@code PolygonShape}
+   * builds with {@code WIND_EVEN_ODD}, and
+   * {@code ShapeCollectionPathIterator.getWindingRule()} notes that
+   * "WIND_NON_ZERO requires that the ring orientation be correct." Matching core
+   * also keeps an arc-ringed CurvePolygon consistent with the all-linear one,
+   * which falls through to core and has always had its hole.
+   */
   private Shape toShape(CurvePolygon cp) {
-    GeneralPath path = new GeneralPath();
+    GeneralPath path = new GeneralPath(GeneralPath.WIND_EVEN_ODD);
     if (cp.isEmpty()) return path;
     appendRing(path, cp.getExteriorCurve());
     for (int i = 0; i < cp.getNumInteriorRing(); i++) {
