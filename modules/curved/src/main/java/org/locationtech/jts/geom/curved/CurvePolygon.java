@@ -165,16 +165,37 @@ public class CurvePolygon extends Polygon implements Linearizable {
     return new CurvePolygon(shell, holes, f);
   }
 
+  /**
+   * Linearises every structural ring at the given tolerance, so an arc ring
+   * becomes a densified polyline rather than the chord through its control
+   * points. Delegates per ring to {@link Linearizable#toLinear(double)},
+   * which is where the arc geometry and the tolerance semantics live.
+   *
+   * @param tolerance maximum chord error; {@code 0} selects the densifier's
+   *                  default (see {@code CircularArcDensifier})
+   * @return a plain {@link Polygon}; curve identity is deliberately dropped
+   */
   @Override
   public Geometry toLinear(double tolerance) {
     GeometryFactory f = getFactory();
     if (isEmpty()) return f.createPolygon();
-    LinearRing shell = (LinearRing) getExteriorRing().copy();
-    int holeCount = getNumInteriorRing();
-    LinearRing[] holes = new LinearRing[holeCount];
-    for (int i = 0; i < holeCount; i++) {
-      holes[i] = (LinearRing) getInteriorRingN(i).copy();
+    LinearRing shell = linearise(structuralShell, tolerance, f);
+    LinearRing[] flatHoles = new LinearRing[structuralHoles.length];
+    for (int i = 0; i < structuralHoles.length; i++) {
+      flatHoles[i] = linearise(structuralHoles[i], tolerance, f);
     }
-    return f.createPolygon(shell, holes);
+    return f.createPolygon(shell, flatHoles);
   }
+
+  /** Linearises one ring, leaving already-linear rings untouched. */
+  private static LinearRing linearise(LineString ring, double tolerance,
+      GeometryFactory factory) {
+    if (ring instanceof LinearRing) return (LinearRing) ring;
+    if (ring instanceof Linearizable) {
+      LineString flat = (LineString) ((Linearizable) ring).toLinear(tolerance);
+      return factory.createLinearRing(flat.getCoordinates());
+    }
+    return factory.createLinearRing(ring.getCoordinates());
+  }
+
 }

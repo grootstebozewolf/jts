@@ -18,9 +18,11 @@ import java.util.Locale;
 
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curved.CircularString;
 import org.locationtech.jts.geom.curved.CompoundCurve;
 import org.locationtech.jts.geom.curved.CurvePolygon;
+import org.locationtech.jts.geom.curved.MultiSurface;
 import org.locationtech.jts.io.Ordinate;
 import org.locationtech.jts.io.OrdinateFormat;
 import org.locationtech.jts.io.WKTConstants;
@@ -68,7 +70,46 @@ public class CurvedWKTWriter extends WKTWriter {
           (CurvePolygon) geometry, outputOrdinates, useFormatting, level, writer, formatter);
       return true;
     }
+    if (geometry instanceof MultiSurface && hasCurvedMember((MultiSurface) geometry)) {
+      appendMultiSurfaceTaggedText(
+          (MultiSurface) geometry, outputOrdinates, useFormatting, level, writer, formatter);
+      return true;
+    }
     return false;
+  }
+
+  private static boolean hasCurvedMember(MultiSurface ms) {
+    for (int i = 0; i < ms.getNumGeometries(); i++) {
+      Geometry m = ms.getGeometryN(i);
+      if (m instanceof CurvePolygon && hasCurvedRing((CurvePolygon) m)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Emits {@code MULTISURFACE (CURVEPOLYGON (…), (…))} -- curved members carry
+   * their {@code CURVEPOLYGON} tag so their rings survive, plain members stay
+   * untagged polygon bodies. {@code CurvedWKTReader.readSurfaceMember} already
+   * accepts both forms.
+   */
+  private void appendMultiSurfaceTaggedText(
+      MultiSurface ms, EnumSet<Ordinate> outputOrdinates, boolean useFormatting,
+      int level, Writer writer, OrdinateFormat formatter) throws IOException {
+    writer.write(ms.getGeometryType().toUpperCase(Locale.ROOT));
+    writer.write(" ");
+    appendOrdinateText(outputOrdinates, writer);
+    writer.write("(");
+    for (int i = 0; i < ms.getNumGeometries(); i++) {
+      if (i > 0) writer.write(", ");
+      Polygon m = (Polygon) ms.getGeometryN(i);
+      if (m instanceof CurvePolygon && hasCurvedRing((CurvePolygon) m)) {
+        appendCurvePolygonTaggedText(
+            (CurvePolygon) m, outputOrdinates, useFormatting, level, writer, formatter);
+      } else {
+        appendPolygonText(m, outputOrdinates, useFormatting, level, false, writer, formatter);
+      }
+    }
+    writer.write(")");
   }
 
   /**
