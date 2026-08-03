@@ -73,6 +73,27 @@ public class CurvePolygonArcRingTest extends GeometryTestCase {
         g.getExteriorRing().isClosed());
   }
 
+  /** FCP-H: an arc hole keeps its arc identity, symmetrically with the shell. */
+  public void testInteriorCurveKeepsArcType() throws Exception {
+    CurvePolygon g = (CurvePolygon) new CurvedWKTReader().read(
+        "CURVEPOLYGON ("
+        + "CIRCULARSTRING (0 0, 8 0, 8 8, 0 8, 0 0), "
+        + "CIRCULARSTRING (2 2, 4 2, 4 4, 2 4, 2 2))");
+    assertEquals("expected exactly one hole", 1, g.getNumInteriorRing());
+    assertEquals("hole should stay an arc",
+        "CircularString", g.getInteriorCurveN(0).getGeometryType());
+  }
+
+  /** FCP-H: the legacy hole view stays a LinearRing. */
+  public void testInteriorRingStaysLinearForLegacyCallers() throws Exception {
+    Polygon g = (Polygon) new CurvedWKTReader().read(
+        "CURVEPOLYGON ("
+        + "CIRCULARSTRING (0 0, 8 0, 8 8, 0 8, 0 0), "
+        + "CIRCULARSTRING (2 2, 4 2, 4 4, 2 4, 2 2))");
+    assertEquals("legacy hole view must remain a LinearRing",
+        "LinearRing", g.getInteriorRingN(0).getGeometryType());
+  }
+
   /**
    * A plain linear shell is not relabelled as an arc -- guards the fix from
    * over-reaching.
