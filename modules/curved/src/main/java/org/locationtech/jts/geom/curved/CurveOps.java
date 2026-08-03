@@ -26,7 +26,7 @@ import org.locationtech.jts.geom.Geometry;
  * <p>
  * <p>
  * {@link #linearise(Geometry)} and {@link #TOLERANCE_FRACTION} are public because
- * {@code org.locationtech.jts.operation.overlayng.curved.OverlayNGCurve} needs the
+ * {@code org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve} needs the
  * same tolerance from another package; duplicating the constant would let the two
  * drift. The remaining methods stay package-private.
  * <p>
