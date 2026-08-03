@@ -17,6 +17,7 @@ import java.util.List;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
@@ -89,6 +90,19 @@ public class CompoundCurve extends LineString implements Linearizable {
       copies[i] = (LineString) members[i].copy();
     }
     return new CompoundCurve(copies, getFactory());
+  }
+
+  /**
+   * The union of the members' envelopes, so arc members contribute the arc's
+   * extent rather than their control points'.
+   */
+  @Override
+  protected Envelope computeEnvelopeInternal() {
+    Envelope env = new Envelope();
+    for (int i = 0; i < members.length; i++) {
+      env.expandToInclude(members[i].getEnvelopeInternal());
+    }
+    return env;
   }
 
   /**

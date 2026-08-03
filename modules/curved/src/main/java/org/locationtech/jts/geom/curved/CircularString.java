@@ -18,6 +18,7 @@ import java.util.List;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequences;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
@@ -47,6 +48,29 @@ public class CircularString extends LineString implements Linearizable {
   @Override
   protected CircularString copyInternal() {
     return new CircularString(getCoordinateSequence().copy(), getFactory());
+  }
+
+  /**
+   * The envelope of the arc itself, not just its control points.
+   * <p>
+   * The inherited {@code LineString.computeEnvelopeInternal()} expands over the
+   * coordinate sequence, which clips any arc sweeping past an axis extreme that
+   * is not a control point. That produces an envelope smaller than the geometry
+   * it bounds, which makes spatial indexes and the envelope short-circuits in
+   * {@code intersects}/{@code distance} miss real hits.
+   */
+  @Override
+  protected Envelope computeEnvelopeInternal() {
+    CoordinateSequence seq = getCoordinateSequence();
+    int n = seq.size();
+    if (n == 0) return new Envelope();
+    if (n < 3) return super.computeEnvelopeInternal();
+    Envelope env = new Envelope();
+    for (int i = 0; i + 2 < n; i += 2) {
+      CircularArcDensifier.expandEnvelope(
+          seq.getCoordinate(i), seq.getCoordinate(i + 1), seq.getCoordinate(i + 2), env);
+    }
+    return env;
   }
 
   /**

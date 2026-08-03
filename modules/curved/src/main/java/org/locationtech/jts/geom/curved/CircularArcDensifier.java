@@ -18,6 +18,7 @@ import java.util.List;
 
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
 
 /**
  * Sagitta-based densification of a circular arc into a straight-chord
@@ -270,6 +271,43 @@ public final class CircularArcDensifier {
     return 0.5 * (c.r * c.r * delta
         + c.cx * c.r * (Math.sin(a0 + delta) - Math.sin(a0))
         - c.cy * c.r * (Math.cos(a0 + delta) - Math.cos(a0)));
+  }
+
+  /**
+   * Expands {@code env} to cover the arc exactly.
+   * <p>
+   * An arc's extremes are its endpoints plus whichever of the four axis
+   * extremes -- rightmost, top, leftmost, bottom, at angles 0, pi/2, pi and
+   * 3pi/2 -- the sweep actually passes through. Only those need adding, so this
+   * is exact without densifying.
+   * <p>
+   * Degenerate (colinear or coincident) triples describe no arc, so only the
+   * control points are added.
+   */
+  public static void expandEnvelope(Coordinate start, Coordinate mid, Coordinate end,
+                                    Envelope env) {
+    env.expandToInclude(start);
+    env.expandToInclude(end);
+    Circle c = Circle.fromThreePoints(start, mid, end);
+    if (c == null) {
+      env.expandToInclude(mid);
+      return;
+    }
+    double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
+    double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
+    double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
+    boolean ccw = isMidInCcwSweep(a0, aMid, a1);
+    double sweep = signedSweep(a0, a1, ccw);
+    for (int q = 0; q < 4; q++) {
+      double axis = q * Math.PI / 2.0;
+      // Distance travelled from a0 to this axis angle, in the sweep direction.
+      double travelled = ccw
+          ? normalizePositive(axis - a0)
+          : normalizePositive(a0 - axis);
+      if (travelled <= sweep) {
+        env.expandToInclude(c.cx + c.r * Math.cos(axis), c.cy + c.r * Math.sin(axis));
+      }
+    }
   }
 
   /** Circumcircle of three points, or {@code null} if colinear. */

@@ -13,6 +13,7 @@ package org.locationtech.jts.geom.curved;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
@@ -165,6 +166,19 @@ public class CurvePolygon extends Polygon implements Linearizable {
     }
     LinearRing shell = (LinearRing) getExteriorRing().copy();
     return new CurvePolygon(shell, holes, f);
+  }
+
+  /**
+   * The envelope of the structural shell, which bounds the whole polygon.
+   * <p>
+   * The inherited {@code Polygon.computeEnvelopeInternal()} uses the flat
+   * {@code getExteriorRing()} view, so an arc ring bulging past an axis extreme
+   * that is not a control point would be clipped.
+   */
+  @Override
+  protected Envelope computeEnvelopeInternal() {
+    if (structuralShell == null) return new Envelope();
+    return new Envelope(structuralShell.getEnvelopeInternal());
   }
 
   /**
