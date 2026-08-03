@@ -72,6 +72,6 @@ public abstract class AbstractStreamDrawTool extends LineBandTool {
 
 	private void setBandType() {
 		int geomType = getGeometryType();
-		setCloseRing(geomType == GeometryType.POLYGON);
+		setCloseRing(geomType == GeometryType.POLYGON || geomType == GeometryType.TRIANGLE);
 	}
 }

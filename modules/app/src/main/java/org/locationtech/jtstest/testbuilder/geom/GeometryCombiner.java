@@ -26,6 +26,10 @@ import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.geom.curve.Tin;
+import org.locationtech.jts.geom.curve.Triangle;
 
 public class GeometryCombiner 
 {
@@ -62,7 +66,72 @@ public class GeometryCombiner
     LineString line = geomFactory.createLineString(pts);
     return combine(orig, line);
   }
-  
+
+  public Geometry addCircularString(Geometry orig, Coordinate[] pts)
+  {
+    CurveGeometryFactory cgf = (geomFactory instanceof CurveGeometryFactory)
+        ? (CurveGeometryFactory) geomFactory
+        : new CurveGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
+    CircularString line = cgf.createCircularString(geomFactory.getCoordinateSequenceFactory().create(pts));
+    return combine(orig, line);
+  }
+
+  /**
+   * Builds a Triangle (Polygon with a single closed 4-point ring,
+   * no holes) from the three captured corner coordinates and combines
+   * it with {@code orig}. The closing point (== first) is appended
+   * automatically.
+   */
+  public Geometry addTriangle(Geometry orig, Coordinate[] corners)
+  {
+    if (corners.length < 3) {
+      // Defensive: degrade to nothing rather than throw.
+      return orig == null ? geomFactory.createGeometryCollection() : orig;
+    }
+    CurveGeometryFactory cgf = (geomFactory instanceof CurveGeometryFactory)
+        ? (CurveGeometryFactory) geomFactory
+        : new CurveGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
+    Coordinate[] ring = new Coordinate[] {
+        corners[0], corners[1], corners[2], new Coordinate(corners[0])
+    };
+    LinearRing shell = geomFactory.createLinearRing(ring);
+    Triangle tri = cgf.createTriangle(shell);
+    return combine(orig, tri);
+  }
+
+  /**
+   * Builds a Tin from {@code coords} interpreted as consecutive groups
+   * of three corner coordinates (one triangular patch per triple). If
+   * {@code orig} is null, the Tin is returned directly so the
+   * subclass survives the "first geometry in the model" path; otherwise
+   * the Tin is run through {@link #combine(Geometry, Geometry)} which
+   * may degrade it to a {@link org.locationtech.jts.geom.MultiPolygon}
+   * (a known phase-1 limitation tied to
+   * {@link #extractElements(Geometry, boolean)} flattening collections).
+   */
+  public Geometry addTin(Geometry orig, Coordinate[] coords)
+  {
+    int n = coords.length / 3;
+    if (n < 1) {
+      return orig == null ? geomFactory.createGeometryCollection() : orig;
+    }
+    CurveGeometryFactory cgf = (geomFactory instanceof CurveGeometryFactory)
+        ? (CurveGeometryFactory) geomFactory
+        : new CurveGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
+    Polygon[] patches = new Polygon[n];
+    for (int i = 0; i < n; i++) {
+      Coordinate a = coords[3 * i];
+      Coordinate b = coords[3 * i + 1];
+      Coordinate c = coords[3 * i + 2];
+      Coordinate[] ring = new Coordinate[] { a, b, c, new Coordinate(a) };
+      LinearRing shell = geomFactory.createLinearRing(ring);
+      patches[i] = cgf.createTriangle(shell);
+    }
+    Tin tin = cgf.createTin(patches);
+    if (orig == null || orig.isEmpty()) return tin;
+    return combine(orig, tin);
+  }
+
   public Geometry addPoint(Geometry orig, Coordinate pt)
   {
     Point point = geomFactory.createPoint(pt);

@@ -40,7 +40,7 @@ import org.locationtech.jtstest.testbuilder.geom.GeometryVertexMover;
  */
 public class GeometryEditModel 
 {
-  private static WKTWriter wktWriter = new WKTWriter();
+  private static WKTWriter wktWriter = new org.locationtech.jts.io.curve.CurveWKTWriter();
 
   private boolean readOnly = true;
 
@@ -272,7 +272,19 @@ public class GeometryEditModel
       break;
     case GeometryType.LINESTRING:
       Coordinate[] pts = CoordinateArrays.toCoordinateArray(coordList);
-      newGeom = creator.addLineString(getGeometry(), pts);      
+      newGeom = creator.addLineString(getGeometry(), pts);
+      break;
+    case GeometryType.CIRCULARSTRING:
+      Coordinate[] arcPts = CoordinateArrays.toCoordinateArray(coordList);
+      newGeom = creator.addCircularString(getGeometry(), arcPts);
+      break;
+    case GeometryType.TRIANGLE:
+      Coordinate[] triPts = CoordinateArrays.toCoordinateArray(coordList);
+      newGeom = creator.addTriangle(getGeometry(), triPts);
+      break;
+    case GeometryType.TIN:
+      Coordinate[] tinPts = CoordinateArrays.toCoordinateArray(coordList);
+      newGeom = creator.addTin(getGeometry(), tinPts);
       break;
     case GeometryType.POINT:
       newGeom = creator.addPoint(getGeometry(), (Coordinate) coordList.get(0));      

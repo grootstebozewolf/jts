@@ -23,11 +23,11 @@ import java.util.List;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
 import org.locationtech.jts.io.WKTWriter;
-import org.locationtech.jts.io.curved.CurvedWKTReader;
+import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jts.math.MathUtil;
 import org.locationtech.jts.util.Assert;
 import org.locationtech.jtstest.test.TestCaseList;
@@ -56,7 +56,7 @@ public class TestBuilderModel
   private LayerList layerListBase = new LayerList();
   private Layer layerSelect = new Layer(AppStrings.LYR_LABEL_SELECTION, false);
   
-  private WKTWriter writer = new WKTWriter();
+  private WKTWriter writer = new org.locationtech.jts.io.curve.CurveWKTWriter();
   private Object currResult = null;
   private String opName = "";
 
@@ -80,7 +80,7 @@ public class TestBuilderModel
   public GeometryFactory getGeometryFactory()
   {
     if (geometryFactory == null)
-      geometryFactory = new CurvedGeometryFactory(getPrecisionModel());
+      geometryFactory = new CurveGeometryFactory(getPrecisionModel());
     return geometryFactory;
   }
   
@@ -242,7 +242,7 @@ public class TestBuilderModel
   }
   
   public void loadGeometryText(String wktA, String wktB) throws ParseException, IOException {
-    MultiFormatReader reader = new MultiFormatReader(new CurvedGeometryFactory(getPrecisionModel(),0));
+    MultiFormatReader reader = new MultiFormatReader(new CurveGeometryFactory(getPrecisionModel(),0));
     
     // read geom A
     Geometry g0 = null;
@@ -457,7 +457,7 @@ public class TestBuilderModel
   }
 
   private void loadWKTAfterPMChange() throws ParseException {
-    WKTReader reader = new CurvedWKTReader(new CurvedGeometryFactory(getPrecisionModel(), 0));
+    WKTReader reader = new CurveWKTReader(new CurveGeometryFactory(getPrecisionModel(), 0));
     for (int i = 0; i < getCases().size(); i++) {
       Testable testable = (Testable) getCases().get(i);
       String wktA = (String) wktABeforePMChange.get(i);
