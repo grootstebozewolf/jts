@@ -11,6 +11,7 @@
  */
 package org.locationtech.jtstest.geomfunction;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
@@ -95,11 +96,32 @@ public class CurveFunctionRegistryTest extends TestCase {
         GeometryFunctionRegistry.hasGeometryResult(f));
   }
 
-  /** A 3-control-point arc becomes a many-vertex polyline. */
+  /**
+   * A 3-control-point arc becomes a polyline whose vertices lie on the true
+   * circle -- the actual content of "densified", and what distinguishes this
+   * from core's {@code Densifier}, which subdivides the chords and so walks
+   * away from the arc.
+   * <p>
+   * The count is asserted against the sagitta bound rather than a round number:
+   * a chord subtending angle t deviates by r(1 - cos(t/2)), so tolerance tol
+   * admits at most t = 2*acos(1 - tol/r) per segment. For the radius-2
+   * semicircle at tol 0.01 that is 16 segments, 17 vertices -- so a threshold
+   * like "more than 20" would be wrong, not merely loose.
+   */
   public void testToLinearDensifiesAnArc() throws Exception {
-    Geometry linear = apply(SEMICIRCLE, 0.01);
-    assertTrue("densified semicircle should have many vertices, got " + linear.getNumPoints(),
-        linear.getNumPoints() > 20);
+    double r = 2.0;
+    double tol = 0.01;
+    Geometry linear = apply(SEMICIRCLE, tol);
+
+    int minSegments = (int) Math.ceil(Math.PI / (2.0 * Math.acos(1.0 - tol / r)));
+    assertTrue("semicircle needs at least " + minSegments + " segments at tolerance "
+        + tol + ", got " + (linear.getNumPoints() - 1),
+        linear.getNumPoints() - 1 >= minSegments);
+
+    for (Coordinate c : linear.getCoordinates()) {
+      double dev = Math.abs(Math.hypot(c.x, c.y) - r);
+      assertTrue("vertex " + c + " is " + dev + " off the true circle", dev < 1.0e-9);
+    }
   }
 
   /** Tightening the tolerance adds vertices -- the whole point of exposing it. */

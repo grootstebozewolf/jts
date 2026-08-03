@@ -32,6 +32,7 @@ import org.locationtech.jtstest.function.CoverageFunctions;
 import org.locationtech.jtstest.function.CreateFractalShapeFunctions;
 import org.locationtech.jtstest.function.CreateRandomShapeFunctions;
 import org.locationtech.jtstest.function.CreateShapeFunctions;
+import org.locationtech.jtstest.function.CurveFunctions;
 import org.locationtech.jtstest.function.DiffFunctions;
 import org.locationtech.jtstest.function.DissolveFunctions;
 import org.locationtech.jtstest.function.DistanceFunctions;
@@ -97,6 +98,7 @@ public class GeometryFunctionRegistry
     funcRegistry.add(ConstructionFunctions.class);
     funcRegistry.add(ConversionFunctions.class);
     funcRegistry.add(CoverageFunctions.class);
+    funcRegistry.add(CurveFunctions.class);
     funcRegistry.add(EditFunctions.class);
     funcRegistry.add(HullFunctions.class);
     funcRegistry.add(LinearReferencingFunctions.class);
