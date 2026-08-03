@@ -113,6 +113,13 @@ public final class CircularArcDensifier {
 
     // Emit the chord polyline, interleaving projected points at their
     // sweep-relative angle.
+    //
+    // Every append goes through addUnique. A must-include anchor that is one of
+    // the arc's own control points -- which is what CompoundCurve.toLinear
+    // passes -- projects onto a vertex the chord walk already emitted, and the
+    // resulting repeated point makes a Delaunay triangulation of the output
+    // degenerate (see DensifierRepeatedPointTest).
+    double eps = coincidenceTolerance(c.r);
     List<Coordinate> out = new ArrayList<Coordinate>(segments + 1 + projected.size());
     out.add(new Coordinate(start));
 
@@ -123,23 +130,46 @@ public final class CircularArcDensifier {
       // before the next chord vertex.
       while (projIdx < projected.size()
              && projected.get(projIdx).sweepAngle < sweepEnd) {
-        out.add(projected.get(projIdx).coord);
+        addUnique(out, projected.get(projIdx).coord, eps);
         projIdx++;
       }
       double angle = a0 + i * delta;
-      out.add(new Coordinate(c.cx + c.r * Math.cos(angle),
-                              c.cy + c.r * Math.sin(angle)));
+      addUnique(out, new Coordinate(c.cx + c.r * Math.cos(angle),
+                              c.cy + c.r * Math.sin(angle)), eps);
     }
     // Any projected points exactly at the end are appended too (rare).
     while (projIdx < projected.size()) {
-      out.add(projected.get(projIdx).coord);
+      addUnique(out, projected.get(projIdx).coord, eps);
       projIdx++;
     }
 
-    // The last vertex ended up via the loop using cos/sin; replace with
-    // the original `end` coordinate to avoid floating-point drift.
-    out.set(out.size() - 1, new Coordinate(end));
+    // Finish on the original `end` coordinate rather than a cos/sin value, so
+    // the endpoint is exact. Drop whatever already sits within eps of it --
+    // the final chord vertex, and possibly a projected `end` anchor -- instead
+    // of overwriting only the last slot, which left the other one behind.
+    while (out.size() > 1 && out.get(out.size() - 1).distance(end) <= eps) {
+      out.remove(out.size() - 1);
+    }
+    addUnique(out, new Coordinate(end), eps);
     return out;
+  }
+
+  /**
+   * Distance below which two vertices of an arc are the same point.
+   * <p>
+   * Scaled by radius so it means the same thing at any size, and many orders of
+   * magnitude below the shortest legitimate chord: at a tolerance fine enough to
+   * give 800 segments on a radius-5 arc the chords are still ~0.02 long, against
+   * an eps of 5e-9.
+   */
+  private static double coincidenceTolerance(double radius) {
+    return Math.max(1.0e-12, radius * 1.0e-9);
+  }
+
+  /** Appends unless it would repeat the vertex already at the tail. */
+  private static void addUnique(List<Coordinate> out, Coordinate c, double eps) {
+    if (!out.isEmpty() && out.get(out.size() - 1).distance(c) <= eps) return;
+    out.add(c);
   }
 
   /** Pick the minimal integer segment count that keeps sagitta ≤ ε. */
