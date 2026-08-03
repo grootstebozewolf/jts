@@ -208,6 +208,36 @@ public class CurvePolygon extends Polygon implements Linearizable {
   }
 
   /**
+   * Invalidates the structural rings' cached envelopes along with this polygon's.
+   * <p>
+   * Without this a transformed CurvePolygon reported the envelope it used to have.
+   * {@code geometryChanged()} propagates through
+   * {@code apply(GeometryComponentFilter)}, which for a {@link Polygon} visits the
+   * shell and holes -- the flat {@link LinearRing} views -- and never the
+   * structural rings. But {@link #computeEnvelopeInternal()} reads the structural
+   * shell, so the one cache that mattered was the one the reset missed. Combined
+   * with {@code Geometry.copy()} copying cached envelopes onto the copy, a
+   * translate of a circle whose envelope had been read reported
+   * {@code Env[-5 : 5, -5 : 5]} for a ring sitting at 95..105.
+   * <p>
+   * Overriding here rather than {@code apply(GeometryComponentFilter)} is
+   * deliberate: adding the structural rings to component enumeration would change
+   * what every {@code GeometryComponentFilter} sees, including ones that count or
+   * collect. Cache invalidation is the only thing that needs to reach them.
+   * <p>
+   * Resetting a ring that is also the flat shell is harmless -- invalidation is
+   * idempotent -- so no identity check is needed.
+   */
+  @Override
+  protected void geometryChangedAction() {
+    super.geometryChangedAction();
+    if (structuralShell != null) structuralShell.geometryChanged();
+    for (int i = 0; i < structuralHoles.length; i++) {
+      if (structuralHoles[i] != null) structuralHoles[i].geometryChanged();
+    }
+  }
+
+  /**
    * The envelope of the structural shell, which bounds the whole polygon.
    * <p>
    * The inherited {@code Polygon.computeEnvelopeInternal()} uses the flat
