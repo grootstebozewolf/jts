@@ -18,13 +18,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.locationtech.jts.awt.PointTransformation;
-import org.locationtech.jts.awt.curved.CircularArcRenderer;
+import org.locationtech.jts.awt.curve.CircularArcRenderer;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jtstest.testbuilder.model.GeometryType;
 
 /**
  * Stream-style mouse-draw tool for
- * {@link org.locationtech.jts.geom.curved.CurvePolygon} geometries. Control
+ * {@link org.locationtech.jts.geom.curve.CurvePolygon} geometries. Control
  * points are captured like {@link CircularStringTool} (each triple defines an
  * arc), but on right-click the ring is closed and committed as a
  * {@code CurvePolygon} with a {@code CircularString} shell.

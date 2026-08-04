@@ -30,8 +30,8 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.OctagonalEnvelope;
 import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
-import org.locationtech.jts.geom.curved.MultiSurface;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.geom.curve.MultiSurface;
 import org.locationtech.jtstest.geomfunction.Metadata;
 
 public class ConstructionFunctions {
@@ -255,11 +255,11 @@ public class ConstructionFunctions {
   private static Geometry toMultiSurfaceFromArray(List<Polygon> surfaces,
                                                    org.locationtech.jts.geom.GeometryFactory hintFactory) {
     if (surfaces.isEmpty()) {
-      return new CurvedGeometryFactory().createMultiPolygon();
+      return new CurveGeometryFactory().createMultiPolygon();
     }
-    CurvedGeometryFactory cgf = (hintFactory instanceof CurvedGeometryFactory)
-        ? (CurvedGeometryFactory) hintFactory
-        : new CurvedGeometryFactory(hintFactory.getPrecisionModel(), hintFactory.getSRID());
+    CurveGeometryFactory cgf = (hintFactory instanceof CurveGeometryFactory)
+        ? (CurveGeometryFactory) hintFactory
+        : new CurveGeometryFactory(hintFactory.getPrecisionModel(), hintFactory.getSRID());
     MultiSurface ms = cgf.createMultiSurface(surfaces.toArray(new Polygon[0]));
     return ms;
   }

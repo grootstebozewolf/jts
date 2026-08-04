@@ -21,7 +21,7 @@ import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.curved.Linearizable;
+import org.locationtech.jts.geom.curve.Linearizable;
 import org.locationtech.jts.geom.util.GeometryMapper;
 import org.locationtech.jts.geom.util.GeometryMapper.MapOp;
 import org.locationtech.jts.geom.util.LinearComponentExtracter;

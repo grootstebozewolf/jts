@@ -23,7 +23,7 @@ import org.locationtech.jts.io.WKBHexFileReader;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.io.WKTFileReader;
 import org.locationtech.jts.io.WKTReader;
-import org.locationtech.jts.io.curved.CurvedWKTReader;
+import org.locationtech.jts.io.curve.CurveWKTReader;
 
 
 /**
@@ -109,7 +109,7 @@ public class MultiFormatBufferedReader
   public List<Geometry> readWKT(Reader rdr, GeometryFactory geomFact)
   throws ParseException, IOException
   {
-    WKTReader reader = new CurvedWKTReader(geomFact);
+    WKTReader reader = new CurveWKTReader(geomFact);
     WKTFileReader fileReader = new WKTFileReader(rdr, reader);
     if (limit >= 0) fileReader.setLimit(limit);
     if (offset > 0) fileReader.setOffset(offset);

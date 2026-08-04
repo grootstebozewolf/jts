@@ -17,7 +17,7 @@
         </dependency>
         <dependency>
             <groupId>org.locationtech.jts</groupId>
-            <artifactId>jts-curved</artifactId>
+            <artifactId>jts-curve</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

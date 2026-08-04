@@ -20,7 +20,7 @@ import org.locationtech.jtstest.testbuilder.model.GeometryType;
 
 /**
  * Click-to-place tool for OGC SFA / ISO 19125-2
- * {@link org.locationtech.jts.geom.curved.Triangle} geometries.
+ * {@link org.locationtech.jts.geom.curve.Triangle} geometries.
  *
  * <p>The user clicks three corners; the tool auto-finishes on the
  * third click (no need for a closing double-click). The result is

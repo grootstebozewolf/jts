@@ -20,7 +20,7 @@ import java.awt.Stroke;
 
 import org.locationtech.jts.awt.PointShapeFactory;
 import org.locationtech.jts.awt.ShapeWriter;
-import org.locationtech.jts.awt.curved.CurvedShapeWriter;
+import org.locationtech.jts.awt.curve.CurveShapeWriter;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.Point;
@@ -92,7 +92,7 @@ public class GeometryPainter
   // probably not - only called once for each geom painted
   public static ShapeWriter getConverter(Viewport viewport)
   {
-    ShapeWriter sw = new CurvedShapeWriter(viewport, new PointShapeFactory.Point());
+    ShapeWriter sw = new CurveShapeWriter(viewport, new PointShapeFactory.Point());
     //sw.setRemoveDuplicatePoints(true);
     sw.setDecimation(viewport.toModel(DECIMATION_DISTANCE));
     return sw;

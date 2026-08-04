@@ -13,10 +13,10 @@ package org.locationtech.jtstest.testbuilder.geom;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.curved.CircularString;
-import org.locationtech.jts.geom.curved.ClothoidSegment;
-import org.locationtech.jts.geom.curved.CompoundCurve;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
+import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 
 import junit.framework.TestCase;
 
@@ -29,7 +29,7 @@ import junit.framework.TestCase;
  */
 public class CurveAwareVertexOpsTest extends TestCase {
 
-  private final CurvedGeometryFactory gf = new CurvedGeometryFactory();
+  private final CurveGeometryFactory gf = new CurveGeometryFactory();
 
   public CurveAwareVertexOpsTest(String name) {
     super(name);

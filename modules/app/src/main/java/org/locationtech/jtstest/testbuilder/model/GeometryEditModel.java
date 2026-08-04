@@ -40,7 +40,7 @@ import org.locationtech.jtstest.testbuilder.geom.GeometryVertexMover;
  */
 public class GeometryEditModel 
 {
-  private static WKTWriter wktWriter = new org.locationtech.jts.io.curved.CurvedWKTWriter();
+  private static WKTWriter wktWriter = new org.locationtech.jts.io.curve.CurveWKTWriter();
 
   private boolean readOnly = true;
 

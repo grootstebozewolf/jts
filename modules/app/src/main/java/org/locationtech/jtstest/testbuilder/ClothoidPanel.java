@@ -46,10 +46,10 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.curved.CircularString;
-import org.locationtech.jts.geom.curved.ClothoidSegment;
-import org.locationtech.jts.geom.curved.CompoundCurve;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
+import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jtstest.testbuilder.model.GeometryEditModel;
 import org.locationtech.jtstest.testbuilder.model.TestBuilderModel;
 
@@ -347,8 +347,8 @@ public class ClothoidPanel extends JPanel {
         return;
       }
       ClothoidSegment current = (ClothoidSegment) currentMember;
-      GeometryFactory gf = (cc.getFactory() instanceof CurvedGeometryFactory)
-          ? cc.getFactory() : new CurvedGeometryFactory();
+      GeometryFactory gf = (cc.getFactory() instanceof CurveGeometryFactory)
+          ? cc.getFactory() : new CurveGeometryFactory();
       ClothoidSegment newSeg = new ClothoidSegment(
           new Coordinate(x0, y0), Math.toRadians(thetaDeg), k0, k1, L, gf);
 
@@ -451,7 +451,7 @@ public class ClothoidPanel extends JPanel {
    *  for a clothoid neighbour. */
   private static double endKappaOf(LineString m) {
     if (m instanceof ClothoidSegment) return ((ClothoidSegment) m).getEndKappa();
-    if (m instanceof org.locationtech.jts.geom.curved.CircularString) {
+    if (m instanceof org.locationtech.jts.geom.curve.CircularString) {
       Coordinate[] cc = m.getCoordinates();
       if (cc.length >= 3) {
         return signedCurvature(cc[cc.length - 3], cc[cc.length - 2], cc[cc.length - 1]);
@@ -462,7 +462,7 @@ public class ClothoidPanel extends JPanel {
 
   private static double startKappaOf(LineString m) {
     if (m instanceof ClothoidSegment) return ((ClothoidSegment) m).getStartKappa();
-    if (m instanceof org.locationtech.jts.geom.curved.CircularString) {
+    if (m instanceof org.locationtech.jts.geom.curve.CircularString) {
       Coordinate[] cc = m.getCoordinates();
       if (cc.length >= 3) {
         return signedCurvature(cc[0], cc[1], cc[2]);
@@ -550,8 +550,8 @@ public class ClothoidPanel extends JPanel {
     int sign = (crossDN >= 0) ? +1 : -1;
     double kappa1 = sign / R;
 
-    GeometryFactory gf = (targetCc.getFactory() instanceof CurvedGeometryFactory)
-        ? targetCc.getFactory() : new CurvedGeometryFactory();
+    GeometryFactory gf = (targetCc.getFactory() instanceof CurveGeometryFactory)
+        ? targetCc.getFactory() : new CurveGeometryFactory();
 
     // Local-frame end of an L-spiral going κ:0→κ₁ from the origin: read
     // it off a temporary ClothoidSegment so we don't duplicate the
@@ -692,9 +692,9 @@ public class ClothoidPanel extends JPanel {
     for (int i = 0; i < cc.length; i++) {
       r[i] = mapPoint(cc[i], oldEnd, newEnd, cos, sin);
     }
-    if (m instanceof CircularString && gf instanceof CurvedGeometryFactory) {
+    if (m instanceof CircularString && gf instanceof CurveGeometryFactory) {
       CoordinateSequence seq = gf.getCoordinateSequenceFactory().create(r);
-      return ((CurvedGeometryFactory) gf).createCircularString(seq);
+      return ((CurveGeometryFactory) gf).createCircularString(seq);
     }
     return gf.createLineString(r);
   }

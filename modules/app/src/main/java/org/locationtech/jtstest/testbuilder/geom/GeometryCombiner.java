@@ -26,12 +26,12 @@ import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
-import org.locationtech.jts.geom.curved.CircularString;
-import org.locationtech.jts.geom.curved.CompoundCurve;
-import org.locationtech.jts.geom.curved.CurvePolygon;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
-import org.locationtech.jts.geom.curved.Tin;
-import org.locationtech.jts.geom.curved.Triangle;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jts.geom.curve.CurvePolygon;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.geom.curve.Tin;
+import org.locationtech.jts.geom.curve.Triangle;
 
 public class GeometryCombiner 
 {
@@ -71,27 +71,27 @@ public class GeometryCombiner
 
   public Geometry addCircularString(Geometry orig, Coordinate[] pts)
   {
-    CurvedGeometryFactory cgf = (geomFactory instanceof CurvedGeometryFactory)
-        ? (CurvedGeometryFactory) geomFactory
-        : new CurvedGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
+    CurveGeometryFactory cgf = (geomFactory instanceof CurveGeometryFactory)
+        ? (CurveGeometryFactory) geomFactory
+        : new CurveGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
     CircularString line = cgf.createCircularString(geomFactory.getCoordinateSequenceFactory().create(pts));
     return combine(orig, line);
   }
 
   public Geometry addCompoundCurve(Geometry orig, Coordinate[] pts)
   {
-    CurvedGeometryFactory cgf = (geomFactory instanceof CurvedGeometryFactory)
-        ? (CurvedGeometryFactory) geomFactory
-        : new CurvedGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
+    CurveGeometryFactory cgf = (geomFactory instanceof CurveGeometryFactory)
+        ? (CurveGeometryFactory) geomFactory
+        : new CurveGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
     CompoundCurve line = cgf.createCompoundCurve(geomFactory.getCoordinateSequenceFactory().create(pts));
     return combine(orig, line);
   }
 
   public Geometry addCurvePolygon(Geometry orig, Coordinate[] pts)
   {
-    CurvedGeometryFactory cgf = (geomFactory instanceof CurvedGeometryFactory)
-        ? (CurvedGeometryFactory) geomFactory
-        : new CurvedGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
+    CurveGeometryFactory cgf = (geomFactory instanceof CurveGeometryFactory)
+        ? (CurveGeometryFactory) geomFactory
+        : new CurveGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
     // Close the ring if not already closed
     Coordinate[] ring;
     if (pts.length >= 3 && !pts[0].equals2D(pts[pts.length - 1])) {
@@ -118,9 +118,9 @@ public class GeometryCombiner
       // Defensive: degrade to nothing rather than throw.
       return orig == null ? geomFactory.createGeometryCollection() : orig;
     }
-    CurvedGeometryFactory cgf = (geomFactory instanceof CurvedGeometryFactory)
-        ? (CurvedGeometryFactory) geomFactory
-        : new CurvedGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
+    CurveGeometryFactory cgf = (geomFactory instanceof CurveGeometryFactory)
+        ? (CurveGeometryFactory) geomFactory
+        : new CurveGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
     Coordinate[] ring = new Coordinate[] {
         corners[0], corners[1], corners[2], new Coordinate(corners[0])
     };
@@ -145,9 +145,9 @@ public class GeometryCombiner
     if (n < 1) {
       return orig == null ? geomFactory.createGeometryCollection() : orig;
     }
-    CurvedGeometryFactory cgf = (geomFactory instanceof CurvedGeometryFactory)
-        ? (CurvedGeometryFactory) geomFactory
-        : new CurvedGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
+    CurveGeometryFactory cgf = (geomFactory instanceof CurveGeometryFactory)
+        ? (CurveGeometryFactory) geomFactory
+        : new CurveGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
     Polygon[] patches = new Polygon[n];
     for (int i = 0; i < n; i++) {
       Coordinate a = coords[3 * i];

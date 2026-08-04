@@ -21,8 +21,8 @@ package org.locationtech.jtstest.function;
 
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
-import org.locationtech.jts.io.curved.CurvedWKTReader;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jtstest.geomfunction.Metadata;
 
 /**
@@ -115,13 +115,13 @@ public class CurveExampleFunctions {
 
   private static Geometry readCurved(Geometry g, String wkt) {
     GeometryFactory base = (g != null) ? g.getFactory() : null;
-    CurvedGeometryFactory cf = (base instanceof CurvedGeometryFactory)
-        ? (CurvedGeometryFactory) base
-        : new CurvedGeometryFactory();
+    CurveGeometryFactory cf = (base instanceof CurveGeometryFactory)
+        ? (CurveGeometryFactory) base
+        : new CurveGeometryFactory();
     try {
-      return new CurvedWKTReader(cf).read(wkt);
+      return new CurveWKTReader(cf).read(wkt);
     } catch (Exception ex) {
-      throw new RuntimeException("CurvedWKTReader failed on example: " + wkt, ex);
+      throw new RuntimeException("CurveWKTReader failed on example: " + wkt, ex);
     }
   }
 }

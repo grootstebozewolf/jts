@@ -28,10 +28,10 @@ import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiLineString;
-import org.locationtech.jts.geom.curved.CircularString;
-import org.locationtech.jts.geom.curved.CompoundCurve;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
-import org.locationtech.jts.geom.curved.MultiCurve;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.geom.curve.MultiCurve;
 import org.locationtech.jts.geom.util.LinearComponentExtracter;
 import org.locationtech.jts.operation.linemerge.LineMerger;
 import org.locationtech.jts.operation.linemerge.LineSequencer;
@@ -262,8 +262,8 @@ public class LineHandlingFunctions {
     }
     CoordinateSequence seq = factory.getCoordinateSequenceFactory()
         .create(all.toArray(new Coordinate[0]));
-    if (factory instanceof CurvedGeometryFactory) {
-      return ((CurvedGeometryFactory) factory).createCircularString(seq);
+    if (factory instanceof CurveGeometryFactory) {
+      return ((CurveGeometryFactory) factory).createCircularString(seq);
     }
     return new CircularString(seq, factory);
   }
@@ -275,8 +275,8 @@ public class LineHandlingFunctions {
     GeometryFactory f = ls.getFactory();
     if (ls instanceof CircularString) {
       CoordinateSequence seq = f.getCoordinateSequenceFactory().create(r);
-      if (f instanceof CurvedGeometryFactory) {
-        return ((CurvedGeometryFactory) f).createCircularString(seq);
+      if (f instanceof CurveGeometryFactory) {
+        return ((CurveGeometryFactory) f).createCircularString(seq);
       }
       return new CircularString(seq, f);
     }

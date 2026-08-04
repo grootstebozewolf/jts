@@ -27,7 +27,7 @@ import test.jts.GeometryTestCase;
  * Verifies the {@link WKTReader#readOtherGeometryText} and
  * {@link WKTWriter#appendOtherGeometryTaggedText} extension hooks added
  * for SFA / ISO 19125-2 extended geometry support, without taking any
- * dependency on jts-curved. A dummy subclass of {@link WKTReader}
+ * dependency on jts-curve. A dummy subclass of {@link WKTReader}
  * recognises a made-up keyword and a dummy subclass of
  * {@link WKTWriter} emits it; this confirms the seam is wired and the
  * promoted helpers are accessible across packages.

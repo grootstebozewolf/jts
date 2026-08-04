@@ -18,13 +18,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.locationtech.jts.awt.PointTransformation;
-import org.locationtech.jts.awt.curved.CircularArcRenderer;
+import org.locationtech.jts.awt.curve.CircularArcRenderer;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jtstest.testbuilder.model.GeometryType;
 
 /**
  * Stream-style mouse-draw tool for
- * {@link org.locationtech.jts.geom.curved.CompoundCurve} geometries. Each
+ * {@link org.locationtech.jts.geom.curve.CompoundCurve} geometries. Each
  * captured triple of points becomes one arc or chord, exactly as for
  * {@link CircularStringTool} — a CompoundCurve is a mixed-arc/chord variant of
  * the same control-point model.

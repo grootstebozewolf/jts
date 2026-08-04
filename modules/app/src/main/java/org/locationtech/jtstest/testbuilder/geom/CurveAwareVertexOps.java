@@ -23,10 +23,10 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.curved.CircularString;
-import org.locationtech.jts.geom.curved.ClothoidSegment;
-import org.locationtech.jts.geom.curved.CompoundCurve;
-import org.locationtech.jts.geom.curved.CurvedGeometryFactory;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
+import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 
 /**
  * Curve-aware vertex Move / Insert / Delete used by the JTSTestBuilder
@@ -57,7 +57,7 @@ public final class CurveAwareVertexOps {
    *      {@code from} is updated subtype-preservingly. A junction
    *      vertex is naturally updated in both neighbouring members
    *      because each holds its own copy of that coord.
-   *  <li>{@code CircularString}: rebuilt via {@link CurvedGeometryFactory}.
+   *  <li>{@code CircularString}: rebuilt via {@link CurveGeometryFactory}.
    *  <li>{@code ClothoidSegment}: only the start (anchor) coord is
    *      movable — the end is analytically derived from κ₀, κ₁, L,
    *      θ_start; refuse otherwise.
@@ -152,11 +152,11 @@ public final class CurveAwareVertexOps {
     if (nc == cc) return cs;
     GeometryFactory gf = cs.getFactory();
     CoordinateSequence seq = gf.getCoordinateSequenceFactory().create(nc);
-    if (gf instanceof CurvedGeometryFactory) {
-      return ((CurvedGeometryFactory) gf).createCircularString(seq);
+    if (gf instanceof CurveGeometryFactory) {
+      return ((CurveGeometryFactory) gf).createCircularString(seq);
     }
     // Unreachable in the testbuilder (the WKT reader always uses a
-    // CurvedGeometryFactory), but keeps the helper safe in isolation.
+    // CurveGeometryFactory), but keeps the helper safe in isolation.
     return new CircularString(seq, gf);
   }
 
