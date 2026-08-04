@@ -163,9 +163,20 @@ public class CircularStringToLinearTest extends GeometryTestCase {
     assertEquals(plain.getNumPoints(), withFar.getNumPoints());
   }
 
-  /** A coordinate that is OFF the arc but within tolerance (slightly less
-   *  than radius from centre) has its projection inserted. */
-  public void testMustIncludeNearArcProjectionInserted() throws Exception {
+  /**
+   * A coordinate that is OFF the arc but within tolerance is inserted AS
+   * SUPPLIED, not as its projection onto the circle.
+   * <p>
+   * <b>Superseded contract (DENS-ANCHOR).</b> This test originally asserted the
+   * opposite: that the anchor's projection appears. That semantics turned exact
+   * control points into cos/sin noise -- visual QA found {@code (0, 1)} coming
+   * back as {@code (6.1e-17, 1)} -- because projecting a point that is already
+   * on the arc reconstructs it through atan2 and cos/sin. mustInclude now means
+   * what it says: the caller's exact coordinate appears in the output. The
+   * radial filter still rejects anchors further than the tolerance from the
+   * arc, so the polyline's deviation bound is unchanged.
+   */
+  public void testMustIncludeNearArcOriginalInserted() throws Exception {
     Geometry g = new CurveWKTReader().read("CIRCULARSTRING (10 0, 7.071068 7.071068, 0 10)");
     // (8.6, 5.0) is within ~0.06 of a radius-10 arc (true radius at angle 30°
     // would be 10; this is at distance hypot(8.6, 5) ≈ 9.94).
@@ -177,18 +188,14 @@ public class CircularStringToLinearTest extends GeometryTestCase {
 
     LineString line = (LineString) ((CircularString) g)
         .toLinear(0.5, Collections.singletonList(nearArc));
-    // The projected point lies on the radius-10 circle, not at nearArc.
-    double projAngle = Math.atan2(nearArc.y, nearArc.x);
-    Coordinate projected = new Coordinate(10.0 * Math.cos(projAngle),
-                                           10.0 * Math.sin(projAngle));
-    boolean foundProjection = false;
+    boolean foundOriginal = false;
     for (Coordinate c : line.getCoordinates()) {
-      if (Math.hypot(c.x - projected.x, c.y - projected.y) < 1e-6) {
-        foundProjection = true; break;
+      if (c.equals2D(nearArc)) {
+        foundOriginal = true; break;
       }
     }
-    assertTrue("expected projected point on arc to appear in output",
-        foundProjection);
+    assertTrue("the caller's exact coordinate must appear in the output",
+        foundOriginal);
   }
 
   /** Multiple must-include points inserted in correct sweep order. */

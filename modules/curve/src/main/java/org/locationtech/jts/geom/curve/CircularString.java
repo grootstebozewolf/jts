@@ -136,7 +136,15 @@ public class CircularString extends LineString implements Linearizable {
       Coordinate start = seq.getCoordinate(i);
       Coordinate mid   = seq.getCoordinate(i + 1);
       Coordinate end   = seq.getCoordinate(i + 2);
-      List<Coordinate> chord = CircularArcDensifier.densifyArc(start, mid, end, tolerance, include);
+      // The arc's own mid control point is an anchor in its own right: the
+      // caller supplied it exactly, so it must survive toLinear exactly. The
+      // walk pins start and end by construction, but the mid was only ever
+      // approximated -- visual QA found (0, 1) coming back as
+      // (6.1e-17, 1) at one tolerance and missing entirely at others.
+      List<Coordinate> anchors = new ArrayList<Coordinate>(include.size() + 1);
+      anchors.addAll(include);
+      anchors.add(mid);
+      List<Coordinate> chord = CircularArcDensifier.densifyArc(start, mid, end, tolerance, anchors);
       // The first arc contributes its start; subsequent arcs share an
       // endpoint with the previous arc — drop the duplicate.
       int from = out.isEmpty() ? 0 : 1;

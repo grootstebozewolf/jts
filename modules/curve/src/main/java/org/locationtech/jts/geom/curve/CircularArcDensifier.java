@@ -130,7 +130,7 @@ public final class CircularArcDensifier {
       // before the next chord vertex.
       while (projIdx < projected.size()
              && projected.get(projIdx).sweepAngle < sweepEnd) {
-        addUnique(out, projected.get(projIdx).coord, eps);
+        addAnchor(out, projected.get(projIdx).coord, eps);
         projIdx++;
       }
       double angle = a0 + i * delta;
@@ -139,7 +139,7 @@ public final class CircularArcDensifier {
     }
     // Any projected points exactly at the end are appended too (rare).
     while (projIdx < projected.size()) {
-      addUnique(out, projected.get(projIdx).coord, eps);
+      addAnchor(out, projected.get(projIdx).coord, eps);
       projIdx++;
     }
 
@@ -167,6 +167,31 @@ public final class CircularArcDensifier {
   }
 
   /** Appends unless it would repeat the vertex already at the tail. */
+  /**
+   * Appends an anchor -- a point the caller supplied exactly -- preferring it
+   * over a coincident computed vertex.
+   * <p>
+   * {@code addUnique} suppresses near-duplicates by keeping the FIRST of a
+   * coincident pair, which is right for computed points but backwards for
+   * anchors: when the chord walk's vertex lands on a control point (twelve
+   * segments over a semicircle put a vertex exactly at the mid control), the
+   * computed cos/sin value won the tie and the exact control point was dropped.
+   * Here the coincident predecessor is replaced instead -- unless it is the
+   * start point at index 0, which is itself an exact control point.
+   */
+  private static void addAnchor(List<Coordinate> out, Coordinate c, double eps) {
+    if (!out.isEmpty()) {
+      int last = out.size() - 1;
+      if (out.get(last).distance(c) <= eps) {
+        if (last > 0) {
+          out.set(last, new Coordinate(c));
+        }
+        return;
+      }
+    }
+    out.add(new Coordinate(c));
+  }
+
   private static void addUnique(List<Coordinate> out, Coordinate c, double eps) {
     if (!out.isEmpty() && out.get(out.size() - 1).distance(c) <= eps) return;
     out.add(c);
@@ -224,10 +249,13 @@ public final class CircularArcDensifier {
           ? normalizePositive(angle - a0)
           : normalizePositive(a0 - angle);
       if (sweepAngle > sweep) continue;                        // outside sweep
-      Coordinate projected = new Coordinate(
-          c.cx + c.r * Math.cos(angle),
-          c.cy + c.r * Math.sin(angle));
-      out.add(new ProjectedPoint(sweepAngle, projected));
+      // Carry the ORIGINAL coordinate, not its projection onto the circle. The
+      // angle exists only to order the anchor among the chord vertices; the
+      // mustInclude contract is that the caller's exact point appears in the
+      // output. Re-projecting turned (0, 1) into (6.1e-17, 1) -- the same
+      // cos/sin noise DENS-DUP had to dedup away -- and the radial filter above
+      // already guarantees the point lies within tolerance of the arc.
+      out.add(new ProjectedPoint(sweepAngle, new Coordinate(p)));
     }
     Collections.sort(out, new Comparator<ProjectedPoint>() {
       @Override
