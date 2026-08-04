@@ -17,6 +17,20 @@ import java.util.List;
 import org.locationtech.jts.geom.Geometry;
 
 
+/**
+ * Overlay via the instance methods, so curve awareness rides on virtual
+ * dispatch: a curve-typed A routes through its CRV-OPS override into the
+ * OverlayNGCurve ratchet.
+ * <p>
+ * <b>The dispatch split, stated so nobody rediscovers it:</b> dispatch is on
+ * A only. {@code a.intersection(b)} with a PLAIN A and a curve B runs core's
+ * implementation, which reads B's control points -- the reverse-direction
+ * limitation shared with every instance-method fix (see
+ * {@code CurvePredicateTest}). The static {@code OverlayNG*} panels do not have
+ * this asymmetry, because they {@code arc()} both operands explicitly. Callers
+ * mixing plain and curve operands should either put the curve on the left or
+ * use the NG panels.
+ */
 public class OverlayFunctions {
   /**
    * Densifies curve operands before handing them to core.
