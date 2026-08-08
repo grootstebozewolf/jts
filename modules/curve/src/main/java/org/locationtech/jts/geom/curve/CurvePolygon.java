@@ -404,6 +404,11 @@ public class CurvePolygon extends Polygon implements Linearizable {
   }
 
   @Override
+  public boolean isValid() {
+    return CurveOps.isValid(this);
+  }
+
+  @Override
   public double distance(Geometry g) {
     return CurveOps.distance(this, g);
   }

@@ -70,4 +70,9 @@ public class MultiSurface extends MultiPolygon implements Linearizable {
   public Point getInteriorPoint() {
     return CurveOps.interiorPoint(this);
   }
+
+  @Override
+  public boolean isValid() {
+    return CurveOps.isValid(this);
+  }
 }

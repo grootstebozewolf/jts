@@ -132,6 +132,30 @@ public final class CurveOps {
     return linearise(curve).getInteriorPoint();
   }
 
+  // -- Simplicity / validity (CRV-SV) ----------------------------------------
+  //
+  // IsSimpleOp and IsValidOp node getCoordinates(), so their verdicts are
+  // about the chords, and the error runs both ways: a segment piercing an
+  // arc's bulge without touching any chord left a self-crossing curve
+  // "simple", and a hole in the band between a chord and its arc -- inside
+  // the true region, outside the flat control ring -- made a valid
+  // CurvePolygon "invalid". Like the predicates above, these are booleans
+  // with no tolerance to hide in: input within TOLERANCE_FRACTION of a
+  // simplicity or validity transition is undecidable on the densified copy.
+  //
+  // isSimple is routed for the lineal types and MultiCurve only; polygonal
+  // isSimple is definitionally true in core and needs no help. isValid is
+  // routed for the areal types only; lineal validity does not depend on the
+  // shape between control points.
+
+  static boolean isSimple(Geometry curve) {
+    return linearise(curve).isSimple();
+  }
+
+  static boolean isValid(Geometry curve) {
+    return linearise(curve).isValid();
+  }
+
   // -- Overlay ------------------------------------------------------------
   //
   // Left to the inherited implementations, these node the chords through the

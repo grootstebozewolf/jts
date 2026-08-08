@@ -67,4 +67,9 @@ public class MultiCurve extends MultiLineString implements Linearizable {
   public Point getCentroid() {
     return CurveOps.centroid(this);
   }
+
+  @Override
+  public boolean isSimple() {
+    return CurveOps.isSimple(this);
+  }
 }

@@ -203,6 +203,11 @@ public class CompoundCurve extends LineString implements Linearizable {
   }
 
   @Override
+  public boolean isSimple() {
+    return CurveOps.isSimple(this);
+  }
+
+  @Override
   public double distance(Geometry g) {
     return CurveOps.distance(this, g);
   }
