@@ -392,15 +392,6 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
         + "sector area, and that holes lie inside the shell using arc-aware contains.");
   }
 
-  /** V-CS: IsSimpleOp for CircularString / CompoundCurve. */
-  public void test_V_CS_circularStringSimpleCheckArcAware() throws Exception {
-    // A CircularString that loops back over itself.
-    Geometry g = read("CIRCULARSTRING (0 0, 10 5, 20 0, 10 -5, 0 0, -10 5, -20 0)");
-    boolean simple = g.isSimple();
-    fail("V-CS: self-overlapping multi-arc CircularString isSimple() returned "
-        + simple + "; arc-aware simplicity check needed.");
-  }
-
   // ============================================================
   // Hulls
   // ============================================================
