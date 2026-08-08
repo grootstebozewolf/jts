@@ -146,7 +146,9 @@ public final class CurveOps {
   // isSimple is routed for the lineal types and MultiCurve only; polygonal
   // isSimple is definitionally true in core and needs no help. isValid is
   // routed for the areal types only; lineal validity does not depend on the
-  // shape between control points.
+  // shape between control points. As with the predicates, only the instance
+  // methods are interceptable: a caller invoking the IsSimpleOp / IsValidOp
+  // statics directly still gets the chord verdict.
 
   static boolean isSimple(Geometry curve) {
     return linearise(curve).isSimple();
