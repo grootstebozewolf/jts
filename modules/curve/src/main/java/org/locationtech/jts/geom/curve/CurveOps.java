@@ -14,6 +14,7 @@ package org.locationtech.jts.geom.curve;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.IntersectionMatrix;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
 
 /**
@@ -102,6 +103,32 @@ public final class CurveOps {
   static Geometry buffer(Geometry curve, double distance, int quadrantSegments,
       int endCapStyle) {
     return linearise(curve).buffer(distance, quadrantSegments, endCapStyle);
+  }
+
+  // -- Centroid / interior point (CRV-CTR) ----------------------------------
+  //
+  // Centroid and InteriorPoint walk getCoordinates(), weighing a curve by its
+  // control polygon: the half-arc centroid sat at the control-triangle mean
+  // (R/2) instead of 2R/pi, and InteriorPointArea scanning a thin crescent's
+  // flat control ring returned a point outside the curved region -- the one
+  // thing an interior point must never be. On the densified copy the centroid
+  // is tolerance-bounded and the interior point genuinely interior: the scan
+  // picks midpoints of interior spans, far from the boundary relative to
+  // TOLERANCE_FRACTION.
+  //
+  // The lineal types keep the inherited getInteriorPoint: it returns a vertex,
+  // and a curve's control points lie on the arc by definition, so the contract
+  // already holds there. Exact sector-weighted centroid forms exist (the
+  // epic's C-AREA names them) and may replace the densified walk later without
+  // changing the contract; CircularArcDensifier.arcAreaContribution is the
+  // precedent for exact area terms.
+
+  static Point centroid(Geometry curve) {
+    return linearise(curve).getCentroid();
+  }
+
+  static Point interiorPoint(Geometry curve) {
+    return linearise(curve).getInteriorPoint();
   }
 
   // -- Overlay ------------------------------------------------------------

@@ -15,6 +15,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiLineString;
+import org.locationtech.jts.geom.Point;
 
 /**
  * A collection of {@link LineString}, {@link CircularString} and
@@ -56,5 +57,14 @@ public class MultiCurve extends MultiLineString implements Linearizable {
       }
     }
     return f.createMultiLineString(linearMembers);
+  }
+
+  // -- Arc-aware spatial operations (CRV-CTR) -------------------------------
+  // Centroid in jts-core walks getCoordinates(), weighing arc members by
+  // their control polygons. Route through a densified copy; see CurveOps.
+
+  @Override
+  public Point getCentroid() {
+    return CurveOps.centroid(this);
   }
 }

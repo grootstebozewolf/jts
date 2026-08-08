@@ -14,6 +14,7 @@ package org.locationtech.jts.geom.curve;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.MultiPolygon;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 
 /** A collection of {@link Polygon} and {@link CurvePolygon} members. */
@@ -53,5 +54,20 @@ public class MultiSurface extends MultiPolygon implements Linearizable {
       }
     }
     return f.createMultiPolygon(linearMembers);
+  }
+
+  // -- Arc-aware spatial operations (CRV-CTR) -------------------------------
+  // Centroid and InteriorPoint in jts-core walk getCoordinates(), judging a
+  // CurvePolygon member by its flat control ring. Route through a densified
+  // copy; see CurveOps for the interior-point contract this restores.
+
+  @Override
+  public Point getCentroid() {
+    return CurveOps.centroid(this);
+  }
+
+  @Override
+  public Point getInteriorPoint() {
+    return CurveOps.interiorPoint(this);
   }
 }

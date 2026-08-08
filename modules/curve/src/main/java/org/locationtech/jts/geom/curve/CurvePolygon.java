@@ -19,6 +19,7 @@ import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 
 /**
@@ -390,6 +391,16 @@ public class CurvePolygon extends Polygon implements Linearizable {
   @Override
   public Geometry convexHull() {
     return CurveOps.convexHull(this);
+  }
+
+  @Override
+  public Point getCentroid() {
+    return CurveOps.centroid(this);
+  }
+
+  @Override
+  public Point getInteriorPoint() {
+    return CurveOps.interiorPoint(this);
   }
 
   @Override

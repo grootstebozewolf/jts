@@ -23,6 +23,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Point;
 
 /**
  * A connected sequence of circular arcs, where each consecutive triple of
@@ -163,6 +164,11 @@ public class CircularString extends LineString implements Linearizable {
   @Override
   public Geometry convexHull() {
     return CurveOps.convexHull(this);
+  }
+
+  @Override
+  public Point getCentroid() {
+    return CurveOps.centroid(this);
   }
 
   @Override
