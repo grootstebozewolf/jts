@@ -120,19 +120,19 @@ public class CurveCentroidTest extends GeometryTestCase {
   public void testInteriorPointOfCrescentLiesInCurvedRegion() throws Exception {
     Geometry crescent = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), CIRCULARSTRING (5 0, 0 4, -5 0)))");
-    Coordinate ip = crescent.getInteriorPoint().getCoordinate();
-    assertTrue("interior point " + ip + " must lie inside the outer arc (R=5)",
-        ip.distance(new Coordinate(0, 0)) <= 5.0 + TOL);
-    assertTrue("interior point " + ip + " must lie outside the inner arc "
-        + "(centre (0,-1.125), R=5.125)",
-        ip.distance(new Coordinate(0, -1.125)) >= 5.125 - TOL);
+    checkInteriorPointInCrescent(crescent);
   }
 
   /** Same contract for the crescent as a MultiSurface member. */
   public void testInteriorPointOfMultiSurfaceCrescentLiesInCurvedRegion() throws Exception {
     Geometry ms = readCurve(
         "MULTISURFACE (CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), CIRCULARSTRING (5 0, 0 4, -5 0))))");
-    Coordinate ip = ms.getInteriorPoint().getCoordinate();
+    checkInteriorPointInCrescent(ms);
+  }
+
+  /** The crescent region analytically: inside the outer circle, outside the inner. */
+  private static void checkInteriorPointInCrescent(Geometry crescent) {
+    Coordinate ip = crescent.getInteriorPoint().getCoordinate();
     assertTrue("interior point " + ip + " must lie inside the outer arc (R=5)",
         ip.distance(new Coordinate(0, 0)) <= 5.0 + TOL);
     assertTrue("interior point " + ip + " must lie outside the inner arc "

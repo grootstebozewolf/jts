@@ -23,9 +23,10 @@ import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
  * points.
  * <p>
  * The operations themselves ({@code ConvexHull}, {@code DistanceOp},
- * {@code BufferOp}) live in jts-core and have no visibility of the curve types,
- * since jts-curve depends on core rather than the reverse. Densifying at the
- * boundary is what lets them stay untouched.
+ * {@code BufferOp}, {@code Centroid}, {@code InteriorPoint}) live in jts-core
+ * and have no visibility of the curve types, since jts-curve depends on core
+ * rather than the reverse. Densifying at the boundary is what lets them stay
+ * untouched.
  * <p>
  * {@link #linearise(Geometry)} and {@link #TOLERANCE_FRACTION} are public because
  * {@code org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve} needs the
