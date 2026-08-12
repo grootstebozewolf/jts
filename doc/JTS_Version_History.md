@@ -62,6 +62,7 @@ Distributions for older JTS versions can be obtained at the
 * Add `equals` and `hashCode` consistent with `compareTo` for value-semantics `Comparable` classes (`LinearLocation`, `EdgeIntersection`, `NodeSection`, `OrientedCoordinateArray`) (#1184)
 * Add `DD.hashCode` consistent with `DD.equals` (#1186)
 * Fix `OverlayEdge` to include first point when adding coordinates (#1187)
+* Make `HalfEdge.compareAngularDirection` more robust (#1224)
 
 ### Performance Improvements
 
