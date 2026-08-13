@@ -63,6 +63,7 @@ Distributions for older JTS versions can be obtained at the
 * Add `DD.hashCode` consistent with `DD.equals` (#1186)
 * Fix `OverlayEdge` to include first point when adding coordinates (#1187)
 * Make `HalfEdge.compareAngularDirection` more robust (#1224)
+* Improve `Quadrant` computation robustness by using vector endpoints (#1226)
 
 ### Performance Improvements
 
