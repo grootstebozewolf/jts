@@ -11,8 +11,12 @@
  */
 package org.locationtech.jts.geom.curve;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.IntersectionMatrix;
@@ -21,13 +25,15 @@ import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
 
 /**
  * Closed-form answers for the shapes a cheap check can recognise: a circular
  * disc, a single circular arc, a point against an arc, a disc against a
  * Point or MultiPoint (PIP and DE-9IM), a disc against a LineString
- * (DE-9IM from line–circle nodes). Package-private -- not a new
- * public API.
+ * (DE-9IM from line–circle nodes), a disc against a plain Polygon
+ * (DE-9IM from vertices, edge nodes, and mid-arc PIP). Package-private
+ * -- not a new public API.
  * {@link CurveOps} takes these only when they can answer; anything else
  * goes straight to the chord baseline. Trying and falling through would
  * pay both tools.
@@ -56,6 +62,15 @@ final class CurveExact {
   static final String IM_LINE_TANGENT = "FF20F1102";
   static final String IM_LINE_EXTERIOR = "FF2FF1102";
   static final String IM_LINE_END_INTERIOR = "1020F1102";
+
+  /**
+   * JTS/SFS DE-9IM for an areal geometry vs a Polygon. Probed against
+   * the inscribed diamond / octagon of {@code CIRCLE_5} in jts-core.
+   */
+  static final String IM_AREA_DISJOINT = "FF2FF1212";
+  static final String IM_AREA_COVERS = "212FF1FF2";
+  static final String IM_AREA_COVEREDBY = "2FF1FF212";
+  static final String IM_AREA_OVERLAP = "212101212";
 
   private CurveExact() { }
 
@@ -165,14 +180,17 @@ final class CurveExact {
   }
 
   /**
-   * SFS DE-9IM of a circular disc vs a Point, a uniform MultiPoint, or
-   * a LineString (or a single-member MultiLineString). {@code null} if
-   * this pair is not that shape. Puntal reuses {@link #locatePoint};
-   * lineal uses {@link CircularArcDensifier#intersectSegmentCircle}
+   * SFS DE-9IM of a circular disc vs a Point, a uniform MultiPoint, a
+   * LineString (or a single-member MultiLineString), or a plain Polygon
+   * (no holes, no curve rings). {@code null} if this pair is not that
+   * shape. Puntal reuses {@link #locatePoint}; lineal and polygonal
+   * use {@link CircularArcDensifier#intersectSegmentCircle}
    * ({@code t ∈ [0,1]}, the R1.6 / {@code ARC_SEGMENT_XY} quadratic)
-   * plus endpoint location. Mixed MultiPoint location classes, a
-   * multi-member MultiLineString, or a non-disc return {@code null}
-   * so the caller linearises rather than guessing.
+   * plus endpoint / vertex location. A polygonal miss also samples
+   * mid-arc points in the polygon (jts-core PIP). Mixed MultiPoint
+   * location classes, a multi-member MultiLineString, a holed or
+   * curve polygon, or a non-disc return {@code null} so the caller
+   * linearises rather than guessing.
    */
   static IntersectionMatrix relate(Geometry curve, Geometry other) {
     if (curve == null || other == null || other.isEmpty()) return null;
@@ -181,6 +199,8 @@ final class CurveExact {
     if (isPuntal(other)) return relatePuntal(disc, other);
     LineString line = plainLine(other);
     if (line != null) return relateLine(disc, line);
+    Polygon poly = plainPolygon(other);
+    if (poly != null) return relatePolygon(disc, poly);
     return null;
   }
 
@@ -298,6 +318,181 @@ final class CurveExact {
     if (g instanceof CircularString || g instanceof CompoundCurve) return null;
     if (g instanceof LineString) return (LineString) g;
     return null;
+  }
+
+  /**
+   * A plain Polygon: no holes, no curve rings. {@link CurvePolygon} and
+   * MultiPolygon miss this cell.
+   */
+  private static Polygon plainPolygon(Geometry g) {
+    if (!(g instanceof Polygon) || g instanceof CurvePolygon) return null;
+    Polygon p = (Polygon) g;
+    if (p.isEmpty() || p.getNumInteriorRing() > 0) return null;
+    LineString ring = p.getExteriorRing();
+    if (ring instanceof CircularString || ring instanceof CompoundCurve) {
+      return null;
+    }
+    return p;
+  }
+
+  /**
+   * Location classes of a straight-edged polygon vs a circular disc.
+   * Vertices use {@link #locatePoint}; each edge reuses the line–circle
+   * quadratic; mid-arc samples ask the polygon (jts-core PIP).
+   */
+  private static IntersectionMatrix relatePolygon(CircularArcDensifier.Circle disc,
+      Polygon poly) {
+    Envelope de = new Envelope(disc.cx - disc.r, disc.cx + disc.r,
+        disc.cy - disc.r, disc.cy + disc.r);
+    if (!poly.getEnvelopeInternal().intersects(de)) {
+      return new IntersectionMatrix(IM_AREA_DISJOINT);
+    }
+    Coordinate[] c = poly.getExteriorRing().getCoordinates();
+    if (c.length < 4) return null;
+    double r2 = disc.r * disc.r;
+
+    boolean vertInt = false;
+    boolean vertBnd = false;
+    boolean vertExt = false;
+    boolean edgeInt = false;
+    boolean edgeExt = false;
+    List<Coordinate> nodes = new ArrayList<Coordinate>();
+
+    int nVert = c.length - 1;
+    for (int i = 0; i < nVert; i++) {
+      int loc = locatePoint(disc, c[i], r2);
+      if (loc == Location.INTERIOR) vertInt = true;
+      else if (loc == Location.BOUNDARY) {
+        vertBnd = true;
+        addNode(nodes, c[i]);
+      } else {
+        vertExt = true;
+      }
+    }
+
+    for (int i = 1; i < c.length; i++) {
+      Coordinate a = c[i - 1];
+      Coordinate bpt = c[i];
+      if (a.equals2D(bpt)) continue;
+      int locA = locatePoint(disc, a, r2);
+      int locB = locatePoint(disc, bpt, r2);
+      Coordinate[] hits = CircularArcDensifier.intersectSegmentCircle(disc, a, bpt);
+      for (int h = 0; h < hits.length; h++) {
+        addNode(nodes, hits[h]);
+      }
+      if (hits.length == 2) {
+        edgeInt = true;
+        if (locA == Location.EXTERIOR || locB == Location.EXTERIOR) edgeExt = true;
+      } else if (hits.length == 1) {
+        if (locA == Location.INTERIOR || locB == Location.INTERIOR) edgeInt = true;
+        if (locA == Location.EXTERIOR || locB == Location.EXTERIOR) edgeExt = true;
+      } else if (locA == Location.INTERIOR && locB == Location.INTERIOR) {
+        edgeInt = true;
+      } else if (locA == Location.EXTERIOR && locB == Location.EXTERIOR) {
+        edgeExt = true;
+      } else if ((locA == Location.INTERIOR && locB == Location.EXTERIOR)
+          || (locA == Location.EXTERIOR && locB == Location.INTERIOR)) {
+        return null;
+      } else if (locA == Location.INTERIOR || locB == Location.INTERIOR) {
+        edgeInt = true;
+      } else if (locA == Location.EXTERIOR || locB == Location.EXTERIOR) {
+        edgeExt = true;
+      }
+    }
+
+    boolean[] arc = new boolean[2];
+    if (!sampleArcs(disc, poly, nodes, arc)) return null;
+    boolean bi = arc[0];
+    boolean be = arc[1];
+    if (!bi && !be) return null;
+
+    int locC = locateInPoly(poly, new Coordinate(disc.cx, disc.cy));
+    boolean ii = vertInt || edgeInt || locC == Location.INTERIOR;
+    boolean ib = vertInt || edgeInt;
+    boolean ie = be;
+    boolean bb = vertBnd || !nodes.isEmpty();
+    boolean ei = vertExt || edgeExt;
+    boolean eb = vertExt || edgeExt;
+    return new IntersectionMatrix(""
+        + (ii ? '2' : 'F') + (ib ? '1' : 'F') + (ie ? '2' : 'F')
+        + (bi ? '1' : 'F') + (bb ? '0' : 'F') + (be ? '1' : 'F')
+        + (ei ? '2' : 'F') + (eb ? '1' : 'F') + '2');
+  }
+
+  private static void addNode(List<Coordinate> nodes, Coordinate p) {
+    for (int i = 0; i < nodes.size(); i++) {
+      if (samePoint(nodes.get(i), p)) return;
+    }
+    nodes.add(new Coordinate(p));
+  }
+
+  /**
+   * Classifies each open arc between line–circle nodes (or the whole
+   * circle if there are none) against the polygon. {@code out[0]} is
+   * BI, {@code out[1]} is BE. {@code false} if a sample lands on the
+   * polygon boundary (a straight edge cannot contain an arc).
+   */
+  private static boolean sampleArcs(CircularArcDensifier.Circle disc, Polygon poly,
+      List<Coordinate> nodes, boolean[] out) {
+    int n = nodes.size();
+    if (n == 0) {
+      return markArcSample(poly, new Coordinate(disc.cx + disc.r, disc.cy), out);
+    }
+    if (n == 1) {
+      Coordinate p = nodes.get(0);
+      return markArcSample(poly,
+          new Coordinate(2.0 * disc.cx - p.x, 2.0 * disc.cy - p.y), out);
+    }
+    sortNodesByAngle(disc, nodes);
+    for (int i = 0; i < n; i++) {
+      Coordinate a = nodes.get(i);
+      Coordinate b = nodes.get((i + 1) % n);
+      double a0 = Math.atan2(a.y - disc.cy, a.x - disc.cx);
+      double a1 = Math.atan2(b.y - disc.cy, b.x - disc.cx);
+      double mid = a0 + 0.5 * normPos(a1 - a0);
+      Coordinate s = new Coordinate(
+          disc.cx + disc.r * Math.cos(mid),
+          disc.cy + disc.r * Math.sin(mid));
+      if (!markArcSample(poly, s, out)) return false;
+    }
+    return true;
+  }
+
+  private static boolean markArcSample(Polygon poly, Coordinate p, boolean[] out) {
+    int loc = locateInPoly(poly, p);
+    if (loc == Location.INTERIOR) {
+      out[0] = true;
+      return true;
+    }
+    if (loc == Location.EXTERIOR) {
+      out[1] = true;
+      return true;
+    }
+    return false;
+  }
+
+  private static void sortNodesByAngle(final CircularArcDensifier.Circle disc,
+      List<Coordinate> nodes) {
+    for (int i = 1; i < nodes.size(); i++) {
+      Coordinate key = nodes.get(i);
+      double keyA = Math.atan2(key.y - disc.cy, key.x - disc.cx);
+      int j = i - 1;
+      while (j >= 0) {
+        Coordinate cur = nodes.get(j);
+        double curA = Math.atan2(cur.y - disc.cy, cur.x - disc.cx);
+        if (curA <= keyA) break;
+        nodes.set(j + 1, cur);
+        j--;
+      }
+      nodes.set(j + 1, key);
+    }
+  }
+
+  private static int locateInPoly(Polygon poly, Coordinate p) {
+    Point pt = poly.getFactory().createPoint(p);
+    if (poly.contains(pt)) return Location.INTERIOR;
+    if (poly.covers(pt)) return Location.BOUNDARY;
+    return Location.EXTERIOR;
   }
 
   /**

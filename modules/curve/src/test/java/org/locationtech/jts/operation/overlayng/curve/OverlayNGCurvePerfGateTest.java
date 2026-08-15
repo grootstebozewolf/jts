@@ -342,6 +342,46 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
         () -> line.relate(CurveOps.linearise(a)));
   }
 
+  public void testRelateDisjointPolyNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry far = readCurve("POLYGON ((100 100, 110 100, 110 110, 100 110, 100 100))");
+    assertLaserNotSlower("relate disjoint poly",
+        () -> a.relate(far),
+        () -> CurveOps.linearise(a).relate(far));
+  }
+
+  public void testRelateNestedPolyNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry inner = readCurve("POLYGON ((-1 -1, 1 -1, 1 1, -1 1, -1 -1))");
+    assertLaserNotSlower("relate nested poly",
+        () -> a.relate(inner),
+        () -> CurveOps.linearise(a).relate(inner));
+  }
+
+  public void testRelateDiscInsideSquareNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry square = readCurve(PLAIN_SQUARE);
+    assertLaserNotSlower("relate disc inside square",
+        () -> a.relate(square),
+        () -> CurveOps.linearise(a).relate(square));
+  }
+
+  public void testRelateCrossingPolyNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry cut = readCurve(SQUARE_RIGHT);
+    assertLaserNotSlower("relate crossing poly",
+        () -> a.relate(cut),
+        () -> CurveOps.linearise(a).relate(cut));
+  }
+
+  public void testReverseRelateCrossingPolyNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry cut = readCurve(SQUARE_RIGHT);
+    assertLaserNotSlower("rev relate crossing poly",
+        () -> cut.relate(a),
+        () -> cut.relate(CurveOps.linearise(a)));
+  }
+
   public void testContainsFarNotSlowerThanChord() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
     Geometry p = readCurve(POINT_FAR);
