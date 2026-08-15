@@ -95,8 +95,8 @@ final class CircularDiscPolygonOverlay {
     List<Coordinate> pq = TwoNodeClip.walkRing(ring, p, q, r);
     List<Coordinate> qp = TwoNodeClip.walkRing(ring, q, p, r);
     if (pq == null || qp == null) return null;
-    int pqSide = TwoNodeClip.sideOfDisc(pq, cx, cy, r);
-    int qpSide = TwoNodeClip.sideOfDisc(qp, cx, cy, r);
+    int pqSide = TwoNodeClip.sideOfDiscPath(pq, cx, cy, r);
+    int qpSide = TwoNodeClip.sideOfDiscPath(qp, cx, cy, r);
     if (pqSide == TwoNodeClip.MIXED || qpSide == TwoNodeClip.MIXED
         || pqSide == qpSide) {
       return null;

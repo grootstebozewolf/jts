@@ -347,7 +347,8 @@ final class TwoNodeClip {
    * R1.6 path classification: every interior vertex, then the chord
    * midpoint if the walk has no interior vertex off the circle.
    */
-  static int sideOfDisc(List<Coordinate> path, double cx, double cy, double r) {
+  static int sideOfDiscPath(List<Coordinate> path, double cx, double cy,
+      double r) {
     double eps = Math.max(1.0e-8 * r, 1.0e-12);
     boolean sawIn = false;
     boolean sawOut = false;
