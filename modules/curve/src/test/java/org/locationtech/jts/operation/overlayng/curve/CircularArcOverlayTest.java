@@ -64,12 +64,26 @@ public class CircularArcOverlayTest extends GeometryTestCase {
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)))";
   private static final String HALF_LOWER =
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 -5, 5 0), (5 0, -5 0)))";
+  /** Same circle, vertical diameter -- not complementary to HALF_UPPER. */
+  private static final String HALF_RIGHT =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (0 -5, 5 0, 0 5), (0 5, 0 -5)))";
   private static final String CHORD_ARC =
       "LINESTRING (0 0, 2 3, 10 0)";
   private static final String COMPOUND_A =
       "COMPOUNDCURVE (CIRCULARSTRING (0 0, 2 3, 10 0))";
+  private static final String ARC_LOWER =
+      "CIRCULARSTRING (5 0, 0 -5, -5 0)";
 
   private static final double EXACT = 1.0e-9;
+  private static final double QUARTER = 2.5 * Math.PI;
+  private static final double THREE_Q = 7.5 * Math.PI;
+  private static final double HALF = 12.5 * Math.PI;
+  private static final double DISC = 25.0 * Math.PI;
+  private static final double BAND = 32.0;
+  /** Two circular segments of CIRCLE_5 outside |y|≤1. */
+  private static final double TWO_CAPS =
+      2.0 * (25.0 * Math.acos(0.2) - 2.0 * Math.sqrt(6.0));
+  private static final double AREA_TOL = 1.0e-3;
 
   public static void main(String[] args) {
     TestRunner.run(CircularArcOverlayTest.class);
@@ -203,41 +217,102 @@ public class CircularArcOverlayTest extends GeometryTestCase {
 
   /**
    * H-SAME-CIRCLE: two overlapping arcs of the same circle are not a
-   * two-node clip. The null is the waypoint toward a same-circle
-   * overlap laser; do not densify and call it closed-form.
+   * two-node clip -- they are angular-interval overlay on that circle.
+   * CAP is the shared quarter; CUP the three-quarter; SUB the leftover
+   * of Q1.
    */
-  public void testHSameCircleOverlapIsNotATwoNodeClip() throws Exception {
+  public void testHSameCircleOverlapIsIntervalLaser() throws Exception {
     Geometry a = readCurve(ARC_SAME_Q1);
     Geometry b = readCurve(ARC_SAME_Q2);
-    assertNull("H-SAME-CIRCLE: overlapping same-circle arcs return null",
-        CircularArcOverlay.overlay(a, b, OverlayNG.INTERSECTION));
-    assertNull(CircularArcOverlay.overlay(a, b, OverlayNG.UNION));
+    OverlayNGCurve cap = new OverlayNGCurve(a, b);
+    Geometry q = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SAME-CIRCLE CAP is exact", cap.isApproximate());
+    assertTrue(q instanceof CircularString);
+    assertEquals("shared quarter (0 5)→(5 0)", QUARTER, q.getLength(), EXACT);
+    assertTrue(hasPointNear(q, 0.0, 5.0));
+    assertTrue(hasPointNear(q, 5.0, 0.0));
+
+    OverlayNGCurve cup = new OverlayNGCurve(a, b);
+    Geometry u = cup.getResult(OverlayNG.UNION);
+    assertFalse("H-SAME-CIRCLE CUP is exact", cup.isApproximate());
+    assertTrue(hasCircularString(u));
+    assertEquals("three-quarter", THREE_Q, u.getLength(), EXACT);
+
+    OverlayNGCurve sub = new OverlayNGCurve(a, b);
+    Geometry bite = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("H-SAME-CIRCLE SUB is exact", sub.isApproximate());
+    assertEquals("leftover of Q1", QUARTER, bite.getLength(), EXACT);
+
+    Geometry lower = readCurve(ARC_LOWER);
+    OverlayNGCurve disjoint = new OverlayNGCurve(a, lower);
+    Geometry pts = disjoint.getResult(OverlayNG.INTERSECTION);
+    assertFalse("disjoint same-circle is exact", disjoint.isApproximate());
+    assertEquals("shared endpoints only", 2, pts.getNumPoints());
   }
 
   /**
-   * H-FOUR: 4+ areal cuts stay refused this slice.
+   * H-FOUR: four line–circle nodes of a disc vs a band assemble as
+   * CompoundCurve arcs + segments, not a densified n-gon. R1.7 / R-AA
+   * still refuse the pair (not their cell).
    */
-  public void testHFourArealCutsStayRefused() throws Exception {
+  public void testHFourArealCutsAreNNodeAssemble() throws Exception {
     Geometry disc = readCurve(CIRCLE_5);
     Geometry band = readCurve(BAND_FOUR);
-    assertNull("H-FOUR: R1.6 refuses four line–circle nodes",
-        CircularDiscPolygonOverlay.overlay(disc, band, OverlayNG.INTERSECTION));
-    assertNull("H-FOUR: R1.7 refuses the same pair",
+    OverlayNGCurve cap = new OverlayNGCurve(disc, band);
+    Geometry clip = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-FOUR CAP is exact", cap.isApproximate());
+    assertTrue(clip instanceof CurvePolygon);
+    assertTrue("shell keeps an arc", hasCircularString(clip));
+    assertEquals(DISC - TWO_CAPS, clip.getArea(), AREA_TOL);
+
+    OverlayNGCurve cup = new OverlayNGCurve(disc, band);
+    Geometry blob = cup.getResult(OverlayNG.UNION);
+    assertFalse("H-FOUR CUP is exact", cup.isApproximate());
+    assertEquals(BAND + TWO_CAPS, blob.getArea(), AREA_TOL);
+
+    assertNull("H-FOUR: R1.7 is not this pair",
         CompoundCurveShellOverlay.overlay(disc, band, OverlayNG.INTERSECTION));
     assertNull("H-FOUR: R-AA is lineal",
         CircularArcOverlay.overlay(disc, band, OverlayNG.INTERSECTION));
   }
 
   /**
-   * H-SHELL: two CompoundCurve shells stay refused this slice.
+   * H-SHELL: complementary half-discs of the same circle are CAP empty
+   * / CUP the disc / SUB the first half. Any other two CompoundCurve
+   * shells stay refused (not a two-shell noder).
    */
-  public void testHShellTwoCompoundCurveShellsStayRefused() throws Exception {
+  public void testHShellComplementaryHalfDiscsAreTheDisc() throws Exception {
     Geometry upper = readCurve(HALF_UPPER);
     Geometry lower = readCurve(HALF_LOWER);
-    assertNull("H-SHELL: two CompoundCurve shells are not R1.7",
-        CompoundCurveShellOverlay.overlay(upper, lower, OverlayNG.INTERSECTION));
+    OverlayNGCurve cap = new OverlayNGCurve(upper, lower);
+    Geometry empty = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL CAP is exact", cap.isApproximate());
+    assertTrue("SFS interiors are disjoint", empty.isEmpty());
+
+    OverlayNGCurve cup = new OverlayNGCurve(upper, lower);
+    Geometry disc = cup.getResult(OverlayNG.UNION);
+    assertFalse("H-SHELL CUP is exact", cup.isApproximate());
+    assertTrue(disc instanceof CurvePolygon);
+    assertEquals(DISC, disc.getArea(), EXACT);
+    assertNotNull("CUP is the supporting disc",
+        CircularDiscOverlay.centreRadius(disc));
+
+    OverlayNGCurve sub = new OverlayNGCurve(upper, lower);
+    Geometry half = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("H-SHELL SUB is exact", sub.isApproximate());
+    assertEquals(HALF, half.getArea(), EXACT);
+
+    OverlayNGCurve xor = new OverlayNGCurve(upper, lower);
+    Geometry both = xor.getResult(OverlayNG.SYMDIFFERENCE);
+    assertFalse("H-SHELL XOR is exact", xor.isApproximate());
+    assertEquals(DISC, both.getArea(), EXACT);
+
     assertNull("H-SHELL: R-AA is lineal",
         CircularArcOverlay.overlay(upper, lower, OverlayNG.INTERSECTION));
+
+    Geometry right = readCurve(HALF_RIGHT);
+    assertNull("H-SHELL: not complementary (different diameter) stays null",
+        CompoundCurveShellOverlay.overlay(upper, right, OverlayNG.UNION));
   }
 
   public void testRllStillRefusesTwoArcs() throws Exception {
@@ -274,15 +349,24 @@ public class CircularArcOverlayTest extends GeometryTestCase {
   private static int countCircularStrings(Geometry g) {
     int n = 0;
     for (int i = 0; i < g.getNumGeometries(); i++) {
-      Geometry m = g.getGeometryN(i);
-      if (m instanceof CircularString) n++;
-      if (m instanceof CompoundCurve) {
-        CompoundCurve cc = (CompoundCurve) m;
-        for (int k = 0; k < cc.getNumMembers(); k++) {
-          if (cc.getMemberN(k) instanceof CircularString) n++;
-        }
-      }
+      n += countIn(g.getGeometryN(i));
     }
     return n;
+  }
+
+  private static int countIn(Geometry m) {
+    if (m instanceof CircularString) return 1;
+    if (m instanceof CompoundCurve) {
+      int n = 0;
+      CompoundCurve cc = (CompoundCurve) m;
+      for (int k = 0; k < cc.getNumMembers(); k++) {
+        if (cc.getMemberN(k) instanceof CircularString) n++;
+      }
+      return n;
+    }
+    if (m instanceof CurvePolygon) {
+      return countIn(((CurvePolygon) m).getExteriorCurve());
+    }
+    return 0;
   }
 }

@@ -196,14 +196,14 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
     Geometry other = readCurve(CIRCLE_CROSSING);
     Geometry square = readCurve(SQUARE_CAP);
     Geometry chords = readCurve(CHORD_SHELL);
-    Geometry lower = readCurve(
-        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 -5, 5 0), (5 0, -5 0)))");
+    Geometry right = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (0 -5, 5 0, 0 5), (0 5, 0 -5)))");
     assertNull("two discs stay on R1.5",
         CompoundCurveShellOverlay.overlay(disc, other, OverlayNG.INTERSECTION));
     assertNull("plain vs plain",
         CompoundCurveShellOverlay.overlay(square, square, OverlayNG.UNION));
-    assertNull("two CompoundCurve shells",
-        CompoundCurveShellOverlay.overlay(half, lower, OverlayNG.INTERSECTION));
+    assertNull("two CompoundCurve shells that are not complementary",
+        CompoundCurveShellOverlay.overlay(half, right, OverlayNG.INTERSECTION));
     assertNull("line-only shell",
         CompoundCurveShellOverlay.overlay(chords, square, OverlayNG.INTERSECTION));
   }

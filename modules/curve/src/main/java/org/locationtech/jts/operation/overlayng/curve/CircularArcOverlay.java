@@ -33,9 +33,11 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * the control-chord crossings. CAP is the node Point / MultiPoint; CUP /
  * SUB / XOR split each arc at those nodes and keep {@link CircularString}
  * pieces. A three-point LineString is not an arc (that pair stays on
- * {@link CircularLineOverlay}). Same-circle overlap, 3+ nodes on one
- * sweep window, or a pair this class cannot answer exactly return
- * {@code null} so the caller takes the chord baseline.
+ * {@link CircularLineOverlay}). Same-circle overlap is angular-interval
+ * overlay on that circle ({@link CircleSweepOverlay}), not a two-node
+ * clip. 3+ nodes on one sweep window of <em>different</em> circles, or
+ * a pair this class cannot answer exactly, return {@code null} so the
+ * caller takes the chord baseline.
  */
 final class CircularArcOverlay {
 
@@ -58,6 +60,9 @@ final class CircularArcOverlay {
     if (edgesA == null || edgesB == null) return null;
 
     double scale = CircularLineOverlay.scaleOf(ca, cb);
+    if (CircleSweepOverlay.allSameCircle(edgesA, edgesB, scale)) {
+      return CircleSweepOverlay.overlay(edgesA, edgesB, opCode, a, scale);
+    }
     List<List<TwoNodeClip.Node>> byA = emptyHits(edgesA.size());
     List<List<TwoNodeClip.Node>> byB = emptyHits(edgesB.size());
     if (!collectHits(edgesA, edgesB, byA, byB, scale)) {

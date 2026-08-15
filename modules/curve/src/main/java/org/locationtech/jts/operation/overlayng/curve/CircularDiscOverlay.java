@@ -63,6 +63,25 @@ final class CircularDiscOverlay {
     return new double[] { d.cx, d.cy, d.r };
   }
 
+  /**
+   * The disc of centre {@code (cx, cy)} and radius {@code r} as a
+   * five-point {@link CurvePolygon}. Used by the complementary
+   * half-disc CUP / XOR; not a noder.
+   */
+  static CurvePolygon discPolygon(double cx, double cy, double r,
+      GeometryFactory f) {
+    Coordinate[] pts = new Coordinate[] {
+        new Coordinate(cx + r, cy),
+        new Coordinate(cx, cy + r),
+        new Coordinate(cx - r, cy),
+        new Coordinate(cx, cy - r),
+        new Coordinate(cx + r, cy)
+    };
+    CircularString ring = new CircularString(
+        f.getCoordinateSequenceFactory().create(pts), f);
+    return new CurvePolygon(ring, null, f);
+  }
+
   static Geometry overlay(Geometry a, Geometry b, int opCode) {
     Disc da = circularDisc(a);
     if (da == null) return null;

@@ -79,8 +79,9 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     plain Polygon (no curve rings, no holes), and they meet at two
  *     proper line–circle nodes. The answer is a {@link CurvePolygon}
  *     (or a {@link MultiSurface} for XOR) that keeps the surviving arcs.
- *     Closed form; no densification. Any other pair returns {@code null}
- *     without paying this path.</li>
+ *     Closed form; no densification. An even run of 4+ alternating
+ *     line–circle nodes is the same assemble with n spans. Any other
+ *     pair returns {@code null} without paying this path.</li>
  * <li><b>R1.7</b> -- one operand is a hole-free {@link CurvePolygon} whose
  *     shell is a mixed {@link org.locationtech.jts.geom.curve.CompoundCurve}
  *     (LineString + CircularString: a half-disc or stadium) and the other
@@ -88,8 +89,10 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     The answer is a {@link CurvePolygon} whose shell is a CompoundCurve
  *     of the surviving pieces (or a {@link MultiSurface} for XOR). A
  *     LineString member stays a segment. Closed form; no densification.
- *     Holes, 0 / 1 / 3+ nodes, two CompoundCurve shells, or a line-only
- *     shell return {@code null} without paying this path.</li>
+ *     Complementary half-discs of the same circle (shared diameter)
+ *     are CAP empty / CUP the disc / SUB the first half. Holes,
+ *     0 / 1 / 3+ nodes, any other two CompoundCurve shells, or a
+ *     line-only shell return {@code null} without paying this path.</li>
  * <li><b>R-LL</b> -- one operand is a {@link org.locationtech.jts.geom.curve.CircularString}
  *     (or a lineal CompoundCurve of LineString + CircularString) and the
  *     other is a plain LineString. Line–circle nodes are exact. CAP is
@@ -101,9 +104,10 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     (or a lineal CompoundCurve of LineString + CircularString). Nodes
  *     are the circle–circle hits that lie on both sweeps, not the
  *     control-chord crossings. CAP is the node Point / MultiPoint; CUP /
- *     SUB / XOR keep CircularString pieces. Same-circle overlap, a
- *     three-point LineString, or 3+ nodes on one sweep window return
- *     {@code null} without paying this path.</li>
+ *     SUB / XOR keep CircularString pieces. Same-circle overlap is
+ *     angular-interval overlay on that circle. A three-point
+ *     LineString, or 3+ nodes on one sweep window of different
+ *     circles, return {@code null} without paying this path.</li>
  * <li>Otherwise, densify both at the ops tolerance and delegate to core,
  *     flagging the result approximate (<b>R2</b>). This <em>is</em> the chord
  *     baseline.</li>
@@ -204,7 +208,10 @@ public class OverlayNGCurve {
    * clipped by a plain polygon at line–circle nodes (R1.6), or a
    * CompoundCurve-shelled CurvePolygon clipped at two nodes (R1.7), or a
    * CircularString noded against a LineString (R-LL), or two
-   * CircularStrings noded at circle–circle hits on both sweeps (R-AA). In
+   * CircularStrings noded at circle–circle hits on both sweeps (R-AA),
+   * including same-circle angular-interval overlay, complementary
+   * half-discs, and an even 4+ line–circle cut of a disc by a plain
+   * polygon. In
    * the R1 case the <em>answer</em> is exact even though the <em>decision</em>
    * to return it was made on densified copies.
    * <p>

@@ -44,7 +44,9 @@ import test.jts.GeometryTestCase;
  * A disc clipped by a plain rectangle (R1.6) is EEEE in both operand
  * orders. A half-disc CompoundCurve shell vs a crossing disc or a
  * cutting square (R1.7) is EEEE in both operand orders. Two crossing
- * CircularStrings (R-AA) are EEEE in both operand orders. The cells that
+ * CircularStrings (R-AA) are EEEE in both operand orders. Same-circle
+ * overlapping arcs are EEEE (interval overlay). Complementary half-discs
+ * are 0EEE. A four-cut disc vs a band is EEEE. The cells that
  * stay approximate are the ones whose answer is a <em>new</em> non-disc
  * geometry -- SUB and XOR of a nested pair are an annulus, which this
  * stage does not build (0 intersections).
@@ -80,6 +82,10 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
       "LINESTRING (-1 2, 11 2)";
   private static final String CHORD_ARC =
       "LINESTRING (0 0, 2 3, 10 0)";
+  private static final String HALF_LOWER =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 -5, 5 0), (5 0, -5 0)))";
+  private static final String BAND_FOUR =
+      "POLYGON ((-8 -1, 8 -1, 8 1, -8 1, -8 -1))";
 
   private static final int[] OPS = { OverlayNGCurve.INTERSECTION, OverlayNGCurve.UNION,
       OverlayNGCurve.DIFFERENCE, OverlayNGCurve.SYMDIFFERENCE };
@@ -205,8 +211,16 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
     assertRow("arc ∩ arc reverse", ARC_B, ARC, "EEEE");
   }
 
-  public void testMatrix_sameCircleIsApproximate() throws Exception {
-    assertRow("same-circle overlap", ARC_SAME_Q1, ARC_SAME_Q2, "aaaa");
+  public void testMatrix_sameCircle() throws Exception {
+    assertRow("same-circle overlap", ARC_SAME_Q1, ARC_SAME_Q2, "EEEE");
+  }
+
+  public void testMatrix_complementaryHalves() throws Exception {
+    assertRow("complementary halves", HALF_DISC, HALF_LOWER, "0EEE");
+  }
+
+  public void testMatrix_fourCut() throws Exception {
+    assertRow("four-cut disc ∩ band", CIRCLE_5, BAND_FOUR, "EEEE");
   }
 
   // -- the disjoint CUP/XOR result, not just its exactness -----------------

@@ -22,6 +22,7 @@ import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.MultiSurface;
+import org.locationtech.jts.operation.overlayng.OverlayNG;
 
 /**
  * Closed-form overlay of a hole-free {@link CurvePolygon} whose shell is
@@ -34,9 +35,12 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * A LineString member stays a segment; a three-point LineString is not
  * an arc. A CompoundCurve that is itself a disc is left to
  * {@link CircularDiscOverlay} / {@link CircularDiscPolygonOverlay}.
- * Anything else -- holes, 0 / 1 / 3+ nodes, two CompoundCurve shells,
- * a line-only shell -- returns {@code null} so the caller takes the
- * chord baseline without paying this path first.
+ * Complementary half-discs of the same circle (shared diameter,
+ * opposite caps) are answered in closed form: CAP empty, CUP / XOR
+ * the disc, SUB the first half. Any other two CompoundCurve shells
+ * -- holes, 0 / 1 / 3+ nodes, a line-only shell -- return
+ * {@code null} so the caller takes the chord baseline without paying
+ * this path first.
  */
 final class CompoundCurveShellOverlay {
 
@@ -50,8 +54,9 @@ final class CompoundCurveShellOverlay {
   static Geometry overlay(Geometry a, Geometry b, int opCode) {
     CurvePolygon shellA = compoundCurveShell(a);
     CurvePolygon shellB = compoundCurveShell(b);
-    // Two mixed CompoundCurve shells are out of this slice.
-    if (shellA != null && shellB != null) return null;
+    if (shellA != null && shellB != null) {
+      return complementaryHalfDiscs(shellA, shellB, opCode, a);
+    }
 
     CurvePolygon shell = shellA;
     Geometry other = b;
@@ -107,6 +112,82 @@ final class CompoundCurveShellOverlay {
     }
     if (!hasArc || !hasLine) return null;
     return cp;
+  }
+
+  /**
+   * Two half-discs of the same circle that share a diameter and take
+   * opposite caps. Not a two-shell noder: any other pair is
+   * {@code null}.
+   */
+  private static Geometry complementaryHalfDiscs(CurvePolygon a,
+      CurvePolygon b, int opCode, Geometry first) {
+    HalfDisc ha = halfDisc(a);
+    HalfDisc hb = halfDisc(b);
+    if (ha == null || hb == null) return null;
+    double scale = Math.max(ha.r, 1.0);
+    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12);
+    if (ha.centre.distance(hb.centre) > eps || Math.abs(ha.r - hb.r) > eps) {
+      return null;
+    }
+    if (!sameEnds(ha.d0, ha.d1, hb.d0, hb.d1, eps)) return null;
+    if (ha.mid.distance(hb.mid) <= ha.r) return null;
+    GeometryFactory f = TwoNodeClip.curveFactory(first);
+    if (opCode == OverlayNG.INTERSECTION) {
+      return f.createEmpty(2);
+    }
+    if (opCode == OverlayNG.UNION || opCode == OverlayNG.SYMDIFFERENCE) {
+      return CircularDiscOverlay.discPolygon(ha.centre.x, ha.centre.y, ha.r, f);
+    }
+    if (opCode == OverlayNG.DIFFERENCE) {
+      return first;
+    }
+    return null;
+  }
+
+  private static HalfDisc halfDisc(CurvePolygon cp) {
+    List<TwoNodeClip.Edge> edges = TwoNodeClip.flatten(cp);
+    if (edges == null || edges.size() != 2) return null;
+    TwoNodeClip.Edge arc = null;
+    TwoNodeClip.Edge line = null;
+    for (int i = 0; i < edges.size(); i++) {
+      TwoNodeClip.Edge e = edges.get(i);
+      if (e.isArc) {
+        if (arc != null) return null;
+        arc = e;
+      }
+      else {
+        if (line != null) return null;
+        line = e;
+      }
+    }
+    if (arc == null || line == null) return null;
+    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * arc.circle[2],
+        1.0e-12);
+    if (!sameEnds(line.a, line.b, arc.a, arc.b, eps)) return null;
+    return new HalfDisc(new Coordinate(arc.circle[0], arc.circle[1]),
+        arc.circle[2], arc.a, arc.b, arc.mid);
+  }
+
+  private static boolean sameEnds(Coordinate a0, Coordinate a1,
+      Coordinate b0, Coordinate b1, double eps) {
+    return a0.distance(b0) <= eps && a1.distance(b1) <= eps
+        || a0.distance(b1) <= eps && a1.distance(b0) <= eps;
+  }
+
+  private static final class HalfDisc {
+    final Coordinate centre;
+    final double r;
+    final Coordinate d0;
+    final Coordinate d1;
+    final Coordinate mid;
+    HalfDisc(Coordinate centre, double r, Coordinate d0, Coordinate d1,
+        Coordinate mid) {
+      this.centre = centre;
+      this.r = r;
+      this.d0 = d0;
+      this.d1 = d1;
+      this.mid = mid;
+    }
   }
 
   /**
