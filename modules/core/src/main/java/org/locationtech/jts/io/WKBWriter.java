@@ -108,7 +108,12 @@ import org.locationtech.jts.util.Assert;
  * 	wkbMultiPoint = 4,
  * 	wkbMultiLineString = 5,
  * 	wkbMultiPolygon = 6,
- * 	wkbGeometryCollection = 7
+ * 	wkbGeometryCollection = 7,
+ * 	wkbCircularString = 8,
+ * 	wkbCompoundCurve = 9,
+ * 	wkbCurvePolygon = 10,
+ * 	wkbMultiCurve = 11,
+ * 	wkbMultiSurface = 12
  * }
  * 
  * enum byteOrder {
@@ -168,7 +173,14 @@ import org.locationtech.jts.util.Assert;
  * 	WKBGeometry elems[numElems];
  * }
  * 
- * </pre></blockquote> 
+ * </pre></blockquote>
+ * <p>
+ * Subclasses may override {@link #writeOtherGeometry} to emit ISO/OGC
+ * types the core writer does not construct (SQL/MM codes 8–12). The
+ * hook runs before the {@code instanceof} ladder so a
+ * {@code CircularString} is not written as a {@code LineString}.
+ * Helpers used to write byte order, type, coordinates, and nested
+ * members are {@code protected}.
  * @see WKBReader
  */
 public class WKBWriter
@@ -389,6 +401,10 @@ public class WKBWriter
       actualOutputOrdinates = cof.getOutputOrdinates();
     }
 
+    if (writeOtherGeometry(geom, actualOutputOrdinates, os)) {
+      return;
+    }
+
     if (geom instanceof Point)
       writePoint((Point) geom, actualOutputOrdinates, os);
     // LinearRings will be written as LineStrings
@@ -411,6 +427,17 @@ public class WKBWriter
     else {
       Assert.shouldNeverReachHere("Unknown Geometry type");
     }
+  }
+
+  /**
+   * Hook for subclasses to write geometry types the core dispatch does
+   * not handle (ISO/OGC SQL/MM codes 8–12). Called before the
+   * {@code instanceof} ladder. Return {@code true} if the geometry was
+   * written; {@code false} to continue with the core path.
+   */
+  protected boolean writeOtherGeometry(Geometry geom,
+      EnumSet<Ordinate> outputOrdinates, OutStream os) throws IOException {
+    return false;
   }
 
   private void writePoint(Point pt, EnumSet<Ordinate> outputOrdinates, OutStream os) throws IOException
@@ -464,7 +491,28 @@ public class WKBWriter
     this.includeSRID = originalIncludeSRID;
   }
 
-  private void writeByteOrder(OutStream os) throws IOException
+  /**
+   * Writes a typed collection: header, child count, then each child as
+   * a nested WKB geometry. Child SRIDs are omitted, matching Multi*
+   * writing.
+   */
+  protected void writeTypedCollection(int geometryType, Geometry parent,
+      Geometry[] children, EnumSet<Ordinate> outputOrdinates, OutStream os)
+      throws IOException {
+    writeByteOrder(os);
+    writeGeometryType(geometryType, outputOrdinates, parent, os);
+    writeInt(children == null ? 0 : children.length, os);
+    boolean originalIncludeSRID = this.includeSRID;
+    this.includeSRID = false;
+    if (children != null) {
+      for (int i = 0; i < children.length; i++) {
+        write(children[i], os);
+      }
+    }
+    this.includeSRID = originalIncludeSRID;
+  }
+
+  protected void writeByteOrder(OutStream os) throws IOException
   {
     if (byteOrder == ByteOrderValues.LITTLE_ENDIAN)
       buf[0] = WKBConstants.wkbNDR;
@@ -473,7 +521,7 @@ public class WKBWriter
     os.write(buf, 1);
   }
 
-  private void writeGeometryType(int geometryType, EnumSet<Ordinate> outputOrdinates, Geometry g, OutStream os)
+  protected void writeGeometryType(int geometryType, EnumSet<Ordinate> outputOrdinates, Geometry g, OutStream os)
       throws IOException
   {
     int ordinals = 0;
@@ -494,13 +542,13 @@ public class WKBWriter
     }
   }
 
-  private void writeInt(int intValue, OutStream os) throws IOException
+  protected void writeInt(int intValue, OutStream os) throws IOException
   {
     ByteOrderValues.putInt(intValue, buf, byteOrder);
     os.write(buf, 4);
   }
 
-  private void writeCoordinateSequence(CoordinateSequence seq, EnumSet<Ordinate> outputOrdinates, boolean writeSize, OutStream os)
+  protected void writeCoordinateSequence(CoordinateSequence seq, EnumSet<Ordinate> outputOrdinates, boolean writeSize, OutStream os)
       throws IOException
   {
     if (writeSize)
