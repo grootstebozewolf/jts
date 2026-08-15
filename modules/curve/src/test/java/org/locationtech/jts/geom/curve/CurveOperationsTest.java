@@ -29,9 +29,10 @@ import test.jts.GeometryTestCase;
  * DistanceOp, buffer offsetting chords instead of arcs -- but they share one
  * cause and one fix: linearise first, then delegate.
  * <p>
- * jts-core cannot do this itself; it has no visibility of the curve types
+ * jts-core cannot linearise; it has no visibility of the curve types
  * (jts-curve depends on core, not the reverse). The curve types are where the
  * arc geometry is known, so that is where the override belongs.
+ * {@code Geometry} flips {@code plain.op(curve)} onto that receiver.
  * <p>
  * The 270-degree unit arc below passes the top (0,1) and the left (-1,0), and
  * neither is a control point -- so anything driven off control points misses
@@ -114,20 +115,14 @@ public class CurveOperationsTest extends GeometryTestCase {
   }
 
   /**
-   * Known limitation of the opt-in module design: asking a jts-core geometry
-   * for its distance to a curve still measures to the chords, because
-   * {@code Point.distance()} lives in jts-core and cannot see the curve types.
-   * Curve-aware callers must put the curve on the left, or linearise first.
-   * <p>
-   * Locked deliberately so the asymmetry is a recorded decision rather than a
-   * surprise, and so it fails loudly if the two sides are ever reconciled.
+   * Reverse {@code point.distance(arc)} flips onto the curve, so both
+   * orders measure to the arc top rather than a control-point chord.
    */
-  public void testCoreSideDistanceRemainsChordBased() throws Exception {
+  public void testCoreSideDistanceSeesTheArc() throws Exception {
     Geometry arc = readCurve(ARC_270);
     Geometry p = point(0, 2);
     assertEquals("curve on the left sees the arc", 1.0, arc.distance(p), 1.0e-3);
-    assertTrue("core geometry on the left still sees chords: " + p.distance(arc),
-        p.distance(arc) > 1.4);
+    assertEquals("plain on the left sees the same arc", 1.0, p.distance(arc), 1.0e-3);
   }
 
   /** Buffering a circular polygon grows its radius, not its inscribed quad. */

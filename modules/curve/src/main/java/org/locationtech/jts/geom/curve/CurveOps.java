@@ -185,9 +185,11 @@ public final class CurveOps {
   // cover the arc) and is the laser that beats the chord call. Verdicts the
   // envelope cannot decide are evaluated on inscribed copies, so input within
   // TOLERANCE_FRACTION of a boundary transition is undecidable here -- the same
-  // band the overlay ratchet's margin gate refuses to decide in. The reverse
-  // direction (plain.contains(curve)) dispatches on the plain type and remains
-  // chord-based.
+  // band the overlay ratchet's margin gate refuses to decide in. Reverse
+  // direction (plain.contains(curve)) is flipped in Geometry onto the curve
+  // receiver, so these methods run for both operand orders. Difference is
+  // not symmetric and stays on the control-point path when the receiver is
+  // plain. MultiCurve / MultiSurface do not override the family yet.
 
   static IntersectionMatrix relate(Geometry curve, Geometry other) {
     return linearise(curve).relate(linearise(other));

@@ -51,13 +51,13 @@ import test.jts.GeometryTestCase;
  * the wrong object. Those three are overridden individually, and
  * {@code disjoint} follows from {@code intersects}.
  * <p>
- * <b>Known limitation, shared with CRV-OPS.</b> The fix is one-directional:
- * {@code plainPolygon.contains(curve)} dispatches on the plain type, which
- * jts-core owns, so it stays chord-based. {@code within} and {@code coveredBy}
- * on the curve side are exactly the cases rescued from that trap. And a point
- * lying <em>exactly on</em> the arc is inside the densification band, where no
+ * Reverse {@code plain.op(curve)} is flipped in {@code Geometry} onto the
+ * curve receiver, so the same overrides run in both orders. A point lying
+ * <em>exactly on</em> the arc is inside the densification band, where no
  * inscribed approximation can answer -- boundary-touching input remains
- * undecidable until an arc-aware noder exists.
+ * undecidable until an arc-aware noder exists. Difference with a plain
+ * receiver, and MultiCurve / MultiSurface as either operand, stay on the
+ * control-point path.
  */
 public class CurvePredicateTest extends GeometryTestCase {
 
@@ -220,19 +220,38 @@ public class CurvePredicateTest extends GeometryTestCase {
   }
 
   /**
-   * Guard, locking the known limitation rather than hiding it: the reverse
-   * direction dispatches on the plain type and stays chord-based. If this test
-   * ever fails because the answer became true, core gained curve awareness and
-   * the one-directional caveats here and in CurveOps should be revisited.
+   * Reverse of {@link #testBulgingCircleIsNotWithinTheSmallerDiamond}: the
+   * r=3 circle's control points sit inside the r=4 diamond, but the bulge
+   * at 45 degrees breaches it. {@code diamond.contains(circle)} used to
+   * follow the control polygon and answer true.
    */
-  public void testReverseDirectionRemainsChordBased() throws Exception {
+  public void testReverseContainsSeesTheBulge() throws Exception {
+    Geometry diamond4 = readCurve("POLYGON ((-4 0, 0 4, 4 0, 0 -4, -4 0))");
+    assertFalse("plain.contains(curve) must see the bulge that breaches the diamond",
+        diamond4.contains(readCurve(CIRCLE_3)));
+    assertFalse("and covers must agree",
+        diamond4.covers(readCurve(CIRCLE_3)));
+  }
+
+  /**
+   * Reverse of {@link #testCircularStringDoesNotIntersectChordOnlySegment}:
+   * the segment hits the control chord and misses the arc. Putting the
+   * LineString on the left used to answer true.
+   */
+  public void testReverseIntersectsDoesNotSeeChordOnly() throws Exception {
+    Geometry seg = readCurve(CHORD_ONLY_SEGMENT);
+    Geometry arc = readCurve("CIRCULARSTRING (-5 0, 0 5, 5 0)");
+    assertFalse("plain.intersects(curve) must not report the phantom chord hit",
+        seg.intersects(arc));
+  }
+
+  /**
+   * The r=3 circle is inside the r=5 diamond under both readings. Locked so
+   * the reverse flip does not invert a genuinely-true contains.
+   */
+  public void testReverseContainsWhenArcsAndChordsAgree() throws Exception {
     Geometry plainDiamond = readCurve("POLYGON ((-5 0, 0 5, 5 0, 0 -5, -5 0))");
-    Geometry innerCircle = readCurve(CIRCLE_3);
-    // The r=3 circle bulges past the diamond's chords near the axes (3 > 5/2?
-    // no: diamond edge at x+y=5; circle r=3 reaches (2.12, 2.12), 4.24 < 5, so
-    // the circle IS inside the diamond and this is a genuinely-true case the
-    // chord reading also gets right; assert it as a plain agreement guard.
-    assertTrue("plain.contains(curve) still answers via chords; on this input "
-        + "chords and arcs agree", plainDiamond.contains(innerCircle));
+    assertTrue("r=3 circle is inside the r=5 diamond",
+        plainDiamond.contains(readCurve(CIRCLE_3)));
   }
 }

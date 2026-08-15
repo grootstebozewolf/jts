@@ -120,6 +120,38 @@ public class CurveOverlayTest extends GeometryTestCase {
         AREA_A / 4.0, quarter.getArea(), AREA_TOL);
   }
 
+  /**
+   * Reverse of {@link #testOverlayWithAPlainPolygon}: the plain square on
+   * the left used to node the circle's control diamond (area 12.5) instead
+   * of the quarter disc.
+   */
+  public void testReverseOverlayWithAPlainPolygon() throws Exception {
+    Geometry square = readCurve("POLYGON ((0 0, 5 0, 5 5, 0 5, 0 0))");
+    Geometry quarter = square.intersection(readCurve(A));
+    assertEquals("plain.intersection(curve) is the same quarter disc",
+        AREA_A / 4.0, quarter.getArea(), AREA_TOL);
+  }
+
+  /**
+   * The r=3 circle sits inside the r=5 diamond. Reverse CAP must return
+   * the circle (area 9*pi), not the control-point diamond (area 18).
+   */
+  public void testReverseNestedCapIsTheInnerCircle() throws Exception {
+    Geometry diamond = readCurve("POLYGON ((-5 0, 0 5, 5 0, 0 -5, -5 0))");
+    assertEquals("plain.intersection(inner circle) is the circle, not the diamond",
+        AREA_B, diamond.intersection(readCurve(B)).getArea(), AREA_TOL);
+  }
+
+  /**
+   * Reverse CUP of a square around the inner circle is the square; the
+   * circle is covered, so the ratchet keeps the plain operand.
+   */
+  public void testReverseNestedCupIsTheSquare() throws Exception {
+    Geometry square = readCurve("POLYGON ((-6 -6, 6 -6, 6 6, -6 6, -6 -6))");
+    assertEquals("plain.union(inner circle) is the square",
+        144.0, square.union(readCurve(B)).getArea(), AREA_TOL);
+  }
+
   /** A CircularString operand must be densified too, not just a CurvePolygon. */
   public void testCircularStringOverlay() throws Exception {
     Geometry arc = readCurve("CIRCULARSTRING (-5 0, 0 5, 5 0)");
