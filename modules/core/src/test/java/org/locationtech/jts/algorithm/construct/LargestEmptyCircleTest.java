@@ -125,6 +125,18 @@ public class LargestEmptyCircleTest extends GeometryTestCase {
     checkCircle("GEOMETRYCOLLECTION (LINESTRING EMPTY, POINT (4 3), POINT (7 6), POINT (4 6))", 
         0.01, 5.5, 4.5, 2.12 );
   }
+
+  /**
+   * The four chords of the r=2 circle are a diamond, not a disk.
+   * LEC of that n-gon (boundary as obstacle) is the inscribed radius √2,
+   * not the continuous disk radius 2.
+   */
+  public void testPlainSquareOfFourChordsIsNotTheDisk() {
+    checkCircle(
+        "LINESTRING (-2 0, 0 2, 2 0, 0 -2, -2 0)",
+        "POLYGON ((-2 0, 0 2, 2 0, 0 -2, -2 0))",
+        0.01, 0.0, 0.0, Math.sqrt(2.0));
+  }
   
   //========================================================
   

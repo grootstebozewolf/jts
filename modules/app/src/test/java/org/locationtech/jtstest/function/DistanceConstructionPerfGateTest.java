@@ -46,9 +46,8 @@ import junit.textui.TestRunner;
  * </table>
  * After the lasers (same harness): two discs 0.007 / 15.5 (0.000),
  * arc-baseline 0.009 / 0.063 (0.14), nearest 0.001 / 0.105 (0.01),
- * MIC 0.001 / 0.971 (0.001). Fréchet and LEC stay on the chords -- no
- * closed form beat the sampled path, and a timing row there is only
- * timer noise on equal work.
+ * MIC 0.001 / 0.971 (0.001). Fréchet and LEC certified cells are gated
+ * next to the public classes (15% slack).
  * <p>
  * Each row asserts {@code median(laser) <= median(chainsaw)}. A 15% slack
  * covers timer noise.

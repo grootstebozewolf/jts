@@ -180,4 +180,38 @@ public class RocqRefRunnerTest extends TestCase {
     RocqRefRunner.Result r = RocqRefRunner.runDoubles(cases);
     assertTrue("R^2 mismatch (literature hard cases):\n" + r, r.isSound());
   }
+
+  // ------------------------------------------------------------------
+  // LEC_CIRCLE (NTS.Proofs #466)
+  // ------------------------------------------------------------------
+
+  /**
+   * Locked pin: r=2, n=4. Exact radius is {@code 0x1p+1}; chorded radius
+   * is bit-exact √2. The chord path cannot certify the disk.
+   */
+  public void testLecCircleLockedHex() {
+    double[] exact = RocqRefRunner.exactLecCircle(0.0, 0.0, 2.0);
+    double[] chorded = RocqRefRunner.chordedLecCircle(0.0, 0.0, 2.0, 4);
+    assertEquals(0.0, exact[0], 0.0);
+    assertEquals(0.0, exact[1], 0.0);
+    assertEquals(RocqRefRunner.LEC_CIRCLE_EXACT_R2_BITS,
+        Double.doubleToRawLongBits(exact[2]));
+    assertEquals(2.0, exact[2], 0.0);
+    assertEquals(RocqRefRunner.LEC_CIRCLE_CHORDED_R2_N4_BITS,
+        Double.doubleToRawLongBits(chorded[2]));
+    assertTrue("chorded must not equal the exact disk radius",
+        chorded[2] != exact[2]);
+  }
+
+  /**
+   * Optional oracle: when {@code ORACLE_BIN} is set, the binary must
+   * agree bit-exactly with the Java reconstruction. Absent binary skips.
+   */
+  public void testLecCircleOracleOptional() throws Exception {
+    RocqRefRunner.Result r = RocqRefRunner.runOracleLecCircle(0.0, 0.0, 2.0, 4);
+    if (r == null) {
+      return;
+    }
+    assertTrue("ORACLE_BIN disagrees with LEC_CIRCLE reference:\n" + r, r.isSound());
+  }
 }

@@ -348,12 +348,26 @@ public class DiscreteHausdorffDistance
   }
 
   /**
+   * {@code {cx, cy, r}} of a full-circle {@code CircularString}, or {@code null}.
+   *
+   * @param g a geometry
+   * @return {@code {cx, cy, r}} or {@code null}
+   */
+  public static double[] circularRing(Geometry g) {
+    if (g == null || !"CircularString".equals(g.getGeometryType())) return null;
+    return fullCircle(g);
+  }
+
+  /**
    * {@code {cx, cy, r}} of a hole-free circular disc, or {@code null}.
    * Unwraps a single-member {@code MultiSurface}. Uses
    * {@link Geometry#getGeometryType()} and {@link Geometry#getBoundary()}
    * so the shell type is visible without importing jts-curve.
+   *
+   * @param g a geometry
+   * @return {@code {cx, cy, r}} or {@code null}
    */
-  static double[] circularDisc(Geometry g) {
+  public static double[] circularDisc(Geometry g) {
     if (g == null) return null;
     if ("MultiSurface".equals(g.getGeometryType())) {
       if (g.getNumGeometries() != 1) return null;

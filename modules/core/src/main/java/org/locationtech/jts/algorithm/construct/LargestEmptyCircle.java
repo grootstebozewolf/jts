@@ -15,6 +15,7 @@ import java.util.PriorityQueue;
 
 import org.locationtech.jts.algorithm.Centroid;
 import org.locationtech.jts.algorithm.InteriorPoint;
+import org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance;
 import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
@@ -52,6 +53,17 @@ import org.locationtech.jts.operation.distance.IndexedFacetDistance;
  * The grid is refined using a branch-and-bound algorithm. 
  * Point containment and distance are computed in a performant
  * way by using spatial indexes.
+ * <p>
+ * One certified cell uses a closed form instead of the grid:
+ * a circular disc as the containing boundary with its own
+ * circumference as the linear obstacle (or the equivalent
+ * {@code CurvePolygon} / full-circle {@code CircularString} /
+ * single-member {@code MultiSurface} encodings). The exact
+ * LEC is the disc itself (centre, r). Detection reuses
+ * {@link DiscreteHausdorffDistance#circularDisc(Geometry)}
+ * and {@link DiscreteHausdorffDistance#circularRing(Geometry)}
+ * via {@link Geometry#getGeometryType()} so this class does
+ * not import jts-curve. Any other obstacle set keeps the grid.
  * 
  * @author Martin Davis
  * 
@@ -151,6 +163,18 @@ public class LargestEmptyCircle {
     LargestEmptyCircle lec = new LargestEmptyCircle(obstacles, boundary, tolerance);
     return lec.getRadiusLine();
   }
+
+  /**
+   * True when {@link #getCenter(Geometry, Geometry, double)} uses the
+   * certified disc closed form (centre, r) instead of the grid.
+   *
+   * @param obstacles a geometry representing the obstacles
+   * @param boundary a polygonal geometry (may be null or empty)
+   * @return {@code true} if the pair is answered by the closed form
+   */
+  public static boolean hasCertifiedClosedForm(Geometry obstacles, Geometry boundary) {
+    return certifiedCircle(obstacles, boundary) != null;
+  }
   
   private Geometry obstacles;
   private Geometry boundary;
@@ -169,6 +193,7 @@ public class LargestEmptyCircle {
   private Coordinate radiusPt;
   private Point radiusPoint = null;
   private Geometry bounds;
+  private double[] certifiedCircle;
 
   /**
    * Creates a new instance of a Largest Empty Circle construction,
@@ -212,7 +237,10 @@ public class LargestEmptyCircle {
     this.boundary = boundary;
     this.factory = obstacles.getFactory();
     this.tolerance = tolerance;
-    obstacleDistance = new IndexedDistanceToPoint( obstacles );
+    this.certifiedCircle = certifiedCircle(obstacles, boundary);
+    if (this.certifiedCircle == null) {
+      obstacleDistance = new IndexedDistanceToPoint(obstacles);
+    }
   }
 
   /**
@@ -294,10 +322,15 @@ public class LargestEmptyCircle {
   }
   
   private void compute() {
-    initBoundary();
-    
     // check if already computed
     if (centerCell != null) return;
+
+    if (certifiedCircle != null) {
+      applyCertifiedCircle(certifiedCircle);
+      return;
+    }
+
+    initBoundary();
     
     // if boundaryPtLocater is not present then result is degenerate (represented as zero-radius circle)
     if (boundaryPtLocater == null) {
@@ -362,6 +395,42 @@ public class LargestEmptyCircle {
     Coordinate[] nearestPts = obstacleDistance.nearestPoints(centerPoint);
     radiusPt = nearestPts[0].copy();
     radiusPoint = factory.createPoint(radiusPt);
+  }
+
+  /**
+   * Circle obstacle over its disk: exact LEC is (centre, r).
+   * A radius point is taken on the +x axis so the radius line has length r.
+   */
+  private void applyCertifiedCircle(double[] c) {
+    centerPt = new Coordinate(c[0], c[1]);
+    centerPoint = factory.createPoint(centerPt);
+    radiusPt = new Coordinate(c[0] + c[2], c[1]);
+    radiusPoint = factory.createPoint(radiusPt);
+    centerCell = new Cell(c[0], c[1], 0.0, c[2]);
+  }
+
+  /**
+   * Certified encodings: a circular disc (or its full-circle ring) as
+   * the obstacle, with either no boundary (the disk is implied) or the
+   * matching disc as the containing boundary.
+   */
+  private static double[] certifiedCircle(Geometry obstacles, Geometry boundary) {
+    double[] obs = circleOf(obstacles);
+    if (obs == null) return null;
+    if (boundary == null || boundary.isEmpty()) {
+      return obs;
+    }
+    double[] bnd = DiscreteHausdorffDistance.circularDisc(boundary);
+    if (bnd == null) return null;
+    if (Math.hypot(obs[0] - bnd[0], obs[1] - bnd[1]) > 1.0e-9) return null;
+    if (Math.abs(obs[2] - bnd[2]) > 1.0e-9) return null;
+    return obs;
+  }
+
+  private static double[] circleOf(Geometry g) {
+    double[] d = DiscreteHausdorffDistance.circularDisc(g);
+    if (d != null) return d;
+    return DiscreteHausdorffDistance.circularRing(g);
   }
 
   //-- empirically determined to balance accuracy and speed

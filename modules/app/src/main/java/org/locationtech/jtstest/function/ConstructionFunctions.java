@@ -35,8 +35,8 @@ public class ConstructionFunctions {
    * through as the same object.
    * <p>
    * <b>PERF-GATE.</b> A circular disc's MIC is the disc itself (centre +
-   * radius) and is taken in closed form. LargestEmptyCircle stays on the
-   * chord path -- no cheaper construction beat densify-then-LEC.
+   * radius) and is taken in closed form. LargestEmptyCircle of a circular
+   * disc used as boundary-as-obstacle is the same closed form (centre, r).
    */
   private static Geometry arc(Geometry g) {
     return CurveFunctions.linearizeForOps(g);
@@ -124,7 +124,9 @@ public class ConstructionFunctions {
   public static Geometry largestEmptyCircle(Geometry obstacles, Geometry boundary,
       @Metadata(title="Accuracy distance tolerance")
       double tolerance) { 
-    LineString radiusLine = LargestEmptyCircle.getRadiusLine(arc(obstacles), arc(boundary), tolerance);
+    LineString radiusLine = LargestEmptyCircle.hasCertifiedClosedForm(obstacles, boundary)
+        ? LargestEmptyCircle.getRadiusLine(obstacles, boundary, tolerance)
+        : LargestEmptyCircle.getRadiusLine(arc(obstacles), arc(boundary), tolerance);
     return circleByRadiusLine(radiusLine, 60);
   }
   
@@ -132,6 +134,9 @@ public class ConstructionFunctions {
   public static Geometry largestEmptyCircleCenter(Geometry obstacles, Geometry boundary,
       @Metadata(title="Accuracy distance tolerance")
       double tolerance) { 
+    if (LargestEmptyCircle.hasCertifiedClosedForm(obstacles, boundary)) {
+      return LargestEmptyCircle.getCenter(obstacles, boundary, tolerance);
+    }
     return LargestEmptyCircle.getCenter(arc(obstacles), arc(boundary), tolerance); 
   }
   
@@ -139,6 +144,9 @@ public class ConstructionFunctions {
   public static Geometry largestEmptyCircleRadius(Geometry obstacles, Geometry boundary, 
       @Metadata(title="Accuracy distance tolerance")
       double tolerance) { 
+    if (LargestEmptyCircle.hasCertifiedClosedForm(obstacles, boundary)) {
+      return LargestEmptyCircle.getRadiusLine(obstacles, boundary, tolerance);
+    }
     return LargestEmptyCircle.getRadiusLine(arc(obstacles), arc(boundary), tolerance); 
   }
   
