@@ -80,6 +80,9 @@ public class DistanceFunctions {
   @Metadata(description="Discrete Fréchet after arc linearise (monotone coupling; free ends lower-bound the leash — often the realizing pair)")
   public static double frechetDistance(Geometry a, Geometry b)  
   {   
+    if (DiscreteFrechetDistance.hasCertifiedClosedForm(a, b)) {
+      return DiscreteFrechetDistance.distance(a, b);
+    }
     // Quadratic DP: coarser sampling, or a curve pair runs for 20 seconds.
     // Error bound and rationale on CurveFunctions.linearizeForQuadratic.
     return DiscreteFrechetDistance.distance(
@@ -94,6 +97,10 @@ public class DistanceFunctions {
   @Metadata(description="Discrete Fréchet realizing leash segment (free ends often dominate — not path-only mid-course gap)")
   public static Geometry frechetDistanceLine(Geometry a, Geometry b)  
   {   
+    if (DiscreteFrechetDistance.hasCertifiedClosedForm(a, b)) {
+      DiscreteFrechetDistance dist = new DiscreteFrechetDistance(a, b);
+      return a.getFactory().createLineString(dist.getCoordinates());
+    }
     DiscreteFrechetDistance dist = new DiscreteFrechetDistance(
         CurveFunctions.linearizeForQuadratic(a), CurveFunctions.linearizeForQuadratic(b));
     return a.getFactory().createLineString(dist.getCoordinates());

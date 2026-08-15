@@ -334,14 +334,14 @@ public class DiscreteHausdorffDistance
     return false;
   }
 
-  private static boolean isSingleArc(Geometry g) {
+  static boolean isSingleArc(Geometry g) {
     if (g == null || !"CircularString".equals(g.getGeometryType())) return false;
     if (g.isEmpty() || g.getNumPoints() != 3) return false;
     Coordinate[] c = g.getCoordinates();
     return circumcircle(c[0], c[1], c[2]) != null;
   }
 
-  private static boolean isSingleSegment(Geometry g) {
+  static boolean isSingleSegment(Geometry g) {
     return g instanceof LineString
         && "LineString".equals(g.getGeometryType())
         && g.getNumPoints() == 2;
@@ -353,7 +353,7 @@ public class DiscreteHausdorffDistance
    * {@link Geometry#getGeometryType()} and {@link Geometry#getBoundary()}
    * so the shell type is visible without importing jts-curve.
    */
-  private static double[] circularDisc(Geometry g) {
+  static double[] circularDisc(Geometry g) {
     if (g == null) return null;
     if ("MultiSurface".equals(g.getGeometryType())) {
       if (g.getNumGeometries() != 1) return null;
@@ -392,7 +392,7 @@ public class DiscreteHausdorffDistance
     return found;
   }
 
-  private static double signedSweep(Coordinate start, Coordinate mid,
+  static double signedSweep(Coordinate start, Coordinate mid,
       Coordinate end, double[] c) {
     double a0 = Math.atan2(start.y - c[1], start.x - c[0]);
     double aMid = Math.atan2(mid.y - c[1], mid.x - c[0]);
@@ -412,7 +412,7 @@ public class DiscreteHausdorffDistance
     return angle;
   }
 
-  private static void circleToCircle(double c1x, double c1y, double r1,
+  static void circleToCircle(double c1x, double c1y, double r1,
       double c2x, double c2y, double r2, PointPairDistance dest) {
     double d = Math.hypot(c1x - c2x, c1y - c2y);
     if (d == 0.0) {
@@ -526,7 +526,7 @@ public class DiscreteHausdorffDistance
     return t >= 0.0 && t <= 1.0;
   }
 
-  private static double[] circumcircle(Coordinate a, Coordinate b, Coordinate c) {
+  static double[] circumcircle(Coordinate a, Coordinate b, Coordinate c) {
     if (Orientation.index(a, b, c) == Orientation.COLLINEAR) return null;
     double ax = a.x, ay = a.y;
     double bx = b.x, by = b.y;
