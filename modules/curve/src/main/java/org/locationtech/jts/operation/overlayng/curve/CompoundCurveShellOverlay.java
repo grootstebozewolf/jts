@@ -42,11 +42,14 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * opposite caps) are answered in closed form: CAP empty, CUP / XOR
  * the disc, SUB the first half. Same-circle half-discs whose
  * diameters are perpendicular assemble as sectors (quarter / three-
- * quarter). Any other two hole-free CompoundCurve shells with
- * exactly two proper nodes walk the surviving pieces. Holes,
- * 0 / 1 / 3+ nodes, collinear overlap, or a pair that would need a
- * general circular noder return {@code null} so the caller takes the
- * chord baseline without paying this path first.
+ * quarter). Collinear same-side half-discs are interval / sweep
+ * overlay on that line (identity, nested, crossing half-lens, or
+ * a point-touch). Any other two hole-free CompoundCurve shells with
+ * exactly two proper nodes walk the surviving pieces; 0 / 1 node is
+ * containment or a disjoint touch via {@link TwoNodeClip#locateInShell}.
+ * Holes, 3+ nodes, or a pair that would need a general circular
+ * noder return {@code null} so the caller takes the chord baseline
+ * without paying this path first.
  */
 final class CompoundCurveShellOverlay {
 
@@ -69,6 +72,11 @@ final class CompoundCurveShellOverlay {
           opCode, a);
       if (sectors != null) {
         return sectors;
+      }
+      Geometry collinear = collinearSameSideHalfDiscs(shellA, shellB,
+          opCode, a);
+      if (collinear != null) {
+        return collinear;
       }
       return twoShellClip(shellA, shellB, opCode, a);
     }
@@ -213,9 +221,76 @@ final class CompoundCurveShellOverlay {
   }
 
   /**
+   * Two half-discs whose diameters lie on one line and whose caps
+   * take the same side. Same circle is the half-disc; nested is the
+   * smaller / larger / half-annulus; a point-touch is disjoint
+   * interiors; a proper crossing is the half-lens on that line.
+   */
+  private static Geometry collinearSameSideHalfDiscs(CurvePolygon a,
+      CurvePolygon b, int opCode, Geometry first) {
+    HalfDisc ha = halfDisc(a);
+    HalfDisc hb = halfDisc(b);
+    if (ha == null || hb == null) return null;
+    double scale = Math.max(Math.max(ha.r, hb.r), 1.0);
+    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12);
+    if (!isDiameter(ha, eps) || !isDiameter(hb, eps)) return null;
+    if (!collinearDiameters(ha, hb, eps) || !sameCapSide(ha, hb, eps)) {
+      return null;
+    }
+
+    GeometryFactory f = TwoNodeClip.curveFactory(first);
+    double d = ha.centre.distance(hb.centre);
+    boolean sameCircle = d <= eps && Math.abs(ha.r - hb.r) <= eps;
+    if (sameCircle) {
+      if (!sameEnds(ha.d0, ha.d1, hb.d0, hb.d1, eps)) return null;
+      return identityShell(opCode, first, f);
+    }
+    boolean aInB = d + ha.r <= hb.r + eps;
+    boolean bInA = d + hb.r <= ha.r + eps;
+    if (aInB && !bInA) {
+      return containedShell(a, b, true, opCode, first, f);
+    }
+    if (bInA && !aInB) {
+      return containedShell(b, a, false, opCode, first, f);
+    }
+    if (d >= ha.r + hb.r - eps) {
+      return disjointShells(opCode, first, a, b, f);
+    }
+    return crossingHalfLens(ha, hb, opCode, f, scale, eps);
+  }
+
+  /**
+   * 0 or 1 proper node: one shell inside the other, or interiors
+   * disjoint (including a single vertex touch). Not a 1-node walk.
+   */
+  private static Geometry fewNodeOverlay(CurvePolygon a, CurvePolygon b,
+      int opCode, Geometry first) {
+    Coordinate sa = shellSample(a);
+    Coordinate sb = shellSample(b);
+    if (sa == null || sb == null) return null;
+    int aInB = TwoNodeClip.locateInShell(sa, b);
+    int bInA = TwoNodeClip.locateInShell(sb, a);
+    if (aInB == TwoNodeClip.MIXED || bInA == TwoNodeClip.MIXED) {
+      return null;
+    }
+    GeometryFactory f = TwoNodeClip.curveFactory(first);
+    if (aInB == TwoNodeClip.IN && bInA == TwoNodeClip.OUT) {
+      return containedShell(a, b, true, opCode, first, f);
+    }
+    if (bInA == TwoNodeClip.IN && aInB == TwoNodeClip.OUT) {
+      return containedShell(b, a, false, opCode, first, f);
+    }
+    if (aInB == TwoNodeClip.OUT && bInA == TwoNodeClip.OUT) {
+      return disjointShells(opCode, first, a, b, f);
+    }
+    return null;
+  }
+
+  /**
    * Exactly two proper nodes between two hole-free CompoundCurve
    * shells. Segment–segment, segment–circle, and circle–circle hits
-   * only; collinear overlap or 0 / 1 / 3+ nodes are a miss.
+   * only; collinear overlap is a miss (answered above). 0 / 1 node
+   * is containment or a touch. 3+ nodes stay refused.
    */
   private static Geometry twoShellClip(CurvePolygon a, CurvePolygon b,
       int opCode, Geometry first) {
@@ -229,6 +304,9 @@ final class CompoundCurveShellOverlay {
             b.getEnvelopeInternal().getHeight()));
     List<TwoNodeClip.Node> nodesA = new ArrayList<TwoNodeClip.Node>();
     if (!collectTwoShellHits(edgesA, edgesB, nodesA, scale)) return null;
+    if (nodesA.size() <= 1) {
+      return fewNodeOverlay(a, b, opCode, first);
+    }
     if (!TwoNodeClip.properPair(nodesA, scale)) return null;
 
     TwoNodeClip.Node pA = nodesA.get(0);
@@ -425,6 +503,197 @@ final class CompoundCurveShellOverlay {
     members.add(f.createLineString(new Coordinate[] {
         new Coordinate(to), new Coordinate(c)
     }));
+    return TwoNodeClip.closeRing(members, f,
+        Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12));
+  }
+
+  private static boolean collinearDiameters(HalfDisc a, HalfDisc b,
+      double eps) {
+    double len = a.d0.distance(a.d1);
+    if (len == 0.0) return false;
+    double tol = eps * len;
+    return Math.abs(cross2(a.d0, a.d1, b.d0)) <= tol
+        && Math.abs(cross2(a.d0, a.d1, b.d1)) <= tol;
+  }
+
+  private static boolean sameCapSide(HalfDisc a, HalfDisc b, double eps) {
+    double sa = cross2(a.d0, a.d1, a.mid);
+    double sb = cross2(a.d0, a.d1, b.mid);
+    double thresh = eps * a.d0.distance(a.d1);
+    if (Math.abs(sa) <= thresh || Math.abs(sb) <= thresh) return false;
+    return sa * sb > 0.0;
+  }
+
+  private static double cross2(Coordinate o, Coordinate a, Coordinate p) {
+    return (a.x - o.x) * (p.y - o.y) - (a.y - o.y) * (p.x - o.x);
+  }
+
+  private static Geometry identityShell(int opCode, Geometry first,
+      GeometryFactory f) {
+    if (opCode == OverlayNG.INTERSECTION || opCode == OverlayNG.UNION) {
+      return first.copy();
+    }
+    if (opCode == OverlayNG.DIFFERENCE || opCode == OverlayNG.SYMDIFFERENCE) {
+      return f.createEmpty(2);
+    }
+    return null;
+  }
+
+  private static Geometry containedShell(CurvePolygon inner, CurvePolygon outer,
+      boolean innerIsFirst, int opCode, Geometry first, GeometryFactory f) {
+    if (opCode == OverlayNG.INTERSECTION) {
+      return innerIsFirst ? first.copy() : inner.copy();
+    }
+    if (opCode == OverlayNG.UNION) {
+      return innerIsFirst ? outer.copy() : first.copy();
+    }
+    if (opCode == OverlayNG.DIFFERENCE) {
+      return innerIsFirst ? f.createEmpty(2) : withHole(outer, inner, f);
+    }
+    if (opCode == OverlayNG.SYMDIFFERENCE) {
+      return withHole(outer, inner, f);
+    }
+    return null;
+  }
+
+  private static Geometry disjointShells(int opCode, Geometry first,
+      CurvePolygon a, CurvePolygon b, GeometryFactory f) {
+    if (opCode == OverlayNG.INTERSECTION) {
+      return f.createEmpty(2);
+    }
+    if (opCode == OverlayNG.DIFFERENCE) {
+      return first.copy();
+    }
+    if (opCode == OverlayNG.UNION || opCode == OverlayNG.SYMDIFFERENCE) {
+      return new MultiSurface(new Polygon[] {
+          (Polygon) a.copy(), (Polygon) b.copy()
+      }, f);
+    }
+    return null;
+  }
+
+  private static Geometry withHole(CurvePolygon outer, CurvePolygon inner,
+      GeometryFactory f) {
+    return new CurvePolygon(outer.getExteriorCurve(),
+        new LineString[] { inner.getExteriorCurve() }, f);
+  }
+
+  private static Coordinate shellSample(CurvePolygon cp) {
+    List<TwoNodeClip.Edge> edges = TwoNodeClip.flatten(cp);
+    if (edges == null) return null;
+    Coordinate found = null;
+    for (int i = 0; i < edges.size(); i++) {
+      TwoNodeClip.Edge e = edges.get(i);
+      if (e.isArc && e.mid != null && found == null) {
+        found = e.mid;
+      }
+    }
+    return found;
+  }
+
+  private static Geometry crossingHalfLens(HalfDisc ha, HalfDisc hb,
+      int opCode, GeometryFactory f, double scale, double eps) {
+    Coordinate node = capNode(ha, hb);
+    Coordinate endA = endInDisc(ha, hb, eps);
+    Coordinate endB = endInDisc(hb, ha, eps);
+    if (node == null || endA == null || endB == null) return null;
+    if (node.distance(endA) <= eps || node.distance(endB) <= eps) {
+      return null;
+    }
+    Coordinate fromA = endA.distance(ha.d0) <= eps ? ha.d1 : ha.d0;
+    Coordinate fromB = endB.distance(hb.d0) <= eps ? hb.d1 : hb.d0;
+    TwoNodeClip.Edge arcA = capEdge(ha);
+    TwoNodeClip.Edge arcB = capEdge(hb);
+    Coordinate midCapA = TwoNodeClip.midOnSweep(node, endA, arcA);
+    Coordinate midCapB = TwoNodeClip.midOnSweep(endB, node, arcB);
+    Coordinate midCupA = TwoNodeClip.midOnSweep(fromA, node, arcA);
+    Coordinate midCupB = TwoNodeClip.midOnSweep(node, fromB, arcB);
+    if (midCapA == null || midCapB == null || midCupA == null
+        || midCupB == null) {
+      return null;
+    }
+    if (opCode == OverlayNG.INTERSECTION) {
+      return closePieces(f, scale,
+          TwoNodeClip.arc(node, midCapA, endA, f),
+          line(endA, endB, f),
+          TwoNodeClip.arc(endB, midCapB, node, f));
+    }
+    if (opCode == OverlayNG.UNION) {
+      return closePieces(f, scale,
+          TwoNodeClip.arc(fromA, midCupA, node, f),
+          TwoNodeClip.arc(node, midCupB, fromB, f),
+          line(fromB, fromA, f));
+    }
+    if (opCode == OverlayNG.DIFFERENCE) {
+      return closePieces(f, scale,
+          TwoNodeClip.arc(fromA, midCupA, node, f),
+          TwoNodeClip.arc(node, midCapB, endB, f),
+          line(endB, fromA, f));
+    }
+    if (opCode == OverlayNG.SYMDIFFERENCE) {
+      Polygon ab = closePieces(f, scale,
+          TwoNodeClip.arc(fromA, midCupA, node, f),
+          TwoNodeClip.arc(node, midCapB, endB, f),
+          line(endB, fromA, f));
+      Polygon ba = closePieces(f, scale,
+          TwoNodeClip.arc(fromB, midCupB, node, f),
+          TwoNodeClip.arc(node, midCapA, endA, f),
+          line(endA, fromB, f));
+      if (ab == null || ba == null) return null;
+      return new MultiSurface(new Polygon[] { ab, ba }, f);
+    }
+    return null;
+  }
+
+  private static Coordinate capNode(HalfDisc ha, HalfDisc hb) {
+    Coordinate[] xs = TwoNodeClip.intersectCircles(
+        ha.centre.x, ha.centre.y, ha.r, hb.centre.x, hb.centre.y, hb.r);
+    Coordinate found = null;
+    boolean two = false;
+    for (int k = 0; k < xs.length; k++) {
+      if (onCap(ha, xs[k]) && onCap(hb, xs[k])) {
+        if (found != null) {
+          two = true;
+        }
+        else {
+          found = xs[k];
+        }
+      }
+    }
+    return two ? null : found;
+  }
+
+  private static boolean onCap(HalfDisc h, Coordinate p) {
+    double[] c = new double[] { h.centre.x, h.centre.y, h.r };
+    return TwoNodeClip.isOnSweep(p, c, h.d0, h.mid, h.d1);
+  }
+
+  private static Coordinate endInDisc(HalfDisc self, HalfDisc other,
+      double eps) {
+    boolean in0 = self.d0.distance(other.centre) <= other.r + eps;
+    boolean in1 = self.d1.distance(other.centre) <= other.r + eps;
+    if (in0 == in1) return null;
+    return in0 ? self.d0 : self.d1;
+  }
+
+  private static TwoNodeClip.Edge capEdge(HalfDisc h) {
+    return new TwoNodeClip.Edge(h.d0, h.mid, h.d1, true,
+        new double[] { h.centre.x, h.centre.y, h.r });
+  }
+
+  private static LineString line(Coordinate a, Coordinate b,
+      GeometryFactory f) {
+    return f.createLineString(new Coordinate[] {
+        new Coordinate(a), new Coordinate(b)
+    });
+  }
+
+  private static Polygon closePieces(GeometryFactory f, double scale,
+      LineString p0, LineString p1, LineString p2) {
+    List<LineString> members = new ArrayList<LineString>();
+    members.add(p0);
+    members.add(p1);
+    members.add(p2);
     return TwoNodeClip.closeRing(members, f,
         Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12));
   }

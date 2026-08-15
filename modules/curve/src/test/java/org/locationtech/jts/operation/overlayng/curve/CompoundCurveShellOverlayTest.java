@@ -203,6 +203,22 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
   /** Upper half of CIRCLE_CROSSING -- collinear diameters with HALF_DISC. */
   private static final String HALF_CROSSING_UPPER =
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (2 0, 7 5, 12 0), (12 0, 2 0)))";
+  /** Nested same-side half: r=3 at the origin, diameter inside HALF_DISC. */
+  private static final String HALF_SMALL =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-3 0, 0 3, 3 0), (3 0, -3 0)))";
+  /** External point-touch at (5, 0): right half of the circle at (5, 0). */
+  private static final String HALF_TOUCH =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (5 -5, 10 0, 5 5), (5 5, 5 -5)))";
+  /** Stadium strictly inside HALF_DISC -- 0 nodes, containment. */
+  private static final String STADIUM_IN =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, -2 2, -1 3), (-1 3, 1 3), CIRCULARSTRING (1 3, 2 2, 1 1), (1 1, -1 1)))";
+  /** Vertical stadium: 4 line–circle nodes on HALF_DISC. */
+  private static final String STADIUM_FOUR =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, 0 -2, 1 -1), (1 -1, 1 6), CIRCULARSTRING (1 6, 0 7, -1 6), (-1 6, -1 -1)))";
+  private static final String HALF_HOLED =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0 1, 1 1, 1 2, 0 2, 0 1))";
+  private static final double SMALL_HALF = 4.5 * Math.PI;
+  private static final double STADIUM_AREA = 4.0 + Math.PI;
 
   public void testOverlappingSameCircleHalvesAreSectors() throws Exception {
     Geometry upper = readCurve(HALF_DISC);
@@ -287,19 +303,115 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
     assertEquals("hanging half minus lens", HALF - LENS, bite.getArea(), EXACT);
   }
 
+  public void testCollinearCrossingHalvesAreTheHalfLens() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(HALF_CROSSING_UPPER);
+    OverlayNGCurve cap = new OverlayNGCurve(a, b);
+    Geometry lens = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("collinear CAP is exact", cap.isApproximate());
+    assertEquals("upper half-lens r=5 d=7", HALF_LENS, lens.getArea(), EXACT);
+    assertArcAndLineShell(lens);
+    assertParity(a, b, OverlayNG.INTERSECTION, lens);
+
+    OverlayNGCurve cup = new OverlayNGCurve(a, b);
+    Geometry u = cup.getResult(OverlayNG.UNION);
+    assertFalse("collinear CUP is exact", cup.isApproximate());
+    assertEquals("two halves minus half-lens", 2.0 * HALF - HALF_LENS,
+        u.getArea(), EXACT);
+    assertArcAndLineShell(u);
+
+    OverlayNGCurve sub = new OverlayNGCurve(a, b);
+    Geometry bite = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("collinear SUB is exact", sub.isApproximate());
+    assertEquals("half minus half-lens", HALF - HALF_LENS, bite.getArea(),
+        EXACT);
+  }
+
+  public void testCollinearCrossingReverseOrder() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(HALF_CROSSING_UPPER);
+    OverlayNGCurve cap = new OverlayNGCurve(b, a);
+    Geometry lens = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("collinear reverse CAP is exact", cap.isApproximate());
+    assertEquals("half-lens reverse", HALF_LENS, lens.getArea(), EXACT);
+  }
+
+  public void testNestedSameSideHalves() throws Exception {
+    Geometry large = readCurve(HALF_DISC);
+    Geometry small = readCurve(HALF_SMALL);
+    OverlayNGCurve cap = new OverlayNGCurve(large, small);
+    Geometry inner = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("nested CAP is exact", cap.isApproximate());
+    assertEquals("smaller half", SMALL_HALF, inner.getArea(), EXACT);
+
+    OverlayNGCurve cup = new OverlayNGCurve(large, small);
+    Geometry outer = cup.getResult(OverlayNG.UNION);
+    assertFalse("nested CUP is exact", cup.isApproximate());
+    assertEquals("larger half", HALF, outer.getArea(), EXACT);
+
+    OverlayNGCurve sub = new OverlayNGCurve(large, small);
+    Geometry ring = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("nested SUB is exact", sub.isApproximate());
+    assertEquals("half-annulus", HALF - SMALL_HALF, ring.getArea(), EXACT);
+    assertEquals("one hole", 1, ((CurvePolygon) ring).getNumInteriorRing());
+
+    OverlayNGCurve rev = new OverlayNGCurve(small, large);
+    Geometry empty = rev.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("small \\ large is exact", rev.isApproximate());
+    assertTrue(empty.isEmpty());
+  }
+
+  public void testOneNodeTouchIsDisjointInteriors() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(HALF_TOUCH);
+    OverlayNGCurve cap = new OverlayNGCurve(a, b);
+    Geometry empty = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-TOUCH CAP is exact", cap.isApproximate());
+    assertTrue("interiors are disjoint", empty.isEmpty());
+
+    OverlayNGCurve cup = new OverlayNGCurve(a, b);
+    Geometry both = cup.getResult(OverlayNG.UNION);
+    assertFalse("touch CUP is exact", cup.isApproximate());
+    assertEquals("two members", 2, both.getNumGeometries());
+    assertEquals("both halves", 2.0 * HALF, both.getArea(), EXACT);
+
+    OverlayNGCurve sub = new OverlayNGCurve(a, b);
+    Geometry first = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("touch SUB is exact", sub.isApproximate());
+    assertEquals(HALF, first.getArea(), EXACT);
+  }
+
+  public void testZeroNodeContainmentKeepsTheInnerShell() throws Exception {
+    Geometry half = readCurve(HALF_DISC);
+    Geometry stadium = readCurve(STADIUM_IN);
+    OverlayNGCurve cap = new OverlayNGCurve(half, stadium);
+    Geometry inner = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("0-node CAP is exact", cap.isApproximate());
+    assertEquals("inner stadium", STADIUM_AREA, inner.getArea(), EXACT);
+    assertArcAndLineShell(inner);
+
+    OverlayNGCurve cup = new OverlayNGCurve(half, stadium);
+    Geometry outer = cup.getResult(OverlayNG.UNION);
+    assertFalse("0-node CUP is exact", cup.isApproximate());
+    assertEquals("outer half", HALF, outer.getArea(), EXACT);
+  }
+
   public void testNotThisCellReturnsNull() throws Exception {
     Geometry half = readCurve(HALF_DISC);
     Geometry disc = readCurve(CIRCLE_5);
     Geometry other = readCurve(CIRCLE_CROSSING);
     Geometry square = readCurve(SQUARE_CAP);
     Geometry chords = readCurve(CHORD_SHELL);
-    Geometry collinear = readCurve(HALF_CROSSING_UPPER);
+    Geometry four = readCurve(STADIUM_FOUR);
+    Geometry holed = readCurve(HALF_HOLED);
     assertNull("two discs stay on R1.5",
         CompoundCurveShellOverlay.overlay(disc, other, OverlayNG.INTERSECTION));
     assertNull("plain vs plain",
         CompoundCurveShellOverlay.overlay(square, square, OverlayNG.UNION));
-    assertNull("H-SHELL: collinear diameters / 3+ nodes stay refused",
-        CompoundCurveShellOverlay.overlay(half, collinear, OverlayNG.INTERSECTION));
+    assertNull("H-SHELL-N: 4-node two-shell stays refused",
+        CompoundCurveShellOverlay.overlay(half, four, OverlayNG.INTERSECTION));
+    assertNull("H-SHELL-HOLE: a hole-bearing shell stays refused",
+        CompoundCurveShellOverlay.overlay(holed, half, OverlayNG.INTERSECTION));
     assertNull("line-only shell",
         CompoundCurveShellOverlay.overlay(chords, square, OverlayNG.INTERSECTION));
   }

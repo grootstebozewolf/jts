@@ -280,8 +280,8 @@ public class CircularArcOverlayTest extends GeometryTestCase {
    * H-SHELL: complementary half-discs of the same circle are CAP empty
    * / CUP the disc / SUB the first half. Perpendicular same-circle
    * halves assemble as sectors. Two hole-free shells with exactly two
-   * proper nodes walk the surviving arcs. Collinear diameters / 3+
-   * nodes stay refused (not a noder).
+   * proper nodes walk the surviving arcs. Collinear same-side halves
+   * are the half-lens. 3+ nodes and holes stay refused.
    */
   public void testHShellComplementaryHalfDiscsAreTheDisc() throws Exception {
     Geometry upper = readCurve(HALF_UPPER);
@@ -335,8 +335,23 @@ public class CircularArcOverlayTest extends GeometryTestCase {
 
     Geometry collinear = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (2 0, 7 5, 12 0), (12 0, 2 0)))");
-    assertNull("H-SHELL: collinear diameters stay refused",
-        CompoundCurveShellOverlay.overlay(upper, collinear, OverlayNG.UNION));
+    OverlayNGCurve colCap = new OverlayNGCurve(upper, collinear);
+    Geometry halfLens = colCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-COLLINEAR CAP is exact", colCap.isApproximate());
+    assertEquals("upper half-lens r=5 d=7",
+        25.0 * Math.acos(0.7) - 0.25 * 7.0 * Math.sqrt(51.0),
+        halfLens.getArea(), EXACT);
+    assertTrue("collinear CAP keeps an arc", hasCircularString(halfLens));
+
+    Geometry fourCut = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, 0 -2, 1 -1), (1 -1, 1 6), CIRCULARSTRING (1 6, 0 7, -1 6), (-1 6, -1 -1)))");
+    assertNull("H-SHELL-N: 4-node two-shell stays refused",
+        CompoundCurveShellOverlay.overlay(upper, fourCut, OverlayNG.INTERSECTION));
+
+    Geometry holed = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0 1, 1 1, 1 2, 0 2, 0 1))");
+    assertNull("H-SHELL-HOLE: a hole-bearing shell stays refused",
+        CompoundCurveShellOverlay.overlay(holed, upper, OverlayNG.INTERSECTION));
   }
 
   public void testRllStillRefusesTwoArcs() throws Exception {

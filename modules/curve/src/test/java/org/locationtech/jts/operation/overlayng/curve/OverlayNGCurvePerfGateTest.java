@@ -430,6 +430,42 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
         () -> chordOverlay(a, b, OverlayNGCurve.UNION));
   }
 
+  public void testCollinearHalvesCapNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (2 0, 7 5, 12 0), (12 0, 2 0)))");
+    assertLaserNotSlower("collinear halves CAP",
+        () -> OverlayNGCurve.intersection(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testCollinearHalvesCupNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (2 0, 7 5, 12 0), (12 0, 2 0)))");
+    assertLaserNotSlower("collinear halves CUP",
+        () -> OverlayNGCurve.union(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.UNION));
+  }
+
+  public void testNestedHalvesCapNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-3 0, 0 3, 3 0), (3 0, -3 0)))");
+    assertLaserNotSlower("nested halves CAP",
+        () -> OverlayNGCurve.intersection(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testOneNodeTouchCapNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (5 -5, 10 0, 5 5), (5 5, 5 -5)))");
+    assertLaserNotSlower("one-node touch CAP",
+        () -> OverlayNGCurve.intersection(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.INTERSECTION));
+  }
+
   public void testFourCutCapNotSlowerThanChord() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
     Geometry b = readCurve("POLYGON ((-8 -1, 8 -1, 8 1, -8 1, -8 -1))");

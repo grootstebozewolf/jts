@@ -46,8 +46,9 @@ import test.jts.GeometryTestCase;
  * cutting square (R1.7) is EEEE in both operand orders. Two crossing
  * CircularStrings (R-AA) are EEEE in both operand orders. Same-circle
  * overlapping arcs are EEEE (interval overlay). Complementary half-discs
- * are 0EEE. Perpendicular same-circle half-discs and a two-node
- * two-shell clip are EEEE. A four-cut disc vs a band is EEEE. The cells that
+ * are 0EEE. Perpendicular same-circle half-discs, a two-node two-shell
+ * clip, collinear same-side halves, nested halves, and a 1-node touch
+ * are exact. A four-cut disc vs a band is EEEE. The cells that
  * stay approximate are the ones whose answer is a <em>new</em> non-disc
  * geometry -- SUB and XOR of a nested pair are an annulus, which this
  * stage does not build (0 intersections).
@@ -89,6 +90,12 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (0 -5, 5 0, 0 5), (0 5, 0 -5)))";
   private static final String HALF_HANGING =
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 8, 0 3, 5 8), (5 8, -5 8)))";
+  private static final String HALF_CROSSING_UPPER =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (2 0, 7 5, 12 0), (12 0, 2 0)))";
+  private static final String HALF_SMALL =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-3 0, 0 3, 3 0), (3 0, -3 0)))";
+  private static final String HALF_TOUCH =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (5 -5, 10 0, 5 5), (5 5, 5 -5)))";
   private static final String BAND_FOUR =
       "POLYGON ((-8 -1, 8 -1, 8 1, -8 1, -8 -1))";
 
@@ -238,6 +245,18 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_twoShellLensReverse() throws Exception {
     assertRow("two-shell lens reverse", HALF_HANGING, HALF_DISC, "EEEE");
+  }
+
+  public void testMatrix_collinearHalves() throws Exception {
+    assertRow("collinear halves", HALF_DISC, HALF_CROSSING_UPPER, "EEEE");
+  }
+
+  public void testMatrix_nestedHalves() throws Exception {
+    assertRow("nested halves", HALF_DISC, HALF_SMALL, "EEEE");
+  }
+
+  public void testMatrix_oneNodeTouch() throws Exception {
+    assertRow("one-node touch", HALF_DISC, HALF_TOUCH, "0EEE");
   }
 
   public void testMatrix_fourCut() throws Exception {

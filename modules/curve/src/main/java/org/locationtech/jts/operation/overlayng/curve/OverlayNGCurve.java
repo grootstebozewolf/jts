@@ -92,10 +92,12 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     Complementary half-discs of the same circle (shared diameter)
  *     are CAP empty / CUP the disc / SUB the first half. Same-circle
  *     half-discs whose diameters are perpendicular assemble as sectors.
- *     Any other two hole-free CompoundCurve shells with exactly two
- *     proper nodes walk the surviving pieces. Holes, 0 / 1 / 3+ nodes,
- *     collinear overlap, or a line-only shell return {@code null}
- *     without paying this path.</li>
+ *     Collinear same-side half-discs are identity, nested, a
+ *     half-lens, or a point-touch. Any other two hole-free
+ *     CompoundCurve shells with exactly two proper nodes walk the
+ *     surviving pieces; 0 / 1 node is containment or a disjoint
+ *     touch. Holes, 3+ nodes, or a line-only shell return
+ *     {@code null} without paying this path.</li>
  * <li><b>R-LL</b> -- one operand is a {@link org.locationtech.jts.geom.curve.CircularString}
  *     (or a lineal CompoundCurve of LineString + CircularString) and the
  *     other is a plain LineString. Line–circle nodes are exact. CAP is
