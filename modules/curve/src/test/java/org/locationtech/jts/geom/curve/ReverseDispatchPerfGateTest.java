@@ -61,8 +61,8 @@ import test.jts.GeometryTestCase;
  * 0.076 (0.002), multi nested 0.001 / 0.104 (0.008). After: disjoint
  * SUB 0.002 / 0.065 (0.025), nested SUB 0.165 / 0.163 (1.02 -- the
  * laser <em>is</em> the chord overlay), crossing SUB 0.141 / 0.139
- * (1.02), multi disjoint 0.000 / 0.051 (0.005), multi nested 0.045 /
- * 0.045 (1.01).
+ * (1.02), multi disjoint 0.000 / 0.051 (0.005), multi nested 0.001 /
+ * 0.094 (0.008 -- rectangle envelope covers the arc AABB, no densify).
  * <p>
  * After the flip (same harness): intersects far 0.000 / 0.043 (0.007),
  * intersects crossing 0.096 / 0.096 (1.00 -- the laser <em>is</em> the

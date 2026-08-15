@@ -214,6 +214,10 @@ public final class CurveOps {
     if (!other.getEnvelopeInternal().covers(curve.getEnvelopeInternal())) {
       return false;
     }
+    // A rectangle that covers the arc AABB covers the arc. Densifying
+    // to re-ask the same question is the wrapper the nested multi-vs-
+    // plain gate refused.
+    if (other.isRectangle()) return true;
     return linearise(curve).coveredBy(linearise(other));
   }
   static boolean touches(Geometry curve, Geometry other) {

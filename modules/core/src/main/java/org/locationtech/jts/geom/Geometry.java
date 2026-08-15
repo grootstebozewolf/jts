@@ -942,7 +942,16 @@ public abstract class Geometry
    * @see Geometry#coveredBy
    */
   public boolean covers(Geometry g) {
-    if (delegateToCurve(g)) return g.coveredBy(this);
+    if (delegateToCurve(g)) {
+      // Envelope miss is exact (curve envelopes cover the arc). A
+      // rectangle whose envelope covers the curve's is also exact --
+      // everything in that AABB is in the rectangle. Either answers
+      // without densify. Only a non-rectangle that might still miss
+      // the bulge has to flip onto the curve and linearise.
+      if (!getEnvelopeInternal().covers(g.getEnvelopeInternal())) return false;
+      if (isRectangle()) return true;
+      return g.coveredBy(this);
+    }
     return GeometryRelate.covers(this, g);
   }
 
