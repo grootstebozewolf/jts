@@ -211,8 +211,9 @@ public class DistanceFunctions {
   //--------------------------------------------
   
   public static double distanceIndexed(Geometry a, Geometry b) {
-    Coordinate[] exact = CurveExactFns.nearestPoints(a, b);
-    if (exact != null) return exact[0].distance(exact[1]);
+    // Facet distance is boundary-to-boundary. Do not reuse the areal
+    // disc-to-disc laser (overlap/nest is 0 for filled discs; nested
+    // boundaries still have a positive gap).
     return IndexedFacetDistance.distance(arc(a), arc(b));
   }
   
@@ -221,9 +222,7 @@ public class DistanceFunctions {
   }
   
   public static Geometry nearestPointsIndexed(Geometry a, Geometry b) {
-    Coordinate[] exact = CurveExactFns.nearestPoints(a, b);
-    if (exact != null) return a.getFactory().createLineString(exact);
-    Coordinate[] pts =  IndexedFacetDistance.nearestPoints(arc(a), arc(b));
+    Coordinate[] pts = IndexedFacetDistance.nearestPoints(arc(a), arc(b));
     return a.getFactory().createLineString(pts);
   }
   

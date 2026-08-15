@@ -247,4 +247,16 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
         edge.isApproximate());
     assertEquals("touching removes nothing", 100.0, er.getArea(), 0.0);
   }
+
+  /**
+   * An arc-free CurvePolygon is Linearizable, but it has no arc, so the
+   * decide margin is zero -- the same as a plain Polygon.
+   */
+  public void testDecideToleranceIsZeroForArcFreeCurvePolygon() throws Exception {
+    Geometry plainRings = readCurve(
+        "CURVEPOLYGON ((-6 -6, 6 -6, 6 6, -6 6, -6 -6))");
+    assertEquals("CurvePolygon", plainRings.getGeometryType());
+    assertEquals("no arc means no decide margin",
+        0.0, OverlayNGCurve.decideTolerance(plainRings), 0.0);
+  }
 }

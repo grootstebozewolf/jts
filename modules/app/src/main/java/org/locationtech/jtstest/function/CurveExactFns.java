@@ -103,21 +103,40 @@ final class CurveExactFns {
     return new Coordinate[] { q, p.getCoordinate() };
   }
 
+  /**
+   * Areal (filled-disc) nearest points. Overlap or nest is distance 0:
+   * a lens node when the boundaries cross, the smaller centre when one
+   * disc contains the other. Facet / {@code IndexedFacetDistance}
+   * callers must not use this -- they keep boundary semantics.
+   */
   private static Coordinate[] discToDisc(double[] a, double[] b) {
     double dx = b[0] - a[0];
     double dy = b[1] - a[1];
     double d = Math.hypot(dx, dy);
-    if (d == 0.0) {
-      return new Coordinate[] {
-          new Coordinate(a[0] + a[2], a[1]),
-          new Coordinate(b[0] + b[2], b[1])
-      };
+    double ra = a[2];
+    double rb = b[2];
+    if (d <= ra + rb) {
+      if (d == 0.0 || d + Math.min(ra, rb) <= Math.max(ra, rb)) {
+        double[] inner = ra <= rb ? a : b;
+        Coordinate c = new Coordinate(inner[0], inner[1]);
+        return new Coordinate[] { c, new Coordinate(c) };
+      }
+      double along = (ra * ra - rb * rb + d * d) / (2.0 * d);
+      double h2 = ra * ra - along * along;
+      double ux = dx / d;
+      double uy = dy / d;
+      double mx = a[0] + along * ux;
+      double my = a[1] + along * uy;
+      Coordinate lens = h2 <= 0.0
+          ? new Coordinate(mx, my)
+          : new Coordinate(mx + Math.sqrt(h2) * -uy, my + Math.sqrt(h2) * ux);
+      return new Coordinate[] { lens, new Coordinate(lens) };
     }
     double ux = dx / d;
     double uy = dy / d;
     return new Coordinate[] {
-        new Coordinate(a[0] + a[2] * ux, a[1] + a[2] * uy),
-        new Coordinate(b[0] - b[2] * ux, b[1] - b[2] * uy)
+        new Coordinate(a[0] + ra * ux, a[1] + ra * uy),
+        new Coordinate(b[0] - rb * ux, b[1] - rb * uy)
     };
   }
 

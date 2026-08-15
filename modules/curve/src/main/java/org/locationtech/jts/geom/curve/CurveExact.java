@@ -329,18 +329,10 @@ final class CurveExact {
     for (int i = 0; i < n; i++) {
       Coordinate[] a = arcAt(curve, i);
       for (int j = 1; j < p.length; j++) {
-        min = Math.min(min, distanceArcToSegment(a[0], a[1], a[2], p[j - 1], p[j]));
+        min = Math.min(min, CircularArcDensifier.distanceArcToSegment(
+            a[0], a[1], a[2], p[j - 1], p[j]));
       }
     }
-    return min;
-  }
-
-  private static double distanceArcToSegment(Coordinate a0, Coordinate a1,
-      Coordinate a2, Coordinate s0, Coordinate s1) {
-    double min = CircularArcDensifier.distancePointToSegment(a0, s0, s1);
-    min = Math.min(min, CircularArcDensifier.distancePointToSegment(a2, s0, s1));
-    min = Math.min(min, CircularArcDensifier.distancePointToArc(s0, a0, a1, a2));
-    min = Math.min(min, CircularArcDensifier.distancePointToArc(s1, a0, a1, a2));
     return min;
   }
 

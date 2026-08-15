@@ -35,11 +35,10 @@ import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
  * since jts-curve depends on core rather than the reverse. Densifying at the
  * boundary is what lets them stay untouched.
  * <p>
- * {@link #linearise(Geometry)}, {@link #TOLERANCE_FRACTION} and
- * {@link #overlayCircularDiscs} are public because
- * {@code org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve} needs
- * them from another package; duplicating the constant or the disc check would
- * let the two drift. The remaining methods stay package-private.
+ * {@link #linearise(Geometry)} and {@link #TOLERANCE_FRACTION} are public because
+ * {@code org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve} needs the
+ * same tolerance from another package; duplicating the constant would let the two
+ * drift. The remaining methods stay package-private.
  * <p>
  * Results are therefore approximations bounded by {@link #TOLERANCE_FRACTION},
  * not exact arc answers. Where an exact closed form exists it is used directly
@@ -71,15 +70,6 @@ public final class CurveOps {
   }
 
   /**
-   * Closed-form overlay of two crossing circular discs, or {@code null} if
-   * the pair is not that shape. Public so {@link OverlayNGCurve} can call it
-   * from another package; not a second overlay entry point.
-   */
-  public static Geometry overlayCircularDiscs(Geometry a, Geometry b, int opCode) {
-    return CircularDiscOverlay.overlay(a, b, opCode);
-  }
-
-  /**
    * The densification tolerance {@link #linearise(Geometry)} would use for this
    * geometry, and therefore the maximum distance by which its densified copy
    * deviates from the true arc. Zero for a geometry with no arc, whose linearised
@@ -92,10 +82,42 @@ public final class CurveOps {
    * within that band.
    */
   public static double tolerance(Geometry g) {
-    if (!(g instanceof Linearizable)) return 0.0;
+    if (!hasCircularArc(g)) return 0.0;
     Envelope env = g.getEnvelopeInternal();
     double extent = Math.max(env.getWidth(), env.getHeight());
     return (extent > 0.0 ? extent : 1.0) * TOLERANCE_FRACTION;
+  }
+
+  /**
+   * True when {@code g} contains a {@link CircularString}. An arc-free
+   * {@link CurvePolygon} of plain rings is {@link Linearizable} but has
+   * no arc, so {@link #tolerance(Geometry)} is zero.
+   */
+  static boolean hasCircularArc(Geometry g) {
+    if (g == null || g.isEmpty()) return false;
+    if (g instanceof CircularString) return true;
+    if (g instanceof CompoundCurve) {
+      CompoundCurve cc = (CompoundCurve) g;
+      for (int i = 0; i < cc.getNumMembers(); i++) {
+        if (hasCircularArc(cc.getMemberN(i))) return true;
+      }
+      return false;
+    }
+    if (g instanceof CurvePolygon) {
+      CurvePolygon cp = (CurvePolygon) g;
+      if (hasCircularArc(cp.getExteriorCurve())) return true;
+      for (int i = 0; i < cp.getNumInteriorRing(); i++) {
+        if (hasCircularArc(cp.getInteriorCurveN(i))) return true;
+      }
+      return false;
+    }
+    int n = g.getNumGeometries();
+    if (n >= 1 && g.getGeometryN(0) != g) {
+      for (int i = 0; i < n; i++) {
+        if (hasCircularArc(g.getGeometryN(i))) return true;
+      }
+    }
+    return false;
   }
 
   static Geometry convexHull(Geometry curve) {

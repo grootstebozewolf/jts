@@ -9,15 +9,19 @@
  *
  * http://www.eclipse.org/org/documents/edl-v10.php.
  */
-package org.locationtech.jts.geom.curve;
+package org.locationtech.jts.operation.overlayng.curve;
 
 import org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.geom.curve.CurveOps;
+import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jts.operation.overlayng.OverlayNG;
 import org.locationtech.jts.operation.overlayng.OverlayNGRobust;
-import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
@@ -25,7 +29,7 @@ import test.jts.GeometryTestCase;
 /**
  * R1.5: two crossing circular discs become lens / blob / crescents, exact,
  * and JTS-class with the chord overlay. Anything else is {@code null} so
- * OverlayNGCurve can take R2 without paying both tools.
+ * OverlayNGCurve can take R2 without paying this path first.
  */
 public class CircularDiscOverlayTest extends GeometryTestCase {
 

@@ -196,7 +196,7 @@ public class OverlayNGCurve {
       if (retained != null) return retained;
     }
 
-    Geometry discs = CurveOps.overlayCircularDiscs(a, b, opCode); // R1.5
+    Geometry discs = CircularDiscOverlay.overlay(a, b, opCode); // R1.5
     if (discs != null) return discs;
 
     // R2. The chord baseline: densify at the ops tolerance and run core.
@@ -415,14 +415,14 @@ public class OverlayNGCurve {
    * for a geometry with no arc.
    */
   static double decideTolerance(Geometry g) {
-    if (!(g instanceof Linearizable)) return 0.0;
+    if (CurveOps.tolerance(g) <= 0.0) return 0.0;
     Envelope env = g.getEnvelopeInternal();
     double extent = Math.max(env.getWidth(), env.getHeight());
     return (extent > 0.0 ? extent : 1.0) * DECIDE_TOLERANCE_FRACTION;
   }
 
   private static Geometry lineariseToDecide(Geometry g) {
-    if (!(g instanceof Linearizable)) return g;
+    if (CurveOps.tolerance(g) <= 0.0) return g;
     return ((Linearizable) g).toLinear(decideTolerance(g));
   }
 

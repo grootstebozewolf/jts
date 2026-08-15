@@ -16,7 +16,9 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.locationtech.jts.algorithm.LineIntersector;
 import org.locationtech.jts.algorithm.Orientation;
+import org.locationtech.jts.algorithm.RobustLineIntersector;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 
@@ -465,17 +467,96 @@ public final class CircularArcDensifier {
     return Math.max(Math.abs(lo - r2), Math.abs(hi - r2));
   }
 
+  /**
+   * Minimum distance from the circular arc through {@code a0, a1, a2} to
+   * the segment {@code s0, s1}. A colinear triple degrades to the chord.
+   * Candidates are the four endpoints, the two circle points whose radius
+   * is parallel to the segment normal (same extrema
+   * {@link #directedHausdorffArcToSegment} uses), and any proper
+   * segment-arc crossing (distance 0).
+   */
+  static double distanceArcToSegment(Coordinate a0, Coordinate a1, Coordinate a2,
+      Coordinate s0, Coordinate s1) {
+    Circle c = Circle.fromThreePoints(a0, a1, a2);
+    if (c == null) {
+      return distanceSegmentToSegment(a0, a2, s0, s1);
+    }
+    if (segmentIntersectsArc(c, a0, a1, a2, s0, s1)) {
+      return 0.0;
+    }
+    double min = distancePointToSegment(a0, s0, s1);
+    min = Math.min(min, distancePointToSegment(a2, s0, s1));
+    min = Math.min(min, distancePointToArc(s0, a0, a1, a2));
+    min = Math.min(min, distancePointToArc(s1, a0, a1, a2));
+    double sx = s1.x - s0.x;
+    double sy = s1.y - s0.y;
+    double slen = Math.hypot(sx, sy);
+    if (slen > 0.0) {
+      double nx = -sy / slen;
+      double ny = sx / slen;
+      for (int sign = -1; sign <= 1; sign += 2) {
+        Coordinate q = new Coordinate(c.cx + sign * c.r * nx, c.cy + sign * c.r * ny);
+        if (isOnSweep(q, c, a0, a1, a2) && projectionOnSegment(q, s0, s1)) {
+          min = Math.min(min, distancePointToSegment(q, s0, s1));
+        }
+      }
+    }
+    return min;
+  }
+
+  static double distanceSegmentToSegment(Coordinate a0, Coordinate a1,
+      Coordinate b0, Coordinate b1) {
+    LineIntersector li = new RobustLineIntersector();
+    li.computeIntersection(a0, a1, b0, b1);
+    if (li.hasIntersection()) return 0.0;
+    double min = distancePointToSegment(a0, b0, b1);
+    min = Math.min(min, distancePointToSegment(a1, b0, b1));
+    min = Math.min(min, distancePointToSegment(b0, a0, a1));
+    return Math.min(min, distancePointToSegment(b1, a0, a1));
+  }
+
+  private static boolean segmentIntersectsArc(Circle c, Coordinate a0,
+      Coordinate a1, Coordinate a2, Coordinate s0, Coordinate s1) {
+    double dx = s1.x - s0.x;
+    double dy = s1.y - s0.y;
+    double fx = s0.x - c.cx;
+    double fy = s0.y - c.cy;
+    double A = dx * dx + dy * dy;
+    if (A == 0.0) {
+      return Math.abs(Math.hypot(fx, fy) - c.r) <= 1.0e-12
+          && isOnSweep(s0, c, a0, a1, a2);
+    }
+    double B = 2.0 * (fx * dx + fy * dy);
+    double C = fx * fx + fy * fy - c.r * c.r;
+    double disc = B * B - 4.0 * A * C;
+    if (disc < 0.0) return false;
+    double sqrt = Math.sqrt(disc);
+    for (int sign = -1; sign <= 1; sign += 2) {
+      double t = (-B + sign * sqrt) / (2.0 * A);
+      if (t < -1.0e-12 || t > 1.0 + 1.0e-12) continue;
+      Coordinate p = new Coordinate(s0.x + t * dx, s0.y + t * dy);
+      if (isOnSweep(p, c, a0, a1, a2)) return true;
+    }
+    return false;
+  }
+
   static double distanceArcToArc(Coordinate a0, Coordinate a1, Coordinate a2,
       Coordinate b0, Coordinate b1, Coordinate b2) {
+    Circle ca = Circle.fromThreePoints(a0, a1, a2);
+    Circle cb = Circle.fromThreePoints(b0, b1, b2);
+    if (ca == null && cb == null) {
+      return distanceSegmentToSegment(a0, a2, b0, b2);
+    }
+    if (ca == null) {
+      return distanceArcToSegment(b0, b1, b2, a0, a2);
+    }
+    if (cb == null) {
+      return distanceArcToSegment(a0, a1, a2, b0, b2);
+    }
     double min = distancePointToArc(a0, b0, b1, b2);
     min = Math.min(min, distancePointToArc(a2, b0, b1, b2));
     min = Math.min(min, distancePointToArc(b0, a0, a1, a2));
     min = Math.min(min, distancePointToArc(b2, a0, a1, a2));
-    Circle ca = Circle.fromThreePoints(a0, a1, a2);
-    Circle cb = Circle.fromThreePoints(b0, b1, b2);
-    if (ca == null || cb == null) {
-      return min;
-    }
     double dx = cb.cx - ca.cx;
     double dy = cb.cy - ca.cy;
     double d = Math.hypot(dx, dy);

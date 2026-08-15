@@ -172,4 +172,49 @@ public class CurveOperationsTest extends GeometryTestCase {
   public void testEmptyArcHull() throws Exception {
     assertTrue(readCurve("CIRCULARSTRING EMPTY").convexHull().isEmpty());
   }
+
+  /**
+   * Semicircle (0 0, 5 5, 10 0), centre (5,0) r=5. A horizontal line at
+   * y=8 is 3 above the apex (5,5). Endpoint-only candidates reported 8
+   * (the line's height above the x-axis endpoints).
+   */
+  public void testArcToSegmentDistanceUsesApex() throws Exception {
+    Geometry arc = readCurve("CIRCULARSTRING (0 0, 5 5, 10 0)");
+    Geometry line = readCurve("LINESTRING (-100 8, 100 8)");
+    assertEquals("apex (5,5) to (5,8) is 3, not the endpoint height 8",
+        3.0, arc.distance(line), 1.0e-12);
+    Double exact = CurveExact.distance(arc, line);
+    assertNotNull("closed form must answer this pair", exact);
+    assertEquals(3.0, exact.doubleValue(), 1.0e-12);
+  }
+
+  /**
+   * The same semicircle crosses {@code LINESTRING (0 3, 10 3)} twice.
+   * Intersects implies distance 0; endpoint-only candidates reported ~0.83.
+   */
+  public void testArcToSegmentCrossingIsDistanceZero() throws Exception {
+    Geometry arc = readCurve("CIRCULARSTRING (0 0, 5 5, 10 0)");
+    Geometry line = readCurve("LINESTRING (0 3, 10 3)");
+    assertTrue("the line crosses the semicircle twice", arc.intersects(line));
+    assertEquals("intersects implies distance 0", 0.0, arc.distance(line), 1.0e-12);
+    Double exact = CurveExact.distance(arc, line);
+    assertNotNull(exact);
+    assertEquals("closed form must be 0 when the operands intersect",
+        0.0, exact.doubleValue(), 1.0e-12);
+  }
+
+  /**
+   * A straight CompoundCurve member is a colinear triple. Distance to
+   * another arc must use the segment, not the member endpoints alone.
+   */
+  public void testCompoundStraightMemberDistanceUsesSegment() throws Exception {
+    Geometry compound = readCurve(
+        "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
+    Geometry other = readCurve("CIRCULARSTRING (5 3, 5.5 2, 6 3)");
+    assertEquals("closest is the straight member at y=0 to the bulge at y=2",
+        2.0, compound.distance(other), 1.0e-9);
+    Double exact = CurveExact.distance(compound, other);
+    assertNotNull(exact);
+    assertEquals(2.0, exact.doubleValue(), 1.0e-9);
+  }
 }
