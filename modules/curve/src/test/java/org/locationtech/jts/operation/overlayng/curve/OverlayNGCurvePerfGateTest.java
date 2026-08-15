@@ -278,6 +278,22 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
         () -> p.within(CurveOps.linearise(a)));
   }
 
+  public void testRelateInteriorNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry p = readCurve(POINT_INSIDE);
+    assertLaserNotSlower("relate interior",
+        () -> a.relate(p),
+        () -> CurveOps.linearise(a).relate(p));
+  }
+
+  public void testReverseRelateInteriorNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry p = readCurve(POINT_INSIDE);
+    assertLaserNotSlower("rev relate interior",
+        () -> p.relate(a),
+        () -> p.relate(CurveOps.linearise(a)));
+  }
+
   public void testContainsFarNotSlowerThanChord() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
     Geometry p = readCurve(POINT_FAR);

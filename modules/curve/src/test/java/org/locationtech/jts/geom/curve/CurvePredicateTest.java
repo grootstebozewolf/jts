@@ -191,8 +191,12 @@ public class CurvePredicateTest extends GeometryTestCase {
 
   /** relate itself, since everything else routes through it. */
   public void testRelateSeesTheArc() throws Exception {
+    Geometry disc = readCurve(CIRCLE_5);
+    Geometry p = readCurve(BULGE_POINT);
+    assertEquals("JTS area.relate(interior point)",
+        CurveExact.IM_POINT_INTERIOR, disc.relate(p).toString());
     assertTrue("relate should report containment of the bulge point",
-        readCurve(CIRCLE_5).relate(readCurve(BULGE_POINT)).isContains());
+        disc.relate(p).isContains());
   }
 
   // -- false positives: the chords are not part of the curve ---------------

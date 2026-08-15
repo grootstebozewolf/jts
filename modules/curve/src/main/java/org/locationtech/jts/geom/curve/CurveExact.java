@@ -15,6 +15,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.MultiPoint;
@@ -23,7 +24,8 @@ import org.locationtech.jts.geom.Point;
 /**
  * Closed-form answers for the shapes a cheap check can recognise: a circular
  * disc, a single circular arc, a point against an arc, a disc against a
- * Point or MultiPoint. Package-private -- not a new public API.
+ * Point or MultiPoint (PIP and DE-9IM). Package-private -- not a new
+ * public API.
  * {@link CurveOps} takes these only when they can answer; anything else
  * goes straight to the chord baseline. Trying and falling through would
  * pay both tools.
@@ -32,6 +34,16 @@ final class CurveExact {
 
   private static final double TWO_PI = 2.0 * Math.PI;
   private static final double SWEEP_EPS = 1.0e-9;
+
+  /**
+   * JTS/SFS DE-9IM for an areal geometry vs a Point (or a MultiPoint
+   * whose members all share one location class). Probed against a plain
+   * {@code POLYGON} in jts-core; {@code 0FFFFF212} is the reverse
+   * ({@code point.relate(area)}), not {@code area.relate(point)}.
+   */
+  static final String IM_POINT_INTERIOR = "0F2FF1FF2";
+  static final String IM_POINT_BOUNDARY = "FF20F1FF2";
+  static final String IM_POINT_EXTERIOR = "FF2FF10F2";
 
   private CurveExact() { }
 
@@ -138,6 +150,34 @@ final class CurveExact {
    */
   static Boolean covers(Geometry curve, Geometry other) {
     return discPuntal(curve, other, true);
+  }
+
+  /**
+   * SFS DE-9IM of a circular disc vs a Point or a uniform MultiPoint,
+   * or {@code null} if this pair is not that shape. Reuses
+   * {@link #locatePoint}; mixed location classes return {@code null}
+   * so the caller linearises rather than guessing.
+   */
+  static IntersectionMatrix relate(Geometry curve, Geometry other) {
+    if (curve == null || other == null || other.isEmpty()) return null;
+    if (!isPuntal(other)) return null;
+    CircularArcDensifier.Circle disc = circularDisc(curve);
+    if (disc == null) return null;
+
+    double r2 = disc.r * disc.r;
+    int loc = -1;
+    int n = other.getNumGeometries();
+    for (int i = 0; i < n; i++) {
+      Geometry g = other.getGeometryN(i);
+      if (!(g instanceof Point) || g.isEmpty()) return null;
+      int li = locatePoint(disc, ((Point) g).getCoordinate(), r2);
+      if (loc < 0) loc = li;
+      else if (li != loc) return null;
+    }
+    if (loc < 0) return null;
+    if (loc == Location.INTERIOR) return new IntersectionMatrix(IM_POINT_INTERIOR);
+    if (loc == Location.BOUNDARY) return new IntersectionMatrix(IM_POINT_BOUNDARY);
+    return new IntersectionMatrix(IM_POINT_EXTERIOR);
   }
 
   /**
