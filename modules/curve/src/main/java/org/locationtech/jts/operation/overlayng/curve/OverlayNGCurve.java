@@ -97,13 +97,20 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     pieces. A three-point LineString is not an arc. Two CircularStrings,
  *     a polygon, or 3+ nodes on one arc window return {@code null}
  *     without paying this path.</li>
+ * <li><b>R-AA</b> -- both operands are a {@link org.locationtech.jts.geom.curve.CircularString}
+ *     (or a lineal CompoundCurve of LineString + CircularString). Nodes
+ *     are the circle–circle hits that lie on both sweeps, not the
+ *     control-chord crossings. CAP is the node Point / MultiPoint; CUP /
+ *     SUB / XOR keep CircularString pieces. Same-circle overlap, a
+ *     three-point LineString, or 3+ nodes on one sweep window return
+ *     {@code null} without paying this path.</li>
  * <li>Otherwise, densify both at the ops tolerance and delegate to core,
  *     flagging the result approximate (<b>R2</b>). This <em>is</em> the chord
  *     baseline.</li>
  * </ol>
  * R1.5–R1.7 share package-private {@code TwoNodeClip} for the two-node
- * walk (hits, ring / member walk, CAP / CUP / SUB / XOR). R-LL reuses
- * the same line–circle primitives. Each rung keeps its own shape dispatch.
+ * walk (hits, ring / member walk, CAP / CUP / SUB / XOR). R-LL and R-AA
+ * reuse the same intersection primitives. Each rung keeps its own shape dispatch.
  * The distinction in R0/R1 is the one that matters: an exact answer chosen by a
  * tolerance-bounded decision is still exact, but the decision can be wrong for
  * operands closer together than the decide-tolerance. That is a narrower
@@ -196,7 +203,8 @@ public class OverlayNGCurve {
    * two crossing circular discs answered as arcs (R1.5), or a disc
    * clipped by a plain polygon at line–circle nodes (R1.6), or a
    * CompoundCurve-shelled CurvePolygon clipped at two nodes (R1.7), or a
-   * CircularString noded against a LineString (R-LL). In
+   * CircularString noded against a LineString (R-LL), or two
+   * CircularStrings noded at circle–circle hits on both sweeps (R-AA). In
    * the R1 case the <em>answer</em> is exact even though the <em>decision</em>
    * to return it was made on densified copies.
    * <p>
@@ -235,6 +243,9 @@ public class OverlayNGCurve {
 
     Geometry lineClip = CircularLineOverlay.overlay(a, b, opCode); // R-LL
     if (lineClip != null) return lineClip;
+
+    Geometry arcClip = CircularArcOverlay.overlay(a, b, opCode); // R-AA
+    if (arcClip != null) return arcClip;
 
     // R2. The chord baseline: densify at the ops tolerance and run core.
     // Approximate only if something was actually densified: for operands with

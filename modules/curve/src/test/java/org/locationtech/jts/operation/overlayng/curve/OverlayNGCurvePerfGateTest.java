@@ -90,6 +90,12 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
       "CURVEPOLYGON (COMPOUNDCURVE ((-5 0, 0 5, 5 0), (5 0, -5 0)))";
   private static final String ARC =
       "CIRCULARSTRING (0 0, 2 3, 10 0)";
+  private static final String ARC_B =
+      "CIRCULARSTRING (1 4, 5 2, 9 4)";
+  private static final String ARC_SAME_Q1 =
+      "CIRCULARSTRING (-5 0, 0 5, 5 0)";
+  private static final String ARC_SAME_Q2 =
+      "CIRCULARSTRING (0 5, 5 0, 0 -5)";
   private static final String LINE_Y2 =
       "LINESTRING (-1 2, 11 2)";
   private static final String CHORD_ARC =
@@ -320,6 +326,46 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
     assertChordPath("3-pt LINESTRING vs line",
         () -> OverlayNGCurve.intersection(chords, line),
         () -> chordOverlay(chords, line, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testArcArcCapNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(ARC);
+    Geometry b = readCurve(ARC_B);
+    assertLaserNotSlower("arc ∩ arc CAP",
+        () -> OverlayNGCurve.intersection(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testArcArcCupNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(ARC);
+    Geometry b = readCurve(ARC_B);
+    assertLaserNotSlower("arc ∪ arc CUP",
+        () -> OverlayNGCurve.union(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.UNION));
+  }
+
+  public void testArcArcSubNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(ARC);
+    Geometry b = readCurve(ARC_B);
+    assertLaserNotSlower("arc \\ arc SUB",
+        () -> OverlayNGCurve.difference(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.DIFFERENCE));
+  }
+
+  public void testSameCircleOverlapIsChordPath() throws Exception {
+    Geometry a = readCurve(ARC_SAME_Q1);
+    Geometry b = readCurve(ARC_SAME_Q2);
+    assertChordPath("same-circle overlap",
+        () -> OverlayNGCurve.intersection(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testChordArcVsCircularStringIsChordPath() throws Exception {
+    Geometry chords = readCurve(CHORD_ARC);
+    Geometry arc = readCurve(ARC_B);
+    assertChordPath("3-pt LINESTRING vs CircularString",
+        () -> OverlayNGCurve.intersection(chords, arc),
+        () -> chordOverlay(chords, arc, OverlayNGCurve.INTERSECTION));
   }
 
   // -- predicates / distance / constructions --------------------------------

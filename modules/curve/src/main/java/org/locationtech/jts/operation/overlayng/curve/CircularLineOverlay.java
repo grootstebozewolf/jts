@@ -98,7 +98,7 @@ final class CircularLineOverlay {
    * A CircularString, or a CompoundCurve with at least one CircularString
    * and the rest plain LineStrings. Single-member MultiCurve unwraps.
    */
-  private static LineString linealCurve(Geometry g) {
+  static LineString linealCurve(Geometry g) {
     g = unwrapLineal(g);
     if (g instanceof CircularString) {
       return g.isEmpty() ? null : (CircularString) g;
@@ -136,7 +136,7 @@ final class CircularLineOverlay {
     return g;
   }
 
-  private static List<TwoNodeClip.Edge> flattenLineal(LineString g) {
+  static List<TwoNodeClip.Edge> flattenLineal(LineString g) {
     List<TwoNodeClip.Edge> edges = new ArrayList<TwoNodeClip.Edge>();
     if (g instanceof CompoundCurve) {
       CompoundCurve cc = (CompoundCurve) g;
@@ -237,7 +237,7 @@ final class CircularLineOverlay {
     return out;
   }
 
-  private static Geometry points(List<Coordinate> pts, GeometryFactory f) {
+  static Geometry points(List<Coordinate> pts, GeometryFactory f) {
     if (pts.isEmpty()) return f.createEmpty(0);
     if (pts.size() == 1) return f.createPoint(new Coordinate(pts.get(0)));
     Coordinate[] c = new Coordinate[pts.size()];
@@ -247,7 +247,7 @@ final class CircularLineOverlay {
     return f.createMultiPointFromCoords(c);
   }
 
-  private static List<LineString> splitCurve(List<TwoNodeClip.Edge> edges,
+  static List<LineString> splitCurve(List<TwoNodeClip.Edge> edges,
       List<List<TwoNodeClip.Node>> byEdge, GeometryFactory f) {
     List<LineString> out = new ArrayList<LineString>();
     for (int i = 0; i < edges.size(); i++) {
@@ -313,7 +313,7 @@ final class CircularLineOverlay {
     return out;
   }
 
-  private static Geometry linealResult(List<LineString> pieces,
+  static Geometry linealResult(List<LineString> pieces,
       GeometryFactory f) {
     List<LineString> clean = new ArrayList<LineString>();
     for (int i = 0; i < pieces.size(); i++) {
@@ -334,7 +334,7 @@ final class CircularLineOverlay {
     return out;
   }
 
-  private static double scaleOf(Geometry a, Geometry b) {
+  static double scaleOf(Geometry a, Geometry b) {
     double w = Math.max(a.getEnvelopeInternal().getWidth(),
         a.getEnvelopeInternal().getHeight());
     double v = Math.max(b.getEnvelopeInternal().getWidth(),

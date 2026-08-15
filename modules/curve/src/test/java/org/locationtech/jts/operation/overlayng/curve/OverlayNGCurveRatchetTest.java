@@ -43,7 +43,8 @@ import test.jts.GeometryTestCase;
  * two-disc matrix. Crossing discs are two-arc CurvePolygons (R1.5).
  * A disc clipped by a plain rectangle (R1.6) is EEEE in both operand
  * orders. A half-disc CompoundCurve shell vs a crossing disc or a
- * cutting square (R1.7) is EEEE in both operand orders. The cells that
+ * cutting square (R1.7) is EEEE in both operand orders. Two crossing
+ * CircularStrings (R-AA) are EEEE in both operand orders. The cells that
  * stay approximate are the ones whose answer is a <em>new</em> non-disc
  * geometry -- SUB and XOR of a nested pair are an annulus, which this
  * stage does not build (0 intersections).
@@ -69,6 +70,12 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
       "CURVEPOLYGON (COMPOUNDCURVE ((-5 0, 0 5, 5 0), (5 0, -5 0)))";
   private static final String ARC =
       "CIRCULARSTRING (0 0, 2 3, 10 0)";
+  private static final String ARC_B =
+      "CIRCULARSTRING (1 4, 5 2, 9 4)";
+  private static final String ARC_SAME_Q1 =
+      "CIRCULARSTRING (-5 0, 0 5, 5 0)";
+  private static final String ARC_SAME_Q2 =
+      "CIRCULARSTRING (0 5, 5 0, 0 -5)";
   private static final String LINE_Y2 =
       "LINESTRING (-1 2, 11 2)";
   private static final String CHORD_ARC =
@@ -188,6 +195,18 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_chordArcIsExactR2() throws Exception {
     assertRow("3-pt LINESTRING vs line", CHORD_ARC, LINE_Y2, "EEEE");
+  }
+
+  public void testMatrix_arcArc() throws Exception {
+    assertRow("arc ∩ arc", ARC, ARC_B, "EEEE");
+  }
+
+  public void testMatrix_arcArcReverse() throws Exception {
+    assertRow("arc ∩ arc reverse", ARC_B, ARC, "EEEE");
+  }
+
+  public void testMatrix_sameCircleIsApproximate() throws Exception {
+    assertRow("same-circle overlap", ARC_SAME_Q1, ARC_SAME_Q2, "aaaa");
   }
 
   // -- the disjoint CUP/XOR result, not just its exactness -----------------
