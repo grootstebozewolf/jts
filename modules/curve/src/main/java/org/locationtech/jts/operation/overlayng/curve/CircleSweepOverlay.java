@@ -116,13 +116,22 @@ final class CircleSweepOverlay {
       List<TwoNodeClip.Edge> edges, double[] c, double eps) {
     for (int i = 0; i < edges.size(); i++) {
       TwoNodeClip.Edge e = edges.get(i);
-      if (!TwoNodeClip.isOnSweep(p, c, e.a, e.mid, e.b)) continue;
-      for (int k = 0; k < out.size(); k++) {
-        if (out.get(k).distance(p) <= eps) return;
+      if (TwoNodeClip.isOnSweep(p, c, e.a, e.mid, e.b)
+          && !alreadyHave(out, p, eps)) {
+        out.add(new Coordinate(p));
       }
-      out.add(new Coordinate(p));
-      return;
     }
+  }
+
+  private static boolean alreadyHave(List<Coordinate> out, Coordinate p,
+      double eps) {
+    boolean found = false;
+    for (int k = 0; k < out.size(); k++) {
+      if (out.get(k).distance(p) <= eps) {
+        found = true;
+      }
+    }
+    return found;
   }
 
   /**

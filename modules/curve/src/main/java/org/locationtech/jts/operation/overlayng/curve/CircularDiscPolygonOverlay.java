@@ -311,19 +311,25 @@ final class CircularDiscPolygonOverlay {
 
   private static int indexStartingAt(List<LineString> pieces, boolean[] used,
       Coordinate at, Coordinate avoidOther, double eps) {
+    int found = -1;
     for (int i = 0; i < pieces.size(); i++) {
-      if (used[i]) continue;
-      LineString g = pieces.get(i);
-      boolean startAt = start(g).distance(at) <= eps;
-      boolean endAt = end(g).distance(at) <= eps;
-      if (!startAt && !endAt) continue;
-      if (avoidOther != null) {
-        Coordinate other = startAt ? end(g) : start(g);
-        if (other.distance(avoidOther) > eps) continue;
+      if (!used[i] && found < 0) {
+        LineString g = pieces.get(i);
+        boolean startAt = start(g).distance(at) <= eps;
+        boolean endAt = end(g).distance(at) <= eps;
+        if (startAt || endAt) {
+          boolean ok = true;
+          if (avoidOther != null) {
+            Coordinate other = startAt ? end(g) : start(g);
+            ok = other.distance(avoidOther) <= eps;
+          }
+          if (ok) {
+            found = i;
+          }
+        }
       }
-      return i;
     }
-    return -1;
+    return found;
   }
 
   private static LineString oriented(LineString g, Coordinate from,
