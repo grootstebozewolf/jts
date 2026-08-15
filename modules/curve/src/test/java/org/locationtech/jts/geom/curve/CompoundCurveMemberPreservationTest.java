@@ -11,6 +11,7 @@
  */
 package org.locationtech.jts.geom.curve;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 
@@ -82,16 +83,26 @@ public class CompoundCurveMemberPreservationTest extends GeometryTestCase {
   }
 
   /**
-   * Precondition for member reversal: CircularString has no reverseInternal
-   * override either, so on its own it also downgrades to a plain LineString.
+   * Issue #5: {@code CIRCULARSTRING (10 0, 5 5, 0 0)} reversed must actually
+   * reverse the nodes, not just keep the type and the point count. The canvas
+   * looks the same (same arc, opposite direction); the inspector nodes are
+   * what change. An earlier assertion only checked {@code getNumPoints() == 3},
+   * which passed whether the sequence moved or not.
    */
-  public void testCircularStringReverseKeepsType() throws Exception {
-    Geometry reversed = new CurveWKTReader()
-        .read("CIRCULARSTRING (0 0, 1 1, 2 0)").reverse();
+  public void testCircularStringReverseReversesNodes() throws Exception {
+    Geometry original = new CurveWKTReader()
+        .read("CIRCULARSTRING (10 0, 5 5, 0 0)");
+    Geometry reversed = original.reverse();
     assertEquals("CircularString.reverse() must not downgrade the type",
         "CircularString", reversed.getGeometryType());
-    assertEquals("arc control points should reverse",
-        3, reversed.getNumPoints());
+    Coordinate[] got = reversed.getCoordinates();
+    assertEquals("node count", 3, got.length);
+    assertEquals("first node is the original last",
+        new Coordinate(0, 0), got[0]);
+    assertEquals("mid node stays the mid control",
+        new Coordinate(5, 5), got[1]);
+    assertEquals("last node is the original first",
+        new Coordinate(10, 0), got[2]);
   }
 
   /** Guard: copy() already preserves members and must keep doing so. */
