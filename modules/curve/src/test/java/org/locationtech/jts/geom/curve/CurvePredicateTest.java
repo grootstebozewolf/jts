@@ -52,12 +52,13 @@ import test.jts.GeometryTestCase;
  * {@code disjoint} follows from {@code intersects}.
  * <p>
  * Reverse {@code plain.op(curve)} is flipped in {@code Geometry} onto the
- * curve receiver, so the same overrides run in both orders. A point lying
- * <em>exactly on</em> the arc is inside the densification band, where no
- * inscribed approximation can answer -- boundary-touching input remains
- * undecidable until an arc-aware noder exists. Difference with a plain
- * receiver, and MultiCurve / MultiSurface as either operand, stay on the
- * control-point path.
+ * curve receiver, so the same overrides run in both orders. Difference
+ * is not flipped; it is routed through OverlayNGCurve as
+ * {@code (plain, curve)}. MultiCurve / MultiSurface override the same
+ * family. A point lying <em>exactly on</em> the arc is inside the
+ * densification band, where no inscribed approximation can answer --
+ * boundary-touching input remains undecidable until an arc-aware noder
+ * exists.
  */
 public class CurvePredicateTest extends GeometryTestCase {
 
@@ -253,5 +254,17 @@ public class CurvePredicateTest extends GeometryTestCase {
     Geometry plainDiamond = readCurve("POLYGON ((-5 0, 0 5, 5 0, 0 -5, -5 0))");
     assertTrue("r=3 circle is inside the r=5 diamond",
         plainDiamond.contains(readCurve(CIRCLE_3)));
+  }
+
+  /**
+   * MultiSurface of the r=3 circle must see the same bulge the single
+   * disc does: the r=4 diamond does not contain it.
+   */
+  public void testMultiSurfaceReverseContainsSeesTheBulge() throws Exception {
+    Geometry diamond4 = readCurve("POLYGON ((-4 0, 0 4, 4 0, 0 -4, -4 0))");
+    Geometry multi = readCurve("MULTISURFACE (" + CIRCLE_3 + ")");
+    assertFalse("plain.contains(multi) must see the bulge",
+        diamond4.contains(multi));
+    assertFalse(multi.within(diamond4));
   }
 }

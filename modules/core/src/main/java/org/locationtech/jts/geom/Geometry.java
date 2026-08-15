@@ -12,6 +12,8 @@
 package org.locationtech.jts.geom;
 
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Iterator;
 
@@ -1371,6 +1373,14 @@ public abstract class Geometry
    */
   public Geometry difference(Geometry other)
   {
+    // SUB is not symmetric, so delegateToCurve cannot flip onto
+    // other.difference(this). Route through OverlayNGCurve so the
+    // ratchet sees (this, other) in that order. Core cannot compile
+    // against jts-curve; the method is resolved once and cached.
+    if (isCurveType(other)) {
+      Geometry routed = overlayNGCurveDifference(this, other);
+      if (routed != null) return routed;
+    }
     return GeometryOverlay.difference(this, other);
   }
 
@@ -1845,10 +1855,8 @@ public abstract class Geometry
    * Reverse-direction dispatch: when the receiver is a plain geometry and
    * the argument is a curve type that overrides these methods, flip the
    * call onto the curve so CurveOps / OverlayNGCurve run. Core otherwise
-   * judges the curve by its control points.
-   * <p>
-   * Only the three types that already override the family are recognised.
-   * MultiCurve / MultiSurface still inherit the core implementations.
+   * judges the curve by its control points. Difference is not flipped
+   * (it is not symmetric); see {@link #difference(Geometry)}.
    */
   private boolean delegateToCurve(Geometry g) {
     return isCurveType(g) && !isCurveType(this);
@@ -1859,7 +1867,39 @@ public abstract class Geometry
     String t = g.getGeometryType();
     return "CircularString".equals(t)
         || "CompoundCurve".equals(t)
-        || "CurvePolygon".equals(t);
+        || "CurvePolygon".equals(t)
+        || "MultiCurve".equals(t)
+        || "MultiSurface".equals(t);
+  }
+
+  private static volatile Method curveDifferenceMethod;
+
+  /**
+   * {@code OverlayNGCurve.difference(a, b)} without a compile dependency
+   * on jts-curve. Null if the curve module is not on the classpath.
+   */
+  private static Geometry overlayNGCurveDifference(Geometry a, Geometry b) {
+    Method m = curveDifferenceMethod;
+    if (m == null) {
+      try {
+        m = Class.forName(
+            "org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve")
+            .getMethod("difference", Geometry.class, Geometry.class);
+        curveDifferenceMethod = m;
+      } catch (ReflectiveOperationException ex) {
+        return null;
+      }
+    }
+    try {
+      return (Geometry) m.invoke(null, a, b);
+    } catch (InvocationTargetException ex) {
+      Throwable c = ex.getCause();
+      if (c instanceof RuntimeException) throw (RuntimeException) c;
+      if (c instanceof Error) throw (Error) c;
+      throw new RuntimeException(c);
+    } catch (ReflectiveOperationException ex) {
+      return null;
+    }
   }
 
   private Point createPointFromInternalCoord(Coordinate coord, Geometry exemplar)

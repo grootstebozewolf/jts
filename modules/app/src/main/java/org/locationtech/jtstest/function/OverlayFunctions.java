@@ -22,7 +22,8 @@ import org.locationtech.jts.geom.Geometry;
  * dispatch: a curve-typed A routes through its CRV-OPS override into the
  * OverlayNGCurve ratchet. A plain A with a curve B is flipped in
  * {@code Geometry} onto that same path (CAP / CUP / XOR). Difference is
- * not symmetric and still nodes B's control points when A is plain.
+ * not symmetric; {@code Geometry.difference} sends {@code (A, B)} to
+ * {@code OverlayNGCurve.difference} so the ratchet still runs.
  */
 public class OverlayFunctions {
   /**

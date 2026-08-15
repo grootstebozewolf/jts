@@ -152,6 +152,41 @@ public class CurveOverlayTest extends GeometryTestCase {
         144.0, square.union(readCurve(B)).getArea(), AREA_TOL);
   }
 
+  /**
+   * Reverse SUB of a far circle must return the plain operand untouched
+   * (R0), not a control-point overlay of two diamonds.
+   */
+  public void testReverseDisjointSubIsThePlainOperand() throws Exception {
+    Geometry diamond = readCurve("POLYGON ((-5 0, 0 5, 5 0, 0 -5, -5 0))");
+    Geometry far = readCurve(
+        "CURVEPOLYGON (CIRCULARSTRING (100 0, 105 5, 110 0, 105 -5, 100 0))");
+    Geometry sub = diamond.difference(far);
+    assertEquals("disjoint SUB is the minuend", diamond.getArea(), sub.getArea(), 0.0);
+    assertTrue("and it is the same diamond, not a densified copy",
+        sub.equalsExact(diamond));
+  }
+
+  /**
+   * Reverse nested SUB: the square minus the r=3 circle is the annulus
+   * 144 - 9*pi, not the square minus the control diamond (144 - 18).
+   */
+  public void testReverseNestedSubIsTheAnnulus() throws Exception {
+    Geometry square = readCurve("POLYGON ((-6 -6, 6 -6, 6 6, -6 6, -6 -6))");
+    assertEquals("plain.difference(inner circle) is the square minus 9*pi",
+        144.0 - AREA_B, square.difference(readCurve(B)).getArea(), AREA_TOL);
+  }
+
+  /**
+   * A MultiSurface of the inner circle is covered by the square the same
+   * way a single disc is; reverse CAP returns the multi's disc, area 9*pi.
+   */
+  public void testMultiSurfaceNestedCapIsTheDisc() throws Exception {
+    Geometry square = readCurve("POLYGON ((-6 -6, 6 -6, 6 6, -6 6, -6 -6))");
+    Geometry multi = readCurve("MULTISURFACE (" + B + ")");
+    assertEquals("plain.intersection(multi of the inner circle) is the disc",
+        AREA_B, square.intersection(multi).getArea(), AREA_TOL);
+  }
+
   /** A CircularString operand must be densified too, not just a CurvePolygon. */
   public void testCircularStringOverlay() throws Exception {
     Geometry arc = readCurve("CIRCULARSTRING (-5 0, 0 5, 5 0)");

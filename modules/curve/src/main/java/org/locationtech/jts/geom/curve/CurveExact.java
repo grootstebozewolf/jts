@@ -105,10 +105,42 @@ final class CurveExact {
     if (isLinealCurve(b) && isPlainLineal(a)) {
       return Double.valueOf(linealToPlain(b, (LineString) a));
     }
+    Double members = distanceMembers(a, b);
+    if (members != null) return members;
     return null;
   }
 
+  /**
+   * Min distance over collection members, using the same cheap checks.
+   * Any member this class cannot answer fails the whole collection --
+   * the caller then takes the chord baseline rather than mixing tools.
+   */
+  private static Double distanceMembers(Geometry a, Geometry b) {
+    if (isCurveCollection(a)) {
+      if (a.getNumGeometries() == 0) return null;
+      double min = Double.POSITIVE_INFINITY;
+      for (int i = 0; i < a.getNumGeometries(); i++) {
+        Double d = distance(a.getGeometryN(i), b);
+        if (d == null) return null;
+        min = Math.min(min, d.doubleValue());
+      }
+      return Double.valueOf(min);
+    }
+    if (isCurveCollection(b)) {
+      return distanceMembers(b, a);
+    }
+    return null;
+  }
+
+  private static boolean isCurveCollection(Geometry g) {
+    return g instanceof MultiSurface || g instanceof MultiCurve;
+  }
+
   static CircularArcDensifier.Circle circularDisc(Geometry g) {
+    if (g instanceof MultiSurface) {
+      if (g.getNumGeometries() != 1) return null;
+      return circularDisc(g.getGeometryN(0));
+    }
     if (!(g instanceof CurvePolygon)) return null;
     CurvePolygon cp = (CurvePolygon) g;
     if (cp.isEmpty() || cp.getNumInteriorRing() > 0) return null;

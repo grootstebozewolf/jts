@@ -55,6 +55,15 @@ import test.jts.GeometryTestCase;
  * <tr><td>rev nested CUP</td>          <td>0.057 ms</td><td>0.342 ms</td><td>0.167</td></tr>
  * <tr><td>rev crossing CAP</td>        <td>0.235 ms</td><td>1.073 ms</td><td>0.219</td></tr>
  * </table>
+ * Reverse SUB and Multi* were still the control-point path before this
+ * rung: disjoint SUB 0.046 / 0.113 (0.41), nested SUB 0.131 / 0.564
+ * (0.23), crossing SUB 0.115 / 0.324 (0.36), multi disjoint 0.000 /
+ * 0.076 (0.002), multi nested 0.001 / 0.104 (0.008). After: disjoint
+ * SUB 0.002 / 0.065 (0.025), nested SUB 0.165 / 0.163 (1.02 -- the
+ * laser <em>is</em> the chord overlay), crossing SUB 0.141 / 0.139
+ * (1.02), multi disjoint 0.000 / 0.051 (0.005), multi nested 0.045 /
+ * 0.045 (1.01).
+ * <p>
  * After the flip (same harness): intersects far 0.000 / 0.043 (0.007),
  * intersects crossing 0.096 / 0.096 (1.00 -- the laser <em>is</em> the
  * chord path), contains far 0.000 / 0.050 (0.007), covers nested 0.044 /
@@ -215,5 +224,45 @@ public class ReverseDispatchPerfGateTest extends GeometryTestCase {
     assertLaserNotSlower("rev crossing CAP",
         () -> plain.intersection(cross),
         () -> chordOverlay(plain, cross, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testReverseDisjointSubNotSlowerThanChord() throws Exception {
+    Geometry plain = readCurve(PLAIN_DIAMOND);
+    Geometry far = readCurve(CIRCLE_FAR);
+    assertLaserNotSlower("rev disjoint SUB",
+        () -> plain.difference(far),
+        () -> chordOverlay(plain, far, OverlayNGCurve.DIFFERENCE));
+  }
+
+  public void testReverseNestedSubNotSlowerThanChord() throws Exception {
+    Geometry square = readCurve(PLAIN_SQUARE);
+    Geometry inner = readCurve(CIRCLE_3);
+    assertLaserNotSlower("rev nested SUB",
+        () -> square.difference(inner),
+        () -> chordOverlay(square, inner, OverlayNGCurve.DIFFERENCE));
+  }
+
+  public void testReverseCrossingSubNotSlowerThanChord() throws Exception {
+    Geometry plain = readCurve(PLAIN_DIAMOND);
+    Geometry cross = readCurve(CIRCLE_CROSSING);
+    assertLaserNotSlower("rev crossing SUB",
+        () -> plain.difference(cross),
+        () -> chordOverlay(plain, cross, OverlayNGCurve.DIFFERENCE));
+  }
+
+  public void testMultiDisjointVsPlainNotSlowerThanChord() throws Exception {
+    Geometry multi = readCurve("MULTISURFACE (" + CIRCLE_FAR + ")");
+    Geometry plain = readCurve(PLAIN_DIAMOND);
+    assertLaserNotSlower("multi disjoint vs plain",
+        () -> multi.intersects(plain),
+        () -> CurveOps.linearise(multi).intersects(plain));
+  }
+
+  public void testMultiNestedVsPlainNotSlowerThanChord() throws Exception {
+    Geometry multi = readCurve("MULTISURFACE (" + CIRCLE_3 + ")");
+    Geometry square = readCurve(PLAIN_SQUARE);
+    assertLaserNotSlower("multi nested vs plain",
+        () -> square.covers(multi),
+        () -> square.covers(CurveOps.linearise(multi)));
   }
 }

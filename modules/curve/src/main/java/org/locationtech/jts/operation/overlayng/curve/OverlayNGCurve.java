@@ -185,7 +185,7 @@ public class OverlayNGCurve {
     Geometry byEnvelope = disjointByEnvelope(opCode); // R0
     if (byEnvelope != null) return byEnvelope;
 
-    if (shouldAttemptRetention()) {
+    if (shouldAttemptRetention(opCode)) {
       Geometry retained = retainOperand(opCode);    // R1, only when it can win
       if (retained != null) return retained;
     }
@@ -301,13 +301,21 @@ public class OverlayNGCurve {
    * {@code relate} plus boundary-distance was measured slower than the
    * chord overlay, and then still fell through to it.
    * <p>
+   * SUB when A's envelope covers B's (and not the reverse) is an annulus:
+   * R1 cannot return an operand, so trying it is the same wasted relate
+   * the crossing gate already refused. B covering A can still be empty
+   * and is worth the attempt.
+   * <p>
    * Plain operands always attempt -- their relate is cheap and V3 requires
    * the same exact short-circuits stock OverlayNG already offers.
    */
-  private boolean shouldAttemptRetention() {
+  private boolean shouldAttemptRetention(int opCode) {
     if (CurveOps.tolerance(a) <= 0.0 && CurveOps.tolerance(b) <= 0.0) return true;
     Envelope ea = a.getEnvelopeInternal();
     Envelope eb = b.getEnvelopeInternal();
+    if (opCode == DIFFERENCE && ea.covers(eb) && !eb.covers(ea)) {
+      return false;
+    }
     return ea.covers(eb) || eb.covers(ea);
   }
 

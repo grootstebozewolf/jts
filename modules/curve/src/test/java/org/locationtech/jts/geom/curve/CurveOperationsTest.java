@@ -125,6 +125,18 @@ public class CurveOperationsTest extends GeometryTestCase {
     assertEquals("plain on the left sees the same arc", 1.0, p.distance(arc), 1.0e-3);
   }
 
+  /**
+   * A MultiSurface of one disc uses the same filled-disc distance as the
+   * disc itself.
+   */
+  public void testMultiSurfaceDiscDistanceIsExact() throws Exception {
+    Geometry multi = readCurve("MULTISURFACE (" + CIRCLE_R2 + ")");
+    assertEquals("gap from (10, 0) to a radius-2 disc at the origin is 8",
+        8.0, multi.distance(point(10, 0)), 1.0e-12);
+    assertEquals("and the reverse order agrees",
+        8.0, point(10, 0).distance(multi), 1.0e-12);
+  }
+
   /** Buffering a circular polygon grows its radius, not its inscribed quad. */
   public void testBufferOfCircularPolygon() throws Exception {
     double area = readCurve(CIRCLE_R2).buffer(1.0).getArea();

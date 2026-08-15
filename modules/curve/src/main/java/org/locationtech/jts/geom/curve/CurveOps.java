@@ -188,8 +188,9 @@ public final class CurveOps {
   // band the overlay ratchet's margin gate refuses to decide in. Reverse
   // direction (plain.contains(curve)) is flipped in Geometry onto the curve
   // receiver, so these methods run for both operand orders. Difference is
-  // not symmetric and stays on the control-point path when the receiver is
-  // plain. MultiCurve / MultiSurface do not override the family yet.
+  // not symmetric: Geometry.difference routes (plain, curve) through
+  // OverlayNGCurve so the ratchet sees the operands in that order.
+  // MultiCurve / MultiSurface override the same family.
 
   static IntersectionMatrix relate(Geometry curve, Geometry other) {
     return linearise(curve).relate(linearise(other));

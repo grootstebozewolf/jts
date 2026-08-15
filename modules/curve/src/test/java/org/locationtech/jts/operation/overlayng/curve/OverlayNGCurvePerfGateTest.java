@@ -72,6 +72,10 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
   private static final String EMPTY = "CURVEPOLYGON EMPTY";
   private static final String POINT_INSIDE = "POINT (3 3)";
   private static final String POINT_FAR = "POINT (100 100)";
+  private static final String PLAIN_DIAMOND =
+      "POLYGON ((-5 0, 0 5, 5 0, 0 -5, -5 0))";
+  private static final String PLAIN_SQUARE =
+      "POLYGON ((-6 -6, 6 -6, 6 6, -6 6, -6 -6))";
 
   private static final int WARMUP = 15;
   private static final int SAMPLES = 31;
@@ -179,6 +183,30 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
     assertLaserNotSlower("crossing CAP",
         () -> OverlayNGCurve.intersection(a, cross),
         () -> chordOverlay(a, cross, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testReverseDisjointSubNotSlowerThanChord() throws Exception {
+    Geometry plain = readCurve(PLAIN_DIAMOND);
+    Geometry far = readCurve(CIRCLE_FAR);
+    assertLaserNotSlower("rev disjoint SUB",
+        () -> plain.difference(far),
+        () -> chordOverlay(plain, far, OverlayNGCurve.DIFFERENCE));
+  }
+
+  public void testReverseNestedSubNotSlowerThanChord() throws Exception {
+    Geometry square = readCurve(PLAIN_SQUARE);
+    Geometry inner = readCurve(CIRCLE_3);
+    assertLaserNotSlower("rev nested SUB",
+        () -> square.difference(inner),
+        () -> chordOverlay(square, inner, OverlayNGCurve.DIFFERENCE));
+  }
+
+  public void testReverseCrossingSubNotSlowerThanChord() throws Exception {
+    Geometry plain = readCurve(PLAIN_DIAMOND);
+    Geometry cross = readCurve(CIRCLE_CROSSING);
+    assertLaserNotSlower("rev crossing SUB",
+        () -> plain.difference(cross),
+        () -> chordOverlay(plain, cross, OverlayNGCurve.DIFFERENCE));
   }
 
   // -- predicates / distance / constructions --------------------------------
