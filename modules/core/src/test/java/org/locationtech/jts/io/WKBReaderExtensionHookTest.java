@@ -97,10 +97,12 @@ public class WKBReaderExtensionHookTest extends GeometryTestCase {
 
   public void testCoreReaderStillThrowsForUnknownType() {
     try {
-      new WKBReader().read(WKBReader.hexToBytes("0108000000"));
-      fail("Expected ParseException from default WKBReader for type 8");
+      // type 99 — codes 8–12 are recognised and delegated to the factory
+      new WKBReader().read(WKBReader.hexToBytes("0163000000"));
+      fail("Expected ParseException from default WKBReader for type 99");
     } catch (Throwable e) {
       assertTrue("Expected ParseException, got: " + e, e instanceof ParseException);
+      assertTrue(e.getMessage().indexOf("Unknown WKB type 99") >= 0);
     }
   }
 }

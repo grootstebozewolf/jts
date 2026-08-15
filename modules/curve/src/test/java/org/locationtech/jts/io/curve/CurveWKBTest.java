@@ -19,6 +19,7 @@ import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.MultiCurve;
 import org.locationtech.jts.geom.curve.MultiSurface;
+import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBConstants;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.io.WKBWriter;
@@ -149,6 +150,40 @@ public class CurveWKBTest extends GeometryTestCase {
     Geometry back = roundTrip(g);
     assertTrue(back instanceof CurvePolygon);
     assertTrue(back.isEmpty());
+  }
+
+  public void testCoreReaderWithCurveFactoryBuildsCircularString() throws Exception {
+    Geometry g = new WKBReader(new CurveGeometryFactory())
+        .read(WKBReader.hexToBytes(HEX_CIRCULARSTRING));
+    assertTrue(g instanceof CircularString);
+    assertEquals(CircularString.class, g.getClass());
+    assertEquals(WKBConstants.wkbCircularString, typeCode(HEX_CIRCULARSTRING));
+    Geometry again = new CurveWKTReader(new CurveGeometryFactory()).read(g.toText());
+    assertTrue(again instanceof CircularString);
+    assertTrue(g.equalsExact(again));
+  }
+
+  public void testCoreReaderWithCurveFactoryDiscKeepsArea() throws Exception {
+    Geometry disc = readCurve(DISC);
+    byte[] wkb = new CurveWKBWriter().write(disc);
+    Geometry back = new WKBReader(new CurveGeometryFactory()).read(wkb);
+    assertTrue(back instanceof CurvePolygon);
+    assertEquals(25.0 * Math.PI, back.getArea(), 1.0e-9);
+    assertTrue(((CurvePolygon) back).getExteriorCurve() instanceof CircularString);
+  }
+
+  public void testDefaultWKBReaderType8MentionsFactory() {
+    try {
+      new WKBReader().read(WKBReader.hexToBytes(HEX_CIRCULARSTRING));
+      fail("Expected ParseException from default WKBReader for type 8");
+    } catch (Throwable e) {
+      assertTrue("Expected ParseException, got: " + e, e instanceof ParseException);
+      String msg = e.getMessage();
+      assertTrue(msg, msg.indexOf("Unknown WKB type 8") < 0);
+      String lower = msg.toLowerCase();
+      assertTrue(msg, lower.indexOf("factory") >= 0);
+      assertTrue(msg, lower.indexOf("curve") >= 0);
+    }
   }
 
   private static int typeCode(String hex) {

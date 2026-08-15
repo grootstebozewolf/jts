@@ -54,6 +54,7 @@ public class CurveGeometryFactory extends GeometryFactory {
     super(csf);
   }
 
+  @Override
   public CircularString createCircularString(CoordinateSequence points) {
     return new CircularString(points, this);
   }
@@ -62,6 +63,12 @@ public class CurveGeometryFactory extends GeometryFactory {
     return new CompoundCurve(points, this);
   }
 
+  @Override
+  public CompoundCurve createCompoundCurve(LineString[] members) {
+    return new CompoundCurve(members, this);
+  }
+
+  @Override
   public CurvePolygon createCurvePolygon() {
     return new CurvePolygon(this);
   }
@@ -74,6 +81,12 @@ public class CurveGeometryFactory extends GeometryFactory {
     return new CurvePolygon(shell, holes, this);
   }
 
+  @Override
+  public CurvePolygon createCurvePolygon(LineString shell, LineString[] holes) {
+    return new CurvePolygon(shell, holes, this);
+  }
+
+  @Override
   public MultiCurve createMultiCurve(LineString[] members) {
     return new MultiCurve(members, this);
   }
@@ -147,6 +160,7 @@ public class CurveGeometryFactory extends GeometryFactory {
     return false;
   }
 
+  @Override
   public MultiSurface createMultiSurface(Polygon[] members) {
     return new MultiSurface(members, this);
   }

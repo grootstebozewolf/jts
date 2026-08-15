@@ -74,10 +74,13 @@ import org.locationtech.jts.geom.PrecisionModel;
  * Note that the {@link WKBWriter} is not changed and still writes the PostGIS EWKB
  * geometry format.
  * <p>
- * Subclasses may override {@link #readOtherGeometry} to construct ISO/OGC
- * types the core reader does not instantiate (SQL/MM codes 8–12). The
- * default throws {@link ParseException}, preserving the previous
- * unknown-type behaviour. Helpers used to read nested geometries,
+ * ISO/OGC SQL/MM type codes 8–12 (CircularString, CompoundCurve,
+ * CurvePolygon, MultiCurve, MultiSurface) are recognised. Construction
+ * is delegated to the {@link GeometryFactory}; the default factory
+ * throws {@link UnsupportedOperationException}, which this reader
+ * wraps as {@link ParseException}. Subclasses may override
+ * {@link #readOtherGeometry} for types the core reader does not
+ * recognise (codes 13+). Helpers used to read nested geometries,
  * coordinate sequences, and field counts are {@code protected}.
  * 
  * @see WKBWriter for a formal format specification
@@ -302,6 +305,21 @@ public class WKBReader
       case WKBConstants.wkbGeometryCollection :
         geom = readGeometryCollection(SRID);
         break;
+      case WKBConstants.wkbCircularString :
+        geom = readCircularString(ordinateFlags);
+        break;
+      case WKBConstants.wkbCompoundCurve :
+        geom = readCompoundCurve(SRID);
+        break;
+      case WKBConstants.wkbCurvePolygon :
+        geom = readCurvePolygon(SRID);
+        break;
+      case WKBConstants.wkbMultiCurve :
+        geom = readMultiCurve(SRID);
+        break;
+      case WKBConstants.wkbMultiSurface :
+        geom = readMultiSurface(SRID);
+        break;
       default:
         geom = readOtherGeometry(geometryType, ordinateFlags, SRID);
         break;
@@ -312,14 +330,110 @@ public class WKBReader
 
   /**
    * Hook for subclasses to read geometry types the core JTS WKB
-   * reader does not construct (ISO/OGC SQL/MM codes 8–12).
+   * reader does not construct (codes 13+). Codes 8–12 are handled
+   * by the main switch and delegated to the factory.
    * The default throws {@link ParseException} with the unknown-type
-   * message, preserving the previous behaviour.
+   * message.
    */
   protected Geometry readOtherGeometry(int geometryType,
       EnumSet<Ordinate> ordinateFlags, int SRID)
       throws IOException, ParseException {
     throw new ParseException("Unknown WKB type " + geometryType);
+  }
+
+  private Geometry readCircularString(EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    LineString ls = readLineString(ordinateFlags);
+    try {
+      return factory.createCircularString(ls.getCoordinateSequence());
+    }
+    catch (UnsupportedOperationException e) {
+      throw curveFactoryRequired(WKBConstants.wkbCircularString, e);
+    }
+  }
+
+  private Geometry readCompoundCurve(int SRID)
+      throws IOException, ParseException {
+    int numGeom = readNumField(FIELD_NUMELEMS);
+    LineString[] geoms = new LineString[numGeom];
+    for (int i = 0; i < numGeom; i++) {
+      Geometry g = readGeometry(SRID);
+      if (! (g instanceof LineString))
+        throw new ParseException(INVALID_GEOM_TYPE_MSG + "CompoundCurve");
+      geoms[i] = (LineString) g;
+    }
+    try {
+      return factory.createCompoundCurve(geoms);
+    }
+    catch (UnsupportedOperationException e) {
+      throw curveFactoryRequired(WKBConstants.wkbCompoundCurve, e);
+    }
+  }
+
+  private Geometry readCurvePolygon(int SRID)
+      throws IOException, ParseException {
+    int numRings = readNumField(FIELD_NUMRINGS);
+    try {
+      if (numRings <= 0)
+        return factory.createCurvePolygon();
+      LineString shell = asLine(readGeometry(SRID), "CurvePolygon");
+      LineString[] holes = new LineString[numRings - 1];
+      for (int i = 0; i < holes.length; i++) {
+        holes[i] = asLine(readGeometry(SRID), "CurvePolygon");
+      }
+      return factory.createCurvePolygon(shell, holes);
+    }
+    catch (UnsupportedOperationException e) {
+      throw curveFactoryRequired(WKBConstants.wkbCurvePolygon, e);
+    }
+  }
+
+  private Geometry readMultiCurve(int SRID)
+      throws IOException, ParseException {
+    int numGeom = readNumField(FIELD_NUMELEMS);
+    LineString[] geoms = new LineString[numGeom];
+    for (int i = 0; i < numGeom; i++) {
+      geoms[i] = asLine(readGeometry(SRID), "MultiCurve");
+    }
+    try {
+      return factory.createMultiCurve(geoms);
+    }
+    catch (UnsupportedOperationException e) {
+      throw curveFactoryRequired(WKBConstants.wkbMultiCurve, e);
+    }
+  }
+
+  private Geometry readMultiSurface(int SRID)
+      throws IOException, ParseException {
+    int numGeom = readNumField(FIELD_NUMELEMS);
+    Polygon[] geoms = new Polygon[numGeom];
+    for (int i = 0; i < numGeom; i++) {
+      Geometry g = readGeometry(SRID);
+      if (! (g instanceof Polygon))
+        throw new ParseException(INVALID_GEOM_TYPE_MSG + "MultiSurface");
+      geoms[i] = (Polygon) g;
+    }
+    try {
+      return factory.createMultiSurface(geoms);
+    }
+    catch (UnsupportedOperationException e) {
+      throw curveFactoryRequired(WKBConstants.wkbMultiSurface, e);
+    }
+  }
+
+  private static LineString asLine(Geometry g, String parent)
+      throws ParseException {
+    if (! (g instanceof LineString))
+      throw new ParseException(INVALID_GEOM_TYPE_MSG + parent);
+    return (LineString) g;
+  }
+
+  private static ParseException curveFactoryRequired(int typeCode,
+      UnsupportedOperationException e) {
+    return new ParseException(
+        "WKB type " + typeCode
+            + " requires a GeometryFactory that can construct curve types",
+        e);
   }
 
   /**
