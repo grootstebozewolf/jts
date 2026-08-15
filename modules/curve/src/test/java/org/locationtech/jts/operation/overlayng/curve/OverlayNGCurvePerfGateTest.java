@@ -82,6 +82,12 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
       "POLYGON ((-6 -6, 6 -6, 6 6, -6 6, -6 -6))";
   private static final String SQUARE_RIGHT =
       "POLYGON ((0 -6, 10 -6, 10 6, 0 6, 0 -6))";
+  private static final String HALF_DISC =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)))";
+  private static final String SQUARE_CAP =
+      "POLYGON ((-6 2, 6 2, 6 10, -6 10, -6 2))";
+  private static final String CHORD_SHELL =
+      "CURVEPOLYGON (COMPOUNDCURVE ((-5 0, 0 5, 5 0), (5 0, -5 0)))";
 
   private static final int WARMUP = 15;
   private static final int SAMPLES = 31;
@@ -268,6 +274,30 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
     assertLaserNotSlower("rev crossing SUB",
         () -> plain.difference(cross),
         () -> chordOverlay(plain, cross, OverlayNGCurve.DIFFERENCE));
+  }
+
+  public void testHalfDiscCrossingCapNotSlowerThanChord() throws Exception {
+    Geometry half = readCurve(HALF_DISC);
+    Geometry disc = readCurve(CIRCLE_CROSSING);
+    assertLaserNotSlower("half ∩ disc CAP",
+        () -> OverlayNGCurve.intersection(half, disc),
+        () -> chordOverlay(half, disc, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testHalfDiscSquareCapNotSlowerThanChord() throws Exception {
+    Geometry half = readCurve(HALF_DISC);
+    Geometry square = readCurve(SQUARE_CAP);
+    assertLaserNotSlower("half ∩ square CAP",
+        () -> OverlayNGCurve.intersection(half, square),
+        () -> chordOverlay(half, square, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testChordShellIsNotAnArc() throws Exception {
+    Geometry chords = readCurve(CHORD_SHELL);
+    Geometry disc = readCurve(CIRCLE_CROSSING);
+    assertChordPath("3-pt LINESTRING shell",
+        () -> OverlayNGCurve.intersection(chords, disc),
+        () -> chordOverlay(chords, disc, OverlayNGCurve.INTERSECTION));
   }
 
   // -- predicates / distance / constructions --------------------------------

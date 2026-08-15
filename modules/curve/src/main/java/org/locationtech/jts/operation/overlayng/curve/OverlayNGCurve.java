@@ -81,6 +81,15 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     (or a {@link MultiSurface} for XOR) that keeps the surviving arcs.
  *     Closed form; no densification. Any other pair returns {@code null}
  *     without paying this path.</li>
+ * <li><b>R1.7</b> -- one operand is a hole-free {@link CurvePolygon} whose
+ *     shell is a mixed {@link org.locationtech.jts.geom.curve.CompoundCurve}
+ *     (LineString + CircularString: a half-disc or stadium) and the other
+ *     is a circular disc or a plain Polygon, meeting at two proper nodes.
+ *     The answer is a {@link CurvePolygon} whose shell is a CompoundCurve
+ *     of the surviving pieces (or a {@link MultiSurface} for XOR). A
+ *     LineString member stays a segment. Closed form; no densification.
+ *     Holes, 0 / 1 / 3+ nodes, two CompoundCurve shells, or a line-only
+ *     shell return {@code null} without paying this path.</li>
  * <li>Otherwise, densify both at the ops tolerance and delegate to core,
  *     flagging the result approximate (<b>R2</b>). This <em>is</em> the chord
  *     baseline.</li>
@@ -175,7 +184,8 @@ public class OverlayNGCurve {
    * operand (G5), envelope-disjoint (R0), an operand returned unchanged (R1), or
    * an operand with no arc in it at all, which is handed to core untouched, or
    * two crossing circular discs answered as arcs (R1.5), or a disc
-   * clipped by a plain polygon at line–circle nodes (R1.6). In
+   * clipped by a plain polygon at line–circle nodes (R1.6), or a
+   * CompoundCurve-shelled CurvePolygon clipped at two nodes (R1.7). In
    * the R1 case the <em>answer</em> is exact even though the <em>decision</em>
    * to return it was made on densified copies.
    * <p>
@@ -208,6 +218,9 @@ public class OverlayNGCurve {
 
     Geometry discPoly = CircularDiscPolygonOverlay.overlay(a, b, opCode); // R1.6
     if (discPoly != null) return discPoly;
+
+    Geometry shellClip = CompoundCurveShellOverlay.overlay(a, b, opCode); // R1.7
+    if (shellClip != null) return shellClip;
 
     // R2. The chord baseline: densify at the ops tolerance and run core.
     // Approximate only if something was actually densified: for operands with

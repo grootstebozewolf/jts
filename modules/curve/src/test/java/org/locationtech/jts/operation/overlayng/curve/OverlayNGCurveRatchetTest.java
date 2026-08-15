@@ -42,9 +42,11 @@ import test.jts.GeometryTestCase;
  * Exact cells per operation: CAP 8 of 8, CUP 8, SUB 7, XOR 6 on the
  * two-disc matrix. Crossing discs are two-arc CurvePolygons (R1.5).
  * A disc clipped by a plain rectangle (R1.6) is EEEE in both operand
- * orders. The cells that stay approximate are the ones whose answer is
- * a <em>new</em> non-disc geometry -- SUB and XOR of a nested pair are
- * an annulus, which this stage does not build (0 intersections).
+ * orders. A half-disc CompoundCurve shell vs a crossing disc or a
+ * cutting square (R1.7) is EEEE in both operand orders. The cells that
+ * stay approximate are the ones whose answer is a <em>new</em> non-disc
+ * geometry -- SUB and XOR of a nested pair are an annulus, which this
+ * stage does not build (0 intersections).
  */
 public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
@@ -59,6 +61,12 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
   private static final String EMPTY = "CURVEPOLYGON EMPTY";
   private static final String SQUARE_RIGHT =
       "POLYGON ((0 -6, 10 -6, 10 6, 0 6, 0 -6))";
+  private static final String HALF_DISC =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)))";
+  private static final String SQUARE_CAP =
+      "POLYGON ((-6 2, 6 2, 6 10, -6 10, -6 2))";
+  private static final String CHORD_SHELL =
+      "CURVEPOLYGON (COMPOUNDCURVE ((-5 0, 0 5, 5 0), (5 0, -5 0)))";
 
   private static final int[] OPS = { OverlayNGCurve.INTERSECTION, OverlayNGCurve.UNION,
       OverlayNGCurve.DIFFERENCE, OverlayNGCurve.SYMDIFFERENCE };
@@ -142,6 +150,26 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_rectangleDisc() throws Exception {
     assertRow("square ∩ disc", SQUARE_RIGHT, CIRCLE_5, "EEEE");
+  }
+
+  public void testMatrix_halfDiscCrossing() throws Exception {
+    assertRow("half ∩ disc", HALF_DISC, CIRCLE_CROSSING, "EEEE");
+  }
+
+  public void testMatrix_crossingHalfDisc() throws Exception {
+    assertRow("disc ∩ half", CIRCLE_CROSSING, HALF_DISC, "EEEE");
+  }
+
+  public void testMatrix_halfDiscSquare() throws Exception {
+    assertRow("half ∩ square", HALF_DISC, SQUARE_CAP, "EEEE");
+  }
+
+  public void testMatrix_squareHalfDisc() throws Exception {
+    assertRow("square ∩ half", SQUARE_CAP, HALF_DISC, "EEEE");
+  }
+
+  public void testMatrix_chordShellIsApproximate() throws Exception {
+    assertRow("3-pt LINESTRING shell", CHORD_SHELL, CIRCLE_CROSSING, "aaaa");
   }
 
   // -- the disjoint CUP/XOR result, not just its exactness -----------------
