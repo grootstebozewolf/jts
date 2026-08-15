@@ -31,7 +31,8 @@ import org.locationtech.jts.operation.distance.IndexedFacetDistance;
  * Constructs the Largest Empty Circle for a set
  * of obstacle geometries, up to a given accuracy distance tolerance
  * (which can be specified or determined automatically).
- * The obstacles may be any combination of point, linear and polygonal geometries.
+ * The obstacles may be any combination of point, linear, polygonal,
+ * circular-arc and circular-disc geometries.
  * <p>
  * The Largest Empty Circle (LEC) is the largest circle 
  * whose interior does not intersect with any obstacle
@@ -52,7 +53,10 @@ import org.locationtech.jts.operation.distance.IndexedFacetDistance;
  * over a grid of square cells covering the obstacles and boundary.
  * The grid is refined using a branch-and-bound algorithm. 
  * Point containment and distance are computed in a performant
- * way by using spatial indexes.
+ * way by using spatial indexes. Obstacle distance is typed: each
+ * flattened component uses the metric that matches its kind
+ * (Euclidean, facet, point-to-arc, or the disc formulas), not the
+ * control-point polyline of a {@code CircularString}.
  * <p>
  * One certified cell uses a closed form instead of the grid:
  * a circular disc as the containing boundary with its own
@@ -181,7 +185,7 @@ public class LargestEmptyCircle {
   private double tolerance;
 
   private GeometryFactory factory;
-  private IndexedDistanceToPoint obstacleDistance;
+  private ObstacleDistance obstacleDistance;
   private IndexedPointInAreaLocator boundaryPtLocater;
   private IndexedFacetDistance boundaryDistance;
   private Envelope gridEnv;
@@ -239,7 +243,7 @@ public class LargestEmptyCircle {
     this.tolerance = tolerance;
     this.certifiedCircle = certifiedCircle(obstacles, boundary);
     if (this.certifiedCircle == null) {
-      obstacleDistance = new IndexedDistanceToPoint(obstacles);
+      obstacleDistance = new ObstacleDistance(obstacles);
     }
   }
 

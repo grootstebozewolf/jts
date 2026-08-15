@@ -540,7 +540,16 @@ public class DiscreteHausdorffDistance
     return t >= 0.0 && t <= 1.0;
   }
 
-  static double[] circumcircle(Coordinate a, Coordinate b, Coordinate c) {
+  /**
+   * Circumcircle of three points as {@code {cx, cy, r}}, or {@code null}
+   * if the triple is colinear or coincident.
+   *
+   * @param a first point
+   * @param b second point
+   * @param c third point
+   * @return {@code {cx, cy, r}} or {@code null}
+   */
+  public static double[] circumcircle(Coordinate a, Coordinate b, Coordinate c) {
     if (Orientation.index(a, b, c) == Orientation.COLLINEAR) return null;
     double ax = a.x, ay = a.y;
     double bx = b.x, by = b.y;

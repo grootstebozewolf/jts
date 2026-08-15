@@ -38,6 +38,24 @@ public class LargestEmptyCirclePerfGateTest extends GeometryTestCase {
       "POLYGON ((-2 0, 0 2, 2 0, 0 -2, -2 0))";
   private static final String SQUARE_RING =
       "LINESTRING (-2 0, 0 2, 2 0, 0 -2, -2 0)";
+  private static final String ARC =
+      "CIRCULARSTRING (0 0, 2 3, 10 0)";
+  private static final String COMPOUND =
+      "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 12 3, 20 0))";
+  private static final String TWO_DISCS =
+      "MULTISURFACE ("
+          + "CURVEPOLYGON (CIRCULARSTRING (1 5, 2 6, 3 5, 2 4, 1 5)), "
+          + "CURVEPOLYGON (CIRCULARSTRING (7 5, 8 6, 9 5, 8 4, 7 5)))";
+  private static final String TWO_DISC_SQUARE =
+      "POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))";
+  private static final String POINTS =
+      "MULTIPOINT ((0 0), (10 0), (10 10), (0 10))";
+  private static final String PLAIN_POLY =
+      "POLYGON ((0 0, 8 0, 8 8, 0 8, 0 0))";
+  private static final String ARC_BOX =
+      "POLYGON ((0 3.5, 10 3.5, 10 5.5, 0 5.5, 0 3.5))";
+  private static final String COMPOUND_BOX =
+      "POLYGON ((10 3.5, 20 3.5, 20 5.5, 10 5.5, 10 3.5))";
 
   private static final int WARMUP = 15;
   private static final int SAMPLES = 31;
@@ -135,5 +153,72 @@ public class LargestEmptyCirclePerfGateTest extends GeometryTestCase {
     assertChordPath("plain square LEC",
         () -> LargestEmptyCircle.getCenter(squareRing, square, TOL),
         () -> LargestEmptyCircle.getCenter(squareRing, square, TOL));
+  }
+
+  public void testPointsOnlyIsChordPath() throws Exception {
+    Geometry pts = readCurve(POINTS);
+    assertChordPath("points-only LEC",
+        () -> LargestEmptyCircle.getCenter(pts, null, TOL),
+        () -> LargestEmptyCircle.getCenter(pts, null, TOL));
+  }
+
+  public void testPlainPolygonIsChordPath() throws Exception {
+    Geometry poly = readCurve(PLAIN_POLY);
+    assertChordPath("plain-polygon LEC",
+        () -> LargestEmptyCircle.getCenter(poly, null, TOL),
+        () -> LargestEmptyCircle.getCenter(poly, null, TOL));
+  }
+
+  public void testArcNotSlowerThanControlChord() throws Exception {
+    Geometry arc = readCurve(ARC);
+    Geometry chords = asChords(arc);
+    Geometry box = readCurve(ARC_BOX);
+    assertLaserNotSlower("LEC CircularString arc vs control chord",
+        () -> LargestEmptyCircle.getCenter(arc, box, TOL),
+        () -> LargestEmptyCircle.getCenter(chords, box, TOL));
+  }
+
+  public void testCompoundCurveNotSlowerThanControlPolyline() throws Exception {
+    Geometry cc = readCurve(COMPOUND);
+    Geometry chords = asChords(cc);
+    Geometry box = readCurve(COMPOUND_BOX);
+    assertLaserNotSlower("LEC CompoundCurve vs control polyline",
+        () -> LargestEmptyCircle.getCenter(cc, box, TOL),
+        () -> LargestEmptyCircle.getCenter(chords, box, TOL));
+  }
+
+  public void testTwoDiscsNotSlowerThanControlNgons() throws Exception {
+    Geometry discs = readCurve(TWO_DISCS);
+    Geometry chords = asChords(discs);
+    Geometry square = readCurve(TWO_DISC_SQUARE);
+    assertLaserNotSlower("LEC two discs vs control n-gons",
+        () -> LargestEmptyCircle.getCenter(discs, square, TOL),
+        () -> LargestEmptyCircle.getCenter(chords, square, TOL));
+  }
+
+  /**
+   * Control-point n-gon / polyline of the same set. Not
+   * {@code toLinear} densify: the chainsaw is today's facet oracle
+   * on the control geometry.
+   */
+  private static Geometry asChords(Geometry g) {
+    String t = g.getGeometryType();
+    if ("CircularString".equals(t) || "CompoundCurve".equals(t)) {
+      return g.getFactory().createLineString(g.getCoordinates());
+    }
+    if ("CurvePolygon".equals(t)) {
+      return g.getFactory().createPolygon(g.getCoordinates());
+    }
+    if (g.getNumGeometries() > 1
+        || "GeometryCollection".equals(t)
+        || "MultiSurface".equals(t)
+        || "MultiCurve".equals(t)) {
+      Geometry[] parts = new Geometry[g.getNumGeometries()];
+      for (int i = 0; i < parts.length; i++) {
+        parts[i] = asChords(g.getGeometryN(i));
+      }
+      return g.getFactory().createGeometryCollection(parts);
+    }
+    return g;
   }
 }

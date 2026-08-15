@@ -28,11 +28,11 @@ import org.locationtech.jtstest.geomfunction.Metadata;
 
 public class ConstructionFunctions {
   /**
-   * MaximumInscribedCircle and LargestEmptyCircle measure from coordinates, so
-   * curve input was fitted against its control polygon: the circle inscribed in
-   * a radius-5 arc disc came back 3.5355 = 5/sqrt(2), the diamond's answer.
-   * Same caller-side shim as the rest of the statics; plain input passes
-   * through as the same object.
+   * MaximumInscribedCircle still measures from coordinates, so curve
+   * input is fitted against its control polygon unless a certified
+   * closed form applies. LargestEmptyCircle uses the public class
+   * directly: the typed obstacle-distance oracle (and the certified
+   * disc cell) already see arcs and discs.
    * <p>
    * <b>PERF-GATE.</b> A circular disc's MIC is the disc itself (centre +
    * radius) and is taken in closed form. LargestEmptyCircle of a circular
@@ -124,9 +124,8 @@ public class ConstructionFunctions {
   public static Geometry largestEmptyCircle(Geometry obstacles, Geometry boundary,
       @Metadata(title="Accuracy distance tolerance")
       double tolerance) { 
-    LineString radiusLine = LargestEmptyCircle.hasCertifiedClosedForm(obstacles, boundary)
-        ? LargestEmptyCircle.getRadiusLine(obstacles, boundary, tolerance)
-        : LargestEmptyCircle.getRadiusLine(arc(obstacles), arc(boundary), tolerance);
+    LineString radiusLine = LargestEmptyCircle.getRadiusLine(
+        obstacles, boundary, tolerance);
     return circleByRadiusLine(radiusLine, 60);
   }
   
@@ -134,20 +133,14 @@ public class ConstructionFunctions {
   public static Geometry largestEmptyCircleCenter(Geometry obstacles, Geometry boundary,
       @Metadata(title="Accuracy distance tolerance")
       double tolerance) { 
-    if (LargestEmptyCircle.hasCertifiedClosedForm(obstacles, boundary)) {
-      return LargestEmptyCircle.getCenter(obstacles, boundary, tolerance);
-    }
-    return LargestEmptyCircle.getCenter(arc(obstacles), arc(boundary), tolerance); 
+    return LargestEmptyCircle.getCenter(obstacles, boundary, tolerance);
   }
   
   @Metadata(description="Computes a radius line of the Largest Empty Circle in a set of obstacles")
   public static Geometry largestEmptyCircleRadius(Geometry obstacles, Geometry boundary, 
       @Metadata(title="Accuracy distance tolerance")
       double tolerance) { 
-    if (LargestEmptyCircle.hasCertifiedClosedForm(obstacles, boundary)) {
-      return LargestEmptyCircle.getRadiusLine(obstacles, boundary, tolerance);
-    }
-    return LargestEmptyCircle.getRadiusLine(arc(obstacles), arc(boundary), tolerance); 
+    return LargestEmptyCircle.getRadiusLine(obstacles, boundary, tolerance); 
   }
   
   //--------------------------------------------
