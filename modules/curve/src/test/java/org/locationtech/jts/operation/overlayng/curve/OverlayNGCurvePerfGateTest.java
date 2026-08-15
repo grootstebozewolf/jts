@@ -88,6 +88,12 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
       "POLYGON ((-6 2, 6 2, 6 10, -6 10, -6 2))";
   private static final String CHORD_SHELL =
       "CURVEPOLYGON (COMPOUNDCURVE ((-5 0, 0 5, 5 0), (5 0, -5 0)))";
+  private static final String ARC =
+      "CIRCULARSTRING (0 0, 2 3, 10 0)";
+  private static final String LINE_Y2 =
+      "LINESTRING (-1 2, 11 2)";
+  private static final String CHORD_ARC =
+      "LINESTRING (0 0, 2 3, 10 0)";
 
   private static final int WARMUP = 15;
   private static final int SAMPLES = 31;
@@ -298,6 +304,22 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
     assertChordPath("3-pt LINESTRING shell",
         () -> OverlayNGCurve.intersection(chords, disc),
         () -> chordOverlay(chords, disc, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testArcLineCapNotSlowerThanChord() throws Exception {
+    Geometry arc = readCurve(ARC);
+    Geometry line = readCurve(LINE_Y2);
+    assertLaserNotSlower("arc ∩ line CAP",
+        () -> OverlayNGCurve.intersection(arc, line),
+        () -> chordOverlay(arc, line, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testChordArcIsNotAnArc() throws Exception {
+    Geometry chords = readCurve(CHORD_ARC);
+    Geometry line = readCurve(LINE_Y2);
+    assertChordPath("3-pt LINESTRING vs line",
+        () -> OverlayNGCurve.intersection(chords, line),
+        () -> chordOverlay(chords, line, OverlayNGCurve.INTERSECTION));
   }
 
   // -- predicates / distance / constructions --------------------------------

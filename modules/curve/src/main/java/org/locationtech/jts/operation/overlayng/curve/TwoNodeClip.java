@@ -41,7 +41,9 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * {@link CompoundCurve} of the surviving pieces.
  * <p>
  * Not a noder. 0 / 1 / 3+ nodes are the caller's miss. R1.5, R1.6,
- * and R1.7 call this; they keep their own shape dispatch.
+ * and R1.7 call this; they keep their own shape dispatch. R-LL
+ * reuses the intersection primitives and {@link #midOnSweep}; it
+ * does not change this class's areal assemble.
  */
 final class TwoNodeClip {
 
@@ -678,7 +680,7 @@ final class TwoNodeClip {
     return arc(from, mid, to, f);
   }
 
-  private static Coordinate midOnSweep(Coordinate from, Coordinate to, Edge e) {
+  static Coordinate midOnSweep(Coordinate from, Coordinate to, Edge e) {
     double[] c = e.circle;
     double a0 = Math.atan2(from.y - c[1], from.x - c[0]);
     double a1 = Math.atan2(to.y - c[1], to.x - c[0]);

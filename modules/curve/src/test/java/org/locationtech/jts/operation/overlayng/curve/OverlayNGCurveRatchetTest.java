@@ -67,6 +67,12 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
       "POLYGON ((-6 2, 6 2, 6 10, -6 10, -6 2))";
   private static final String CHORD_SHELL =
       "CURVEPOLYGON (COMPOUNDCURVE ((-5 0, 0 5, 5 0), (5 0, -5 0)))";
+  private static final String ARC =
+      "CIRCULARSTRING (0 0, 2 3, 10 0)";
+  private static final String LINE_Y2 =
+      "LINESTRING (-1 2, 11 2)";
+  private static final String CHORD_ARC =
+      "LINESTRING (0 0, 2 3, 10 0)";
 
   private static final int[] OPS = { OverlayNGCurve.INTERSECTION, OverlayNGCurve.UNION,
       OverlayNGCurve.DIFFERENCE, OverlayNGCurve.SYMDIFFERENCE };
@@ -170,6 +176,18 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_chordShellIsApproximate() throws Exception {
     assertRow("3-pt LINESTRING shell", CHORD_SHELL, CIRCLE_CROSSING, "aaaa");
+  }
+
+  public void testMatrix_arcLine() throws Exception {
+    assertRow("arc ∩ line", ARC, LINE_Y2, "EEEE");
+  }
+
+  public void testMatrix_lineArc() throws Exception {
+    assertRow("line ∩ arc", LINE_Y2, ARC, "EEEE");
+  }
+
+  public void testMatrix_chordArcIsExactR2() throws Exception {
+    assertRow("3-pt LINESTRING vs line", CHORD_ARC, LINE_Y2, "EEEE");
   }
 
   // -- the disjoint CUP/XOR result, not just its exactness -----------------
