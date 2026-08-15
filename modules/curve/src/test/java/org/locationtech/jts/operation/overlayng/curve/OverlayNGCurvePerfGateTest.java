@@ -71,6 +71,8 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
       "CURVEPOLYGON (CIRCULARSTRING (100 0, 105 5, 110 0, 105 -5, 100 0))";
   private static final String CIRCLE_CROSSING =
       "CURVEPOLYGON (CIRCULARSTRING (2 0, 7 5, 12 0, 7 -5, 2 0))";
+  private static final String CIRCLE_EXT_TAN =
+      "CURVEPOLYGON (CIRCULARSTRING (5 0, 10 5, 15 0, 10 -5, 5 0))";
   private static final String EMPTY = "CURVEPOLYGON EMPTY";
   private static final String POINT_INSIDE = "POINT (3 3)";
   private static final String POINT_FAR = "POINT (100 100)";
@@ -401,10 +403,57 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
   public void testIntersectsCrossingNotSlowerThanChord() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
     Geometry cross = readCurve(CIRCLE_CROSSING);
-    // Envelope hits; intersects still linearises. Same call as the baseline.
-    assertChordPath("intersects crossing",
+    assertLaserNotSlower("intersects crossing",
         () -> a.intersects(cross),
         () -> CurveOps.linearise(a).intersects(CurveOps.linearise(cross)));
+  }
+
+  public void testRelateCrossingDiscsNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry cross = readCurve(CIRCLE_CROSSING);
+    assertLaserNotSlower("disc vs disc crossing relate",
+        () -> a.relate(cross),
+        () -> CurveOps.linearise(a).relate(CurveOps.linearise(cross)));
+  }
+
+  public void testOverlapsCrossingDiscsNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry cross = readCurve(CIRCLE_CROSSING);
+    assertLaserNotSlower("disc vs disc crossing overlaps",
+        () -> a.overlaps(cross),
+        () -> CurveOps.linearise(a).overlaps(CurveOps.linearise(cross)));
+  }
+
+  public void testRelateNestedDiscsNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry inner = readCurve(CIRCLE_3);
+    assertLaserNotSlower("disc vs disc nested relate",
+        () -> a.relate(inner),
+        () -> CurveOps.linearise(a).relate(CurveOps.linearise(inner)));
+  }
+
+  public void testRelateDisjointDiscsNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry far = readCurve(CIRCLE_FAR);
+    assertLaserNotSlower("disc vs disc disjoint relate",
+        () -> a.relate(far),
+        () -> CurveOps.linearise(a).relate(CurveOps.linearise(far)));
+  }
+
+  public void testRelateExtTangentDiscsNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry tan = readCurve(CIRCLE_EXT_TAN);
+    assertLaserNotSlower("disc vs disc ext tangent relate",
+        () -> a.relate(tan),
+        () -> CurveOps.linearise(a).relate(CurveOps.linearise(tan)));
+  }
+
+  public void testRelateCrossingDiscsReverseNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry cross = readCurve(CIRCLE_CROSSING);
+    assertLaserNotSlower("disc vs disc reverse crossing relate",
+        () -> cross.relate(a),
+        () -> CurveOps.linearise(cross).relate(CurveOps.linearise(a)));
   }
 
   public void testDistanceFarNotSlowerThanChord() throws Exception {

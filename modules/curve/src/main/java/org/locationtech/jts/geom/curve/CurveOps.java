@@ -209,7 +209,8 @@ public final class CurveOps {
   // relate / relate(pattern). A disc vs a LineString (or a single-member
   // MultiLineString) or a plain Polygon takes the line–circle nodes
   // (R1.6 / ARC_SEGMENT_XY) for relate / relate(pattern) and intersects.
-  // contains / covers of a polygon inside the disc follow that matrix.
+  // Two circular discs take the radical-axis nodes for the same family.
+  // contains / covers / intersects / overlaps follow that matrix.
   // The control-point diamond is no longer the answer. Other shapes
   // still linearise.
   //
@@ -274,6 +275,8 @@ public final class CurveOps {
     if (!curve.getEnvelopeInternal().intersects(other.getEnvelopeInternal())) {
       return false;
     }
+    IntersectionMatrix exact = CurveExact.relate(curve, other);
+    if (exact != null) return exact.isTouches(curve.getDimension(), other.getDimension());
     return linearise(curve).touches(linearise(other));
   }
 

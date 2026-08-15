@@ -32,8 +32,9 @@ import org.locationtech.jts.geom.Polygon;
  * disc, a single circular arc, a point against an arc, a disc against a
  * Point or MultiPoint (PIP and DE-9IM), a disc against a LineString
  * (DE-9IM from line–circle nodes), a disc against a plain Polygon
- * (DE-9IM from vertices, edge nodes, and mid-arc PIP). Package-private
- * -- not a new public API.
+ * (DE-9IM from vertices, edge nodes, and mid-arc PIP), or two circular
+ * discs (DE-9IM from radical-axis nodes and {@link #locatePoint}).
+ * Package-private -- not a new public API.
  * {@link CurveOps} takes these only when they can answer; anything else
  * goes straight to the chord baseline. Trying and falling through would
  * pay both tools.
@@ -65,12 +66,18 @@ final class CurveExact {
 
   /**
    * JTS/SFS DE-9IM for an areal geometry vs a Polygon. Probed against
-   * the inscribed diamond / octagon of {@code CIRCLE_5} in jts-core.
+   * the inscribed diamond / octagon of {@code CIRCLE_5} in jts-core,
+   * and against two plain polygons (or vertex-touch squares) for the
+   * two-disc location classes. Circles cannot share an edge, so an
+   * edge-sharing square ({@code BB=1}) is the wrong tangent probe.
    */
   static final String IM_AREA_DISJOINT = "FF2FF1212";
   static final String IM_AREA_COVERS = "212FF1FF2";
   static final String IM_AREA_COVEREDBY = "2FF1FF212";
   static final String IM_AREA_OVERLAP = "212101212";
+  static final String IM_AREA_EXT_TANGENT = "FF2F01212";
+  static final String IM_AREA_INT_TANGENT = "212F01FF2";
+  static final String IM_AREA_EQUAL = "2FFF1FFF2";
 
   private CurveExact() { }
 
@@ -181,15 +188,18 @@ final class CurveExact {
 
   /**
    * SFS DE-9IM of a circular disc vs a Point, a uniform MultiPoint, a
-   * LineString (or a single-member MultiLineString), or a plain Polygon
-   * (no holes, no curve rings). {@code null} if this pair is not that
-   * shape. Puntal reuses {@link #locatePoint}; lineal and polygonal
-   * use {@link CircularArcDensifier#intersectSegmentCircle}
+   * LineString (or a single-member MultiLineString), a second circular
+   * disc, or a plain Polygon (no holes, no curve rings). {@code null}
+   * if this pair is not that shape. Puntal reuses {@link #locatePoint};
+   * lineal and polygonal use
+   * {@link CircularArcDensifier#intersectSegmentCircle}
    * ({@code t ∈ [0,1]}, the R1.6 / {@code ARC_SEGMENT_XY} quadratic)
-   * plus endpoint / vertex location. A polygonal miss also samples
+   * plus endpoint / vertex location. Two discs reuse
+   * {@link CircularArcDensifier#intersectCircles} (radical axis) and
+   * locate each centre in the other disc. A polygonal miss also samples
    * mid-arc points in the polygon (jts-core PIP). Mixed MultiPoint
    * location classes, a multi-member MultiLineString, a holed or
-   * curve polygon, or a non-disc return {@code null} so the caller
+   * non-disc curve polygon return {@code null} so the caller
    * linearises rather than guessing.
    */
   static IntersectionMatrix relate(Geometry curve, Geometry other) {
@@ -199,6 +209,8 @@ final class CurveExact {
     if (isPuntal(other)) return relatePuntal(disc, other);
     LineString line = plainLine(other);
     if (line != null) return relateLine(disc, line);
+    CircularArcDensifier.Circle otherDisc = circularDisc(other);
+    if (otherDisc != null) return relateDisc(disc, otherDisc);
     Polygon poly = plainPolygon(other);
     if (poly != null) return relatePolygon(disc, poly);
     return null;
@@ -318,6 +330,46 @@ final class CurveExact {
     if (g instanceof CircularString || g instanceof CompoundCurve) return null;
     if (g instanceof LineString) return (LineString) g;
     return null;
+  }
+
+  /**
+   * Location classes of two circular discs. Envelope miss is disjoint.
+   * Node count is {@link CircularArcDensifier#intersectCircles} (empty
+   * when {@code d == 0}, {@code d > r1+r2}, or {@code d < |r1-r2|});
+   * each centre is then located in the other disc. A non-disc
+   * {@code CurvePolygon} never reaches this method.
+   */
+  private static IntersectionMatrix relateDisc(CircularArcDensifier.Circle a,
+      CircularArcDensifier.Circle b) {
+    Envelope ea = new Envelope(a.cx - a.r, a.cx + a.r, a.cy - a.r, a.cy + a.r);
+    Envelope eb = new Envelope(b.cx - b.r, b.cx + b.r, b.cy - b.r, b.cy + b.r);
+    if (!ea.intersects(eb)) {
+      return new IntersectionMatrix(IM_AREA_DISJOINT);
+    }
+    Coordinate[] nodes = CircularArcDensifier.intersectCircles(a, b);
+    Coordinate ca = new Coordinate(a.cx, a.cy);
+    Coordinate cb = new Coordinate(b.cx, b.cy);
+    double r2a = a.r * a.r;
+    double r2b = b.r * b.r;
+    if (nodes.length == 2) {
+      return new IntersectionMatrix(IM_AREA_OVERLAP);
+    }
+    int locAinB = locatePoint(b, ca, r2b);
+    int locBinA = locatePoint(a, cb, r2a);
+    if (nodes.length == 1) {
+      if (locAinB == Location.EXTERIOR && locBinA == Location.EXTERIOR) {
+        return new IntersectionMatrix(IM_AREA_EXT_TANGENT);
+      }
+      return a.r > b.r
+          ? new IntersectionMatrix(IM_AREA_INT_TANGENT)
+          : new IntersectionMatrix(IntersectionMatrix.transpose(IM_AREA_INT_TANGENT));
+    }
+    if (locAinB == Location.EXTERIOR && locBinA == Location.EXTERIOR) {
+      return new IntersectionMatrix(IM_AREA_DISJOINT);
+    }
+    if (a.r > b.r) return new IntersectionMatrix(IM_AREA_COVERS);
+    if (a.r < b.r) return new IntersectionMatrix(IM_AREA_COVEREDBY);
+    return new IntersectionMatrix(IM_AREA_EQUAL);
   }
 
   /**
