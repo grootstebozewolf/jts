@@ -278,8 +278,10 @@ public class CircularArcOverlayTest extends GeometryTestCase {
 
   /**
    * H-SHELL: complementary half-discs of the same circle are CAP empty
-   * / CUP the disc / SUB the first half. Any other two CompoundCurve
-   * shells stay refused (not a two-shell noder).
+   * / CUP the disc / SUB the first half. Perpendicular same-circle
+   * halves assemble as sectors. Two hole-free shells with exactly two
+   * proper nodes walk the surviving arcs. Collinear diameters / 3+
+   * nodes stay refused (not a noder).
    */
   public void testHShellComplementaryHalfDiscsAreTheDisc() throws Exception {
     Geometry upper = readCurve(HALF_UPPER);
@@ -311,8 +313,30 @@ public class CircularArcOverlayTest extends GeometryTestCase {
         CircularArcOverlay.overlay(upper, lower, OverlayNG.INTERSECTION));
 
     Geometry right = readCurve(HALF_RIGHT);
-    assertNull("H-SHELL: not complementary (different diameter) stays null",
-        CompoundCurveShellOverlay.overlay(upper, right, OverlayNG.UNION));
+    OverlayNGCurve qCap = new OverlayNGCurve(upper, right);
+    Geometry quarter = qCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL upper ∩ right is exact", qCap.isApproximate());
+    assertEquals("quarter-disc", 6.25 * Math.PI, quarter.getArea(), EXACT);
+    assertTrue(hasCircularString(quarter));
+
+    OverlayNGCurve qCup = new OverlayNGCurve(upper, right);
+    Geometry threeQ = qCup.getResult(OverlayNG.UNION);
+    assertFalse("H-SHELL upper ∪ right is exact", qCup.isApproximate());
+    assertEquals("three-quarter disc", 18.75 * Math.PI, threeQ.getArea(), EXACT);
+
+    Geometry hanging = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 8, 0 3, 5 8), (5 8, -5 8)))");
+    OverlayNGCurve lensCap = new OverlayNGCurve(upper, hanging);
+    Geometry lens = lensCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL two-shell CAP is exact", lensCap.isApproximate());
+    assertEquals("lens of r=5, d=8", 50.0 * Math.acos(0.8) - 24.0,
+        lens.getArea(), EXACT);
+    assertTrue("two-shell CAP keeps an arc", hasCircularString(lens));
+
+    Geometry collinear = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (2 0, 7 5, 12 0), (12 0, 2 0)))");
+    assertNull("H-SHELL: collinear diameters stay refused",
+        CompoundCurveShellOverlay.overlay(upper, collinear, OverlayNG.UNION));
   }
 
   public void testRllStillRefusesTwoArcs() throws Exception {

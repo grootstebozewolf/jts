@@ -394,6 +394,42 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
         () -> chordOverlay(a, b, OverlayNGCurve.UNION));
   }
 
+  public void testOverlappingHalvesCapNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (0 -5, 5 0, 0 5), (0 5, 0 -5)))");
+    assertLaserNotSlower("upper ∩ right CAP",
+        () -> OverlayNGCurve.intersection(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testOverlappingHalvesCupNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (0 -5, 5 0, 0 5), (0 5, 0 -5)))");
+    assertLaserNotSlower("upper ∪ right CUP",
+        () -> OverlayNGCurve.union(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.UNION));
+  }
+
+  public void testTwoShellLensCapNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 8, 0 3, 5 8), (5 8, -5 8)))");
+    assertLaserNotSlower("two-shell lens CAP",
+        () -> OverlayNGCurve.intersection(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testTwoShellLensCupNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 8, 0 3, 5 8), (5 8, -5 8)))");
+    assertLaserNotSlower("two-shell lens CUP",
+        () -> OverlayNGCurve.union(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.UNION));
+  }
+
   public void testFourCutCapNotSlowerThanChord() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
     Geometry b = readCurve("POLYGON ((-8 -1, 8 -1, 8 1, -8 1, -8 -1))");

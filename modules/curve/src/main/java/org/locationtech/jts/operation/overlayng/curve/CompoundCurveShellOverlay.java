@@ -11,8 +11,11 @@
  */
 package org.locationtech.jts.operation.overlayng.curve;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import org.locationtech.jts.algorithm.LineIntersector;
+import org.locationtech.jts.algorithm.RobustLineIntersector;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -37,10 +40,13 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * {@link CircularDiscOverlay} / {@link CircularDiscPolygonOverlay}.
  * Complementary half-discs of the same circle (shared diameter,
  * opposite caps) are answered in closed form: CAP empty, CUP / XOR
- * the disc, SUB the first half. Any other two CompoundCurve shells
- * -- holes, 0 / 1 / 3+ nodes, a line-only shell -- return
- * {@code null} so the caller takes the chord baseline without paying
- * this path first.
+ * the disc, SUB the first half. Same-circle half-discs whose
+ * diameters are perpendicular assemble as sectors (quarter / three-
+ * quarter). Any other two hole-free CompoundCurve shells with
+ * exactly two proper nodes walk the surviving pieces. Holes,
+ * 0 / 1 / 3+ nodes, collinear overlap, or a pair that would need a
+ * general circular noder return {@code null} so the caller takes the
+ * chord baseline without paying this path first.
  */
 final class CompoundCurveShellOverlay {
 
@@ -55,7 +61,16 @@ final class CompoundCurveShellOverlay {
     CurvePolygon shellA = compoundCurveShell(a);
     CurvePolygon shellB = compoundCurveShell(b);
     if (shellA != null && shellB != null) {
-      return complementaryHalfDiscs(shellA, shellB, opCode, a);
+      Geometry halves = complementaryHalfDiscs(shellA, shellB, opCode, a);
+      if (halves != null) {
+        return halves;
+      }
+      Geometry sectors = overlappingSameCircleHalfDiscs(shellA, shellB,
+          opCode, a);
+      if (sectors != null) {
+        return sectors;
+      }
+      return twoShellClip(shellA, shellB, opCode, a);
     }
 
     CurvePolygon shell = shellA;
@@ -117,7 +132,7 @@ final class CompoundCurveShellOverlay {
   /**
    * Two half-discs of the same circle that share a diameter and take
    * opposite caps. Not a two-shell noder: any other pair is
-   * {@code null}.
+   * {@code null} so the caller can try sectors or a two-node walk.
    */
   private static Geometry complementaryHalfDiscs(CurvePolygon a,
       CurvePolygon b, int opCode, Geometry first) {
@@ -142,6 +157,276 @@ final class CompoundCurveShellOverlay {
       return first;
     }
     return null;
+  }
+
+  /**
+   * Two half-discs of the same circle whose diameters are
+   * perpendicular. Cheaper than a two-node walk: the diameters meet
+   * at the centre, so a generic clip would see three nodes.
+   */
+  private static Geometry overlappingSameCircleHalfDiscs(CurvePolygon a,
+      CurvePolygon b, int opCode, Geometry first) {
+    HalfDisc ha = halfDisc(a);
+    HalfDisc hb = halfDisc(b);
+    if (ha == null || hb == null) return null;
+    double scale = Math.max(ha.r, 1.0);
+    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12);
+    if (ha.centre.distance(hb.centre) > eps || Math.abs(ha.r - hb.r) > eps) {
+      return null;
+    }
+    if (!isDiameter(ha, eps) || !isDiameter(hb, eps)) return null;
+    double adx = ha.d1.x - ha.d0.x;
+    double ady = ha.d1.y - ha.d0.y;
+    double bdx = hb.d1.x - hb.d0.x;
+    double bdy = hb.d1.y - hb.d0.y;
+    if (Math.abs(adx * bdx + ady * bdy) > eps * 4.0 * ha.r) return null;
+
+    Coordinate capA = strictlyInsideEnd(ha, hb, eps);
+    Coordinate fromA = strictlyOutsideEnd(ha, hb, eps);
+    Coordinate capB = strictlyInsideEnd(hb, ha, eps);
+    Coordinate fromB = strictlyOutsideEnd(hb, ha, eps);
+    if (capA == null || fromA == null || capB == null || fromB == null) {
+      return null;
+    }
+    Coordinate midCap = onCircle(ha.centre, ha.r, capA, capB);
+    Coordinate midAB = onCircle(ha.centre, ha.r, fromA, capB);
+    Coordinate midBA = onCircle(ha.centre, ha.r, fromB, capA);
+    if (midCap == null || midAB == null || midBA == null) return null;
+
+    GeometryFactory f = TwoNodeClip.curveFactory(first);
+    if (opCode == OverlayNG.INTERSECTION) {
+      return sector(capA, midCap, capB, ha.centre, f, scale);
+    }
+    if (opCode == OverlayNG.UNION) {
+      return sector(fromA, midCap, fromB, ha.centre, f, scale);
+    }
+    if (opCode == OverlayNG.DIFFERENCE) {
+      return sector(fromA, midAB, capB, ha.centre, f, scale);
+    }
+    if (opCode == OverlayNG.SYMDIFFERENCE) {
+      Polygon ab = sector(fromA, midAB, capB, ha.centre, f, scale);
+      Polygon ba = sector(fromB, midBA, capA, ha.centre, f, scale);
+      if (ab == null || ba == null) return null;
+      return new MultiSurface(new Polygon[] { ab, ba }, f);
+    }
+    return null;
+  }
+
+  /**
+   * Exactly two proper nodes between two hole-free CompoundCurve
+   * shells. Segment–segment, segment–circle, and circle–circle hits
+   * only; collinear overlap or 0 / 1 / 3+ nodes are a miss.
+   */
+  private static Geometry twoShellClip(CurvePolygon a, CurvePolygon b,
+      int opCode, Geometry first) {
+    List<TwoNodeClip.Edge> edgesA = TwoNodeClip.flatten(a);
+    List<TwoNodeClip.Edge> edgesB = TwoNodeClip.flatten(b);
+    if (edgesA == null || edgesB == null) return null;
+    double scale = Math.max(
+        Math.max(a.getEnvelopeInternal().getWidth(),
+            a.getEnvelopeInternal().getHeight()),
+        Math.max(b.getEnvelopeInternal().getWidth(),
+            b.getEnvelopeInternal().getHeight()));
+    List<TwoNodeClip.Node> nodesA = new ArrayList<TwoNodeClip.Node>();
+    if (!collectTwoShellHits(edgesA, edgesB, nodesA, scale)) return null;
+    if (!TwoNodeClip.properPair(nodesA, scale)) return null;
+
+    TwoNodeClip.Node pA = nodesA.get(0);
+    TwoNodeClip.Node qA = nodesA.get(1);
+    TwoNodeClip.Node pB = nodeOn(edgesB, pA.pt, scale);
+    TwoNodeClip.Node qB = nodeOn(edgesB, qA.pt, scale);
+    if (pB == null || qB == null) return null;
+
+    GeometryFactory f = TwoNodeClip.curveFactory(first);
+    List<LineString> aPQ = TwoNodeClip.walkEdges(edgesA, pA, qA, f);
+    List<LineString> aQP = TwoNodeClip.walkEdges(edgesA, qA, pA, f);
+    List<LineString> bPQ = TwoNodeClip.walkEdges(edgesB, pB, qB, f);
+    List<LineString> bQP = TwoNodeClip.walkEdges(edgesB, qB, pB, f);
+    if (aPQ == null || aQP == null || bPQ == null || bQP == null) return null;
+
+    int aPQside = sideOfShell(aPQ, b);
+    int aQPside = sideOfShell(aQP, b);
+    int bPQside = sideOfShell(bPQ, a);
+    int bQPside = sideOfShell(bQP, a);
+    if (aPQside == TwoNodeClip.MIXED || aQPside == TwoNodeClip.MIXED
+        || bPQside == TwoNodeClip.MIXED || bQPside == TwoNodeClip.MIXED
+        || aPQside == aQPside || bPQside == bQPside) {
+      return null;
+    }
+    List<LineString> aIn = aPQside == TwoNodeClip.IN ? aPQ : aQP;
+    List<LineString> aOut = aPQside == TwoNodeClip.IN ? aQP : aPQ;
+    List<LineString> bIn = bPQside == TwoNodeClip.IN ? bPQ : bQP;
+    List<LineString> bOut = bPQside == TwoNodeClip.IN ? bQP : bPQ;
+    return TwoNodeClip.overlay(opCode, true, aIn, aOut, bIn, bOut,
+        pA.pt, qA.pt, f, scale);
+  }
+
+  private static boolean collectTwoShellHits(List<TwoNodeClip.Edge> edgesA,
+      List<TwoNodeClip.Edge> edgesB, List<TwoNodeClip.Node> nodesA,
+      double scale) {
+    LineIntersector li = new RobustLineIntersector();
+    boolean miss = false;
+    for (int i = 0; i < edgesA.size() && !miss; i++) {
+      TwoNodeClip.Edge ea = edgesA.get(i);
+      for (int j = 0; j < edgesB.size() && !miss; j++) {
+        TwoNodeClip.Edge eb = edgesB.get(j);
+        if (!addEdgePairHits(ea, eb, i, nodesA, li, scale)) {
+          miss = true;
+        }
+      }
+    }
+    return !miss;
+  }
+
+  private static boolean addEdgePairHits(TwoNodeClip.Edge ea,
+      TwoNodeClip.Edge eb, int iA, List<TwoNodeClip.Node> nodesA,
+      LineIntersector li, double scale) {
+    if (ea.isArc && eb.isArc) {
+      if (sameCircle(ea, eb, scale)) {
+        return true;
+      }
+      Coordinate[] xs = TwoNodeClip.intersectCircles(
+          ea.circle[0], ea.circle[1], ea.circle[2],
+          eb.circle[0], eb.circle[1], eb.circle[2]);
+      for (int k = 0; k < xs.length; k++) {
+        if (TwoNodeClip.isOnSweep(xs[k], ea.circle, ea.a, ea.mid, ea.b)
+            && TwoNodeClip.isOnSweep(xs[k], eb.circle, eb.a, eb.mid, eb.b)) {
+          TwoNodeClip.addUnique(nodesA,
+              new TwoNodeClip.Node(iA, ea.param(xs[k]), xs[k]), scale);
+        }
+      }
+      return true;
+    }
+    if (ea.isArc) {
+      addSegCircleHits(eb.a, eb.b, ea, ea, iA, nodesA, scale);
+      return true;
+    }
+    if (eb.isArc) {
+      addSegCircleHits(ea.a, ea.b, eb, ea, iA, nodesA, scale);
+      return true;
+    }
+    li.computeIntersection(ea.a, ea.b, eb.a, eb.b);
+    if (li.getIntersectionNum() == LineIntersector.COLLINEAR_INTERSECTION) {
+      return false;
+    }
+    if (li.getIntersectionNum() == 1) {
+      Coordinate p = li.getIntersection(0);
+      TwoNodeClip.addUnique(nodesA,
+          new TwoNodeClip.Node(iA, ea.param(p), p), scale);
+    }
+    return true;
+  }
+
+  private static void addSegCircleHits(Coordinate s0, Coordinate s1,
+      TwoNodeClip.Edge sweep, TwoNodeClip.Edge onA, int iA,
+      List<TwoNodeClip.Node> nodesA, double scale) {
+    Coordinate[] xs = TwoNodeClip.intersectSegmentCircle(
+        sweep.circle[0], sweep.circle[1], sweep.circle[2], s0, s1);
+    for (int k = 0; k < xs.length; k++) {
+      if (TwoNodeClip.isOnSweep(xs[k], sweep.circle, sweep.a, sweep.mid,
+          sweep.b)) {
+        TwoNodeClip.addUnique(nodesA,
+            new TwoNodeClip.Node(iA, onA.param(xs[k]), xs[k]), scale);
+      }
+    }
+  }
+
+  private static TwoNodeClip.Node nodeOn(List<TwoNodeClip.Edge> edges,
+      Coordinate p, double scale) {
+    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12);
+    TwoNodeClip.Node found = null;
+    for (int i = 0; i < edges.size(); i++) {
+      TwoNodeClip.Edge e = edges.get(i);
+      if (edgeHolds(e, p, eps) && found == null) {
+        found = new TwoNodeClip.Node(i, e.param(p), p);
+      }
+    }
+    return found;
+  }
+
+  private static boolean edgeHolds(TwoNodeClip.Edge e, Coordinate p,
+      double eps) {
+    if (e.isArc) {
+      double d = Math.hypot(p.x - e.circle[0], p.y - e.circle[1]);
+      if (Math.abs(d - e.circle[2]) > eps) {
+        return false;
+      }
+      return TwoNodeClip.isOnSweep(p, e.circle, e.a, e.mid, e.b);
+    }
+    double t = TwoNodeClip.parameter(e.a, e.b, p);
+    Coordinate q = new Coordinate(e.a.x + t * (e.b.x - e.a.x),
+        e.a.y + t * (e.b.y - e.a.y));
+    return p.distance(q) <= eps;
+  }
+
+  private static int sideOfShell(List<LineString> walk, CurvePolygon other) {
+    Coordinate sample = TwoNodeClip.sample(walk);
+    if (sample == null) return TwoNodeClip.MIXED;
+    return TwoNodeClip.locateInShell(sample, other);
+  }
+
+  private static boolean sameCircle(TwoNodeClip.Edge a, TwoNodeClip.Edge b,
+      double scale) {
+    if (!a.isArc || !b.isArc) return false;
+    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12);
+    Coordinate ca = new Coordinate(a.circle[0], a.circle[1]);
+    Coordinate cb = new Coordinate(b.circle[0], b.circle[1]);
+    return ca.distance(cb) <= eps && Math.abs(a.circle[2] - b.circle[2]) <= eps;
+  }
+
+  private static boolean isDiameter(HalfDisc h, double eps) {
+    if (Math.abs(h.d0.distance(h.d1) - 2.0 * h.r) > eps) return false;
+    double t = TwoNodeClip.parameter(h.d0, h.d1, h.centre);
+    Coordinate q = new Coordinate(
+        h.d0.x + t * (h.d1.x - h.d0.x),
+        h.d0.y + t * (h.d1.y - h.d0.y));
+    return q.distance(h.centre) <= eps
+        && h.d0.distance(h.centre) > eps
+        && h.d1.distance(h.centre) > eps;
+  }
+
+  private static double capDot(Coordinate p, HalfDisc h) {
+    return (p.x - h.centre.x) * (h.mid.x - h.centre.x)
+        + (p.y - h.centre.y) * (h.mid.y - h.centre.y);
+  }
+
+  private static Coordinate strictlyInsideEnd(HalfDisc self, HalfDisc other,
+      double eps) {
+    double thresh = eps * other.r * other.r;
+    boolean in0 = capDot(self.d0, other) > thresh;
+    boolean in1 = capDot(self.d1, other) > thresh;
+    if (in0 == in1) return null;
+    return in0 ? self.d0 : self.d1;
+  }
+
+  private static Coordinate strictlyOutsideEnd(HalfDisc self, HalfDisc other,
+      double eps) {
+    Coordinate inside = strictlyInsideEnd(self, other, eps);
+    if (inside == null) return null;
+    return inside.distance(self.d0) <= eps ? self.d1 : self.d0;
+  }
+
+  private static Coordinate onCircle(Coordinate c, double r, Coordinate p,
+      Coordinate q) {
+    double ux = (p.x - c.x) + (q.x - c.x);
+    double uy = (p.y - c.y) + (q.y - c.y);
+    double n = Math.hypot(ux, uy);
+    if (n == 0.0) return null;
+    return new Coordinate(c.x + r * ux / n, c.y + r * uy / n);
+  }
+
+  private static Polygon sector(Coordinate from, Coordinate mid, Coordinate to,
+      Coordinate c, GeometryFactory f, double scale) {
+    List<LineString> members = new ArrayList<LineString>();
+    members.add(f.createLineString(new Coordinate[] {
+        new Coordinate(c), new Coordinate(from)
+    }));
+    members.add(TwoNodeClip.arc(from, mid, to, f));
+    members.add(f.createLineString(new Coordinate[] {
+        new Coordinate(to), new Coordinate(c)
+    }));
+    return TwoNodeClip.closeRing(members, f,
+        Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12));
   }
 
   private static HalfDisc halfDisc(CurvePolygon cp) {

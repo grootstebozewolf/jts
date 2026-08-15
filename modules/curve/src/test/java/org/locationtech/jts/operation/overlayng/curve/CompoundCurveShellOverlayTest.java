@@ -190,20 +190,116 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
     assertFalse("chord overlay is still non-empty", r.isEmpty());
   }
 
+  /**
+   * Lower half of the circle at (0, 8), r=5. Meets {@link #HALF_DISC}
+   * at (±3, 4) only -- two proper nodes, not the complementary pair.
+   */
+  private static final String HALF_HANGING =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 8, 0 3, 5 8), (5 8, -5 8)))";
+  /** Two circles r=5, d=8: lens = 50 acos(0.8) − 24. */
+  private static final double LENS = 50.0 * Math.acos(0.8) - 24.0;
+  private static final String HALF_RIGHT =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (0 -5, 5 0, 0 5), (0 5, 0 -5)))";
+  /** Upper half of CIRCLE_CROSSING -- collinear diameters with HALF_DISC. */
+  private static final String HALF_CROSSING_UPPER =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (2 0, 7 5, 12 0), (12 0, 2 0)))";
+
+  public void testOverlappingSameCircleHalvesAreSectors() throws Exception {
+    Geometry upper = readCurve(HALF_DISC);
+    Geometry right = readCurve(HALF_RIGHT);
+    OverlayNGCurve cap = new OverlayNGCurve(upper, right);
+    Geometry q = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("upper ∩ right is exact", cap.isApproximate());
+    assertEquals("quarter-disc", 6.25 * Math.PI, q.getArea(), EXACT);
+    assertArcAndLineShell(q);
+    assertParity(upper, right, OverlayNG.INTERSECTION, q);
+
+    OverlayNGCurve cup = new OverlayNGCurve(upper, right);
+    Geometry u = cup.getResult(OverlayNG.UNION);
+    assertFalse("upper ∪ right is exact", cup.isApproximate());
+    assertEquals("three-quarter disc", 18.75 * Math.PI, u.getArea(), EXACT);
+    assertArcAndLineShell(u);
+
+    OverlayNGCurve sub = new OverlayNGCurve(upper, right);
+    Geometry bite = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("upper \\ right is exact", sub.isApproximate());
+    assertEquals("Q2 quarter", 6.25 * Math.PI, bite.getArea(), EXACT);
+
+    OverlayNGCurve xor = new OverlayNGCurve(upper, right);
+    Geometry x = xor.getResult(OverlayNG.SYMDIFFERENCE);
+    assertFalse("upper XOR right is exact", xor.isApproximate());
+    assertEquals("Q2 ∪ Q4", 12.5 * Math.PI, x.getArea(), EXACT);
+    assertEquals("two members", 2, x.getNumGeometries());
+  }
+
+  public void testOverlappingHalvesReverseOrder() throws Exception {
+    Geometry upper = readCurve(HALF_DISC);
+    Geometry right = readCurve(HALF_RIGHT);
+    OverlayNGCurve cap = new OverlayNGCurve(right, upper);
+    Geometry q = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("right ∩ upper is exact", cap.isApproximate());
+    assertEquals("quarter-disc reverse", 6.25 * Math.PI, q.getArea(), EXACT);
+    assertArcAndLineShell(q);
+
+    OverlayNGCurve sub = new OverlayNGCurve(right, upper);
+    Geometry bite = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("right \\ upper is exact", sub.isApproximate());
+    assertEquals("Q4 quarter", 6.25 * Math.PI, bite.getArea(), EXACT);
+  }
+
+  public void testTwoShellLensKeepsArcs() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(HALF_HANGING);
+    OverlayNGCurve cap = new OverlayNGCurve(a, b);
+    Geometry lens = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("two-shell CAP is exact", cap.isApproximate());
+    assertEquals("lens of r=5, d=8", LENS, lens.getArea(), EXACT);
+    assertArcShell(lens);
+    assertParity(a, b, OverlayNG.INTERSECTION, lens);
+
+    OverlayNGCurve cup = new OverlayNGCurve(a, b);
+    Geometry u = cup.getResult(OverlayNG.UNION);
+    assertFalse("two-shell CUP is exact", cup.isApproximate());
+    assertEquals("two halves minus lens", 2.0 * HALF - LENS, u.getArea(), EXACT);
+    assertArcAndLineShell(u);
+    assertTrue("CUP keeps an arc, not a densified n-gon",
+        u.getNumPoints() < 20);
+
+    OverlayNGCurve sub = new OverlayNGCurve(a, b);
+    Geometry bite = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("two-shell SUB is exact", sub.isApproximate());
+    assertEquals("half minus lens", HALF - LENS, bite.getArea(), EXACT);
+    assertArcAndLineShell(bite);
+  }
+
+  public void testTwoShellLensReverseOrder() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(HALF_HANGING);
+    OverlayNGCurve cap = new OverlayNGCurve(b, a);
+    Geometry lens = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("reverse two-shell CAP is exact", cap.isApproximate());
+    assertEquals("lens reverse", LENS, lens.getArea(), EXACT);
+    assertArcShell(lens);
+
+    OverlayNGCurve sub = new OverlayNGCurve(b, a);
+    Geometry bite = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("reverse two-shell SUB is exact", sub.isApproximate());
+    assertEquals("hanging half minus lens", HALF - LENS, bite.getArea(), EXACT);
+  }
+
   public void testNotThisCellReturnsNull() throws Exception {
     Geometry half = readCurve(HALF_DISC);
     Geometry disc = readCurve(CIRCLE_5);
     Geometry other = readCurve(CIRCLE_CROSSING);
     Geometry square = readCurve(SQUARE_CAP);
     Geometry chords = readCurve(CHORD_SHELL);
-    Geometry right = readCurve(
-        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (0 -5, 5 0, 0 5), (0 5, 0 -5)))");
+    Geometry collinear = readCurve(HALF_CROSSING_UPPER);
     assertNull("two discs stay on R1.5",
         CompoundCurveShellOverlay.overlay(disc, other, OverlayNG.INTERSECTION));
     assertNull("plain vs plain",
         CompoundCurveShellOverlay.overlay(square, square, OverlayNG.UNION));
-    assertNull("two CompoundCurve shells that are not complementary",
-        CompoundCurveShellOverlay.overlay(half, right, OverlayNG.INTERSECTION));
+    assertNull("H-SHELL: collinear diameters / 3+ nodes stay refused",
+        CompoundCurveShellOverlay.overlay(half, collinear, OverlayNG.INTERSECTION));
     assertNull("line-only shell",
         CompoundCurveShellOverlay.overlay(chords, square, OverlayNG.INTERSECTION));
   }

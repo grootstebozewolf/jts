@@ -90,9 +90,12 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     of the surviving pieces (or a {@link MultiSurface} for XOR). A
  *     LineString member stays a segment. Closed form; no densification.
  *     Complementary half-discs of the same circle (shared diameter)
- *     are CAP empty / CUP the disc / SUB the first half. Holes,
- *     0 / 1 / 3+ nodes, any other two CompoundCurve shells, or a
- *     line-only shell return {@code null} without paying this path.</li>
+ *     are CAP empty / CUP the disc / SUB the first half. Same-circle
+ *     half-discs whose diameters are perpendicular assemble as sectors.
+ *     Any other two hole-free CompoundCurve shells with exactly two
+ *     proper nodes walk the surviving pieces. Holes, 0 / 1 / 3+ nodes,
+ *     collinear overlap, or a line-only shell return {@code null}
+ *     without paying this path.</li>
  * <li><b>R-LL</b> -- one operand is a {@link org.locationtech.jts.geom.curve.CircularString}
  *     (or a lineal CompoundCurve of LineString + CircularString) and the
  *     other is a plain LineString. Line–circle nodes are exact. CAP is
@@ -210,8 +213,9 @@ public class OverlayNGCurve {
    * CircularString noded against a LineString (R-LL), or two
    * CircularStrings noded at circle–circle hits on both sweeps (R-AA),
    * including same-circle angular-interval overlay, complementary
-   * half-discs, and an even 4+ line–circle cut of a disc by a plain
-   * polygon. In
+   * half-discs, perpendicular same-circle half-disc sectors, a
+   * two-node walk of two CompoundCurve shells, and an even 4+
+   * line–circle cut of a disc by a plain polygon. In
    * the R1 case the <em>answer</em> is exact even though the <em>decision</em>
    * to return it was made on densified copies.
    * <p>

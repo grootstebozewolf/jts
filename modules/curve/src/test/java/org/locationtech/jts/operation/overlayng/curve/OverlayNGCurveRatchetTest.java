@@ -46,7 +46,8 @@ import test.jts.GeometryTestCase;
  * cutting square (R1.7) is EEEE in both operand orders. Two crossing
  * CircularStrings (R-AA) are EEEE in both operand orders. Same-circle
  * overlapping arcs are EEEE (interval overlay). Complementary half-discs
- * are 0EEE. A four-cut disc vs a band is EEEE. The cells that
+ * are 0EEE. Perpendicular same-circle half-discs and a two-node
+ * two-shell clip are EEEE. A four-cut disc vs a band is EEEE. The cells that
  * stay approximate are the ones whose answer is a <em>new</em> non-disc
  * geometry -- SUB and XOR of a nested pair are an annulus, which this
  * stage does not build (0 intersections).
@@ -84,6 +85,10 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
       "LINESTRING (0 0, 2 3, 10 0)";
   private static final String HALF_LOWER =
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 -5, 5 0), (5 0, -5 0)))";
+  private static final String HALF_RIGHT =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (0 -5, 5 0, 0 5), (0 5, 0 -5)))";
+  private static final String HALF_HANGING =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 8, 0 3, 5 8), (5 8, -5 8)))";
   private static final String BAND_FOUR =
       "POLYGON ((-8 -1, 8 -1, 8 1, -8 1, -8 -1))";
 
@@ -217,6 +222,22 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_complementaryHalves() throws Exception {
     assertRow("complementary halves", HALF_DISC, HALF_LOWER, "0EEE");
+  }
+
+  public void testMatrix_overlappingHalves() throws Exception {
+    assertRow("upper ∩ right", HALF_DISC, HALF_RIGHT, "EEEE");
+  }
+
+  public void testMatrix_overlappingHalvesReverse() throws Exception {
+    assertRow("right ∩ upper", HALF_RIGHT, HALF_DISC, "EEEE");
+  }
+
+  public void testMatrix_twoShellLens() throws Exception {
+    assertRow("two-shell lens", HALF_DISC, HALF_HANGING, "EEEE");
+  }
+
+  public void testMatrix_twoShellLensReverse() throws Exception {
+    assertRow("two-shell lens reverse", HALF_HANGING, HALF_DISC, "EEEE");
   }
 
   public void testMatrix_fourCut() throws Exception {
