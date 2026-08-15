@@ -21,6 +21,13 @@ import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
  * a curve, so they see the arc instead of the chords through its control
  * points.
  * <p>
+ * Envelope filters run first (<b>PERF-GATE</b>). An envelope miss is exact --
+ * curve envelopes cover the arc -- and cheaper than densifying. Anything the
+ * envelope cannot decide falls through to the locationtech/jts chord baseline:
+ * {@link #linearise(Geometry)}, then the core algorithm. Overlay is not
+ * routed here; it goes to {@link OverlayNGCurve}, whose ratchet has the same
+ * gate.
+ * <p>
  * The operations themselves ({@code ConvexHull}, {@code DistanceOp},
  * {@code BufferOp}) live in jts-core and have no visibility of the curve types,
  * since jts-curve depends on core rather than the reverse. Densifying at the
@@ -88,6 +95,11 @@ public final class CurveOps {
   }
 
   static boolean isWithinDistance(Geometry curve, Geometry other, double distance) {
+    // Envelope distance is a lower bound. If it already exceeds the threshold
+    // the densified call cannot come back true, so skip the chords.
+    if (curve.getEnvelopeInternal().distance(other.getEnvelopeInternal()) > distance) {
+      return false;
+    }
     return linearise(curve).isWithinDistance(linearise(other), distance);
   }
 
@@ -157,43 +169,70 @@ public final class CurveOps {
   // now has its own. disjoint is the exception -- core defines it as
   // !intersects(g), so it follows the intersects override.
   //
-  // Verdicts are evaluated on inscribed copies, so input within TOLERANCE_FRACTION
-  // of a boundary transition is undecidable here -- the same band the overlay
-  // ratchet's margin gate refuses to decide in. The reverse direction
-  // (plain.contains(curve)) dispatches on the plain type and remains chord-based.
+  // Envelope filters run before any densify: a miss is exact (curve envelopes
+  // cover the arc) and is the laser that beats the chord call. Verdicts the
+  // envelope cannot decide are evaluated on inscribed copies, so input within
+  // TOLERANCE_FRACTION of a boundary transition is undecidable here -- the same
+  // band the overlay ratchet's margin gate refuses to decide in. The reverse
+  // direction (plain.contains(curve)) dispatches on the plain type and remains
+  // chord-based.
 
   static IntersectionMatrix relate(Geometry curve, Geometry other) {
     return linearise(curve).relate(linearise(other));
   }
 
   static boolean intersects(Geometry curve, Geometry other) {
+    if (!curve.getEnvelopeInternal().intersects(other.getEnvelopeInternal())) {
+      return false;
+    }
     return linearise(curve).intersects(linearise(other));
   }
 
   static boolean within(Geometry curve, Geometry other) {
+    if (!other.getEnvelopeInternal().covers(curve.getEnvelopeInternal())) {
+      return false;
+    }
     return linearise(curve).within(linearise(other));
   }
 
   static boolean coveredBy(Geometry curve, Geometry other) {
+    if (!other.getEnvelopeInternal().covers(curve.getEnvelopeInternal())) {
+      return false;
+    }
     return linearise(curve).coveredBy(linearise(other));
   }
   static boolean touches(Geometry curve, Geometry other) {
+    if (!curve.getEnvelopeInternal().intersects(other.getEnvelopeInternal())) {
+      return false;
+    }
     return linearise(curve).touches(linearise(other));
   }
 
   static boolean contains(Geometry curve, Geometry other) {
+    if (!curve.getEnvelopeInternal().covers(other.getEnvelopeInternal())) {
+      return false;
+    }
     return linearise(curve).contains(linearise(other));
   }
 
   static boolean overlaps(Geometry curve, Geometry other) {
+    if (!curve.getEnvelopeInternal().intersects(other.getEnvelopeInternal())) {
+      return false;
+    }
     return linearise(curve).overlaps(linearise(other));
   }
 
   static boolean covers(Geometry curve, Geometry other) {
+    if (!curve.getEnvelopeInternal().covers(other.getEnvelopeInternal())) {
+      return false;
+    }
     return linearise(curve).covers(linearise(other));
   }
 
   static boolean crosses(Geometry curve, Geometry other) {
+    if (!curve.getEnvelopeInternal().intersects(other.getEnvelopeInternal())) {
+      return false;
+    }
     return linearise(curve).crosses(linearise(other));
   }
 

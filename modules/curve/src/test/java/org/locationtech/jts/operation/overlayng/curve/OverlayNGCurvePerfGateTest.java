@@ -38,6 +38,12 @@ import test.jts.GeometryTestCase;
  * </table>
  * Algebra (self CAP, empty CUP) already won in the same run. The four
  * failures above are the claim.
+ * <p>
+ * After the gate (same harness): disjoint CAP 0.001 / 0.092 (0.016),
+ * nested CAP 0.211 / 0.599 (0.35), nested CUP 0.165 / 0.319 (0.52),
+ * crossing CAP 0.381 / 0.365 (1.05, inside the noise budget -- the laser
+ * <em>is</em> the chord overlay). Envelope-decidable predicates drop from
+ * ~1.0 to ~0.005.
  * Algebra (self / empty) already wins. Retention loses because it densifies at
  * the fine ops tolerance, then pays {@code relate} plus boundary-distance on
  * ~1570-vertex rings -- and on a crossing pair still falls through to the same

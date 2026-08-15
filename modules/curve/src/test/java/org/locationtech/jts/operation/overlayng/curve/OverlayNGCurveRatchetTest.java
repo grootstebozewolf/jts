@@ -13,7 +13,6 @@ package org.locationtech.jts.operation.overlayng.curve;
 
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
-import org.locationtech.jts.geom.curve.CurveOps;
 import org.locationtech.jts.geom.curve.MultiSurface;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 
@@ -154,29 +153,60 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
   // -- the margin gate ----------------------------------------------------
 
   /**
-   * The security case. Two circles separated by less than the summed
-   * densification tolerance must <em>not</em> be retained on a disjoint verdict,
-   * because the verdict is made on inscribed copies and could be wrong.
-   * <p>
-   * This matters asymmetrically. A wrong disjoint verdict makes SUB return
-   * {@code a} unchanged -- it fails to erase, and the answer looks entirely
-   * plausible, so nothing downstream detects it. For CUP and XOR it would be
-   * worse still: two operands that truly touch have a single connected union, so
-   * a two-member MultiSurface would be wrong in topology, not merely in area.
-   * <p>
-   * The gap here is 1e-5 against a margin of 2e-5 (1e-6 of each 10-unit extent,
-   * summed). The closest points are control points, which the densifier pins
-   * exactly, so the densified gap equals the true gap and the pair really does
-   * sit inside the undecidable band.
+   * Axis-aligned nearly-disjoint circles have envelopes that do not meet, so
+   * R0 answers exactly without densifying. The 1e-5 gap is real: the true
+   * arcs do not touch. Before the performance gate this pair paid a fine
+   * relate and then approximated; the envelope stage makes the exact answer
+   * the cheap one.
    */
-  public void testNearlyTouchingIsNotRetained() throws Exception {
+  public void testAxisAlignedNearlyDisjointIsExact() throws Exception {
     String nearlyTouching =
         "CURVEPOLYGON (CIRCULARSTRING (5.00001 0, 10.00001 5, 15.00001 0, 10.00001 -5, 5.00001 0))";
     Geometry a = readCurve(CIRCLE_5);
     Geometry b = readCurve(nearlyTouching);
-    double margin = CurveOps.tolerance(a) + CurveOps.tolerance(b);
-    assertTrue("test premise: the gap must be inside the margin, gap 1e-5 vs margin "
-        + margin, 1.0e-5 < margin);
+    assertFalse("envelopes must not meet -- that is R0's premise",
+        a.getEnvelopeInternal().intersects(b.getEnvelopeInternal()));
+
+    OverlayNGCurve sub = new OverlayNGCurve(a, b);
+    Geometry r = sub.getResult(OverlayNGCurve.DIFFERENCE);
+    assertFalse("R0 disjoint SUB is exact", sub.isApproximate());
+    assertEquals("SUB is all of A", 25.0 * Math.PI, r.getArea(), 1.0e-9);
+
+    OverlayNGCurve cup = new OverlayNGCurve(a, b);
+    Geometry u = cup.getResult(OverlayNGCurve.UNION);
+    assertFalse("R0 disjoint CUP is an exact MultiSurface", cup.isApproximate());
+    assertTrue(u instanceof MultiSurface);
+    assertEquals(2, u.getNumGeometries());
+  }
+
+  /**
+   * The security case. Two circles that touch on a diagonal have overlapping
+   * envelopes (R0 cannot decide) and a true gap of zero. Inscribed copies
+   * open a gap of about the summed decide-tolerance, so a disjoint verdict
+   * on those copies is exactly the false "they do not meet" the margin gate
+   * exists to refuse.
+   * <p>
+   * A wrong disjoint verdict makes SUB return {@code a} unchanged -- it fails
+   * to erase -- and makes CUP a two-member MultiSurface of operands that
+   * truly touch.
+   */
+  public void testNearlyTouchingIsNotRetained() throws Exception {
+    // Centres (0,0) and (5√2, 5√2), each r=5. Distance 10, they touch at 45°.
+    double c = 5.0 * Math.sqrt(2.0);
+    String diagonalTouch =
+        "CURVEPOLYGON (CIRCULARSTRING ("
+        + (c - 5) + " " + c + ", "
+        + c + " " + (c + 5) + ", "
+        + (c + 5) + " " + c + ", "
+        + c + " " + (c - 5) + ", "
+        + (c - 5) + " " + c + "))";
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry b = readCurve(diagonalTouch);
+    double margin = OverlayNGCurve.decideTolerance(a) + OverlayNGCurve.decideTolerance(b);
+    assertTrue("test premise: envelopes must meet so R0 does not decide",
+        a.getEnvelopeInternal().intersects(b.getEnvelopeInternal()));
+    assertTrue("test premise: a touching pair sits inside any positive decide margin "
+        + margin, margin > 0.0);
 
     OverlayNGCurve sub = new OverlayNGCurve(a, b);
     sub.getResult(OverlayNGCurve.DIFFERENCE);
