@@ -45,6 +45,16 @@ public class CurveExactRelateDiscTest extends GeometryTestCase {
       "CURVEPOLYGON (CIRCULARSTRING (-1 0, 1 2, 3 0, 1 -2, -1 0))";
   private static final String HALF_DISC =
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)))";
+  private static final String CIRCLE_5_ROTATED =
+      "CURVEPOLYGON (CIRCULARSTRING (0 5, 5 0, 0 -5, -5 0, 0 5))";
+  private static final String MULTI_5 = "MULTISURFACE (" + CIRCLE_5 + ")";
+  private static final String MULTI_CROSS = "MULTISURFACE (" + CIRCLE_CROSSING + ")";
+  private static final String MULTI_FAR = "MULTISURFACE (" + CIRCLE_FAR + ")";
+  private static final String MULTI_3 = "MULTISURFACE (" + CIRCLE_3 + ")";
+  private static final String MULTI_EXT = "MULTISURFACE (" + CIRCLE_EXT_TAN + ")";
+  private static final String MULTI_INT = "MULTISURFACE (" + CIRCLE_INT_TAN + ")";
+  private static final String MULTI_TWO =
+      "MULTISURFACE (" + CIRCLE_5 + ", " + CIRCLE_FAR + ")";
 
   private static final String IM_OUT = CurveExact.IM_AREA_DISJOINT;
   private static final String IM_COVERS = CurveExact.IM_AREA_COVERS;
@@ -103,11 +113,8 @@ public class CurveExactRelateDiscTest extends GeometryTestCase {
     assertEquals(IM_OVER, CurveExact.relate(a, b).toString());
     assertEquals(IM_OVER, a.relate(b).toString());
     assertEquals(IM_OVER, b.relate(a).toString());
-    assertTrue(a.overlaps(b));
-    assertTrue(b.overlaps(a));
-    assertTrue(a.intersects(b));
-    assertFalse(a.contains(b));
-    assertFalse(a.covers(b));
+    assertSfs(a, b, true, false, true, false, false, false);
+    assertSfs(b, a, true, false, true, false, false, false);
     // Do not assert equals against linearise(a).relate(linearise(b)):
     // a coarser inscription can miss the lens even when the discs overlap.
   }
@@ -118,8 +125,8 @@ public class CurveExactRelateDiscTest extends GeometryTestCase {
     assertEquals(IM_OUT, CurveExact.relate(a, far).toString());
     assertEquals(IM_OUT, a.relate(far).toString());
     assertEquals(IM_OUT, far.relate(a).toString());
-    assertFalse(a.intersects(far));
-    assertFalse(a.overlaps(far));
+    assertSfs(a, far, false, false, false, false, false, false);
+    assertSfs(far, a, false, false, false, false, false, false);
   }
 
   public void testNestedConcentricCovers() throws Exception {
@@ -128,11 +135,11 @@ public class CurveExactRelateDiscTest extends GeometryTestCase {
     assertEquals(IM_COVERS, CurveExact.relate(big, small).toString());
     assertEquals(IM_COVERS, big.relate(small).toString());
     assertEquals(IM_INSIDE, small.relate(big).toString());
-    assertTrue(big.contains(small));
-    assertTrue(big.covers(small));
+    assertSfs(big, small, true, false, false, true, true, false);
+    assertSfs(small, big, true, false, false, false, false, false);
     assertTrue(small.within(big));
     assertTrue(small.coveredBy(big));
-    assertFalse(big.overlaps(small));
+    assertFalse(big.within(small));
   }
 
   public void testNestedOffsetCovers() throws Exception {
@@ -140,8 +147,9 @@ public class CurveExactRelateDiscTest extends GeometryTestCase {
     Geometry inner = readCurve(CIRCLE_NESTED_OFFSET);
     assertEquals(IM_COVERS, big.relate(inner).toString());
     assertEquals(IM_INSIDE, inner.relate(big).toString());
-    assertTrue(big.contains(inner));
-    assertTrue(big.covers(inner));
+    assertSfs(big, inner, true, false, false, true, true, false);
+    assertTrue(inner.within(big));
+    assertTrue(inner.coveredBy(big));
   }
 
   public void testExternalTangent() throws Exception {
@@ -150,11 +158,8 @@ public class CurveExactRelateDiscTest extends GeometryTestCase {
     assertEquals(IM_EXT, CurveExact.relate(a, b).toString());
     assertEquals(IM_EXT, a.relate(b).toString());
     assertEquals(IM_EXT, b.relate(a).toString());
-    assertTrue(a.intersects(b));
-    assertTrue(a.touches(b));
-    assertFalse(a.overlaps(b));
-    assertFalse(a.contains(b));
-    assertFalse(a.covers(b));
+    assertSfs(a, b, true, true, false, false, false, false);
+    assertSfs(b, a, true, true, false, false, false, false);
   }
 
   public void testInternalTangent() throws Exception {
@@ -164,11 +169,8 @@ public class CurveExactRelateDiscTest extends GeometryTestCase {
     assertEquals(IM_INT, big.relate(small).toString());
     assertEquals(IntersectionMatrix.transpose(IM_INT),
         small.relate(big).toString());
-    assertTrue(big.intersects(small));
-    assertTrue(big.covers(small));
-    assertTrue("T*****FF* — B is a subset of A; the shared point is allowed",
-        big.contains(small));
-    assertFalse(big.overlaps(small));
+    assertSfs(big, small, true, false, false, true, true, false);
+    assertSfs(small, big, true, false, false, false, false, false);
     assertTrue(small.coveredBy(big));
     assertFalse(small.covers(big));
   }
@@ -178,9 +180,10 @@ public class CurveExactRelateDiscTest extends GeometryTestCase {
     Geometry b = readCurve(CIRCLE_5);
     assertEquals(IM_EQ, CurveExact.relate(a, b).toString());
     assertEquals(IM_EQ, a.relate(b).toString());
-    assertTrue(a.covers(b));
+    assertSfs(a, b, true, false, false, true, true, true);
+    assertSfs(b, a, true, false, false, true, true, true);
     assertTrue(a.coveredBy(b));
-    assertFalse(a.overlaps(b));
+    assertTrue(b.covers(a));
   }
 
   public void testCrossingNodesAreTheLockedPair() {
@@ -210,5 +213,87 @@ public class CurveExactRelateDiscTest extends GeometryTestCase {
     Geometry disc = readCurve(CIRCLE_5);
     assertNull(CurveExact.relate(half, disc));
     assertNull(CurveExact.relate(disc, half));
+  }
+
+  /**
+   * Same circle, controls rotated by one vertex. {@code circularDisc}
+   * recovers the same centre and radius; relate is equal, not a
+   * linearise of two different inscriptions.
+   */
+  public void testRotatedControlsAreEqual() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry b = readCurve(CIRCLE_5_ROTATED);
+    assertEquals(IM_EQ, CurveExact.relate(a, b).toString());
+    assertEquals(IM_EQ, a.relate(b).toString());
+    assertEquals(IM_EQ, b.relate(a).toString());
+    assertSfs(a, b, true, false, false, true, true, true);
+    assertSfs(b, a, true, false, false, true, true, true);
+  }
+
+  /**
+   * {@code circularDisc} unwraps a single-member MultiSurface. The five
+   * location classes are the same matrices already locked above.
+   */
+  public void testSingleMemberMultiSurfaceSameFiveMatrices() throws Exception {
+    lockMulti(MULTI_5, CIRCLE_CROSSING, MULTI_CROSS, IM_OVER);
+    lockMulti(MULTI_5, CIRCLE_FAR, MULTI_FAR, IM_OUT);
+    lockMulti(MULTI_5, CIRCLE_3, MULTI_3, IM_COVERS);
+    lockMulti(MULTI_5, CIRCLE_EXT_TAN, MULTI_EXT, IM_EXT);
+    lockMulti(MULTI_5, CIRCLE_INT_TAN, MULTI_INT, IM_INT);
+  }
+
+  public void testMultiMemberMultiSurfaceReturnsNull() throws Exception {
+    Geometry two = readCurve(MULTI_TWO);
+    Geometry disc = readCurve(CIRCLE_5);
+    Geometry cross = readCurve(CIRCLE_CROSSING);
+    assertNull(CurveExact.relate(two, disc));
+    assertNull(CurveExact.relate(disc, two));
+    assertNull(CurveExact.relate(two, cross));
+  }
+
+  public void testTwoAreasNeverCross() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry[] others = {
+        readCurve(CIRCLE_CROSSING),
+        readCurve(CIRCLE_FAR),
+        readCurve(CIRCLE_3),
+        readCurve(CIRCLE_EXT_TAN),
+        readCurve(CIRCLE_INT_TAN),
+        readCurve(CIRCLE_5),
+        readCurve(CIRCLE_5_ROTATED),
+        readCurve(MULTI_5)
+    };
+    for (int i = 0; i < others.length; i++) {
+      assertFalse("two areas never cross: " + others[i].getGeometryType(),
+          a.crosses(others[i]));
+      assertFalse(others[i].crosses(a));
+    }
+  }
+
+  private void lockMulti(String multiA, String bWkt, String multiB, String im)
+      throws Exception {
+    Geometry ma = readCurve(multiA);
+    Geometry b = readCurve(bWkt);
+    Geometry mb = readCurve(multiB);
+    assertEquals(im, CurveExact.relate(ma, b).toString());
+    assertEquals(im, ma.relate(b).toString());
+    assertEquals(im, CurveExact.relate(ma, mb).toString());
+    assertEquals(im, ma.relate(mb).toString());
+  }
+
+  /**
+   * SFS predicates from the locked matrix. {@code crosses} of two areas
+   * is always false. {@code equals} is {@code equalsTopo}.
+   */
+  private void assertSfs(Geometry a, Geometry b, boolean intersects,
+      boolean touches, boolean overlaps, boolean contains, boolean covers,
+      boolean equals) {
+    assertEquals("intersects", intersects, a.intersects(b));
+    assertEquals("touches", touches, a.touches(b));
+    assertEquals("overlaps", overlaps, a.overlaps(b));
+    assertEquals("contains", contains, a.contains(b));
+    assertEquals("covers", covers, a.covers(b));
+    assertEquals("equalsTopo", equals, a.equalsTopo(b));
+    assertFalse("crosses of two areas", a.crosses(b));
   }
 }

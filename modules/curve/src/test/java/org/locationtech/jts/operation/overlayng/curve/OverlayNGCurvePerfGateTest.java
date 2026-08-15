@@ -456,6 +456,38 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
         () -> CurveOps.linearise(cross).relate(CurveOps.linearise(a)));
   }
 
+  public void testEqualsTopoEqualDiscsNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry b = readCurve(CIRCLE_5);
+    assertLaserNotSlower("disc vs disc equalsTopo",
+        () -> a.equalsTopo(b),
+        () -> CurveOps.linearise(a).equalsTopo(CurveOps.linearise(b)));
+  }
+
+  public void testEqualsTopoCrossingDiscsNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry cross = readCurve(CIRCLE_CROSSING);
+    assertLaserNotSlower("disc vs disc crossing equalsTopo",
+        () -> a.equalsTopo(cross),
+        () -> CurveOps.linearise(a).equalsTopo(CurveOps.linearise(cross)));
+  }
+
+  public void testCrossesCrossingDiscsNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry cross = readCurve(CIRCLE_CROSSING);
+    assertLaserNotSlower("disc vs disc crosses",
+        () -> a.crosses(cross),
+        () -> CurveOps.linearise(a).crosses(CurveOps.linearise(cross)));
+  }
+
+  public void testRelateMultiSurfaceDiscNotSlowerThanChord() throws Exception {
+    Geometry multi = readCurve("MULTISURFACE (" + CIRCLE_5 + ")");
+    Geometry cross = readCurve(CIRCLE_CROSSING);
+    assertLaserNotSlower("multi-disc vs disc crossing relate",
+        () -> multi.relate(cross),
+        () -> CurveOps.linearise(multi).relate(CurveOps.linearise(cross)));
+  }
+
   public void testDistanceFarNotSlowerThanChord() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
     Geometry far = readCurve(CIRCLE_FAR);

@@ -198,9 +198,10 @@ final class CurveExact {
    * {@link CircularArcDensifier#intersectCircles} (radical axis) and
    * locate each centre in the other disc. A polygonal miss also samples
    * mid-arc points in the polygon (jts-core PIP). Mixed MultiPoint
-   * location classes, a multi-member MultiLineString, a holed or
-   * non-disc curve polygon return {@code null} so the caller
-   * linearises rather than guessing.
+   * location classes, a multi-member MultiLineString or MultiSurface,
+   * a holed or non-disc curve polygon return {@code null} so the caller
+   * linearises rather than guessing. A single-member MultiSurface of a
+   * disc unwraps through {@link #circularDisc}.
    */
   static IntersectionMatrix relate(Geometry curve, Geometry other) {
     if (curve == null || other == null || other.isEmpty()) return null;

@@ -210,7 +210,8 @@ public final class CurveOps {
   // MultiLineString) or a plain Polygon takes the line–circle nodes
   // (R1.6 / ARC_SEGMENT_XY) for relate / relate(pattern) and intersects.
   // Two circular discs take the radical-axis nodes for the same family.
-  // contains / covers / intersects / overlaps follow that matrix.
+  // contains / covers / intersects / overlaps / crosses / equalsTopo
+  // follow that matrix. Two areas never cross.
   // The control-point diamond is no longer the answer. Other shapes
   // still linearise.
   //
@@ -315,6 +316,8 @@ public final class CurveOps {
     if (!curve.getEnvelopeInternal().intersects(other.getEnvelopeInternal())) {
       return false;
     }
+    IntersectionMatrix exact = CurveExact.relate(curve, other);
+    if (exact != null) return exact.isCrosses(curve.getDimension(), other.getDimension());
     return linearise(curve).crosses(linearise(other));
   }
 
@@ -325,6 +328,8 @@ public final class CurveOps {
   }
 
   static boolean equalsTopo(Geometry curve, Geometry other) {
+    IntersectionMatrix exact = CurveExact.relate(curve, other);
+    if (exact != null) return exact.isEquals(curve.getDimension(), other.getDimension());
     return linearise(curve).equalsTopo(linearise(other));
   }
 }
