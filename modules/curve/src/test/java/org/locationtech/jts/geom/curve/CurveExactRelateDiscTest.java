@@ -108,9 +108,8 @@ public class CurveExactRelateDiscTest extends GeometryTestCase {
     assertTrue(a.intersects(b));
     assertFalse(a.contains(b));
     assertFalse(a.covers(b));
-    Geometry diamondA = read("POLYGON ((-5 0, 0 5, 5 0, 0 -5, -5 0))");
-    Geometry diamondB = read("POLYGON ((2 0, 7 5, 12 0, 7 -5, 2 0))");
-    assertFalse("inscribed diamonds miss the lens", diamondA.overlaps(diamondB));
+    // Do not assert equals against linearise(a).relate(linearise(b)):
+    // a coarser inscription can miss the lens even when the discs overlap.
   }
 
   public void testDisjointEnvelopeMiss() throws Exception {
@@ -167,7 +166,8 @@ public class CurveExactRelateDiscTest extends GeometryTestCase {
         small.relate(big).toString());
     assertTrue(big.intersects(small));
     assertTrue(big.covers(small));
-    assertFalse(big.contains(small));
+    assertTrue("T*****FF* — B is a subset of A; the shared point is allowed",
+        big.contains(small));
     assertFalse(big.overlaps(small));
     assertTrue(small.coveredBy(big));
     assertFalse(small.covers(big));
