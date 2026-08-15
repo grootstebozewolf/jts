@@ -41,9 +41,9 @@ import test.jts.GeometryTestCase;
  * <p>
  * After the gate (same harness): disjoint CAP 0.001 / 0.092 (0.016),
  * nested CAP 0.211 / 0.599 (0.35), nested CUP 0.165 / 0.319 (0.52),
- * crossing CAP is R1.5 (two-arc lens) and must beat the ~1570-vertex
- * chord overlay by a lot, the way R0/R1 do. Envelope-decidable predicates
- * drop from ~1.0 to ~0.005.
+ * crossing CAP 0.017 / 0.681 (0.025) -- R1.5 two-arc lens, not the
+ * ~1570-vertex chord overlay. Crossing CUP 0.039, SUB 0.026, XOR 0.040.
+ * Envelope-decidable predicates drop from ~1.0 to ~0.005.
  * Algebra (self / empty) already wins. Retention loses because it densifies at
  * the fine ops tolerance, then pays {@code relate} plus boundary-distance on
  * ~1570-vertex rings -- and on a crossing pair still falls through to the same
@@ -130,6 +130,9 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
     long cm = median(C);
     double ratio = cm == 0 ? (lm == 0 ? 0.0 : Double.POSITIVE_INFINITY)
         : (double) lm / (double) cm;
+    System.out.println(String.format(
+        "PERF %s: laser %.3f ms / chainsaw %.3f ms (ratio %.3f)",
+        label, lm / 1.0e6, cm / 1.0e6, ratio));
     assertTrue(label + ": laser " + (lm / 1.0e6) + " ms > chainsaw "
         + (cm / 1.0e6) + " ms (ratio " + ratio + " > " + NOISE + ")",
         ratio <= NOISE);

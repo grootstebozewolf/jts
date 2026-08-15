@@ -32,15 +32,17 @@ public class CircularIntersectionTest extends GeometryTestCase {
   public CircularIntersectionTest(String name) { super(name); }
 
   /**
-   * Locked pair: centres (0,0) and (7,0), r=5. Nodes at (3.5, ±3.5).
+   * Locked pair: centres (0,0) and (7,0), r=5. Radical axis x=3.5,
+   * y=±√(25−12.25)=±√12.75. (3.5, ±3.5) is not on either circle.
    */
   public void testCrossingDiscsReturnBothNodes() {
     CircularArcDensifier.Circle a = new CircularArcDensifier.Circle(0, 0, 5);
     CircularArcDensifier.Circle b = new CircularArcDensifier.Circle(7, 0, 5);
     Coordinate[] pts = CircularArcDensifier.intersectCircles(a, b);
     assertEquals("two proper crossings", 2, pts.length);
-    assertTrue("one node is (3.5, 3.5)", hasPoint(pts, 3.5, 3.5));
-    assertTrue("one node is (3.5, -3.5)", hasPoint(pts, 3.5, -3.5));
+    double y = Math.sqrt(12.75);
+    assertTrue("one node is (3.5, +√12.75)", hasPoint(pts, 3.5, y));
+    assertTrue("one node is (3.5, -√12.75)", hasPoint(pts, 3.5, -y));
   }
 
   public void testDisjointCirclesReturnNone() {
@@ -77,7 +79,7 @@ public class CircularIntersectionTest extends GeometryTestCase {
         new Coordinate(2, 0), new Coordinate(7, 5), new Coordinate(12, 0));
     assertEquals(1, pts.length);
     assertEquals(3.5, pts[0].x, EPS);
-    assertEquals(3.5, pts[0].y, EPS);
+    assertEquals(Math.sqrt(12.75), pts[0].y, EPS);
   }
 
   public void testIntersectArcsDropsOffSweep() {
