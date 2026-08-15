@@ -82,6 +82,30 @@ public class CircularIntersectionTest extends GeometryTestCase {
     assertEquals(Math.sqrt(12.75), pts[0].y, EPS);
   }
 
+  /**
+   * Locked half-plane cut: the vertical diameter of CIRCLE_5. Hits stay
+   * on the segment ({@code t ∈ [0,1]}); the line through x=0 would also
+   * miss if the segment did not cover y=±5.
+   */
+  public void testSegmentCircleVerticalDiameter() {
+    CircularArcDensifier.Circle c = new CircularArcDensifier.Circle(0, 0, 5);
+    Coordinate[] pts = CircularArcDensifier.intersectSegmentCircle(
+        c, new Coordinate(0, -6), new Coordinate(0, 6));
+    assertEquals("two proper chord nodes", 2, pts.length);
+    assertTrue("south node (0, -5)", hasPoint(pts, 0, -5));
+    assertTrue("north node (0, 5)", hasPoint(pts, 0, 5));
+  }
+
+  public void testSegmentCircleMissesWhenSegmentStopsShort() {
+    CircularArcDensifier.Circle c = new CircularArcDensifier.Circle(0, 0, 5);
+    assertEquals("segment y=10..20 never meets the circle", 0,
+        CircularArcDensifier.intersectSegmentCircle(
+            c, new Coordinate(0, 10), new Coordinate(0, 20)).length);
+    assertEquals("x=10 is outside r=5", 0,
+        CircularArcDensifier.intersectSegmentCircle(
+            c, new Coordinate(10, -6), new Coordinate(10, 6)).length);
+  }
+
   public void testIntersectArcsDropsOffSweep() {
     Coordinate[] pts = CircularArcDensifier.intersectArcs(
         new Coordinate(-5, 0), new Coordinate(0, 5), new Coordinate(5, 0),

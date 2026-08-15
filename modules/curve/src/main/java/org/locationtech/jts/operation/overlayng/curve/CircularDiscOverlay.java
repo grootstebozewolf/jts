@@ -53,6 +53,17 @@ final class CircularDiscOverlay {
    * cannot answer. The cheap shape check runs first; a miss does not
    * densify and does not node.
    */
+  /**
+   * {@code {cx, cy, r}} when {@code g} is a circular disc, else {@code null}.
+   * Shared with {@link CircularDiscPolygonOverlay}; same predicate as
+   * {@code CurveExact.circularDisc}.
+   */
+  static double[] centreRadius(Geometry g) {
+    Disc d = circularDisc(g);
+    if (d == null) return null;
+    return new double[] { d.cx, d.cy, d.r };
+  }
+
   static Geometry overlay(Geometry a, Geometry b, int opCode) {
     Disc da = circularDisc(a);
     if (da == null) return null;

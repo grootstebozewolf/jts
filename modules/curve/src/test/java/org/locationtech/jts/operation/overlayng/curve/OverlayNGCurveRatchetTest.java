@@ -39,10 +39,12 @@ import test.jts.GeometryTestCase;
  * <tr><td>crossing</td>   <td>exact</td><td>exact</td><td>exact</td><td>exact</td></tr>
  * </table>
  * <p>
- * Exact cells per operation: CAP 8 of 8, CUP 8, SUB 7, XOR 6. Crossing discs
- * are two-arc CurvePolygons (R1.5). The cells that stay approximate are the
- * ones whose answer is a <em>new</em> non-disc geometry -- SUB and XOR of a
- * nested pair are an annulus, which this stage does not build (0 intersections).
+ * Exact cells per operation: CAP 8 of 8, CUP 8, SUB 7, XOR 6 on the
+ * two-disc matrix. Crossing discs are two-arc CurvePolygons (R1.5).
+ * A disc clipped by a plain rectangle (R1.6) is EEEE in both operand
+ * orders. The cells that stay approximate are the ones whose answer is
+ * a <em>new</em> non-disc geometry -- SUB and XOR of a nested pair are
+ * an annulus, which this stage does not build (0 intersections).
  */
 public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
@@ -55,6 +57,8 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
   private static final String CIRCLE_CROSSING =
       "CURVEPOLYGON (CIRCULARSTRING (2 0, 7 5, 12 0, 7 -5, 2 0))";
   private static final String EMPTY = "CURVEPOLYGON EMPTY";
+  private static final String SQUARE_RIGHT =
+      "POLYGON ((0 -6, 10 -6, 10 6, 0 6, 0 -6))";
 
   private static final int[] OPS = { OverlayNGCurve.INTERSECTION, OverlayNGCurve.UNION,
       OverlayNGCurve.DIFFERENCE, OverlayNGCurve.SYMDIFFERENCE };
@@ -130,6 +134,14 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_crossing() throws Exception {
     assertRow("crossing", CIRCLE_5, CIRCLE_CROSSING, "EEEE");
+  }
+
+  public void testMatrix_discRectangle() throws Exception {
+    assertRow("disc ∩ square", CIRCLE_5, SQUARE_RIGHT, "EEEE");
+  }
+
+  public void testMatrix_rectangleDisc() throws Exception {
+    assertRow("square ∩ disc", SQUARE_RIGHT, CIRCLE_5, "EEEE");
   }
 
   // -- the disjoint CUP/XOR result, not just its exactness -----------------

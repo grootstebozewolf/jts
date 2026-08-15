@@ -517,27 +517,64 @@ public final class CircularArcDensifier {
 
   private static boolean segmentIntersectsArc(Circle c, Coordinate a0,
       Coordinate a1, Coordinate a2, Coordinate s0, Coordinate s1) {
+    Coordinate[] hits = intersectSegmentCircle(c, s0, s1);
+    for (int i = 0; i < hits.length; i++) {
+      if (isOnSweep(hits[i], c, a0, a1, a2)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Line–circle intersections that also lie on the segment
+   * ({@code t ∈ [0, 1]}). Package-private -- not a new public API.
+   * <p>
+   * Twin of the N-AL {@code ARC_SEGMENT_XY} oracle: the same quadratic
+   * {@link #segmentIntersectsArc} used to throw away. Callers that need
+   * the full circle (a disc) keep every hit; callers that need an arc
+   * also ask {@link #isOnSweep}.
+   */
+  static Coordinate[] intersectSegmentCircle(Circle c, Coordinate s0,
+      Coordinate s1) {
+    if (c == null) return new Coordinate[0];
+    return intersectSegmentCircle(c.cx, c.cy, c.r, s0, s1);
+  }
+
+  static Coordinate[] intersectSegmentCircle(double cx, double cy, double r,
+      Coordinate s0, Coordinate s1) {
     double dx = s1.x - s0.x;
     double dy = s1.y - s0.y;
-    double fx = s0.x - c.cx;
-    double fy = s0.y - c.cy;
+    double fx = s0.x - cx;
+    double fy = s0.y - cy;
     double A = dx * dx + dy * dy;
     if (A == 0.0) {
-      return Math.abs(Math.hypot(fx, fy) - c.r) <= 1.0e-12
-          && isOnSweep(s0, c, a0, a1, a2);
+      if (Math.abs(Math.hypot(fx, fy) - r) <= 1.0e-12) {
+        return new Coordinate[] { new Coordinate(s0) };
+      }
+      return new Coordinate[0];
     }
     double B = 2.0 * (fx * dx + fy * dy);
-    double C = fx * fx + fy * fy - c.r * c.r;
+    double C = fx * fx + fy * fy - r * r;
     double disc = B * B - 4.0 * A * C;
-    if (disc < 0.0) return false;
+    if (disc < 0.0) return new Coordinate[0];
     double sqrt = Math.sqrt(disc);
+    Coordinate p0 = null;
+    Coordinate p1 = null;
+    int n = 0;
     for (int sign = -1; sign <= 1; sign += 2) {
       double t = (-B + sign * sqrt) / (2.0 * A);
       if (t < -1.0e-12 || t > 1.0 + 1.0e-12) continue;
       Coordinate p = new Coordinate(s0.x + t * dx, s0.y + t * dy);
-      if (isOnSweep(p, c, a0, a1, a2)) return true;
+      if (n == 0) {
+        p0 = p;
+        n = 1;
+      } else if (p0.distance(p) > 1.0e-12) {
+        p1 = p;
+        n = 2;
+      }
     }
-    return false;
+    if (n == 0) return new Coordinate[0];
+    if (n == 1) return new Coordinate[] { p0 };
+    return new Coordinate[] { p0, p1 };
   }
 
   static double distanceArcToArc(Coordinate a0, Coordinate a1, Coordinate a2,
