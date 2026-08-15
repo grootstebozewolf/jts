@@ -39,6 +39,12 @@ public class DistanceFunctions {
    * distance and isWithinDistance are deliberately not routed through this:
    * they delegate to instance methods the curve types already override
    * (CRV-OPS). Non-curve input is returned as the same object.
+   * <p>
+   * <b>PERF-GATE.</b> Hausdorff and nearest-points take a closed form when
+   * both operands are circular discs, or one is a single arc and the other
+   * a point or a single segment. Otherwise the chord path runs alone -- a
+   * failed analytical attempt is not paid in front of it. Fréchet stays on
+   * the sampled path; no cheaper coupling was measured.
    */
   private static Geometry arc(Geometry g) {
     return CurveFunctions.linearizeForOps(g);
@@ -53,6 +59,10 @@ public class DistanceFunctions {
   }
 
   public static Geometry nearestPoints(Geometry a, Geometry b) {
+    Coordinate[] exact = CurveExactFns.nearestPoints(a, b);
+    if (exact != null) {
+      return a.getFactory().createLineString(exact);
+    }
     Coordinate[] pts = DistanceOp.nearestPoints(arc(a), arc(b));
     return a.getFactory().createLineString(pts);
   }
@@ -92,6 +102,8 @@ public class DistanceFunctions {
   @Metadata(description="Oriented discrete Hausdorff distance from A to B")
 	public static double orientedDiscreteHausdorffDistance(Geometry a, Geometry b)	
 	{		
+    Double exact = CurveExactFns.orientedHausdorff(a, b);
+    if (exact != null) return exact.doubleValue();
     return DiscreteHausdorffDistance.orientedDistance(arc(a), arc(b));
 	}
 	
@@ -199,6 +211,8 @@ public class DistanceFunctions {
   //--------------------------------------------
   
   public static double distanceIndexed(Geometry a, Geometry b) {
+    Coordinate[] exact = CurveExactFns.nearestPoints(a, b);
+    if (exact != null) return exact[0].distance(exact[1]);
     return IndexedFacetDistance.distance(arc(a), arc(b));
   }
   
@@ -207,6 +221,8 @@ public class DistanceFunctions {
   }
   
   public static Geometry nearestPointsIndexed(Geometry a, Geometry b) {
+    Coordinate[] exact = CurveExactFns.nearestPoints(a, b);
+    if (exact != null) return a.getFactory().createLineString(exact);
     Coordinate[] pts =  IndexedFacetDistance.nearestPoints(arc(a), arc(b));
     return a.getFactory().createLineString(pts);
   }

@@ -22,11 +22,13 @@ import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
  * points.
  * <p>
  * Envelope filters run first (<b>PERF-GATE</b>). An envelope miss is exact --
- * curve envelopes cover the arc -- and cheaper than densifying. Anything the
- * envelope cannot decide falls through to the locationtech/jts chord baseline:
+ * curve envelopes cover the arc -- and cheaper than densifying. Distance,
+ * buffer and convex hull take a closed form when a cheap shape check can
+ * answer (circular disc, single arc, point-vs-arc); see {@code CurveExact}.
+ * Anything else falls through to the locationtech/jts chord baseline:
  * {@link #linearise(Geometry)}, then the core algorithm. Overlay is not
  * routed here; it goes to {@link OverlayNGCurve}, whose ratchet has the same
- * gate.
+ * gate. The overlay ratchet is not a prescription for these ops.
  * <p>
  * The operations themselves ({@code ConvexHull}, {@code DistanceOp},
  * {@code BufferOp}) live in jts-core and have no visibility of the curve types,
@@ -87,10 +89,14 @@ public final class CurveOps {
   }
 
   static Geometry convexHull(Geometry curve) {
+    Geometry exact = CurveExact.convexHull(curve);
+    if (exact != null) return exact;
     return linearise(curve).convexHull();
   }
 
   static double distance(Geometry curve, Geometry other) {
+    Double exact = CurveExact.distance(curve, other);
+    if (exact != null) return exact.doubleValue();
     return linearise(curve).distance(linearise(other));
   }
 
@@ -104,15 +110,21 @@ public final class CurveOps {
   }
 
   static Geometry buffer(Geometry curve, double distance) {
+    Geometry exact = CurveExact.buffer(curve, distance);
+    if (exact != null) return exact;
     return linearise(curve).buffer(distance);
   }
 
   static Geometry buffer(Geometry curve, double distance, int quadrantSegments) {
+    Geometry exact = CurveExact.buffer(curve, distance);
+    if (exact != null) return exact;
     return linearise(curve).buffer(distance, quadrantSegments);
   }
 
   static Geometry buffer(Geometry curve, double distance, int quadrantSegments,
       int endCapStyle) {
+    Geometry exact = CurveExact.buffer(curve, distance);
+    if (exact != null) return exact;
     return linearise(curve).buffer(distance, quadrantSegments, endCapStyle);
   }
 

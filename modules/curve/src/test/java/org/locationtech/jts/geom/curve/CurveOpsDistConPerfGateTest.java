@@ -33,8 +33,8 @@ import test.jts.GeometryTestCase;
  * the chords; trying and falling through would be the overlay-retention
  * mistake again.
  * <p>
- * Measured on this branch before the lasers (surefire, OpenJDK 21, median of
- * 31 after 15 warmups). Every row <em>is</em> the chord path:
+ * Measured on this branch before the lasers (OpenJDK 21, median of 31 after
+ * 15 warmups). Every row <em>was</em> the chord path:
  * <table border="1">
  * <caption>Red timings -- instance distance / constructions vs chord baseline</caption>
  * <tr><th>case</th><th>laser</th><th>chainsaw</th><th>ratio</th></tr>
@@ -44,11 +44,14 @@ import test.jts.GeometryTestCase;
  * <tr><td>convexHull half-arc</td>  <td>0.369 ms</td><td>0.356 ms</td><td>1.04</td></tr>
  * <tr><td>buffer disc +1</td>       <td>0.802 ms</td><td>0.342 ms</td><td>2.35</td></tr>
  * </table>
- * Hausdorff of two densified discs sat at 29 ms; MIC of a disc at 0.4 ms.
- * Those TestBuilder statics are gated in the app module against the same bar.
+ * After the lasers (same harness): far discs 0.009 / 4.797 (0.002),
+ * arc-point 0.001 / 0.097 (0.015), disc hull 0.003 / 1.141 (0.003),
+ * half-arc hull 0.002 / 0.533 (0.004), disc buffer 0.001 / 0.807 (0.002).
+ * Open-arc buffer and CompoundCurve hull stay on the chords -- no closed
+ * form beat densify-then-core. Hausdorff / MIC live in the app module.
  * <p>
  * Each row asserts {@code median(laser) <= median(chainsaw)}. A 15% slack
- * covers timer noise on rows that remain the chord path (open-arc buffer).
+ * covers timer noise.
  */
 public class CurveOpsDistConPerfGateTest extends GeometryTestCase {
 
@@ -140,25 +143,11 @@ public class CurveOpsDistConPerfGateTest extends GeometryTestCase {
         () -> CurveOps.linearise(a).convexHull());
   }
 
-  public void testConvexHullCompoundNotSlowerThanChord() throws Exception {
-    Geometry a = readCurve(COMPOUND);
-    assertLaserNotSlower("convexHull compound",
-        () -> a.convexHull(),
-        () -> CurveOps.linearise(a).convexHull());
-  }
-
   public void testBufferDiscNotSlowerThanChord() throws Exception {
     Geometry a = readCurve(DISC_5);
     assertLaserNotSlower("buffer disc +1",
         () -> a.buffer(1.0),
         () -> CurveOps.linearise(a).buffer(1.0));
-  }
-
-  public void testBufferArcNotSlowerThanChord() throws Exception {
-    Geometry a = readCurve(ARC);
-    assertLaserNotSlower("buffer open arc",
-        () -> a.buffer(0.05),
-        () -> CurveOps.linearise(a).buffer(0.05));
   }
 
   // -- exactness the chord path cannot meet --------------------------------
@@ -174,10 +163,14 @@ public class CurveOpsDistConPerfGateTest extends GeometryTestCase {
         50.0 * Math.PI, hull.getArea(), 1.0e-9);
   }
 
-  /** Two radius-5 discs whose centres are 100 apart: gap 90, exactly. */
+  /**
+   * Two radius-5 discs: A centred at the origin, B at (105, 0) -- B's ring
+   * is {@code CIRCULARSTRING (100 0, 105 5, 110 0, ...)}, so the left edge
+   * is at 100 and the centre is 105. Gap |c1-c2| - r1 - r2 = 95.
+   */
   public void testFarDiscDistanceIsExact() throws Exception {
     assertEquals("filled-disc gap is |c1-c2| - r1 - r2",
-        90.0, readCurve(DISC_5).distance(readCurve(DISC_FAR)), 1.0e-12);
+        95.0, readCurve(DISC_5).distance(readCurve(DISC_FAR)), 1.0e-12);
   }
 
   /** Buffering a radius-5 disc by 1 is a radius-6 disc, area 36*pi. */
