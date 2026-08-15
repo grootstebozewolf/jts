@@ -200,7 +200,7 @@ final class CircularLineOverlay {
         }
         else {
           li.computeIntersection(e.a, e.b, ring[j], ring[j + 1]);
-          if (li.isCollinear() && li.getIntersectionNum() == 2) {
+          if (li.getIntersectionNum() == LineIntersector.COLLINEAR_INTERSECTION) {
             return false;
           }
           if (li.getIntersectionNum() == 1) {
