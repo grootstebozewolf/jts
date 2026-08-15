@@ -23,8 +23,9 @@ import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
  * <p>
  * Envelope filters run first (<b>PERF-GATE</b>). An envelope miss is exact --
  * curve envelopes cover the arc -- and cheaper than densifying. Distance,
- * buffer and convex hull take a closed form when a cheap shape check can
- * answer (circular disc, single arc, point-vs-arc); see {@code CurveExact}.
+ * buffer, convex hull and disc-vs-point PIP take a closed form when a cheap
+ * shape check can answer (circular disc, single arc, point-vs-arc); see
+ * {@code CurveExact}.
  * Anything else falls through to the locationtech/jts chord baseline:
  * {@link #linearise(Geometry)}, then the core algorithm. Overlay is not
  * routed here; it goes to {@link OverlayNGCurve}, whose ratchet has the same
@@ -202,6 +203,9 @@ public final class CurveOps {
   // control polygon: contains(POINT (3 3)) was false for the radius-5 circle
   // (the point is 4.243 from the centre), and a CircularString "intersected"
   // segments that only touch the chords. Booleans have no tolerance to hide in.
+  // A circular disc vs a Point or MultiPoint now takes CurveExact (d² vs r²)
+  // after the envelope miss; the control-point diamond is no longer the
+  // answer. Other shapes still linearise.
   //
   // Every predicate is overridden individually, because in this core almost
   // none of them route through this.relate(other): touches, intersects, within,
@@ -263,6 +267,8 @@ public final class CurveOps {
     if (!curve.getEnvelopeInternal().covers(other.getEnvelopeInternal())) {
       return false;
     }
+    Boolean exact = CurveExact.contains(curve, other);
+    if (exact != null) return exact.booleanValue();
     return linearise(curve).contains(linearise(other));
   }
 
@@ -277,6 +283,8 @@ public final class CurveOps {
     if (!curve.getEnvelopeInternal().covers(other.getEnvelopeInternal())) {
       return false;
     }
+    Boolean exact = CurveExact.covers(curve, other);
+    if (exact != null) return exact.booleanValue();
     return linearise(curve).covers(linearise(other));
   }
 

@@ -55,10 +55,11 @@ import test.jts.GeometryTestCase;
  * curve receiver, so the same overrides run in both orders. Difference
  * is not flipped; it is routed through OverlayNGCurve as
  * {@code (plain, curve)}. MultiCurve / MultiSurface override the same
- * family. A point lying <em>exactly on</em> the arc is inside the
- * densification band, where no inscribed approximation can answer --
- * boundary-touching input remains undecidable until an arc-aware noder
- * exists.
+ * family. A circular disc vs a Point is certified by {@code d²} vs
+ * {@code r²} ({@code CurveExact}): on-circle is boundary
+ * ({@code contains} false, {@code covers} true). Other curve shapes
+ * still linearise, and a point on those arcs stays inside the
+ * densification band.
  */
 public class CurvePredicateTest extends GeometryTestCase {
 
@@ -97,8 +98,44 @@ public class CurvePredicateTest extends GeometryTestCase {
   // -- false negatives: the bulge is part of the polygon -------------------
 
   public void testContainsBulgePoint() throws Exception {
+    Geometry disc = readCurve(CIRCLE_5);
+    Geometry p = readCurve(BULGE_POINT);
+    Geometry diamond = readCurve("POLYGON ((-5 0, 0 5, 5 0, 0 -5, -5 0))");
+    assertFalse("the control-point diamond is the lie: |3|+|3|=6 > 5",
+        diamond.contains(p));
     assertTrue("(3 3) is 4.243 from the centre of a radius-5 circle",
-        readCurve(CIRCLE_5).contains(readCurve(BULGE_POINT)));
+        disc.contains(p));
+    assertTrue("covers agrees on a deep-interior point", disc.covers(p));
+  }
+
+  public void testOnCircleIsBoundary() throws Exception {
+    Geometry disc = readCurve(CIRCLE_5);
+    Geometry on = readCurve("POINT (5 0)");
+    assertFalse("geometries do not contain their boundary", disc.contains(on));
+    assertTrue("covers includes the boundary", disc.covers(on));
+  }
+
+  public void testExteriorPointIsNeither() throws Exception {
+    Geometry disc = readCurve(CIRCLE_5);
+    Geometry out = readCurve("POINT (6 0)");
+    assertFalse(disc.contains(out));
+    assertFalse(disc.covers(out));
+  }
+
+  public void testReverseWithinAndCoveredByHitTheLaser() throws Exception {
+    Geometry disc = readCurve(CIRCLE_5);
+    Geometry bulge = readCurve(BULGE_POINT);
+    Geometry on = readCurve("POINT (5 0)");
+    Geometry out = readCurve("POINT (6 0)");
+    Geometry centre = readCurve("POINT (0 0)");
+    assertTrue(bulge.within(disc));
+    assertTrue(bulge.coveredBy(disc));
+    assertFalse("on-circle is not within", on.within(disc));
+    assertTrue("on-circle is coveredBy", on.coveredBy(disc));
+    assertFalse(out.within(disc));
+    assertFalse(out.coveredBy(disc));
+    assertTrue(centre.within(disc));
+    assertTrue(centre.coveredBy(disc));
   }
 
   public void testIntersectsBulgePoint() throws Exception {

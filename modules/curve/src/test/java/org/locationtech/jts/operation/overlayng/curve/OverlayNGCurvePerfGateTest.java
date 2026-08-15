@@ -262,6 +262,22 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
         () -> CurveOps.linearise(a).contains(p));
   }
 
+  public void testCoversOnCircleNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry p = readCurve("POINT (5 0)");
+    assertLaserNotSlower("covers on-circle",
+        () -> a.covers(p),
+        () -> CurveOps.linearise(a).covers(p));
+  }
+
+  public void testReverseWithinInsideNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry p = readCurve(POINT_INSIDE);
+    assertLaserNotSlower("rev within inside",
+        () -> p.within(a),
+        () -> p.within(CurveOps.linearise(a)));
+  }
+
   public void testContainsFarNotSlowerThanChord() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
     Geometry p = readCurve(POINT_FAR);

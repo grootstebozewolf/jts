@@ -16,14 +16,17 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
 
 /**
  * Closed-form answers for the shapes a cheap check can recognise: a circular
- * disc, a single circular arc, a point against an arc. Package-private -- not
- * a new public API. {@link CurveOps} takes these only when they can answer;
- * anything else goes straight to the chord baseline. Trying and falling
- * through would pay both tools.
+ * disc, a single circular arc, a point against an arc, a disc against a
+ * Point or MultiPoint. Package-private -- not a new public API.
+ * {@link CurveOps} takes these only when they can answer; anything else
+ * goes straight to the chord baseline. Trying and falling through would
+ * pay both tools.
  */
 final class CurveExact {
 
@@ -108,6 +111,82 @@ final class CurveExact {
     Double members = distanceMembers(a, b);
     if (members != null) return members;
     return null;
+  }
+
+  /**
+   * SFS {@code contains} of a Point or MultiPoint in a circular disc, or
+   * {@code null} if this pair is not that shape. Cheap check first.
+   * <p>
+   * For disc centre {@code C}, radius {@code r}, query {@code P},
+   * {@code d² = |P−C|²}:
+   * <ul>
+   * <li>{@code d² < r²} -- interior -- {@code true}</li>
+   * <li>{@code d² == r²} -- boundary -- {@code false} (geometries do not
+   *     contain their boundary)</li>
+   * <li>{@code d² > r²} -- exterior -- {@code false}</li>
+   * </ul>
+   * A MultiPoint is contained only when every member is interior.
+   */
+  static Boolean contains(Geometry curve, Geometry other) {
+    return discPuntal(curve, other, false);
+  }
+
+  /**
+   * SFS {@code covers} of a Point or MultiPoint by a circular disc, or
+   * {@code null} if this pair is not that shape. Same {@code d²} test as
+   * {@link #contains}; the boundary ({@code d² == r²}) is covered.
+   */
+  static Boolean covers(Geometry curve, Geometry other) {
+    return discPuntal(curve, other, true);
+  }
+
+  /**
+   * {@code Boolean.TRUE}/{@code FALSE} when {@code curve} is a circular
+   * disc and {@code other} is a non-empty Point or MultiPoint;
+   * {@code null} otherwise so the caller can take the chords alone.
+   */
+  private static Boolean discPuntal(Geometry curve, Geometry other,
+      boolean cover) {
+    if (curve == null || other == null || other.isEmpty()) return null;
+    if (!isPuntal(other)) return null;
+    CircularArcDensifier.Circle disc = circularDisc(curve);
+    if (disc == null) return null;
+
+    double r2 = disc.r * disc.r;
+    int n = other.getNumGeometries();
+    boolean anyInterior = false;
+    for (int i = 0; i < n; i++) {
+      Geometry g = other.getGeometryN(i);
+      if (!(g instanceof Point) || g.isEmpty()) return null;
+      int loc = locatePoint(disc, ((Point) g).getCoordinate(), r2);
+      if (loc == Location.EXTERIOR) return Boolean.FALSE;
+      if (loc == Location.BOUNDARY) {
+        if (!cover) return Boolean.FALSE;
+      } else {
+        anyInterior = true;
+      }
+    }
+    if (!cover && !anyInterior) return Boolean.FALSE;
+    return Boolean.TRUE;
+  }
+
+  private static boolean isPuntal(Geometry g) {
+    return g instanceof Point || g instanceof MultiPoint;
+  }
+
+  /**
+   * {@link Location#INTERIOR}, {@link Location#BOUNDARY} or
+   * {@link Location#EXTERIOR} from {@code d²} vs {@code r²}. Exact
+   * equality is the on-circle band; no extra tolerance.
+   */
+  static int locatePoint(CircularArcDensifier.Circle disc, Coordinate p,
+      double r2) {
+    double dx = p.x - disc.cx;
+    double dy = p.y - disc.cy;
+    double d2 = dx * dx + dy * dy;
+    if (d2 < r2) return Location.INTERIOR;
+    if (d2 > r2) return Location.EXTERIOR;
+    return Location.BOUNDARY;
   }
 
   /**
