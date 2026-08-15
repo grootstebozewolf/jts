@@ -121,12 +121,14 @@ public class LargestEmptyCircleCurveTest extends GeometryTestCase {
         np[0].distance(new Coordinate(2, 3)) > 0.5);
     assertTrue("must not snap to the chord", Math.abs(np[0].y) > 1.0);
 
-    // Box contains the apex so the obstacle binds; a chord obstacle
-    // would instead take the box MIC (r = 1).
+    // Centre must lie in the box; include the box ring as an obstacle
+    // so the circle itself stays inside (otherwise LEC walks to a
+    // corner, farther from the arc than the apex cell).
     Geometry box = readCurve(
         "POLYGON ((0 3.5, 10 3.5, 10 5.5, 0 5.5, 0 3.5))");
-    Point center = LargestEmptyCircle.getCenter(arc, box, 0.01);
-    double r = LargestEmptyCircle.getRadiusLine(arc, box, 0.01).getLength();
+    Geometry obs = withBoundaryObstacle(arc, box);
+    Point center = LargestEmptyCircle.getCenter(obs, box, 0.01);
+    double r = LargestEmptyCircle.getRadiusLine(obs, box, 0.01).getLength();
     double expectedY = (5.5 + apex.y) / 2.0;
     double expectedR = 5.5 - expectedY;
     assertEquals(5.0, center.getX(), 0.05);
@@ -144,9 +146,14 @@ public class LargestEmptyCircleCurveTest extends GeometryTestCase {
     Point query = line.getFactory().createPoint(new Coordinate(5, 8));
     ObstacleDistance od = new ObstacleDistance(line);
     Coordinate[] np = od.nearestPoints(query);
-    assertEquals(5.0, np[0].x, 1.0e-9);
-    assertEquals(0.0, np[0].y, 1.0e-9);
-    assertEquals(8.0, od.distance(query), 1.0e-9);
+    Coordinate apex = apexOf(new Coordinate(0, 0), new Coordinate(2, 3),
+        new Coordinate(10, 0));
+    assertTrue("two segments, not the arc apex",
+        np[0].distance(apex) > 0.5);
+    assertTrue("not the endpoint-to-endpoint chord at y=0",
+        np[0].y > 0.5);
+    // projection onto (2 3, 10 0)
+    assertEquals(2.9863013698630136, np[0].x, 1.0e-6);
   }
 
   /**
@@ -169,8 +176,9 @@ public class LargestEmptyCircleCurveTest extends GeometryTestCase {
 
     Geometry box = readCurve(
         "POLYGON ((10 3.5, 20 3.5, 20 5.5, 10 5.5, 10 3.5))");
-    Point center = LargestEmptyCircle.getCenter(cc, box, 0.01);
-    double r = LargestEmptyCircle.getRadiusLine(cc, box, 0.01).getLength();
+    Geometry obs = withBoundaryObstacle(cc, box);
+    Point center = LargestEmptyCircle.getCenter(obs, box, 0.01);
+    double r = LargestEmptyCircle.getRadiusLine(obs, box, 0.01).getLength();
     double expectedY = (5.5 + apex.y) / 2.0;
     assertEquals(15.0, center.getX(), 0.05);
     assertEquals(expectedY, center.getY(), 0.05);
@@ -194,8 +202,9 @@ public class LargestEmptyCircleCurveTest extends GeometryTestCase {
     Point insideLeft = discs.getFactory().createPoint(new Coordinate(2, 5));
     assertEquals(0.0, od.distance(insideLeft), 1.0e-9);
 
-    Point center = LargestEmptyCircle.getCenter(discs, square, 0.01);
-    double r = LargestEmptyCircle.getRadiusLine(discs, square, 0.01)
+    Geometry obs = withBoundaryObstacle(discs, square);
+    Point center = LargestEmptyCircle.getCenter(obs, square, 0.01);
+    double r = LargestEmptyCircle.getRadiusLine(obs, square, 0.01)
         .getLength();
     assertEquals(5.0, center.getX(), 0.05);
     assertEquals(5.0, center.getY(), 0.05);
@@ -219,15 +228,16 @@ public class LargestEmptyCircleCurveTest extends GeometryTestCase {
 
     Geometry box = readCurve(
         "POLYGON ((-5 3, 15 3, 15 16, -5 16, -5 3))");
-    Point center = LargestEmptyCircle.getCenter(mixed, box, 0.01);
-    double r = LargestEmptyCircle.getRadiusLine(mixed, box, 0.01)
+    Geometry obs = withBoundaryObstacle(mixed, box);
+    Point center = LargestEmptyCircle.getCenter(obs, box, 0.01);
+    double r = LargestEmptyCircle.getRadiusLine(obs, box, 0.01)
         .getLength();
     double expectedY = (12.0 + apex.y) / 2.0;
     assertEquals(5.0, center.getX(), 0.08);
     assertEquals(expectedY, center.getY(), 0.08);
     assertEquals(12.0 - expectedY, r, 0.08);
     assertEquals(r, od.distance(center), 0.05);
-    Coordinate radiusPt = LargestEmptyCircle.getRadiusLine(mixed, box, 0.01)
+    Coordinate radiusPt = LargestEmptyCircle.getRadiusLine(obs, box, 0.01)
         .getCoordinateN(1);
     assertTrue("radius site is the apex or the point, not the mid-control",
         radiusPt.distance(apex) < 0.15
@@ -248,6 +258,18 @@ public class LargestEmptyCircleCurveTest extends GeometryTestCase {
     Point q = mixed.getFactory().createPoint(new Coordinate(5, 5));
     // disc at (2,5) r=1 → 2; line x=8 → 3
     assertEquals(2.0, od.distance(q), 1.0e-9);
+  }
+
+  /**
+   * LEC centre is only required to lie in the boundary; the circle
+   * may leave it. Including the ring as an obstacle keeps the
+   * circle inside, which is the configuration the location
+   * assertions describe.
+   */
+  private static Geometry withBoundaryObstacle(Geometry obstacles,
+      Geometry box) {
+    return obstacles.getFactory().createGeometryCollection(
+        new Geometry[] { obstacles, box.getBoundary() });
   }
 
   private static Coordinate apexOf(Coordinate a, Coordinate b, Coordinate c) {

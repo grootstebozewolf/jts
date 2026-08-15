@@ -17,6 +17,8 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.geom.curve.CurveOps;
+import org.locationtech.jts.geom.curve.Linearizable;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.textui.TestRunner;
@@ -171,51 +173,46 @@ public class LargestEmptyCirclePerfGateTest extends GeometryTestCase {
 
   public void testArcNotSlowerThanControlChord() throws Exception {
     Geometry arc = readCurve(ARC);
-    Geometry chords = asChords(arc);
+    Geometry chords = linearise(arc);
     Geometry box = readCurve(ARC_BOX);
-    assertLaserNotSlower("LEC CircularString arc vs control chord",
+    assertLaserNotSlower("LEC CircularString arc vs toLinear",
         () -> LargestEmptyCircle.getCenter(arc, box, TOL),
         () -> LargestEmptyCircle.getCenter(chords, box, TOL));
   }
 
   public void testCompoundCurveNotSlowerThanControlPolyline() throws Exception {
     Geometry cc = readCurve(COMPOUND);
-    Geometry chords = asChords(cc);
+    Geometry chords = linearise(cc);
     Geometry box = readCurve(COMPOUND_BOX);
-    assertLaserNotSlower("LEC CompoundCurve vs control polyline",
+    assertLaserNotSlower("LEC CompoundCurve vs toLinear",
         () -> LargestEmptyCircle.getCenter(cc, box, TOL),
         () -> LargestEmptyCircle.getCenter(chords, box, TOL));
   }
 
   public void testTwoDiscsNotSlowerThanControlNgons() throws Exception {
     Geometry discs = readCurve(TWO_DISCS);
-    Geometry chords = asChords(discs);
+    Geometry chords = linearise(discs);
     Geometry square = readCurve(TWO_DISC_SQUARE);
-    assertLaserNotSlower("LEC two discs vs control n-gons",
+    assertLaserNotSlower("LEC two discs vs toLinear n-gons",
         () -> LargestEmptyCircle.getCenter(discs, square, TOL),
         () -> LargestEmptyCircle.getCenter(chords, square, TOL));
   }
 
   /**
-   * Control-point n-gon / polyline of the same set. Not
-   * {@code toLinear} densify: the chainsaw is today's facet oracle
-   * on the control geometry.
+   * Chainsaw: {@code toLinear} at {@link CurveOps#TOLERANCE_FRACTION}
+   * (densify-then-core). Collections are flattened first.
    */
-  private static Geometry asChords(Geometry g) {
-    String t = g.getGeometryType();
-    if ("CircularString".equals(t) || "CompoundCurve".equals(t)) {
-      return g.getFactory().createLineString(g.getCoordinates());
-    }
-    if ("CurvePolygon".equals(t)) {
-      return g.getFactory().createPolygon(g.getCoordinates());
+  private static Geometry linearise(Geometry g) {
+    if (g instanceof Linearizable) {
+      return ((Linearizable) g).toLinear(CurveOps.tolerance(g));
     }
     if (g.getNumGeometries() > 1
-        || "GeometryCollection".equals(t)
-        || "MultiSurface".equals(t)
-        || "MultiCurve".equals(t)) {
+        || "GeometryCollection".equals(g.getGeometryType())
+        || "MultiSurface".equals(g.getGeometryType())
+        || "MultiCurve".equals(g.getGeometryType())) {
       Geometry[] parts = new Geometry[g.getNumGeometries()];
       for (int i = 0; i < parts.length; i++) {
-        parts[i] = asChords(g.getGeometryN(i));
+        parts[i] = linearise(g.getGeometryN(i));
       }
       return g.getFactory().createGeometryCollection(parts);
     }

@@ -268,19 +268,21 @@ class ObstacleDistance {
     private final Coordinate start;
     private final Coordinate mid;
     private final Coordinate end;
+    private final double[] circle;
 
     ArcComponent(Coordinate start, Coordinate mid, Coordinate end) {
       this.start = start;
       this.mid = mid;
       this.end = end;
+      this.circle = DiscreteHausdorffDistance.circumcircle(start, mid, end);
     }
 
     public double distance(Point pt, Coordinate q) {
-      return q.distance(nearestPointOnArc(q, start, mid, end));
+      return q.distance(nearestPointOnArc(q, start, mid, end, circle));
     }
 
     public Coordinate nearestOnObstacle(Point pt, Coordinate q) {
-      return nearestPointOnArc(q, start, mid, end);
+      return nearestPointOnArc(q, start, mid, end, circle);
     }
   }
 
@@ -293,7 +295,12 @@ class ObstacleDistance {
    */
   static Coordinate nearestPointOnArc(Coordinate p, Coordinate start,
       Coordinate mid, Coordinate end) {
-    double[] c = DiscreteHausdorffDistance.circumcircle(start, mid, end);
+    return nearestPointOnArc(p, start, mid, end,
+        DiscreteHausdorffDistance.circumcircle(start, mid, end));
+  }
+
+  private static Coordinate nearestPointOnArc(Coordinate p, Coordinate start,
+      Coordinate mid, Coordinate end, double[] c) {
     if (c == null) {
       return nearestOnSegment(p, start, end);
     }
