@@ -121,6 +121,9 @@ public class DistanceFunctions {
           + "that FRACTION of its length (e.g. 0.05), it is not a distance; got "
           + frac);
     }
+    if (CurveExactFns.hasOrientedHausdorffLaser(a, b)) {
+      return DiscreteHausdorffDistance.orientedDistanceLine(a, b);
+    }
     return DiscreteHausdorffDistance.orientedDistanceLine(arc(a), arc(b), frac);
   }
 

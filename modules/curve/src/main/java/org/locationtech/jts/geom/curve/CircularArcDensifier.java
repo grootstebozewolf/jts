@@ -19,6 +19,7 @@ import java.util.List;
 import org.locationtech.jts.algorithm.LineIntersector;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.algorithm.RobustLineIntersector;
+import org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 
@@ -421,50 +422,25 @@ public final class CircularArcDensifier {
   /**
    * Directed Hausdorff distance from the arc to the segment: the maximum
    * distance from a point on the arc to the segment.
+   * Delegates to {@link DiscreteHausdorffDistance} so the public class
+   * owns the formula.
    */
   public static double directedHausdorffArcToSegment(
       Coordinate start, Coordinate mid, Coordinate end,
       Coordinate seg0, Coordinate seg1) {
-    double max = Math.max(distancePointToSegment(start, seg0, seg1),
-        distancePointToSegment(end, seg0, seg1));
-    Circle c = Circle.fromThreePoints(start, mid, end);
-    if (c == null) {
-      return max;
-    }
-    double sx = seg1.x - seg0.x;
-    double sy = seg1.y - seg0.y;
-    double slen = Math.hypot(sx, sy);
-    if (slen > 0.0) {
-      // Circle points whose radius is parallel to the segment normal --
-      // extrema of distance-to-line on the supporting circle.
-      double nx = -sy / slen;
-      double ny = sx / slen;
-      for (int sign = -1; sign <= 1; sign += 2) {
-        Coordinate q = new Coordinate(c.cx + sign * c.r * nx, c.cy + sign * c.r * ny);
-        if (isOnSweep(q, c, start, mid, end)
-            && projectionOnSegment(q, seg0, seg1)) {
-          max = Math.max(max, distancePointToSegment(q, seg0, seg1));
-        }
-      }
-    }
-    // Points whose nearest site on the segment is an endpoint: the radial
-    // extrema toward that endpoint, but only if the projection misses the
-    // open segment. Counting every arc-to-endpoint distance would report
-    // the far-end chord (10 on the D-HF witness) instead of the apex.
-    max = Math.max(max, maxDistanceOnArcToEndpoint(c, start, mid, end, seg0, seg1));
-    max = Math.max(max, maxDistanceOnArcToEndpoint(c, start, mid, end, seg1, seg0));
-    return max;
+    return DiscreteHausdorffDistance.directedHausdorffArcToSegment(
+        start, mid, end, seg0, seg1);
   }
 
   /**
    * Directed Hausdorff distance from circle 1 to circle 2 (the boundaries).
+   * Delegates to {@link DiscreteHausdorffDistance} so the public class
+   * owns the formula.
    */
   public static double directedHausdorffCircleToCircle(
       double c1x, double c1y, double r1, double c2x, double c2y, double r2) {
-    double d = Math.hypot(c1x - c2x, c1y - c2y);
-    double lo = Math.abs(d - r1);
-    double hi = d + r1;
-    return Math.max(Math.abs(lo - r2), Math.abs(hi - r2));
+    return DiscreteHausdorffDistance.directedHausdorffCircleToCircle(
+        c1x, c1y, r1, c2x, c2y, r2);
   }
 
   /**
@@ -719,34 +695,6 @@ public final class CircularArcDensifier {
         ? normalizePositive(angle - a0)
         : normalizePositive(a0 - angle);
     return travelled <= sweep + 1.0e-12;
-  }
-
-  /**
-   * Maximum distance from a point on the arc to {@code endpoint}, among
-   * points whose closest site on the segment is that endpoint.
-   */
-  private static double maxDistanceOnArcToEndpoint(Circle c, Coordinate start,
-      Coordinate mid, Coordinate end, Coordinate endpoint, Coordinate other) {
-    double max = 0.0;
-    Coordinate[] cand = new Coordinate[] { start, end };
-    double dx = endpoint.x - c.cx;
-    double dy = endpoint.y - c.cy;
-    double dist = Math.hypot(dx, dy);
-    if (dist > 0.0) {
-      cand = new Coordinate[] {
-          start, end,
-          new Coordinate(c.cx + c.r * dx / dist, c.cy + c.r * dy / dist),
-          new Coordinate(c.cx - c.r * dx / dist, c.cy - c.r * dy / dist)
-      };
-    }
-    for (int i = 0; i < cand.length; i++) {
-      Coordinate p = cand[i];
-      if (p != start && p != end && !isOnSweep(p, c, start, mid, end)) continue;
-      Coordinate nearest = nearestPointOnSegment(p, endpoint, other);
-      if (nearest.distance(endpoint) > 1.0e-12) continue;
-      max = Math.max(max, p.distance(endpoint));
-    }
-    return max;
   }
 
   static Coordinate nearestPointOnSegment(Coordinate p, Coordinate a, Coordinate b) {

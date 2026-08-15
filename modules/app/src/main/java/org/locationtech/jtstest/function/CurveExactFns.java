@@ -11,6 +11,7 @@
  */
 package org.locationtech.jtstest.function;
 
+import org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
@@ -42,24 +43,15 @@ final class CurveExactFns {
   }
 
   static Double orientedHausdorff(Geometry a, Geometry b) {
-    double[] da = circularDisc(a);
-    double[] db = circularDisc(b);
-    if (da != null && db != null) {
-      return Double.valueOf(CircularArcDensifier.directedHausdorffCircleToCircle(
-          da[0], da[1], da[2], db[0], db[1], db[2]));
-    }
-    if (isSingleArc(a) && isSingleSegment(b)) {
-      CircularString cs = (CircularString) a;
-      LineString ls = (LineString) b;
-      return Double.valueOf(CircularArcDensifier.directedHausdorffArcToSegment(
-          cs.getCoordinateN(0), cs.getCoordinateN(1), cs.getCoordinateN(2),
-          ls.getCoordinateN(0), ls.getCoordinateN(1)));
-    }
-    if (isSingleArc(b) && isSingleSegment(a)) {
-      // oriented is from A to B; a segment-to-arc form is not this laser.
-      return null;
-    }
-    return null;
+    if (!hasOrientedHausdorffLaser(a, b)) return null;
+    return Double.valueOf(DiscreteHausdorffDistance.orientedDistance(a, b));
+  }
+
+  /** Certified pairs the public {@link DiscreteHausdorffDistance} answers exactly. */
+  static boolean hasOrientedHausdorffLaser(Geometry a, Geometry b) {
+    if (circularDisc(a) != null && circularDisc(b) != null) return true;
+    if (isSingleArc(a) && isSingleSegment(b)) return true;
+    return false;
   }
 
   static Coordinate[] nearestPoints(Geometry a, Geometry b) {

@@ -74,6 +74,18 @@ extends GeometryTestCase
     runOriented(wkt2, wkt1, "LINESTRING (3 5, 9 5)");
   }
 
+  /**
+   * A plain LineString of the D-HF witness controls is not an arc.
+   * The chord path must still report the mid-control height 3.
+   */
+  public void testPlainLineStringNotTreatedAsArc()
+  {
+    Geometry line = read("LINESTRING (0 0, 2 3, 10 0)");
+    Geometry seg = read("LINESTRING (0 0, 10 0)");
+    assertEquals(3.0, DiscreteHausdorffDistance.orientedDistance(line, seg), 0.0);
+    assertEquals(3.0, DiscreteHausdorffDistance.orientedDistance(line, seg, 0.5), 0.0);
+  }
+
   private static final double TOLERANCE = 0.00001;
   
   private void runTest(String wkt1, String wkt2, String wktExpected) 
