@@ -70,6 +70,11 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     to <em>decide</em> but never to <em>answer</em>. Crossing-shaped
  *     envelopes skip this stage: paying a fine {@code relate} and then falling
  *     through was measured 11&times; slower than the chord overlay alone.</li>
+ * <li><b>R1.5</b> -- both operands are circular discs and they cross at two
+ *     proper nodes. The answer is a {@link CurvePolygon} of two circular
+ *     arcs (lens, blob, crescent) or a {@link MultiSurface} of two crescents.
+ *     Closed form; no densification. 0 or 1 intersection, or a non-disc, falls
+ *     through without paying this path.</li>
  * <li>Otherwise, densify both at the ops tolerance and delegate to core,
  *     flagging the result approximate (<b>R2</b>). This <em>is</em> the chord
  *     baseline.</li>
@@ -162,7 +167,8 @@ public class OverlayNGCurve {
    * <p>
    * False when the answer was exact: an algebraic identity (G1&ndash;G4), an empty
    * operand (G5), envelope-disjoint (R0), an operand returned unchanged (R1), or
-   * an operand with no arc in it at all, which is handed to core untouched. In
+   * an operand with no arc in it at all, which is handed to core untouched, or
+   * two crossing circular discs answered as arcs (R1.5). In
    * the R1 case the <em>answer</em> is exact even though the <em>decision</em>
    * to return it was made on densified copies.
    * <p>
@@ -189,6 +195,9 @@ public class OverlayNGCurve {
       Geometry retained = retainOperand(opCode);    // R1, only when it can win
       if (retained != null) return retained;
     }
+
+    Geometry discs = CurveOps.overlayCircularDiscs(a, b, opCode); // R1.5
+    if (discs != null) return discs;
 
     // R2. The chord baseline: densify at the ops tolerance and run core.
     // Approximate only if something was actually densified: for operands with

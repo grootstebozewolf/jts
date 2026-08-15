@@ -36,13 +36,13 @@ import test.jts.GeometryTestCase;
  * <tr><td>disjoint</td>   <td>exact 0</td><td>exact</td><td>exact</td><td>exact</td></tr>
  * <tr><td>covers</td>     <td>exact</td><td>exact</td><td>approx</td><td>approx</td></tr>
  * <tr><td>coveredBy</td>  <td>exact</td><td>exact</td><td>exact 0</td><td>approx</td></tr>
- * <tr><td>crossing</td>   <td>approx</td><td>approx</td><td>approx</td><td>approx</td></tr>
+ * <tr><td>crossing</td>   <td>exact</td><td>exact</td><td>exact</td><td>exact</td></tr>
  * </table>
  * <p>
- * Exact cells per operation: CAP 7 of 8, CUP 7, SUB 6, XOR 5. The two operations
- * that cannot do better are the ones whose remaining cases produce a
- * <em>new</em> geometry rather than an operand -- SUB and XOR of a nested pair are
- * an annulus, which no short-circuit can return.
+ * Exact cells per operation: CAP 8 of 8, CUP 8, SUB 7, XOR 6. Crossing discs
+ * are two-arc CurvePolygons (R1.5). The cells that stay approximate are the
+ * ones whose answer is a <em>new</em> non-disc geometry -- SUB and XOR of a
+ * nested pair are an annulus, which this stage does not build (0 intersections).
  */
 public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
@@ -129,7 +129,7 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
   }
 
   public void testMatrix_crossing() throws Exception {
-    assertRow("crossing", CIRCLE_5, CIRCLE_CROSSING, "aaaa");
+    assertRow("crossing", CIRCLE_5, CIRCLE_CROSSING, "EEEE");
   }
 
   // -- the disjoint CUP/XOR result, not just its exactness -----------------

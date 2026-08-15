@@ -499,23 +499,73 @@ public final class CircularArcDensifier {
     return min;
   }
 
+  /**
+   * Intersection points of two supporting circles. Empty when the circles
+   * are disjoint, nested without touching, or coincident ({@code d == 0}).
+   * A tangent pair returns one point; a proper crossing returns two.
+   * <p>
+   * Package-private -- not a new public API. The radical-axis formula lived
+   * in {@link #circlesIntersectOnBothSweeps} and threw the points away.
+   */
+  static Coordinate[] intersectCircles(Circle ca, Circle cb) {
+    if (ca == null || cb == null) return new Coordinate[0];
+    double dx = cb.cx - ca.cx;
+    double dy = cb.cy - ca.cy;
+    double d = Math.hypot(dx, dy);
+    if (d > ca.r + cb.r || d < Math.abs(ca.r - cb.r) || d == 0.0) {
+      return new Coordinate[0];
+    }
+    double a = (ca.r * ca.r - cb.r * cb.r + d * d) / (2.0 * d);
+    double h2 = ca.r * ca.r - a * a;
+    if (h2 < 0.0) return new Coordinate[0];
+    double ux = dx / d;
+    double uy = dy / d;
+    double mx = ca.cx + a * ux;
+    double my = ca.cy + a * uy;
+    if (h2 == 0.0) {
+      return new Coordinate[] { new Coordinate(mx, my) };
+    }
+    double h = Math.sqrt(h2);
+    return new Coordinate[] {
+        new Coordinate(mx + h * -uy, my + h * ux),
+        new Coordinate(mx - h * -uy, my - h * ux)
+    };
+  }
+
+  /**
+   * Circle-circle intersections that also lie on both circular-arc sweeps.
+   * Empty when the supporting circles miss, coincide, or the radical-axis
+   * points fall outside either sweep.
+   */
+  static Coordinate[] intersectArcs(Coordinate a0, Coordinate a1, Coordinate a2,
+      Coordinate b0, Coordinate b1, Coordinate b2) {
+    Circle ca = Circle.fromThreePoints(a0, a1, a2);
+    Circle cb = Circle.fromThreePoints(b0, b1, b2);
+    if (ca == null || cb == null) return new Coordinate[0];
+    Coordinate[] raw = intersectCircles(ca, cb);
+    int keep = 0;
+    Coordinate[] on = new Coordinate[raw.length];
+    for (int i = 0; i < raw.length; i++) {
+      if (isOnSweep(raw[i], ca, a0, a1, a2) && isOnSweep(raw[i], cb, b0, b1, b2)) {
+        on[keep++] = raw[i];
+      }
+    }
+    if (keep == raw.length) return raw;
+    Coordinate[] clipped = new Coordinate[keep];
+    System.arraycopy(on, 0, clipped, 0, keep);
+    return clipped;
+  }
+
   private static boolean circlesIntersectOnBothSweeps(Circle ca, Circle cb,
       Coordinate a0, Coordinate a1, Coordinate a2,
       Coordinate b0, Coordinate b1, Coordinate b2) {
-    double d = Math.hypot(cb.cx - ca.cx, cb.cy - ca.cy);
-    if (d > ca.r + cb.r || d < Math.abs(ca.r - cb.r) || d == 0.0) return false;
-    double a = (ca.r * ca.r - cb.r * cb.r + d * d) / (2.0 * d);
-    double h2 = ca.r * ca.r - a * a;
-    if (h2 < 0.0) return false;
-    double h = Math.sqrt(h2);
-    double ux = (cb.cx - ca.cx) / d;
-    double uy = (cb.cy - ca.cy) / d;
-    double mx = ca.cx + a * ux;
-    double my = ca.cy + a * uy;
-    Coordinate p1 = new Coordinate(mx + h * -uy, my + h * ux);
-    Coordinate p2 = new Coordinate(mx - h * -uy, my - h * ux);
-    return (isOnSweep(p1, ca, a0, a1, a2) && isOnSweep(p1, cb, b0, b1, b2))
-        || (isOnSweep(p2, ca, a0, a1, a2) && isOnSweep(p2, cb, b0, b1, b2));
+    Coordinate[] pts = intersectCircles(ca, cb);
+    for (int i = 0; i < pts.length; i++) {
+      if (isOnSweep(pts[i], ca, a0, a1, a2) && isOnSweep(pts[i], cb, b0, b1, b2)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static void addAxisExtrema(Circle c, Coordinate start, Coordinate mid,

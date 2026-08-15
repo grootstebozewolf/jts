@@ -273,13 +273,13 @@ public class OverlayNGCurvePhase0Test extends GeometryTestCase {
 
   /** R2 -- an approximate answer must say so. */
   public void testR2_densifiedAnswersAreFlagged() throws Exception {
-    // Two circles that genuinely cross, so no algebra or retention applies.
-    OverlayNGCurve crossing = new OverlayNGCurve(readCurve(A),
-        readCurve("CURVEPOLYGON (CIRCULARSTRING (2 0, 7 5, 12 0, 7 -5, 2 0))"));
-    Geometry result = crossing.getResult(OverlayNGCurve.INTERSECTION);
-    assertFalse("the two circles do overlap", result.isEmpty());
-    assertTrue("R2: a noded answer is approximate and must be flagged",
-        crossing.isApproximate());
+    // Nested SUB is an annulus: R1 cannot return an operand, R1.5 sees
+    // 0 circle-circle nodes, so the chord baseline still runs.
+    OverlayNGCurve annulus = new OverlayNGCurve(readCurve(A), readCurve(B));
+    Geometry result = annulus.getResult(OverlayNGCurve.DIFFERENCE);
+    assertFalse("the annulus is not empty", result.isEmpty());
+    assertTrue("R2: a densified annulus is approximate and must be flagged",
+        annulus.isApproximate());
   }
 
   // -- F1: fast before fat -------------------------------------------------
@@ -333,8 +333,12 @@ public class OverlayNGCurvePhase0Test extends GeometryTestCase {
     Geometry a = readCurve(A);
     Geometry shifted = readCurve(
         "CURVEPOLYGON (CIRCULARSTRING (2 0, 7 5, 12 0, 7 -5, 2 0))");
-    Geometry cap = OverlayNGCurve.intersection(a, shifted);
+    OverlayNGCurve op = new OverlayNGCurve(a, shifted);
+    Geometry cap = op.getResult(OverlayNGCurve.INTERSECTION);
     assertFalse("two overlapping circles must intersect", cap.isEmpty());
+    assertFalse("R1.5 crossing CAP is exact", op.isApproximate());
+    assertEquals("the lens is two arcs, not a densified ring",
+        "CurvePolygon", cap.getGeometryType());
     assertTrue("and the lens must be smaller than either disc, got " + cap.getArea(),
         cap.getArea() < AREA_A - 1.0);
     assertTrue("and larger than nothing", cap.getArea() > 0.0);

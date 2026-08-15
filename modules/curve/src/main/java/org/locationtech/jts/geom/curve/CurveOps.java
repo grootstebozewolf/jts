@@ -35,10 +35,11 @@ import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
  * since jts-curve depends on core rather than the reverse. Densifying at the
  * boundary is what lets them stay untouched.
  * <p>
- * {@link #linearise(Geometry)} and {@link #TOLERANCE_FRACTION} are public because
- * {@code org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve} needs the
- * same tolerance from another package; duplicating the constant would let the two
- * drift. The remaining methods stay package-private.
+ * {@link #linearise(Geometry)}, {@link #TOLERANCE_FRACTION} and
+ * {@link #overlayCircularDiscs} are public because
+ * {@code org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve} needs
+ * them from another package; duplicating the constant or the disc check would
+ * let the two drift. The remaining methods stay package-private.
  * <p>
  * Results are therefore approximations bounded by {@link #TOLERANCE_FRACTION},
  * not exact arc answers. Where an exact closed form exists it is used directly
@@ -67,6 +68,15 @@ public final class CurveOps {
   public static Geometry linearise(Geometry g) {
     if (!(g instanceof Linearizable)) return g;
     return ((Linearizable) g).toLinear(tolerance(g));
+  }
+
+  /**
+   * Closed-form overlay of two crossing circular discs, or {@code null} if
+   * the pair is not that shape. Public so {@link OverlayNGCurve} can call it
+   * from another package; not a second overlay entry point.
+   */
+  public static Geometry overlayCircularDiscs(Geometry a, Geometry b, int opCode) {
+    return CircularDiscOverlay.overlay(a, b, opCode);
   }
 
   /**

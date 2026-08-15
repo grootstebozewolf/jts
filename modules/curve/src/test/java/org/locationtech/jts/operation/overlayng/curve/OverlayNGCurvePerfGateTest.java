@@ -41,9 +41,9 @@ import test.jts.GeometryTestCase;
  * <p>
  * After the gate (same harness): disjoint CAP 0.001 / 0.092 (0.016),
  * nested CAP 0.211 / 0.599 (0.35), nested CUP 0.165 / 0.319 (0.52),
- * crossing CAP 0.381 / 0.365 (1.05, inside the noise budget -- the laser
- * <em>is</em> the chord overlay). Envelope-decidable predicates drop from
- * ~1.0 to ~0.005.
+ * crossing CAP is R1.5 (two-arc lens) and must beat the ~1570-vertex
+ * chord overlay by a lot, the way R0/R1 do. Envelope-decidable predicates
+ * drop from ~1.0 to ~0.005.
  * Algebra (self / empty) already wins. Retention loses because it densifies at
  * the fine ops tolerance, then pays {@code relate} plus boundary-distance on
  * ~1570-vertex rings -- and on a crossing pair still falls through to the same
@@ -80,10 +80,9 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
   private static final int WARMUP = 15;
   private static final int SAMPLES = 31;
   /**
-   * Timer-noise budget on rows that should be the same work (crossing overlay
-   * after the gate refuses retention; constructions that already are the
-   * chord path). Algebra and envelope rows land far below 1.0 and do not
-   * spend this.
+   * Timer-noise budget on rows that should be the same work (constructions
+   * that already are the chord path). Algebra, envelope, and two-disc
+   * crossing rows land far below 1.0 and do not spend this.
    */
   private static final double NOISE = 1.15;
 
@@ -183,6 +182,30 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
     assertLaserNotSlower("crossing CAP",
         () -> OverlayNGCurve.intersection(a, cross),
         () -> chordOverlay(a, cross, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testOverlayCrossingCupNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry cross = readCurve(CIRCLE_CROSSING);
+    assertLaserNotSlower("crossing CUP",
+        () -> OverlayNGCurve.union(a, cross),
+        () -> chordOverlay(a, cross, OverlayNGCurve.UNION));
+  }
+
+  public void testOverlayCrossingSubNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry cross = readCurve(CIRCLE_CROSSING);
+    assertLaserNotSlower("crossing SUB",
+        () -> OverlayNGCurve.difference(a, cross),
+        () -> chordOverlay(a, cross, OverlayNGCurve.DIFFERENCE));
+  }
+
+  public void testOverlayCrossingXorNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry cross = readCurve(CIRCLE_CROSSING);
+    assertLaserNotSlower("crossing XOR",
+        () -> OverlayNGCurve.symDifference(a, cross),
+        () -> chordOverlay(a, cross, OverlayNGCurve.SYMDIFFERENCE));
   }
 
   public void testReverseDisjointSubNotSlowerThanChord() throws Exception {
