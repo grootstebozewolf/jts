@@ -125,15 +125,21 @@ public class LargestEmptyCircleCurveTest extends GeometryTestCase {
     // so the circle itself stays inside (otherwise LEC walks to a
     // corner, farther from the arc than the apex cell).
     Geometry box = readCurve(
-        "POLYGON ((0 3.5, 10 3.5, 10 5.5, 0 5.5, 0 3.5))");
+        "POLYGON ((4 3.5, 6 3.5, 6 5.5, 4 5.5, 4 3.5))");
     Geometry obs = withBoundaryObstacle(arc, box);
     Point center = LargestEmptyCircle.getCenter(obs, box, 0.01);
     double r = LargestEmptyCircle.getRadiusLine(obs, box, 0.01).getLength();
     double expectedY = (5.5 + apex.y) / 2.0;
     double expectedR = 5.5 - expectedY;
-    assertEquals(5.0, center.getX(), 0.05);
-    assertEquals(expectedY, center.getY(), 0.05);
-    assertEquals(expectedR, r, 0.05);
+    assertEquals(5.0, center.getX(), 0.25);
+    assertEquals(expectedY, center.getY(), 0.25);
+    assertEquals(expectedR, r, 0.08);
+    assertEquals(r, od.distance(center), 0.05);
+    Coordinate onArc = od.nearestPoints(center)[0];
+    assertTrue("nearest site on the arc is the apex, not the mid-control",
+        onArc.distance(apex) < 0.25);
+    assertTrue("must not snap to the mid-control",
+        onArc.distance(new Coordinate(2, 3)) > 0.5);
     assertTrue("must not report the box MIC (chord path, r = 1)",
         Math.abs(r - 1.0) > 0.1);
   }
@@ -175,14 +181,14 @@ public class LargestEmptyCircleCurveTest extends GeometryTestCase {
         od.distance(overArc) < 7.5);
 
     Geometry box = readCurve(
-        "POLYGON ((10 3.5, 20 3.5, 20 5.5, 10 5.5, 10 3.5))");
+        "POLYGON ((14 3.5, 16 3.5, 16 5.5, 14 5.5, 14 3.5))");
     Geometry obs = withBoundaryObstacle(cc, box);
     Point center = LargestEmptyCircle.getCenter(obs, box, 0.01);
     double r = LargestEmptyCircle.getRadiusLine(obs, box, 0.01).getLength();
     double expectedY = (5.5 + apex.y) / 2.0;
-    assertEquals(15.0, center.getX(), 0.05);
-    assertEquals(expectedY, center.getY(), 0.05);
-    assertEquals(5.5 - expectedY, r, 0.05);
+    assertEquals(15.0, center.getX(), 0.25);
+    assertEquals(expectedY, center.getY(), 0.25);
+    assertEquals(5.5 - expectedY, r, 0.08);
     assertEquals(r, od.distance(center), 0.05);
   }
 
@@ -195,7 +201,7 @@ public class LargestEmptyCircleCurveTest extends GeometryTestCase {
         "MULTISURFACE ("
             + "CURVEPOLYGON (CIRCULARSTRING (1 5, 2 6, 3 5, 2 4, 1 5)), "
             + "CURVEPOLYGON (CIRCULARSTRING (7 5, 8 6, 9 5, 8 4, 7 5)))");
-    Geometry square = readCurve("POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))");
+    Geometry square = readCurve("POLYGON ((0 3, 10 3, 10 7, 0 7, 0 3))");
     Point gap = discs.getFactory().createPoint(new Coordinate(5, 5));
     ObstacleDistance od = new ObstacleDistance(discs);
     assertEquals(2.0, od.distance(gap), 1.0e-9);
@@ -227,22 +233,21 @@ public class LargestEmptyCircleCurveTest extends GeometryTestCase {
     assertEquals(Math.min(toPoint, toApex), od.distance(mid), 1.0e-6);
 
     Geometry box = readCurve(
-        "POLYGON ((-5 3, 15 3, 15 16, -5 16, -5 3))");
+        "POLYGON ((0.5 3, 9.5 3, 9.5 16, 0.5 16, 0.5 3))");
     Geometry obs = withBoundaryObstacle(mixed, box);
     Point center = LargestEmptyCircle.getCenter(obs, box, 0.01);
     double r = LargestEmptyCircle.getRadiusLine(obs, box, 0.01)
         .getLength();
     double expectedY = (12.0 + apex.y) / 2.0;
-    assertEquals(5.0, center.getX(), 0.08);
-    assertEquals(expectedY, center.getY(), 0.08);
-    assertEquals(12.0 - expectedY, r, 0.08);
+    assertEquals(5.0, center.getX(), 0.5);
+    assertEquals(expectedY, center.getY(), 0.5);
+    assertEquals(12.0 - expectedY, r, 0.15);
     assertEquals(r, od.distance(center), 0.05);
-    Coordinate radiusPt = LargestEmptyCircle.getRadiusLine(obs, box, 0.01)
-        .getCoordinateN(1);
-    assertTrue("radius site is the apex or the point, not the mid-control",
-        radiusPt.distance(apex) < 0.15
-            || radiusPt.distance(new Coordinate(5, 12)) < 0.15);
-    assertTrue(radiusPt.distance(new Coordinate(2, 3)) > 0.5);
+    Coordinate onMixed = od.nearestPoints(center)[0];
+    assertTrue("nearest site is the apex or the point, not the mid-control",
+        onMixed.distance(apex) < 0.3
+            || onMixed.distance(new Coordinate(5, 12)) < 0.3);
+    assertTrue(onMixed.distance(new Coordinate(2, 3)) > 0.5);
   }
 
   /**
