@@ -20,7 +20,6 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularArcDensifier;
 import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.CompoundCurve;
-import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.MultiSurface;
 import org.locationtech.jts.operation.overlayng.OverlayNG;
@@ -42,8 +41,8 @@ final class CircularDiscOverlay {
    * Two computed nodes closer than this fraction of the smaller radius are
    * a tangent pair in floating point, not a proper crossing.
    */
-  private static final double PROPER_CROSS_FRAC = 1.0e-9;
-  private static final double TWO_PI = 2.0 * Math.PI;
+  private static final double PROPER_CROSS_FRAC = TwoNodeClip.PROPER_CROSS_FRAC;
+  private static final double TWO_PI = TwoNodeClip.TWO_PI;
   private static final double SWEEP_EPS = 1.0e-9;
 
   private CircularDiscOverlay() { }
@@ -85,7 +84,7 @@ final class CircularDiscOverlay {
       return null;
     }
 
-    GeometryFactory f = curveFactory(a);
+    GeometryFactory f = TwoNodeClip.curveFactory(a);
     Coordinate p = nodes[0];
     Coordinate q = nodes[1];
     if (opCode == OverlayNG.INTERSECTION) {
@@ -129,25 +128,10 @@ final class CircularDiscOverlay {
 
   private static Polygon twoArcPolygon(Coordinate p, Coordinate midA,
       Coordinate q, Coordinate midB, GeometryFactory f) {
-    CircularString arcA = arc(p, midA, q, f);
-    CircularString arcB = arc(q, midB, p, f);
+    CircularString arcA = TwoNodeClip.arc(p, midA, q, f);
+    CircularString arcB = TwoNodeClip.arc(q, midB, p, f);
     CompoundCurve shell = new CompoundCurve(new LineString[] { arcA, arcB }, f);
     return new CurvePolygon(shell, null, f);
-  }
-
-  private static CircularString arc(Coordinate start, Coordinate mid,
-      Coordinate end, GeometryFactory f) {
-    Coordinate[] pts = new Coordinate[] {
-        new Coordinate(start), new Coordinate(mid), new Coordinate(end)
-    };
-    return new CircularString(f.getCoordinateSequenceFactory().create(pts), f);
-  }
-
-  private static GeometryFactory curveFactory(Geometry g) {
-    GeometryFactory f = g.getFactory();
-    if (f instanceof CurveGeometryFactory) return f;
-    return new CurveGeometryFactory(f.getPrecisionModel(), f.getSRID(),
-        f.getCoordinateSequenceFactory());
   }
 
   private static Disc circularDisc(Geometry g) {
@@ -234,40 +218,16 @@ final class CircularDiscOverlay {
   }
 
   private static double normPos(double angle) {
-    angle = angle % TWO_PI;
-    if (angle < 0.0) angle += TWO_PI;
-    return angle;
+    return TwoNodeClip.normPos(angle);
   }
 
   /**
    * Radical-axis nodes of two supporting circles. Empty when the circles
-   * are disjoint, nested, or coincident. Same formula as
-   * {@code CircularArcDensifier.intersectCircles}, using the public
-   * circumcircle numbers so this class can live next to OverlayNGCurve.
+   * are disjoint, nested, or coincident.
    */
   private static Coordinate[] intersectCircles(Disc ca, Disc cb) {
     if (ca == null || cb == null) return new Coordinate[0];
-    double dx = cb.cx - ca.cx;
-    double dy = cb.cy - ca.cy;
-    double d = Math.hypot(dx, dy);
-    if (d > ca.r + cb.r || d < Math.abs(ca.r - cb.r) || d == 0.0) {
-      return new Coordinate[0];
-    }
-    double a = (ca.r * ca.r - cb.r * cb.r + d * d) / (2.0 * d);
-    double h2 = ca.r * ca.r - a * a;
-    if (h2 < 0.0) return new Coordinate[0];
-    double ux = dx / d;
-    double uy = dy / d;
-    double mx = ca.cx + a * ux;
-    double my = ca.cy + a * uy;
-    if (h2 == 0.0) {
-      return new Coordinate[] { new Coordinate(mx, my) };
-    }
-    double h = Math.sqrt(h2);
-    return new Coordinate[] {
-        new Coordinate(mx + h * -uy, my + h * ux),
-        new Coordinate(mx - h * -uy, my - h * ux)
-    };
+    return TwoNodeClip.intersectCircles(ca.cx, ca.cy, ca.r, cb.cx, cb.cy, cb.r);
   }
 
   private static final class Disc {

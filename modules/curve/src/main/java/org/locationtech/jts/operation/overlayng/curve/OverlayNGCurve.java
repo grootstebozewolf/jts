@@ -94,6 +94,9 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     flagging the result approximate (<b>R2</b>). This <em>is</em> the chord
  *     baseline.</li>
  * </ol>
+ * R1.5–R1.7 share package-private {@code TwoNodeClip} for the two-node
+ * walk (hits, ring / member walk, CAP / CUP / SUB / XOR). Each rung
+ * keeps its own shape dispatch.
  * The distinction in R0/R1 is the one that matters: an exact answer chosen by a
  * tolerance-bounded decision is still exact, but the decision can be wrong for
  * operands closer together than the decide-tolerance. That is a narrower

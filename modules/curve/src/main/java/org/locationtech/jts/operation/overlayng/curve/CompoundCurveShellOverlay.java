@@ -11,27 +11,17 @@
  */
 package org.locationtech.jts.operation.overlayng.curve;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
-import org.locationtech.jts.algorithm.LineIntersector;
-import org.locationtech.jts.algorithm.RobustLineIntersector;
-import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.curve.CircularArcDensifier;
 import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.CompoundCurve;
-import org.locationtech.jts.geom.curve.CurveGeometryFactory;
-import org.locationtech.jts.geom.curve.CurveOps;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.MultiSurface;
-import org.locationtech.jts.operation.overlayng.OverlayNG;
 
 /**
  * Closed-form overlay of a hole-free {@link CurvePolygon} whose shell is
@@ -39,22 +29,16 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * or stadium) against a circular disc or a plain Polygon.
  * Package-private -- not a new public API, and not a noder.
  * <p>
- * Two proper nodes become a {@link CurvePolygon} whose shell is a
- * {@link CompoundCurve} of the surviving pieces. A LineString member
- * stays a segment; a three-point LineString is not an arc. A
- * CompoundCurve that is itself a disc is left to
+ * Dispatch only: flatten members to typed edges, pick a disc or a
+ * plain-polygon partner, then one two-node walk via {@link TwoNodeClip}.
+ * A LineString member stays a segment; a three-point LineString is not
+ * an arc. A CompoundCurve that is itself a disc is left to
  * {@link CircularDiscOverlay} / {@link CircularDiscPolygonOverlay}.
  * Anything else -- holes, 0 / 1 / 3+ nodes, two CompoundCurve shells,
  * a line-only shell -- returns {@code null} so the caller takes the
  * chord baseline without paying this path first.
  */
 final class CompoundCurveShellOverlay {
-
-  private static final double PROPER_CROSS_FRAC = 1.0e-9;
-  private static final double TWO_PI = 2.0 * Math.PI;
-  private static final int IN = 1;
-  private static final int OUT = -1;
-  private static final int MIXED = 0;
 
   private CompoundCurveShellOverlay() { }
 
@@ -83,10 +67,11 @@ final class CompoundCurveShellOverlay {
 
     double[] disc = CircularDiscOverlay.centreRadius(other);
     if (disc != null) {
-      return clipVsDisc(shell, disc, shellFirst, opCode, a);
+      return clip(shell, new DiscOther(disc), shellFirst, opCode, a);
     }
-    if (isPlainPolygon(other)) {
-      return clipVsPolygon(shell, (Polygon) other, shellFirst, opCode, a);
+    if (TwoNodeClip.isPlainPolygon(other)) {
+      return clip(shell, new PolygonOther((Polygon) other, shell), shellFirst,
+          opCode, a);
     }
     return null;
   }
@@ -124,770 +109,136 @@ final class CompoundCurveShellOverlay {
     return cp;
   }
 
-  private static boolean isPlainPolygon(Geometry g) {
-    if (g == null || g.isEmpty()) return false;
-    if (g instanceof CurvePolygon) return false;
-    if (!(g instanceof Polygon)) return false;
-    if (((Polygon) g).getNumInteriorRing() > 0) return false;
-    return CurveOps.tolerance(g) <= 0.0;
-  }
-
-  private static Geometry clipVsDisc(CurvePolygon shell, double[] disc,
-      boolean shellFirst, int opCode, Geometry factorySrc) {
-    List<Edge> edges = flatten(shell);
-    if (edges == null) return null;
-    List<Node> nodes = nodesVsDisc(edges, disc[0], disc[1], disc[2]);
-    if (nodes == null || nodes.size() != 2) return null;
-    double r = disc[2];
-    if (nodes.get(0).pt.distance(nodes.get(1).pt) < PROPER_CROSS_FRAC * r) {
-      return null;
-    }
-
-    Node p = nodes.get(0);
-    Node q = nodes.get(1);
-    List<LineString> pq = walkShell(edges, p, q, factorySrc);
-    List<LineString> qp = walkShell(edges, q, p, factorySrc);
-    if (pq == null || qp == null) return null;
-    int pqSide = sideOfDisc(pq, disc[0], disc[1], r);
-    int qpSide = sideOfDisc(qp, disc[0], disc[1], r);
-    if (pqSide == MIXED || qpSide == MIXED || pqSide == qpSide) return null;
-    List<LineString> shellIn = pqSide == IN ? pq : qp;
-    List<LineString> shellOut = pqSide == IN ? qp : pq;
-
-    Coordinate midIn = discMid(p.pt, q.pt, disc, shell, true);
-    Coordinate midOut = discMid(p.pt, q.pt, disc, shell, false);
-    if (midIn == null || midOut == null) return null;
-
-    GeometryFactory f = curveFactory(factorySrc);
-    LineString arcIn = arc(p.pt, midIn, q.pt, f);
-    LineString arcOut = arc(p.pt, midOut, q.pt, f);
-    return assemble(opCode, shellFirst, shellIn, shellOut, arcIn, arcOut,
-        p.pt, q.pt, f, r);
-  }
-
-  private static Geometry clipVsPolygon(CurvePolygon shell, Polygon poly,
-      boolean shellFirst, int opCode, Geometry factorySrc) {
-    List<Edge> edges = flatten(shell);
-    if (edges == null) return null;
-    Coordinate[] ring = poly.getExteriorRing().getCoordinates();
-    if (ring.length < 4) return null;
-    List<Node> nodes = nodesVsPolygon(edges, ring);
-    if (nodes == null || nodes.size() != 2) return null;
-    double scale = Math.max(shell.getEnvelopeInternal().getWidth(),
-        shell.getEnvelopeInternal().getHeight());
-    if (nodes.get(0).pt.distance(nodes.get(1).pt) < PROPER_CROSS_FRAC * scale) {
-      return null;
-    }
-
-    Node p = nodes.get(0);
-    Node q = nodes.get(1);
-    List<LineString> pq = walkShell(edges, p, q, factorySrc);
-    List<LineString> qp = walkShell(edges, q, p, factorySrc);
-    if (pq == null || qp == null) return null;
-    int pqSide = sideOfPolygon(pq, poly);
-    int qpSide = sideOfPolygon(qp, poly);
-    if (pqSide == MIXED || qpSide == MIXED || pqSide == qpSide) return null;
-    List<LineString> shellIn = pqSide == IN ? pq : qp;
-    List<LineString> shellOut = pqSide == IN ? qp : pq;
-
-    List<Coordinate> pathIn = polygonWalk(ring, p.pt, q.pt, shell, true);
-    List<Coordinate> pathOut = polygonWalk(ring, p.pt, q.pt, shell, false);
-    if (pathIn == null || pathOut == null) return null;
-
-    GeometryFactory f = curveFactory(factorySrc);
-    LineString polyIn = f.createLineString(pathIn.toArray(new Coordinate[0]));
-    LineString polyOut = f.createLineString(pathOut.toArray(new Coordinate[0]));
-    return assemble(opCode, shellFirst, shellIn, shellOut, polyIn, polyOut,
-        p.pt, q.pt, f, scale);
-  }
-
-  private static Geometry assemble(int opCode, boolean shellFirst,
-      List<LineString> shellIn, List<LineString> shellOut,
-      LineString otherIn, LineString otherOut,
-      Coordinate p, Coordinate q, GeometryFactory f, double scale) {
-    if (opCode == OverlayNG.INTERSECTION) {
-      return ring(shellIn, listOf(otherIn), p, q, f, scale);
-    }
-    if (opCode == OverlayNG.UNION) {
-      return ring(shellOut, listOf(otherOut), p, q, f, scale);
-    }
-    if (opCode == OverlayNG.DIFFERENCE) {
-      return shellFirst
-          ? ring(shellOut, listOf(otherIn), p, q, f, scale)
-          : ring(listOf(otherOut), shellIn, p, q, f, scale);
-    }
-    if (opCode == OverlayNG.SYMDIFFERENCE) {
-      Polygon ab = ring(shellOut, listOf(otherIn), p, q, f, scale);
-      Polygon ba = ring(listOf(otherOut), shellIn, p, q, f, scale);
-      if (ab == null || ba == null) return null;
-      return new MultiSurface(new Polygon[] { ab, ba }, f);
-    }
-    return null;
-  }
-
   /**
-   * Closed CompoundCurve: {@code along} from P to Q, then {@code back}
-   * from Q to P. A LineString member stays a segment; an arc stays an
-   * arc. Lists are reversed as a whole when they currently run the
-   * other way -- never flattened through {@code join}.
+   * One two-node walk. The partner supplies nodes, scale, side-of,
+   * and the other-side pieces; the shell walk is always the typed
+   * CompoundCurve members.
    */
-  private static Polygon ring(List<LineString> along, List<LineString> back,
-      Coordinate p, Coordinate q, GeometryFactory f, double scale) {
-    if (along == null || along.isEmpty() || back == null || back.isEmpty()) {
-      return null;
-    }
-    double eps = Math.max(PROPER_CROSS_FRAC * scale, 1.0e-12);
-    List<LineString> alongDir = directedList(along, p, q, eps, f);
-    List<LineString> backDir = directedList(back, q, p, eps, f);
-    if (alongDir == null || backDir == null) return null;
-    List<LineString> members = new ArrayList<LineString>();
-    addAll(members, alongDir);
-    addAll(members, backDir);
-    return closeRing(members, f, eps);
-  }
+  private static Geometry clip(CurvePolygon shell, Other other,
+      boolean shellFirst, int opCode, Geometry factorySrc) {
+    List<TwoNodeClip.Edge> edges = TwoNodeClip.flatten(shell);
+    if (edges == null) return null;
+    List<TwoNodeClip.Node> nodes = other.nodes(edges);
+    if (!TwoNodeClip.properPair(nodes, other.scale())) return null;
 
-  private static List<LineString> directedList(List<LineString> parts,
-      Coordinate from, Coordinate to, double eps, GeometryFactory f) {
-    Coordinate start = parts.get(0).getCoordinateN(0);
-    LineString last = parts.get(parts.size() - 1);
-    Coordinate end = last.getCoordinateN(last.getNumPoints() - 1);
-    if (start.distance(from) <= eps && end.distance(to) <= eps) {
-      return parts;
-    }
-    if (start.distance(to) <= eps && end.distance(from) <= eps) {
-      return reverseMembers(parts);
-    }
-    if (parts.size() == 1) {
-      LineString d = directed(parts.get(0), from, to, eps, f);
-      if (d == null) return null;
-      return listOf(d);
-    }
-    return null;
-  }
-
-  private static List<LineString> reverseMembers(List<LineString> parts) {
-    List<LineString> out = new ArrayList<LineString>(parts.size());
-    for (int i = parts.size() - 1; i >= 0; i--) {
-      out.add((LineString) parts.get(i).reverse());
-    }
-    return out;
-  }
-
-  private static LineString directed(LineString g, Coordinate from,
-      Coordinate to, double eps, GeometryFactory f) {
-    Coordinate[] c = g.getCoordinates();
-    if (c.length < 2) return null;
-    boolean startFrom = c[0].distance(from) <= eps;
-    boolean endTo = c[c.length - 1].distance(to) <= eps;
-    if (startFrom && endTo) return g;
-    boolean startTo = c[0].distance(to) <= eps;
-    boolean endFrom = c[c.length - 1].distance(from) <= eps;
-    if (startTo && endFrom) {
-      return (LineString) g.reverse();
-    }
-    // Rebuild as a two-point connector if the piece is a segment.
-    if (!(g instanceof CircularString)) {
-      return f.createLineString(new Coordinate[] {
-          new Coordinate(from), new Coordinate(to)
-      });
-    }
-    Coordinate mid = c.length >= 3 ? c[c.length / 2] : null;
-    if (mid == null) return null;
-    return arc(from, mid, to, f);
-  }
-
-  private static Polygon closeRing(List<LineString> members, GeometryFactory f,
-      double eps) {
-    List<LineString> clean = new ArrayList<LineString>();
-    for (int i = 0; i < members.size(); i++) {
-      LineString m = members.get(i);
-      if (m == null || m.isEmpty() || m.getNumPoints() < 2) continue;
-      if (m.getLength() <= eps && !(m instanceof CircularString)) continue;
-      clean.add(m);
-    }
-    if (clean.size() < 1) return null;
-    try {
-      CompoundCurve cc = new CompoundCurve(
-          clean.toArray(new LineString[0]), f);
-      if (signedArea(cc) < 0.0) {
-        cc = (CompoundCurve) cc.reverse();
-      }
-      return new CurvePolygon(cc, null, f);
-    }
-    catch (RuntimeException ex) {
-      return null;
-    }
-  }
-
-  private static double signedArea(CompoundCurve cc) {
-    double signed = 0.0;
-    for (int i = 0; i < cc.getNumMembers(); i++) {
-      LineString m = cc.getMemberN(i);
-      if (m instanceof CircularString) {
-        Coordinate[] pts = m.getCoordinates();
-        for (int k = 0; k + 2 < pts.length; k += 2) {
-          signed += CircularArcDensifier.arcAreaContribution(
-              pts[k], pts[k + 1], pts[k + 2]);
-        }
-      }
-      else {
-        Coordinate[] pts = m.getCoordinates();
-        for (int k = 0; k < pts.length - 1; k++) {
-          signed += 0.5 * (pts[k].x * pts[k + 1].y - pts[k + 1].x * pts[k].y);
-        }
-      }
-    }
-    return signed;
-  }
-
-  private static List<Edge> flatten(CurvePolygon shell) {
-    CompoundCurve cc = (CompoundCurve) shell.getExteriorCurve();
-    List<Edge> edges = new ArrayList<Edge>();
-    for (int i = 0; i < cc.getNumMembers(); i++) {
-      LineString m = cc.getMemberN(i);
-      Coordinate[] pts = m.getCoordinates();
-      if (m instanceof CircularString) {
-        if (pts.length < 3) return null;
-        for (int k = 0; k + 2 < pts.length; k += 2) {
-          double[] c = CircularArcDensifier.circumcircle(
-              pts[k], pts[k + 1], pts[k + 2]);
-          if (c == null) {
-            edges.add(new Edge(pts[k], null, pts[k + 2], false, null));
-          }
-          else {
-            edges.add(new Edge(pts[k], pts[k + 1], pts[k + 2], true, c));
-          }
-        }
-      }
-      else {
-        if (pts.length < 2) return null;
-        for (int k = 0; k < pts.length - 1; k++) {
-          edges.add(new Edge(pts[k], null, pts[k + 1], false, null));
-        }
-      }
-    }
-    return edges.isEmpty() ? null : edges;
-  }
-
-  private static List<Node> nodesVsDisc(List<Edge> edges, double cx,
-      double cy, double r) {
-    List<Node> nodes = new ArrayList<Node>();
-    for (int i = 0; i < edges.size(); i++) {
-      Edge e = edges.get(i);
-      if (e.isArc) {
-        addCircleCircle(nodes, i, e, cx, cy, r);
-      }
-      else {
-        Coordinate[] hits = intersectSegmentCircle(cx, cy, r, e.a, e.b);
-        for (int k = 0; k < hits.length; k++) {
-          addUnique(nodes, new Node(i, e.param(hits[k]), hits[k]), r);
-        }
-      }
-    }
-    return nodes;
-  }
-
-  private static void addCircleCircle(List<Node> nodes, int edgeIndex,
-      Edge e, double cx, double cy, double r) {
-    Coordinate[] hits = intersectCircles(e.circle[0], e.circle[1], e.circle[2],
-        cx, cy, r);
-    for (int k = 0; k < hits.length; k++) {
-      if (!isOnSweep(hits[k], e.circle, e.a, e.mid, e.b)) continue;
-      addUnique(nodes, new Node(edgeIndex, e.param(hits[k]), hits[k]), r);
-    }
-  }
-
-  private static List<Node> nodesVsPolygon(List<Edge> edges,
-      Coordinate[] ring) {
-    List<Node> nodes = new ArrayList<Node>();
-    int n = ring.length - 1;
-    double scale = 1.0;
-    LineIntersector li = new RobustLineIntersector();
-    for (int i = 0; i < edges.size(); i++) {
-      Edge e = edges.get(i);
-      for (int j = 0; j < n; j++) {
-        if (e.isArc) {
-          Coordinate[] hits = intersectSegmentCircle(
-              e.circle[0], e.circle[1], e.circle[2], ring[j], ring[j + 1]);
-          for (int k = 0; k < hits.length; k++) {
-            if (!isOnSweep(hits[k], e.circle, e.a, e.mid, e.b)) continue;
-            addUnique(nodes, new Node(i, e.param(hits[k]), hits[k]), scale);
-          }
-        }
-        else {
-          li.computeIntersection(e.a, e.b, ring[j], ring[j + 1]);
-          if (li.getIntersectionNum() == 1) {
-            addUnique(nodes, new Node(i, e.param(li.getIntersection(0)),
-                li.getIntersection(0)), scale);
-          }
-        }
-      }
-    }
-    return nodes;
-  }
-
-  private static List<LineString> walkShell(List<Edge> edges, Node from,
-      Node to, Geometry factorySrc) {
-    if (from.edge == to.edge && from.t <= to.t + 1.0e-12) {
-      LineString piece = subEdge(edges.get(from.edge), from.pt, to.pt,
-          factorySrc);
-      if (piece == null) return null;
-      List<LineString> one = new ArrayList<LineString>();
-      one.add(piece);
-      return one;
-    }
-    List<LineString> out = new ArrayList<LineString>();
-    int e = from.edge;
-    Coordinate cursor = from.pt;
-    int guard = 0;
-    while (guard++ < edges.size() + 2) {
-      Edge edge = edges.get(e);
-      if (e == to.edge && cursor != from.pt) {
-        LineString piece = subEdge(edge, cursor, to.pt, factorySrc);
-        if (piece != null) out.add(piece);
-        return out.isEmpty() ? null : out;
-      }
-      LineString piece = subEdge(edge, cursor, edge.b, factorySrc);
-      if (piece != null) out.add(piece);
-      e = (e + 1) % edges.size();
-      cursor = edges.get(e).a;
-      if (e == to.edge) {
-        LineString last = subEdge(edges.get(e), cursor, to.pt, factorySrc);
-        if (last != null) out.add(last);
-        return out.isEmpty() ? null : out;
-      }
-    }
-    return null;
-  }
-
-  private static LineString subEdge(Edge e, Coordinate from, Coordinate to,
-      Geometry factorySrc) {
-    GeometryFactory f = curveFactory(factorySrc);
-    double eps = 1.0e-12;
-    if (from.distance(to) <= eps) return null;
-    if (!e.isArc) {
-      return f.createLineString(new Coordinate[] {
-          new Coordinate(from), new Coordinate(to)
-      });
-    }
-    Coordinate mid = midOnSweep(from, to, e);
-    if (mid == null || mid.distance(from) <= eps || mid.distance(to) <= eps) {
-      return f.createLineString(new Coordinate[] {
-          new Coordinate(from), new Coordinate(to)
-      });
-    }
-    return arc(from, mid, to, f);
-  }
-
-  private static Coordinate midOnSweep(Coordinate from, Coordinate to, Edge e) {
-    double[] c = e.circle;
-    double a0 = Math.atan2(from.y - c[1], from.x - c[0]);
-    double a1 = Math.atan2(to.y - c[1], to.x - c[0]);
-    double aS = Math.atan2(e.a.y - c[1], e.a.x - c[0]);
-    double aM = Math.atan2(e.mid.y - c[1], e.mid.x - c[0]);
-    double aE = Math.atan2(e.b.y - c[1], e.b.x - c[0]);
-    boolean ccw = normPos(aM - aS) < normPos(aE - aS);
-    double sweep = ccw ? normPos(a1 - a0) : -normPos(a0 - a1);
-    if (sweep == 0.0) sweep = ccw ? TWO_PI : -TWO_PI;
-    double a = a0 + 0.5 * sweep;
-    return new Coordinate(c[0] + c[2] * Math.cos(a), c[1] + c[2] * Math.sin(a));
-  }
-
-  private static int sideOfDisc(List<LineString> walk, double cx, double cy,
-      double r) {
-    Coordinate sample = sample(walk);
-    if (sample == null) return MIXED;
-    double eps = Math.max(1.0e-8 * r, 1.0e-12);
-    double d = Math.hypot(sample.x - cx, sample.y - cy);
-    if (d < r - eps) return IN;
-    if (d > r + eps) return OUT;
-    return MIXED;
-  }
-
-  private static int sideOfPolygon(List<LineString> walk, Polygon poly) {
-    Coordinate sample = sample(walk);
-    if (sample == null) return MIXED;
-    int loc = SimplePointInAreaLocator.locate(sample, poly);
-    if (loc == Location.INTERIOR) return IN;
-    if (loc == Location.EXTERIOR) return OUT;
-    return MIXED;
-  }
-
-  private static Coordinate sample(List<LineString> walk) {
-    for (int i = 0; i < walk.size(); i++) {
-      LineString m = walk.get(i);
-      if (m instanceof CircularString && m.getNumPoints() >= 3) {
-        return m.getCoordinateN(1);
-      }
-      Coordinate[] c = m.getCoordinates();
-      if (c.length >= 2) {
-        return new Coordinate(0.5 * (c[0].x + c[c.length - 1].x),
-            0.5 * (c[0].y + c[c.length - 1].y));
-      }
-    }
-    return null;
-  }
-
-  private static Coordinate discMid(Coordinate p, Coordinate q, double[] disc,
-      CurvePolygon shell, boolean wantInside) {
-    double cx = disc[0], cy = disc[1], r = disc[2];
-    double aP = Math.atan2(p.y - cy, p.x - cx);
-    double aQ = Math.atan2(q.y - cy, q.x - cx);
-    Coordinate ccw = midOnCircle(cx, cy, r, aP, normPos(aQ - aP));
-    Coordinate cw = midOnCircle(cx, cy, r, aP, -normPos(aP - aQ));
-    boolean ccwIn = locateInShell(ccw, shell) == IN;
-    boolean cwIn = locateInShell(cw, shell) == IN;
-    if (ccwIn == cwIn) return null;
-    if (wantInside) return ccwIn ? ccw : cw;
-    return ccwIn ? cw : ccw;
-  }
-
-  /**
-   * Even-odd ray cast against the CompoundCurve shell. Boundary hits
-   * are MIXED so a two-node clip that lands on the ring is refused.
-   */
-  private static int locateInShell(Coordinate p, CurvePolygon shell) {
-    List<Edge> edges = flatten(shell);
-    if (edges == null) return MIXED;
-    double envW = Math.max(1.0, shell.getEnvelopeInternal().getWidth());
-    Coordinate far = new Coordinate(p.x + envW * 4.0 + 1.0, p.y);
-    int crossings = 0;
-    for (int i = 0; i < edges.size(); i++) {
-      Edge e = edges.get(i);
-      if (e.isArc) {
-        Coordinate[] hits = intersectSegmentCircle(
-            e.circle[0], e.circle[1], e.circle[2], p, far);
-        for (int k = 0; k < hits.length; k++) {
-          if (hits[k].distance(p) <= 1.0e-12) return MIXED;
-          if (!isOnSweep(hits[k], e.circle, e.a, e.mid, e.b)) continue;
-          if (hits[k].x > p.x + 1.0e-12) crossings++;
-        }
-      }
-      else {
-        if (onSegment(p, e.a, e.b)) return MIXED;
-        if (rayCrosses(p, e.a, e.b)) crossings++;
-      }
-    }
-    return (crossings & 1) == 1 ? IN : OUT;
-  }
-
-  private static boolean rayCrosses(Coordinate p, Coordinate a, Coordinate b) {
-    if (a.y > b.y) {
-      Coordinate t = a;
-      a = b;
-      b = t;
-    }
-    if (p.y < a.y || p.y >= b.y) return false;
-    if (a.y == b.y) return false;
-    double x = a.x + (p.y - a.y) * (b.x - a.x) / (b.y - a.y);
-    return x > p.x;
-  }
-
-  private static boolean onSegment(Coordinate p, Coordinate a, Coordinate b) {
-    double vx = b.x - a.x;
-    double vy = b.y - a.y;
-    double len2 = vx * vx + vy * vy;
-    if (len2 == 0.0) return p.distance(a) <= 1.0e-12;
-    double t = ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2;
-    if (t < -1.0e-12 || t > 1.0 + 1.0e-12) return false;
-    Coordinate q = new Coordinate(a.x + t * vx, a.y + t * vy);
-    return p.distance(q) <= 1.0e-12;
-  }
-
-  private static List<Coordinate> polygonWalk(Coordinate[] ring,
-      Coordinate from, Coordinate to, CurvePolygon shell, boolean wantInside) {
-    List<Coordinate> pq = walkRing(ring, from, to);
-    List<Coordinate> qp = walkRing(ring, to, from);
+    TwoNodeClip.Node p = nodes.get(0);
+    TwoNodeClip.Node q = nodes.get(1);
+    GeometryFactory f = TwoNodeClip.curveFactory(factorySrc);
+    List<LineString> pq = TwoNodeClip.walkEdges(edges, p, q, f);
+    List<LineString> qp = TwoNodeClip.walkEdges(edges, q, p, f);
     if (pq == null || qp == null) return null;
-    int pqSide = sideOfShell(pq, shell);
-    int qpSide = sideOfShell(qp, shell);
-    if (pqSide == MIXED || qpSide == MIXED || pqSide == qpSide) return null;
-    List<Coordinate> chosen = (pqSide == IN) == wantInside ? pq : qp;
-    return startingAt(chosen, from);
+    int pqSide = other.sideOf(pq);
+    int qpSide = other.sideOf(qp);
+    if (pqSide == TwoNodeClip.MIXED || qpSide == TwoNodeClip.MIXED
+        || pqSide == qpSide) {
+      return null;
+    }
+    List<LineString> shellIn = pqSide == TwoNodeClip.IN ? pq : qp;
+    List<LineString> shellOut = pqSide == TwoNodeClip.IN ? qp : pq;
+
+    List<LineString> otherIn = other.walk(p.pt, q.pt, shell, true, f);
+    List<LineString> otherOut = other.walk(p.pt, q.pt, shell, false, f);
+    if (otherIn == null || otherOut == null) return null;
+
+    return TwoNodeClip.overlay(opCode, shellFirst, shellIn, shellOut,
+        otherIn, otherOut, p.pt, q.pt, f, other.scale());
   }
 
-  private static int sideOfShell(List<Coordinate> path, CurvePolygon shell) {
-    if (path.size() < 2) return MIXED;
-    Coordinate sample;
-    if (path.size() >= 3) {
-      sample = path.get(path.size() / 2);
-    }
-    else {
-      sample = new Coordinate(0.5 * (path.get(0).x + path.get(1).x),
-          0.5 * (path.get(0).y + path.get(1).y));
-    }
-    return locateInShell(sample, shell);
+  private interface Other {
+    List<TwoNodeClip.Node> nodes(List<TwoNodeClip.Edge> edges);
+    double scale();
+    int sideOf(List<LineString> walk);
+    List<LineString> walk(Coordinate p, Coordinate q, CurvePolygon shell,
+        boolean wantInside, GeometryFactory f);
   }
 
-  private static List<Coordinate> walkRing(Coordinate[] ring, Coordinate from,
-      Coordinate to) {
-    int n = ring.length - 1;
-    List<RingPt> pts = new ArrayList<RingPt>();
-    for (int i = 0; i < n; i++) {
-      pts.add(new RingPt(i, 0.0, ring[i]));
+  private static final class DiscOther implements Other {
+    private final double cx, cy, r;
+
+    DiscOther(double[] disc) {
+      this.cx = disc[0];
+      this.cy = disc[1];
+      this.r = disc[2];
     }
-    addRingHit(pts, ring, from);
-    addRingHit(pts, ring, to);
-    Collections.sort(pts);
-    double eps = 1.0e-12;
-    List<RingPt> uniq = new ArrayList<RingPt>();
-    for (int i = 0; i < pts.size(); i++) {
-      RingPt cur = pts.get(i);
-      if (!uniq.isEmpty()
-          && uniq.get(uniq.size() - 1).pt.distance(cur.pt) <= eps) {
-        continue;
+
+    public List<TwoNodeClip.Node> nodes(List<TwoNodeClip.Edge> edges) {
+      return TwoNodeClip.nodesVsDisc(edges, cx, cy, r);
+    }
+
+    public double scale() {
+      return r;
+    }
+
+    public int sideOf(List<LineString> walk) {
+      return TwoNodeClip.sideOfDisc(walk, cx, cy, r);
+    }
+
+    public List<LineString> walk(Coordinate p, Coordinate q,
+        CurvePolygon shell, boolean wantInside, GeometryFactory f) {
+      Coordinate mid = TwoNodeClip.sweepMid(p, q, cx, cy, r, wantInside,
+          new TwoNodeClip.Side() {
+            public boolean inside(Coordinate c) {
+              return TwoNodeClip.locateInShell(c, shell) == TwoNodeClip.IN;
+            }
+          });
+      if (mid == null) return null;
+      return TwoNodeClip.listOf(TwoNodeClip.arc(p, mid, q, f));
+    }
+  }
+
+  private static final class PolygonOther implements Other {
+    private final Polygon poly;
+    private final Coordinate[] ring;
+    private final double scale;
+
+    PolygonOther(Polygon poly, CurvePolygon shell) {
+      this.poly = poly;
+      this.ring = poly.getExteriorRing().getCoordinates();
+      this.scale = Math.max(shell.getEnvelopeInternal().getWidth(),
+          shell.getEnvelopeInternal().getHeight());
+    }
+
+    public List<TwoNodeClip.Node> nodes(List<TwoNodeClip.Edge> edges) {
+      if (ring.length < 4) return null;
+      return TwoNodeClip.nodesVsPolygon(edges, ring);
+    }
+
+    public double scale() {
+      return scale;
+    }
+
+    public int sideOf(List<LineString> walk) {
+      return TwoNodeClip.sideOfPolygon(walk, poly);
+    }
+
+    public List<LineString> walk(Coordinate p, Coordinate q,
+        CurvePolygon shell, boolean wantInside, GeometryFactory f) {
+      List<Coordinate> pq = TwoNodeClip.walkRing(ring, p, q);
+      List<Coordinate> qp = TwoNodeClip.walkRing(ring, q, p);
+      if (pq == null || qp == null) return null;
+      int pqSide = sideOfShell(pq, shell);
+      int qpSide = sideOfShell(qp, shell);
+      if (pqSide == TwoNodeClip.MIXED || qpSide == TwoNodeClip.MIXED
+          || pqSide == qpSide) {
+        return null;
       }
-      uniq.add(cur);
+      List<Coordinate> chosen =
+          (pqSide == TwoNodeClip.IN) == wantInside ? pq : qp;
+      return TwoNodeClip.listOf(
+          TwoNodeClip.asLine(TwoNodeClip.startingAt(chosen, p), f));
     }
-    int iFrom = nearest(uniq, from);
-    int iTo = nearest(uniq, to);
-    if (iFrom < 0 || iTo < 0 || iFrom == iTo) return null;
-    List<Coordinate> path = new ArrayList<Coordinate>();
-    int i = iFrom;
-    path.add(new Coordinate(uniq.get(i).pt));
-    do {
-      i = (i + 1) % uniq.size();
-      path.add(new Coordinate(uniq.get(i).pt));
-    } while (i != iTo);
-    return path.size() >= 2 ? path : null;
-  }
 
-  private static void addRingHit(List<RingPt> pts, Coordinate[] ring,
-      Coordinate p) {
-    int n = ring.length - 1;
-    int best = 0;
-    double bestD = Double.POSITIVE_INFINITY;
-    double bestT = 0.0;
-    for (int i = 0; i < n; i++) {
-      double t = parameter(ring[i], ring[i + 1], p);
-      Coordinate q = new Coordinate(
-          ring[i].x + t * (ring[i + 1].x - ring[i].x),
-          ring[i].y + t * (ring[i + 1].y - ring[i].y));
-      double d = p.distance(q);
-      if (d < bestD) {
-        bestD = d;
-        best = i;
-        bestT = t;
+    private static int sideOfShell(List<Coordinate> path, CurvePolygon shell) {
+      if (path.size() < 2) return TwoNodeClip.MIXED;
+      Coordinate sample;
+      if (path.size() >= 3) {
+        sample = path.get(path.size() / 2);
       }
-    }
-    pts.add(new RingPt(best, bestT, p));
-  }
-
-  private static List<Coordinate> startingAt(List<Coordinate> path,
-      Coordinate start) {
-    if (path.get(0).distance(start) <= 1.0e-12) return path;
-    List<Coordinate> rev = new ArrayList<Coordinate>(path.size());
-    for (int i = path.size() - 1; i >= 0; i--) {
-      rev.add(path.get(i));
-    }
-    return rev;
-  }
-
-  private static int nearest(List<RingPt> pts, Coordinate p) {
-    int best = -1;
-    double bestD = Double.POSITIVE_INFINITY;
-    for (int i = 0; i < pts.size(); i++) {
-      double d = pts.get(i).pt.distance(p);
-      if (d < bestD) {
-        bestD = d;
-        best = i;
+      else {
+        sample = new Coordinate(0.5 * (path.get(0).x + path.get(1).x),
+            0.5 * (path.get(0).y + path.get(1).y));
       }
-    }
-    return best;
-  }
-
-  private static void addUnique(List<Node> nodes, Node n, double scale) {
-    double eps = Math.max(PROPER_CROSS_FRAC * Math.max(scale, 1.0), 1.0e-12);
-    for (int i = 0; i < nodes.size(); i++) {
-      if (nodes.get(i).pt.distance(n.pt) <= eps) return;
-    }
-    nodes.add(n);
-  }
-
-  private static double parameter(Coordinate a, Coordinate b, Coordinate p) {
-    double dx = b.x - a.x;
-    double dy = b.y - a.y;
-    double len2 = dx * dx + dy * dy;
-    if (len2 == 0.0) return 0.0;
-    double t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
-    if (t < 0.0) return 0.0;
-    if (t > 1.0) return 1.0;
-    return t;
-  }
-
-  private static Coordinate midOnCircle(double cx, double cy, double r,
-      double a0, double signedSweep) {
-    if (signedSweep == 0.0) signedSweep = TWO_PI;
-    double a = a0 + 0.5 * signedSweep;
-    return new Coordinate(cx + r * Math.cos(a), cy + r * Math.sin(a));
-  }
-
-  private static double normPos(double angle) {
-    angle = angle % TWO_PI;
-    if (angle < 0.0) angle += TWO_PI;
-    return angle;
-  }
-
-  private static boolean isOnSweep(Coordinate p, double[] c, Coordinate start,
-      Coordinate mid, Coordinate end) {
-    double a0 = Math.atan2(start.y - c[1], start.x - c[0]);
-    double aMid = Math.atan2(mid.y - c[1], mid.x - c[0]);
-    double a1 = Math.atan2(end.y - c[1], end.x - c[0]);
-    boolean ccw = normPos(aMid - a0) < normPos(a1 - a0);
-    double sweep = ccw ? normPos(a1 - a0) : normPos(a0 - a1);
-    if (sweep == 0.0) sweep = TWO_PI;
-    double angle = Math.atan2(p.y - c[1], p.x - c[0]);
-    double travelled = ccw ? normPos(angle - a0) : normPos(a0 - angle);
-    return travelled <= sweep + 1.0e-12;
-  }
-
-  private static Coordinate[] intersectCircles(double c1x, double c1y,
-      double r1, double c2x, double c2y, double r2) {
-    double dx = c2x - c1x;
-    double dy = c2y - c1y;
-    double d = Math.hypot(dx, dy);
-    if (d > r1 + r2 || d < Math.abs(r1 - r2) || d == 0.0) {
-      return new Coordinate[0];
-    }
-    double a = (r1 * r1 - r2 * r2 + d * d) / (2.0 * d);
-    double h2 = r1 * r1 - a * a;
-    if (h2 < 0.0) return new Coordinate[0];
-    double ux = dx / d;
-    double uy = dy / d;
-    double mx = c1x + a * ux;
-    double my = c1y + a * uy;
-    if (h2 == 0.0) {
-      return new Coordinate[] { new Coordinate(mx, my) };
-    }
-    double h = Math.sqrt(h2);
-    return new Coordinate[] {
-        new Coordinate(mx + h * -uy, my + h * ux),
-        new Coordinate(mx - h * -uy, my - h * ux)
-    };
-  }
-
-  private static Coordinate[] intersectSegmentCircle(double cx, double cy,
-      double r, Coordinate s0, Coordinate s1) {
-    double dx = s1.x - s0.x;
-    double dy = s1.y - s0.y;
-    double fx = s0.x - cx;
-    double fy = s0.y - cy;
-    double A = dx * dx + dy * dy;
-    if (A == 0.0) {
-      if (Math.abs(Math.hypot(fx, fy) - r) <= 1.0e-12) {
-        return new Coordinate[] { new Coordinate(s0) };
-      }
-      return new Coordinate[0];
-    }
-    double B = 2.0 * (fx * dx + fy * dy);
-    double C = fx * fx + fy * fy - r * r;
-    double disc = B * B - 4.0 * A * C;
-    if (disc < 0.0) return new Coordinate[0];
-    double sqrt = Math.sqrt(disc);
-    Coordinate p0 = null;
-    Coordinate p1 = null;
-    int n = 0;
-    for (int sign = -1; sign <= 1; sign += 2) {
-      double t = (-B + sign * sqrt) / (2.0 * A);
-      if (t < -1.0e-12 || t > 1.0 + 1.0e-12) continue;
-      Coordinate p = new Coordinate(s0.x + t * dx, s0.y + t * dy);
-      if (n == 0) {
-        p0 = p;
-        n = 1;
-      }
-      else if (p0.distance(p) > 1.0e-12) {
-        p1 = p;
-        n = 2;
-      }
-    }
-    if (n == 0) return new Coordinate[0];
-    if (n == 1) return new Coordinate[] { p0 };
-    return new Coordinate[] { p0, p1 };
-  }
-
-  private static CircularString arc(Coordinate start, Coordinate mid,
-      Coordinate end, GeometryFactory f) {
-    Coordinate[] pts = new Coordinate[] {
-        new Coordinate(start), new Coordinate(mid), new Coordinate(end)
-    };
-    return new CircularString(f.getCoordinateSequenceFactory().create(pts), f);
-  }
-
-  private static GeometryFactory curveFactory(Geometry g) {
-    GeometryFactory f = g.getFactory();
-    if (f instanceof CurveGeometryFactory) return f;
-    return new CurveGeometryFactory(f.getPrecisionModel(), f.getSRID(),
-        f.getCoordinateSequenceFactory());
-  }
-
-  private static List<LineString> listOf(LineString g) {
-    List<LineString> out = new ArrayList<LineString>();
-    out.add(g);
-    return out;
-  }
-
-  private static void addAll(List<LineString> dest, List<LineString> src) {
-    for (int i = 0; i < src.size(); i++) {
-      dest.add(src.get(i));
-    }
-  }
-
-  private static final class Edge {
-    final Coordinate a;
-    final Coordinate mid;
-    final Coordinate b;
-    final boolean isArc;
-    final double[] circle;
-
-    Edge(Coordinate a, Coordinate mid, Coordinate b, boolean isArc,
-        double[] circle) {
-      this.a = a;
-      this.mid = mid;
-      this.b = b;
-      this.isArc = isArc;
-      this.circle = circle;
-    }
-
-    double param(Coordinate p) {
-      if (!isArc) {
-        return CompoundCurveShellOverlay.parameter(a, b, p);
-      }
-      double a0 = Math.atan2(a.y - circle[1], a.x - circle[0]);
-      double aM = Math.atan2(mid.y - circle[1], mid.x - circle[0]);
-      double a1 = Math.atan2(b.y - circle[1], b.x - circle[0]);
-      boolean ccw = normPos(aM - a0) < normPos(a1 - a0);
-      double sweep = ccw ? normPos(a1 - a0) : normPos(a0 - a1);
-      if (sweep == 0.0) sweep = TWO_PI;
-      double angle = Math.atan2(p.y - circle[1], p.x - circle[0]);
-      double travelled = ccw ? normPos(angle - a0) : normPos(a0 - angle);
-      return travelled / sweep;
-    }
-  }
-
-  private static final class Node {
-    final int edge;
-    final double t;
-    final Coordinate pt;
-    Node(int edge, double t, Coordinate pt) {
-      this.edge = edge;
-      this.t = t;
-      this.pt = pt;
-    }
-  }
-
-  private static final class RingPt implements Comparable<RingPt> {
-    final int edge;
-    final double t;
-    final Coordinate pt;
-    RingPt(int edge, double t, Coordinate pt) {
-      this.edge = edge;
-      this.t = t;
-      this.pt = pt;
-    }
-
-    public int compareTo(RingPt o) {
-      if (edge != o.edge) return edge < o.edge ? -1 : 1;
-      return Double.compare(t, o.t);
+      return TwoNodeClip.locateInShell(sample, shell);
     }
   }
 }
