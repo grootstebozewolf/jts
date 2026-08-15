@@ -18,13 +18,15 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
 
 /**
  * Closed-form answers for the shapes a cheap check can recognise: a circular
  * disc, a single circular arc, a point against an arc, a disc against a
- * Point or MultiPoint (PIP and DE-9IM). Package-private -- not a new
+ * Point or MultiPoint (PIP and DE-9IM), a disc against a LineString
+ * (DE-9IM from line–circle nodes). Package-private -- not a new
  * public API.
  * {@link CurveOps} takes these only when they can answer; anything else
  * goes straight to the chord baseline. Trying and falling through would
@@ -44,6 +46,16 @@ final class CurveExact {
   static final String IM_POINT_INTERIOR = "0F2FF1FF2";
   static final String IM_POINT_BOUNDARY = "FF20F1FF2";
   static final String IM_POINT_EXTERIOR = "FF2FF10F2";
+
+  /**
+   * JTS/SFS DE-9IM for an areal geometry vs a LineString. Probed against
+   * the inscribed diamond / octagon of {@code CIRCLE_5} in jts-core;
+   * a square is the wrong probe for a tangent (the line lies on an edge).
+   */
+  static final String IM_LINE_CROSS = "1F20F1102";
+  static final String IM_LINE_TANGENT = "FF20F1102";
+  static final String IM_LINE_EXTERIOR = "FF2FF1102";
+  static final String IM_LINE_END_INTERIOR = "1020F1102";
 
   private CurveExact() { }
 
@@ -153,17 +165,27 @@ final class CurveExact {
   }
 
   /**
-   * SFS DE-9IM of a circular disc vs a Point or a uniform MultiPoint,
-   * or {@code null} if this pair is not that shape. Reuses
-   * {@link #locatePoint}; mixed location classes return {@code null}
+   * SFS DE-9IM of a circular disc vs a Point, a uniform MultiPoint, or
+   * a LineString (or a single-member MultiLineString). {@code null} if
+   * this pair is not that shape. Puntal reuses {@link #locatePoint};
+   * lineal uses {@link CircularArcDensifier#intersectSegmentCircle}
+   * ({@code t ∈ [0,1]}, the R1.6 / {@code ARC_SEGMENT_XY} quadratic)
+   * plus endpoint location. Mixed MultiPoint location classes, a
+   * multi-member MultiLineString, or a non-disc return {@code null}
    * so the caller linearises rather than guessing.
    */
   static IntersectionMatrix relate(Geometry curve, Geometry other) {
     if (curve == null || other == null || other.isEmpty()) return null;
-    if (!isPuntal(other)) return null;
     CircularArcDensifier.Circle disc = circularDisc(curve);
     if (disc == null) return null;
+    if (isPuntal(other)) return relatePuntal(disc, other);
+    LineString line = plainLine(other);
+    if (line != null) return relateLine(disc, line);
+    return null;
+  }
 
+  private static IntersectionMatrix relatePuntal(CircularArcDensifier.Circle disc,
+      Geometry other) {
     double r2 = disc.r * disc.r;
     int loc = -1;
     int n = other.getNumGeometries();
@@ -178,6 +200,104 @@ final class CurveExact {
     if (loc == Location.INTERIOR) return new IntersectionMatrix(IM_POINT_INTERIOR);
     if (loc == Location.BOUNDARY) return new IntersectionMatrix(IM_POINT_BOUNDARY);
     return new IntersectionMatrix(IM_POINT_EXTERIOR);
+  }
+
+  /**
+   * Location classes of a straight-edged line vs a circular disc.
+   * A disc is convex, so each segment meets the closed disc in at most
+   * one interval; the DE-9IM is the OR of those intervals against the
+   * line's interior and (if open) its two endpoints.
+   */
+  private static IntersectionMatrix relateLine(CircularArcDensifier.Circle disc,
+      LineString line) {
+    Coordinate[] c = line.getCoordinates();
+    if (c.length < 2) return null;
+    boolean closed = line.isClosed();
+    double r2 = disc.r * disc.r;
+    Coordinate first = c[0];
+    Coordinate last = c[c.length - 1];
+
+    boolean ii = false;
+    boolean ib = false;
+    boolean bi = false;
+    boolean bb = false;
+    boolean ei = false;
+    boolean eb = false;
+
+    if (!closed) {
+      int loc0 = locatePoint(disc, first, r2);
+      int locN = locatePoint(disc, last, r2);
+      if (loc0 == Location.INTERIOR || locN == Location.INTERIOR) ib = true;
+      if (loc0 == Location.BOUNDARY || locN == Location.BOUNDARY) bb = true;
+      if (loc0 == Location.EXTERIOR || locN == Location.EXTERIOR) eb = true;
+    }
+
+    boolean anySeg = false;
+    for (int i = 1; i < c.length; i++) {
+      Coordinate a = c[i - 1];
+      Coordinate bpt = c[i];
+      if (a.equals2D(bpt)) continue;
+      anySeg = true;
+      int locA = locatePoint(disc, a, r2);
+      int locB = locatePoint(disc, bpt, r2);
+      Coordinate[] hits = CircularArcDensifier.intersectSegmentCircle(disc, a, bpt);
+      if (hits.length == 2) {
+        // Secant / chord: the open interval between the nodes is interior.
+        ii = true;
+        if (locA == Location.EXTERIOR || locB == Location.EXTERIOR) ei = true;
+        if (hitIsLineInterior(hits[0], first, last, closed)
+            || hitIsLineInterior(hits[1], first, last, closed)) {
+          bi = true;
+        }
+      } else if (hits.length == 1) {
+        if (locA == Location.INTERIOR || locB == Location.INTERIOR) ii = true;
+        if (locA == Location.EXTERIOR || locB == Location.EXTERIOR) ei = true;
+        if (hitIsLineInterior(hits[0], first, last, closed)) bi = true;
+      } else if (locA == Location.INTERIOR && locB == Location.INTERIOR) {
+        ii = true;
+      } else if (locA == Location.EXTERIOR && locB == Location.EXTERIOR) {
+        ei = true;
+      } else if ((locA == Location.INTERIOR && locB == Location.EXTERIOR)
+          || (locA == Location.EXTERIOR && locB == Location.INTERIOR)) {
+        // A convex disc must produce a node on [0,1].
+        return null;
+      } else if (locA == Location.INTERIOR || locB == Location.INTERIOR) {
+        ii = true;
+      } else if (locA == Location.EXTERIOR || locB == Location.EXTERIOR) {
+        ei = true;
+      }
+    }
+    if (!anySeg) return null;
+    // IE=2, BE=1, EE=2: a disc is 2-dimensional and its circle is not
+    // covered by a straight-edged line.
+    return new IntersectionMatrix(""
+        + (ii ? '1' : 'F') + (ib ? '0' : 'F') + '2'
+        + (bi ? '0' : 'F') + (bb ? '0' : 'F') + '1'
+        + (ei ? '1' : 'F') + (eb ? '0' : 'F') + '2');
+  }
+
+  private static boolean hitIsLineInterior(Coordinate hit, Coordinate first,
+      Coordinate last, boolean closed) {
+    if (closed) return true;
+    return !samePoint(hit, first) && !samePoint(hit, last);
+  }
+
+  private static boolean samePoint(Coordinate a, Coordinate b) {
+    return a.distance(b) <= 1.0e-12;
+  }
+
+  /**
+   * A plain LineString, or the single member of a MultiLineString.
+   * CircularString / CompoundCurve / multi-member collections miss.
+   */
+  private static LineString plainLine(Geometry g) {
+    if (g instanceof MultiLineString) {
+      if (g.getNumGeometries() != 1) return null;
+      g = g.getGeometryN(0);
+    }
+    if (g instanceof CircularString || g instanceof CompoundCurve) return null;
+    if (g instanceof LineString) return (LineString) g;
+    return null;
   }
 
   /**

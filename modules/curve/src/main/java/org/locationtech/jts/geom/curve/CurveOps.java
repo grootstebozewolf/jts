@@ -23,9 +23,10 @@ import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
  * <p>
  * Envelope filters run first (<b>PERF-GATE</b>). An envelope miss is exact --
  * curve envelopes cover the arc -- and cheaper than densifying. Distance,
- * buffer, convex hull, disc-vs-point PIP and disc-vs-point DE-9IM take a
- * closed form when a cheap shape check can answer (circular disc, single
- * arc, point-vs-arc); see {@code CurveExact}.
+ * buffer, convex hull, disc-vs-point PIP, disc-vs-point DE-9IM and
+ * disc-vs-line DE-9IM take a closed form when a cheap shape check can
+ * answer (circular disc, single arc, point-vs-arc, disc-vs-line);
+ * see {@code CurveExact}.
  * Anything else falls through to the locationtech/jts chord baseline:
  * {@link #linearise(Geometry)}, then the core algorithm. Overlay is not
  * routed here; it goes to {@link OverlayNGCurve}, whose ratchet has the same
@@ -205,8 +206,10 @@ public final class CurveOps {
   // segments that only touch the chords. Booleans have no tolerance to hide in.
   // A circular disc vs a Point or MultiPoint now takes CurveExact (d² vs r²)
   // after the envelope miss for contains/covers, and the same location for
-  // relate / relate(pattern). The control-point diamond is no longer the
-  // answer. Other shapes still linearise.
+  // relate / relate(pattern). A disc vs a LineString (or a single-member
+  // MultiLineString) takes the line–circle nodes (R1.6 / ARC_SEGMENT_XY)
+  // for relate / relate(pattern) and intersects. The control-point diamond
+  // is no longer the answer. Other shapes still linearise.
   //
   // Every predicate is overridden individually, because in this core almost
   // none of them route through this.relate(other): touches, intersects, within,
@@ -239,6 +242,8 @@ public final class CurveOps {
     if (!curve.getEnvelopeInternal().intersects(other.getEnvelopeInternal())) {
       return false;
     }
+    IntersectionMatrix exact = CurveExact.relate(curve, other);
+    if (exact != null) return exact.isIntersects();
     return linearise(curve).intersects(linearise(other));
   }
 

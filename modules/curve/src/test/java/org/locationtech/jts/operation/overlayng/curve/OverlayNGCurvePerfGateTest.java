@@ -310,6 +310,38 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
         () -> p.relate(CurveOps.linearise(a)));
   }
 
+  public void testRelateCrossingLineNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry line = readCurve("LINESTRING (-10 0, 10 0)");
+    assertLaserNotSlower("relate crossing line",
+        () -> a.relate(line),
+        () -> CurveOps.linearise(a).relate(line));
+  }
+
+  public void testRelateTangentLineNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry line = readCurve("LINESTRING (-10 5, 10 5)");
+    assertLaserNotSlower("relate tangent line",
+        () -> a.relate(line),
+        () -> CurveOps.linearise(a).relate(line));
+  }
+
+  public void testIntersectsCrossingLineNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry line = readCurve("LINESTRING (-10 0, 10 0)");
+    assertLaserNotSlower("intersects crossing line",
+        () -> a.intersects(line),
+        () -> CurveOps.linearise(a).intersects(line));
+  }
+
+  public void testReverseRelateCrossingLineNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry line = readCurve("LINESTRING (-10 0, 10 0)");
+    assertLaserNotSlower("rev relate crossing line",
+        () -> line.relate(a),
+        () -> line.relate(CurveOps.linearise(a)));
+  }
+
   public void testContainsFarNotSlowerThanChord() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
     Geometry p = readCurve(POINT_FAR);
