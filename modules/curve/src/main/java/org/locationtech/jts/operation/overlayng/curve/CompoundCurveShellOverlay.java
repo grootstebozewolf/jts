@@ -17,6 +17,7 @@ import java.util.List;
 import org.locationtech.jts.algorithm.LineIntersector;
 import org.locationtech.jts.algorithm.RobustLineIntersector;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
@@ -579,16 +580,18 @@ final class CompoundCurveShellOverlay {
   }
 
   private static Coordinate shellSample(CurvePolygon cp) {
-    List<TwoNodeClip.Edge> edges = TwoNodeClip.flatten(cp);
-    if (edges == null) return null;
-    Coordinate found = null;
-    for (int i = 0; i < edges.size(); i++) {
-      TwoNodeClip.Edge e = edges.get(i);
-      if (e.isArc && e.mid != null && found == null) {
-        found = e.mid;
-      }
+    Envelope env = cp.getEnvelopeInternal();
+    Coordinate c = new Coordinate(
+        0.5 * (env.getMinX() + env.getMaxX()),
+        0.5 * (env.getMinY() + env.getMaxY()));
+    if (TwoNodeClip.locateInShell(c, cp) == TwoNodeClip.IN) {
+      return c;
     }
-    return found;
+    HalfDisc h = halfDisc(cp);
+    if (h == null) return null;
+    return new Coordinate(
+        h.centre.x + 0.5 * (h.mid.x - h.centre.x),
+        h.centre.y + 0.5 * (h.mid.y - h.centre.y));
   }
 
   private static Geometry crossingHalfLens(HalfDisc ha, HalfDisc hb,
@@ -602,12 +605,10 @@ final class CompoundCurveShellOverlay {
     }
     Coordinate fromA = endA.distance(ha.d0) <= eps ? ha.d1 : ha.d0;
     Coordinate fromB = endB.distance(hb.d0) <= eps ? hb.d1 : hb.d0;
-    TwoNodeClip.Edge arcA = capEdge(ha);
-    TwoNodeClip.Edge arcB = capEdge(hb);
-    Coordinate midCapA = TwoNodeClip.midOnSweep(node, endA, arcA);
-    Coordinate midCapB = TwoNodeClip.midOnSweep(endB, node, arcB);
-    Coordinate midCupA = TwoNodeClip.midOnSweep(fromA, node, arcA);
-    Coordinate midCupB = TwoNodeClip.midOnSweep(node, fromB, arcB);
+    Coordinate midCapA = pickCapMid(node, endA, ha, hb, true);
+    Coordinate midCapB = pickCapMid(endB, node, hb, ha, true);
+    Coordinate midCupA = pickCapMid(fromA, node, ha, hb, false);
+    Coordinate midCupB = pickCapMid(node, fromB, hb, ha, false);
     if (midCapA == null || midCapB == null || midCupA == null
         || midCupB == null) {
       return null;
@@ -676,9 +677,24 @@ final class CompoundCurveShellOverlay {
     return in0 ? self.d0 : self.d1;
   }
 
-  private static TwoNodeClip.Edge capEdge(HalfDisc h) {
-    return new TwoNodeClip.Edge(h.d0, h.mid, h.d1, true,
-        new double[] { h.centre.x, h.centre.y, h.r });
+  /**
+   * Mid-arc of the cap sweep from {@code from} to {@code to} that
+   * lies inside ({@code wantInside}) or outside the other half-disc.
+   */
+  private static Coordinate pickCapMid(Coordinate from, Coordinate to,
+      HalfDisc self, HalfDisc other, boolean wantInside) {
+    double a0 = Math.atan2(from.y - self.centre.y, from.x - self.centre.x);
+    double a1 = Math.atan2(to.y - self.centre.y, to.x - self.centre.x);
+    Coordinate ccw = TwoNodeClip.midOnCircle(self.centre.x, self.centre.y,
+        self.r, a0, TwoNodeClip.normPos(a1 - a0));
+    Coordinate cw = TwoNodeClip.midOnCircle(self.centre.x, self.centre.y,
+        self.r, a0, -TwoNodeClip.normPos(a0 - a1));
+    boolean ccwOk = onCap(self, ccw)
+        && (ccw.distance(other.centre) < other.r) == wantInside;
+    boolean cwOk = onCap(self, cw)
+        && (cw.distance(other.centre) < other.r) == wantInside;
+    if (ccwOk == cwOk) return null;
+    return ccwOk ? ccw : cw;
   }
 
   private static LineString line(Coordinate a, Coordinate b,
