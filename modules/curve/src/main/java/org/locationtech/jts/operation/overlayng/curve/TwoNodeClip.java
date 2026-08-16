@@ -382,8 +382,10 @@ final class TwoNodeClip {
   }
 
   /**
-   * Even-odd ray cast against a CompoundCurve shell. Boundary hits
-   * are MIXED so a two-node clip that lands on the ring is refused.
+   * Even-odd ray cast against a CompoundCurve shell. A point on a
+   * sweep (or a line member) is MIXED so a clip that lands on the
+   * ring is refused. A point that only sits on a supporting circle,
+   * off the sweep, is not on the ring.
    */
   static int locateInShell(Coordinate p, CurvePolygon shell) {
     List<Edge> edges = flatten(shell);
@@ -397,8 +399,8 @@ final class TwoNodeClip {
         Coordinate[] hits = intersectSegmentCircle(
             e.circle[0], e.circle[1], e.circle[2], p, far);
         for (int k = 0; k < hits.length; k++) {
-          if (hits[k].distance(p) <= 1.0e-12) return MIXED;
           if (!isOnSweep(hits[k], e.circle, e.a, e.mid, e.b)) continue;
+          if (hits[k].distance(p) <= 1.0e-12) return MIXED;
           if (hits[k].x > p.x + 1.0e-12) crossings++;
         }
       }
