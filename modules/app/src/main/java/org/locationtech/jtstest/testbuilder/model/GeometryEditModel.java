@@ -280,12 +280,17 @@ public class GeometryEditModel
       break;
     case GeometryType.COMPOUNDCURVE:
       Coordinate[] ccPts = CoordinateArrays.toCoordinateArray(coordList);
-      Coordinate[][] ccPieces = GeometryCombiner.circularStringPieces(ccPts);
-      if (ccPieces == null) {
-        newGeom = getGeometry();
+      if (ccPts.length == 2) {
+        newGeom = creator.addCompoundCurveLine(getGeometry(), ccPts);
       }
       else {
-        newGeom = creator.addCompoundCurve(getGeometry(), ccPieces);
+        Coordinate[][] ccPieces = GeometryCombiner.circularStringPieces(ccPts);
+        if (ccPieces == null) {
+          newGeom = getGeometry();
+        }
+        else {
+          newGeom = creator.addCompoundCurve(getGeometry(), ccPieces);
+        }
       }
       break;
     case GeometryType.CURVEPOLYGON:

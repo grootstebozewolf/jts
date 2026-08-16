@@ -27,6 +27,7 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.MultiCurve;
@@ -201,6 +202,8 @@ public class CurveShapeWriter extends ShapeWriter {
       }
       if (member instanceof CircularString) {
         appendCircularStringSegments(path, seq);
+      } else if (member instanceof ClothoidSegment) {
+        appendLinearized(path, ((ClothoidSegment) member).toLinear(0.5));
       } else {
         for (int j = 1; j < seq.size(); j++) {
           lineToView(path, seq.getCoordinate(j));
@@ -232,6 +235,13 @@ public class CurveShapeWriter extends ShapeWriter {
     moveToView(path, seq.getCoordinate(0));
     appendCircularStringSegments(path, seq);
     return path;
+  }
+
+  private void appendLinearized(GeneralPath path, Geometry linear) {
+    Coordinate[] pts = linear.getCoordinates();
+    for (int j = 1; j < pts.length; j++) {
+      lineToView(path, pts[j]);
+    }
   }
 
   private void moveToView(GeneralPath path, Coordinate model) {

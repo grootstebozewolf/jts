@@ -12,6 +12,8 @@
 package org.locationtech.jtstest.testbuilder.ui.tools;
 
 import java.awt.Shape;
+import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -20,6 +22,12 @@ import java.util.List;
 import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.awt.curve.CircularArcRenderer;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
+import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jtstest.testbuilder.JTSTestBuilder;
+import org.locationtech.jtstest.testbuilder.geom.GeometryCombiner;
 import org.locationtech.jtstest.testbuilder.model.GeometryType;
 
 /**
@@ -30,10 +38,11 @@ import org.locationtech.jtstest.testbuilder.model.GeometryType;
  * {@code createCompoundCurve(LineString[])} — never the legacy
  * flat {@code CoordinateSequence} constructor.
  *
- * <p>This slice is CircularString members only (no LineString
- * members, no non-SFA keywords). Double-click commits the stream
- * with the same odd-&ge;3 / drop-trailing-even rule as
- * {@link CircularStringTool}.
+ * <p>First piece is a LineString (2 points) or CircularString
+ * (odd &ge; 3). Shift-click then appends a non-leading
+ * {@link ClothoidSegment} inheriting start state from the previous
+ * member. There is no standalone ClothoidTool and no top-level
+ * {@code CLOTHOID} geometry.
  */
 public class CompoundCurveTool extends AbstractStreamDrawTool {
 
@@ -65,10 +74,70 @@ public class CompoundCurveTool extends AbstractStreamDrawTool {
     if (coords.size() >= 3 && coords.size() % 2 == 0) {
       coords.remove(coords.size() - 1);
     }
-    if (coords.size() < 3) return;
+    if (coords.size() < 2) return;
+    if (coords.size() == 2 || coords.size() >= 3) {
+      geomModel().addComponent(coords);
+      panel().updateGeom();
+    }
+  }
 
-    geomModel().addComponent(coords);
+  @Override
+  public void mousePressed(MouseEvent e) {
+    if ((e.getModifiersEx() & InputEvent.SHIFT_DOWN_MASK) != 0
+        && e.getClickCount() == 1
+        && tryAddClothoid(toModelSnapped(e.getPoint()))) {
+      return;
+    }
+    super.mousePressed(e);
+  }
+
+  /**
+   * Shift-click: {@code L} is the click distance from the previous end;
+   * {@code k1} is chosen so the average curvature turns toward the click.
+   * {@code k0} comes from the previous member. Leading clothoid is refused.
+   */
+  private boolean tryAddClothoid(Coordinate click) {
+    Geometry orig = geomModel().getGeometry();
+    double[] kl = clothoidK1AndLength(orig, click);
+    if (kl == null) return false;
+    GeometryCombiner combiner = new GeometryCombiner(JTSTestBuilder.getGeometryFactory());
+    Geometry next = combiner.addClothoid(orig, kl[0], kl[1]);
+    if (next == orig) return false;
+    geomModel().setGeometry(next);
     panel().updateGeom();
+    return true;
+  }
+
+  static double[] clothoidK1AndLength(Geometry orig, Coordinate click) {
+    LineString last = lastMember(orig);
+    if (last == null) return null;
+    Coordinate start = ClothoidSegment.endPointOf(last);
+    double tangent = ClothoidSegment.endTangentOf(last);
+    double k0 = ClothoidSegment.endKappaOf(last);
+    double len = start.distance(click);
+    if (len <= 0) return null;
+    double heading = Math.atan2(click.y - start.y, click.x - start.x);
+    double turn = heading - tangent;
+    while (turn > Math.PI) {
+      turn -= 2.0 * Math.PI;
+    }
+    while (turn <= -Math.PI) {
+      turn += 2.0 * Math.PI;
+    }
+    double k1 = 2.0 * turn / len - k0;
+    if (Math.abs(k1 - k0) < 1e-15) return null;
+    return new double[] { k1, len };
+  }
+
+  private static LineString lastMember(Geometry orig) {
+    if (orig == null || orig.isEmpty()) return null;
+    if (orig instanceof CompoundCurve) {
+      CompoundCurve cc = (CompoundCurve) orig;
+      if (cc.getNumMembers() == 0) return null;
+      return cc.getMemberN(cc.getNumMembers() - 1);
+    }
+    if (orig instanceof LineString) return (LineString) orig;
+    return null;
   }
 
   @Override

@@ -155,7 +155,8 @@ public class CurveGeometryFactory extends GeometryFactory {
   private static boolean hasCurveMember(LineString[] members) {
     if (members == null) return false;
     for (LineString m : members) {
-      if (m instanceof CircularString || m instanceof CompoundCurve) return true;
+      if (m instanceof CircularString || m instanceof CompoundCurve
+          || m instanceof ClothoidSegment) return true;
     }
     return false;
   }

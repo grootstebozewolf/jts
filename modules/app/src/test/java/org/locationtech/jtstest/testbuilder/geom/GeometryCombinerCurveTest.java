@@ -15,6 +15,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.geom.curve.CurvePolygon;
@@ -176,6 +177,34 @@ public class GeometryCombinerCurveTest extends TestCase {
     assertEquals(2, cc.getNumMembers());
     assertTrue(cc.getMemberN(0) instanceof CircularString);
     assertTrue(wkt(cc).startsWith("COMPOUNDCURVE (CIRCULARSTRING"));
+  }
+
+  public void testHighwayEntryClothoidIsNonLeadingMember() {
+    Geometry line = combiner().addCompoundCurveLine(null, new Coordinate[] {
+        new Coordinate(0, 0), new Coordinate(100, 0)
+    });
+    Geometry g = combiner().addClothoid(line, 0.005, 80.0);
+    assertTrue(g instanceof CompoundCurve);
+    CompoundCurve cc = (CompoundCurve) g;
+    assertEquals(2, cc.getNumMembers());
+    assertEquals("LineString", cc.getMemberN(0).getGeometryType());
+    assertTrue(cc.getMemberN(1) instanceof ClothoidSegment);
+    ClothoidSegment cl = (ClothoidSegment) cc.getMemberN(1);
+    assertEquals(0.0, cl.getStartKappa(), 0.0);
+    assertEquals(0.005, cl.getEndKappa(), 1e-12);
+    assertEquals(80.0, cl.getLength(), 0.0);
+    String emitted = wkt(cc);
+    assertTrue("grammars-v4 highway-entry WKT, got " + emitted,
+        emitted.contains("CLOTHOID") && emitted.startsWith("COMPOUNDCURVE ("));
+    assertFalse(cc.getMemberN(1).getClass().equals(LineString.class));
+  }
+
+  public void testAddClothoidRejectsLeadingAndConstantKappa() {
+    assertNull(combiner().addClothoid(null, 0.005, 80.0));
+    Geometry line = combiner().addCompoundCurveLine(null, new Coordinate[] {
+        new Coordinate(0, 0), new Coordinate(100, 0)
+    });
+    assertSame(line, combiner().addClothoid(line, 0.0, 80.0));
   }
 
   public void testDisconnectedPiecesAbort() {

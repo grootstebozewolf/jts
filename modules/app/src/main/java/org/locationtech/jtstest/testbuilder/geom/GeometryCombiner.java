@@ -27,6 +27,7 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.geom.curve.CurvePolygon;
@@ -155,6 +156,43 @@ public class GeometryCombiner
     }
     CurvePolygon poly = curveFactory().createCurvePolygon(shell, null);
     return combine(orig, poly);
+  }
+
+  /**
+   * Appends a 2-point (or longer) LineString as a CompoundCurve member.
+   * Used for the OGC first piece of a highway-entry clothoid.
+   */
+  public Geometry addCompoundCurveLine(Geometry orig, Coordinate[] pts)
+  {
+    if (pts == null || pts.length < 2) {
+      return orig;
+    }
+    LineString line = geomFactory.createLineString(pts);
+    return appendMembers(orig, new LineString[] { line });
+  }
+
+  /**
+   * Appends a non-leading {@link ClothoidSegment} to an existing lineal
+   * geometry. Start point, tangent and {@code k0} are inherited from the
+   * previous member (0 after a line, 1/R after an arc). Leading clothoid
+   * (no previous member) and {@code k0 == k1} abort.
+   */
+  public Geometry addClothoid(Geometry orig, double endKappa, double length)
+  {
+    LineString[] prev = asMembers(orig);
+    if (prev == null || prev.length == 0) {
+      return orig;
+    }
+    LineString last = prev[prev.length - 1];
+    double k0 = ClothoidSegment.endKappaOf(last);
+    if (Math.abs(endKappa - k0) < 1e-15 || length <= 0) {
+      return orig;
+    }
+    ClothoidSegment cl = new ClothoidSegment(
+        ClothoidSegment.endPointOf(last),
+        ClothoidSegment.endTangentOf(last),
+        k0, endKappa, length, curveFactory());
+    return appendMembers(orig, new LineString[] { cl });
   }
 
   /**
@@ -294,6 +332,32 @@ public class GeometryCombiner
   private static boolean joins(Coordinate[] prev, Coordinate[] next)
   {
     return prev[prev.length - 1].equals2D(next[0]);
+  }
+
+  private Geometry appendMembers(Geometry orig, LineString[] extra)
+  {
+    LineString[] prev = asMembers(orig);
+    if (prev == null) {
+      return orig;
+    }
+    LineString[] all = new LineString[prev.length + extra.length];
+    System.arraycopy(prev, 0, all, 0, prev.length);
+    System.arraycopy(extra, 0, all, prev.length, extra.length);
+    return curveFactory().createCompoundCurve(all);
+  }
+
+  private static LineString[] asMembers(Geometry orig)
+  {
+    if (orig == null || orig.isEmpty()) {
+      return new LineString[0];
+    }
+    if (orig instanceof CompoundCurve) {
+      return ((CompoundCurve) orig).getMembers();
+    }
+    if (orig instanceof LineString) {
+      return new LineString[] { (LineString) orig };
+    }
+    return null;
   }
   
   private static Polygon findPolygonContaining(Geometry geom, Coordinate pt)
