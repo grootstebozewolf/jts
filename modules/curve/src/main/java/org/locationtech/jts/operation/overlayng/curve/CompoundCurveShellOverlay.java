@@ -32,9 +32,9 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * Flatten / classify the pair, then one kit:
  * {@link SameOuterHoleOverlay}, {@link DifferentOuterHoleOverlay},
  * {@link HalfDiscOverlay} (complementary / sectors / collinear),
- * {@link TwoShellClip} (0 / 1 / 2 / even-n), or a two-node walk vs a
- * disc or plain polygon via {@link TwoNodeClip}. A miss is
- * {@code null}.
+ * {@link TwoShellClip} (0 / 1 / 2 / even-n / odd-n with a tangent
+ * as a degenerate NSpan), or a two-node walk vs a disc or plain
+ * polygon via {@link TwoNodeClip}. A miss is {@code null}.
  */
 final class CompoundCurveShellOverlay {
 

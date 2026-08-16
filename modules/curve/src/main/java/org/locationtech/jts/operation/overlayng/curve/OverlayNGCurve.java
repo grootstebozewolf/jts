@@ -99,13 +99,15 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     CompoundCurve shells with exactly two proper nodes walk the
  *     surviving pieces; 0 / 1 node is containment or a disjoint
  *     touch. An even 4+ alternating cut of two CompoundCurve shells
- *     is the H-FOUR n-span assemble. A same-outer hole-inside pair
+ *     is the H-FOUR n-span assemble. Two crossings plus a tangent
+ *     is the same assemble with the touch as a zero-length span.
+ *     A same-outer hole-inside pair
  *     is the holed / unholed / hole polygon. A different-outer hole
  *     whose outers already clip composes: hole strictly inside the
  *     outer CAP is punched, hole strictly outside is ignored on
- *     CAP. Odd counts, mixed labels, a hole that meets or crosses
- *     the other outer, or a line-only shell return {@code null}
- *     without paying this path.</li>
+ *     CAP. Collinear overlap, mixed labels, a hole that meets or
+ *     crosses the other outer, or a line-only shell return
+ *     {@code null} without paying this path.</li>
  * <li><b>R-LL</b> -- one operand is a {@link org.locationtech.jts.geom.curve.CircularString}
  *     (or a lineal CompoundCurve of LineString + CircularString) and the
  *     other is a plain LineString. Line–circle nodes are exact. CAP is
@@ -229,7 +231,9 @@ public class OverlayNGCurve {
    * including same-circle angular-interval overlay, complementary
    * half-discs, perpendicular same-circle half-disc sectors, a
    * two-node walk of two CompoundCurve shells, an even 4+
-   * alternating cut of two CompoundCurve shells, a same-outer
+   * alternating cut of two CompoundCurve shells, an odd cut
+   * whose only non-alternation is a tangent (degenerate NSpan),
+   * a same-outer
    * hole-inside pair, a different-outer hole composed from a
    * certified outer clip, and an even 4+ line–circle cut of a disc
    * by a plain polygon. In

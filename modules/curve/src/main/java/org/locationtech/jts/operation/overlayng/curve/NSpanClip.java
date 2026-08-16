@@ -26,8 +26,11 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
 /**
  * Even-n alternating assemble shared by H-FOUR (disc vs polygon)
  * and H-SHELL-N (two CompoundCurve shells). Each span is a typed
- * member list (one LineString, or a multi-member walk). CAP / CUP
- * stitch one ring; SUB / XOR pair faces. Not a noder.
+ * member list (one LineString, or a multi-member walk). A tangent
+ * is a zero-length span so an odd cut that only fails to alternate
+ * at that touch still assembles. CAP / CUP stitch one ring; SUB /
+ * XOR pair faces. Zero-length spans are skipped when pairing
+ * faces (no empty polygon). Not a noder.
  */
 final class NSpanClip {
 
@@ -71,9 +74,12 @@ final class NSpanClip {
           : pairFaces(bOut, aIn, f, scale), f);
     }
     if (opCode == OverlayNG.SYMDIFFERENCE) {
+      List<Polygon> ab = pairFaces(aOut, bIn, f, scale);
+      List<Polygon> ba = pairFaces(bOut, aIn, f, scale);
+      if (ab == null || ba == null) return null;
       List<Polygon> faces = new ArrayList<Polygon>();
-      addFaces(faces, pairFaces(aOut, bIn, f, scale));
-      addFaces(faces, pairFaces(bOut, aIn, f, scale));
+      addFaces(faces, ab);
+      addFaces(faces, ba);
       return multi(faces, f);
     }
     return null;
@@ -157,25 +163,41 @@ final class NSpanClip {
     boolean miss = false;
     for (int i = 0; i < a.size() && !miss; i++) {
       List<LineString> p = a.get(i);
-      int match = indexSpanConnecting(b, used, endOf(p), startOf(p), eps);
-      if (match < 0) {
-        miss = true;
-      }
-      else {
-        used[match] = true;
-        List<LineString> members = new ArrayList<LineString>();
-        addMembers(members, p);
-        addMembers(members, orientedSpan(b.get(match), endOf(p), eps));
-        Polygon face = TwoNodeClip.closeRing(members, f, eps);
-        if (face == null) {
+      if (!isDegenerate(p, eps)) {
+        int match = indexSpanConnecting(b, used, endOf(p), startOf(p), eps);
+        if (match < 0) {
           miss = true;
         }
         else {
-          faces.add(face);
+          used[match] = true;
+          List<LineString> members = new ArrayList<LineString>();
+          addMembers(members, p);
+          addMembers(members, orientedSpan(b.get(match), endOf(p), eps));
+          Polygon face = TwoNodeClip.closeRing(members, f, eps);
+          if (face == null) {
+            miss = true;
+          }
+          else {
+            faces.add(face);
+          }
         }
       }
     }
     return miss ? null : faces;
+  }
+
+  /**
+   * A tangent-as-span is a point edge: start equals end and the
+   * walk has no length. closeRing already drops those members.
+   */
+  private static boolean isDegenerate(List<LineString> p, double eps) {
+    if (p == null || p.isEmpty()) return true;
+    if (startOf(p).distance(endOf(p)) > eps) return false;
+    double len = 0.0;
+    for (int i = 0; i < p.size(); i++) {
+      len += p.get(i).getLength();
+    }
+    return len <= eps;
   }
 
   private static int indexSpanAt(List<List<LineString>> spans, boolean[] used,
