@@ -58,6 +58,16 @@ final class CurveSegmentDcel {
   static final String MIXED_HIDES_CROSSING =
       "MIXED nodes==null hides a crossing";
 
+  /**
+   * Near-tangent window for an arc leave. Chord coincidence is
+   * {@link #compareLeave} only: subtracted-vector atan2 can collapse
+   * distinct direction points (locationtech #1224). An arc centre
+   * from a rebuilt circumcircle can put a theoretically-on-axis
+   * tangent in either adjacent quadrant, so the N=3 stamp still
+   * needs this window.
+   */
+  private static final double ANGLE_EPS = 1.0e-8;
+
   private static String missReason;
 
   private final List<Half> halves;
@@ -554,7 +564,7 @@ final class CurveSegmentDcel {
       for (int j = 0; j < out.size() && !hit; j++) {
         Half a = out.get(j);
         Half b = out.get((j + 1) % out.size());
-        if (a != b && compareLeave(a, b) == 0) {
+        if (a != b && leavesCoincide(a, b)) {
           hit = true;
         }
       }
@@ -674,6 +684,33 @@ final class CurveSegmentDcel {
       return -1;
     }
     return Orientation.index(b.origin, b.leaveDir, a.leaveDir);
+  }
+
+  /**
+   * True same leave, or an arc near-tangent. Distinct chord
+   * direction points that {@link #compareLeave} separates are
+   * not a stamp, even when atan2 of the deltas collapsed.
+   */
+  static boolean leavesCoincide(Half a, Half b) {
+    if (compareLeave(a, b) == 0) {
+      return true;
+    }
+    if (!a.member.isArc() && !b.member.isArc()) {
+      return false;
+    }
+    return angleDiff(leaveAngle(a), leaveAngle(b)) < ANGLE_EPS;
+  }
+
+  private static double leaveAngle(Half h) {
+    return Math.atan2(h.leaveDir.y - h.origin.y, h.leaveDir.x - h.origin.x);
+  }
+
+  private static double angleDiff(double a, double b) {
+    double d = Math.abs(a - b);
+    if (d > Math.PI) {
+      d = TwoNodeClip.TWO_PI - d;
+    }
+    return d;
   }
 
   /**

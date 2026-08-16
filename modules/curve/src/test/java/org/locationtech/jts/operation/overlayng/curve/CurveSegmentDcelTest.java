@@ -242,6 +242,8 @@ public class CurveSegmentDcelTest extends GeometryTestCase {
             == -CurveSegmentDcel.compareLeave(lower, upper));
     assertTrue("north is a different leave",
         CurveSegmentDcel.compareLeave(upper, north) != 0);
+    assertTrue("distinct direction points are not a TANGENT stamp",
+        !CurveSegmentDcel.leavesCoincide(upper, lower));
     assertEquals("same-ray leave is coincident",
         0, CurveSegmentDcel.compareLeave(upper, chordHalf(o, -1, 0)));
   }
@@ -263,8 +265,8 @@ public class CurveSegmentDcelTest extends GeometryTestCase {
     CurveSegmentDcel.Half b = new CurveSegmentDcel.Half(o, cap.getEnd(),
         cap);
     assertTrue("both pieces stay arcs", a.isArc() && b.isArc());
-    assertEquals("same leave tangent at (0 5)",
-        0, CurveSegmentDcel.compareLeave(a, b));
+    assertTrue("same leave tangent at (0 5)",
+        CurveSegmentDcel.leavesCoincide(a, b));
   }
 
   /**
