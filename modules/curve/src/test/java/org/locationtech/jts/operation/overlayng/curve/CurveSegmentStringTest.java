@@ -64,8 +64,12 @@ public class CurveSegmentStringTest extends GeometryTestCase {
   /** R-LL: LineString member overlaps a plain line; the arc is a rider. */
   private static final String RLL_COMPOUND =
       "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 12 2, 14 0))";
+  /**
+   * Extends past the LineString member so R1 cannot retain. Public
+   * CAP is a point count; the overlap is a segment.
+   */
   private static final String RLL_OVERLAP_LINE =
-      "LINESTRING (2 0, 8 0)";
+      "LINESTRING (2 0, 12 0)";
   private static final String HALF_RIGHT =
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (0 -5, 5 0, 0 5), (0 5, 0 -5)))";
   private static final String HALF_HOLED =
@@ -321,20 +325,22 @@ public class CurveSegmentStringTest extends GeometryTestCase {
         CircularLineOverlay.overlay(curve, line,
             org.locationtech.jts.operation.overlayng.OverlayNG.INTERSECTION));
     OverlayNGCurve pub = new OverlayNGCurve(curve, line);
-    pub.getResult(
+    Geometry publicCap = pub.getResult(
         org.locationtech.jts.operation.overlayng.OverlayNG.INTERSECTION);
     assertTrue("R-LL collinear: public stays approximate (not exact)",
         pub.isApproximate());
+    assertFalse("R-LL collinear: public count is not the overlap segment",
+        publicCap.getLength() == 8.0 && !pub.isApproximate());
 
     assertNull("R-LL collinear: not a discrete node set",
         CurveSegmentNoder.nodes(curve, line));
     List<CurveSegmentString> edges = CurveSegmentNoder.edges(curve,
         line);
     assertNotNull(edges);
-    CurveSegmentString run = findChord(edges, 2.0, 0.0, 8.0, 0.0);
-    assertNotNull("R-LL: overlapping segment (2 0)–(8 0)", run);
+    CurveSegmentString run = findChord(edges, 2.0, 0.0, 10.0, 0.0);
+    assertNotNull("R-LL: overlapping segment (2 0)–(10 0)", run);
     assertFalse(run.isArc());
-    assertEquals(6.0, run.length(), EXACT);
+    assertEquals(8.0, run.length(), EXACT);
   }
 
   public void testPinchAndHolesStayNamedMiss() throws Exception {
