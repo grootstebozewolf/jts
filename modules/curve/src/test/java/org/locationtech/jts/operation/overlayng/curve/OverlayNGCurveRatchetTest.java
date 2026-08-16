@@ -48,7 +48,8 @@ import test.jts.GeometryTestCase;
  * overlapping arcs are EEEE (interval overlay). Complementary half-discs
  * are 0EEE. Perpendicular same-circle half-discs, a two-node two-shell
  * clip, collinear same-side halves, nested halves, and a 1-node touch
- * are exact. A four-cut disc vs a band is EEEE. The cells that
+ * are exact. A four-cut two-shell n-span and a same-outer hole-inside
+ * pair are exact. A four-cut disc vs a band is EEEE. The cells that
  * stay approximate are the ones whose answer is a <em>new</em> non-disc
  * geometry -- SUB and XOR of a nested pair are an annulus, which this
  * stage does not build (0 intersections).
@@ -98,6 +99,10 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (5 -5, 10 0, 5 5), (5 5, 5 -5)))";
   private static final String BAND_FOUR =
       "POLYGON ((-8 -1, 8 -1, 8 1, -8 1, -8 -1))";
+  private static final String STADIUM_FOUR =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, 0 -2, 1 -1), (1 -1, 1 6), CIRCULARSTRING (1 6, 0 7, -1 6), (-1 6, -1 -1)))";
+  private static final String HALF_HOLED =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0 1, 1 1, 1 2, 0 2, 0 1))";
 
   private static final int[] OPS = { OverlayNGCurve.INTERSECTION, OverlayNGCurve.UNION,
       OverlayNGCurve.DIFFERENCE, OverlayNGCurve.SYMDIFFERENCE };
@@ -257,6 +262,22 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_oneNodeTouch() throws Exception {
     assertRow("one-node touch", HALF_DISC, HALF_TOUCH, "0EEE");
+  }
+
+  public void testMatrix_fourCutTwoShell() throws Exception {
+    assertRow("four-cut two-shell", HALF_DISC, STADIUM_FOUR, "EEEE");
+  }
+
+  public void testMatrix_fourCutTwoShellReverse() throws Exception {
+    assertRow("four-cut two-shell reverse", STADIUM_FOUR, HALF_DISC, "EEEE");
+  }
+
+  public void testMatrix_sameOuterHole() throws Exception {
+    assertRow("same-outer hole", HALF_HOLED, HALF_DISC, "EE0E");
+  }
+
+  public void testMatrix_sameOuterHoleReverse() throws Exception {
+    assertRow("same-outer hole reverse", HALF_DISC, HALF_HOLED, "EEEE");
   }
 
   public void testMatrix_fourCut() throws Exception {

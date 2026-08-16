@@ -96,7 +96,10 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     half-lens, or a point-touch. Any other two hole-free
  *     CompoundCurve shells with exactly two proper nodes walk the
  *     surviving pieces; 0 / 1 node is containment or a disjoint
- *     touch. Holes, 3+ nodes, or a line-only shell return
+ *     touch. An even 4+ alternating cut of two CompoundCurve shells
+ *     is the H-FOUR n-span assemble. A same-outer hole-inside pair
+ *     is the holed / unholed / hole polygon. Odd counts, mixed
+ *     labels, crossing holes, or a line-only shell return
  *     {@code null} without paying this path.</li>
  * <li><b>R-LL</b> -- one operand is a {@link org.locationtech.jts.geom.curve.CircularString}
  *     (or a lineal CompoundCurve of LineString + CircularString) and the
@@ -216,8 +219,10 @@ public class OverlayNGCurve {
    * CircularStrings noded at circle–circle hits on both sweeps (R-AA),
    * including same-circle angular-interval overlay, complementary
    * half-discs, perpendicular same-circle half-disc sectors, a
-   * two-node walk of two CompoundCurve shells, and an even 4+
-   * line–circle cut of a disc by a plain polygon. In
+   * two-node walk of two CompoundCurve shells, an even 4+
+   * alternating cut of two CompoundCurve shells, a same-outer
+   * hole-inside pair, and an even 4+ line–circle cut of a disc
+   * by a plain polygon. In
    * the R1 case the <em>answer</em> is exact even though the <em>decision</em>
    * to return it was made on densified copies.
    * <p>

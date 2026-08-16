@@ -281,7 +281,10 @@ public class CircularArcOverlayTest extends GeometryTestCase {
    * / CUP the disc / SUB the first half. Perpendicular same-circle
    * halves assemble as sectors. Two hole-free shells with exactly two
    * proper nodes walk the surviving arcs. Collinear same-side halves
-   * are the half-lens. 3+ nodes and holes stay refused.
+   * are the half-lens. An even 4+ alternating cut is the n-span
+   * assemble. A same-outer hole-inside pair is the holed cell.
+   * Odd counts, mixed labels, and holes that do not share the outer
+   * stay refused.
    */
   public void testHShellComplementaryHalfDiscsAreTheDisc() throws Exception {
     Geometry upper = readCurve(HALF_UPPER);
@@ -345,13 +348,22 @@ public class CircularArcOverlayTest extends GeometryTestCase {
 
     Geometry fourCut = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, 0 -2, 1 -1), (1 -1, 1 6), CIRCULARSTRING (1 6, 0 7, -1 6), (-1 6, -1 -1)))");
-    assertNull("H-SHELL-N: 4-node two-shell stays refused",
-        CompoundCurveShellOverlay.overlay(upper, fourCut, OverlayNG.INTERSECTION));
+    OverlayNGCurve nCap = new OverlayNGCurve(upper, fourCut);
+    Geometry strip = nCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-N CAP is exact", nCap.isApproximate());
+    assertEquals("strip |x|≤1 of the half-disc",
+        25.0 * Math.asin(0.2) + 2.0 * Math.sqrt(6.0), strip.getArea(), EXACT);
+    assertTrue("n-span CAP keeps an arc", hasCircularString(strip));
 
     Geometry holed = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0 1, 1 1, 1 2, 0 2, 0 1))");
-    assertNull("H-SHELL-HOLE: a hole-bearing shell stays refused",
-        CompoundCurveShellOverlay.overlay(holed, upper, OverlayNG.INTERSECTION));
+    OverlayNGCurve holeCap = new OverlayNGCurve(holed, upper);
+    Geometry holedHalf = holeCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-HOLE CAP is exact", holeCap.isApproximate());
+    assertEquals("holed half", HALF - 1.0, holedHalf.getArea(), EXACT);
+
+    assertNull("H-SHELL-HOLE: different outers stay refused",
+        CompoundCurveShellOverlay.overlay(holed, right, OverlayNG.INTERSECTION));
   }
 
   public void testRllStillRefusesTwoArcs() throws Exception {

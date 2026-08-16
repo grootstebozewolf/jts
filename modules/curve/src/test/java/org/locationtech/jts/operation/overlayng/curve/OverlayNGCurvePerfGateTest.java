@@ -466,6 +466,51 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
         () -> chordOverlay(a, b, OverlayNGCurve.INTERSECTION));
   }
 
+  public void testFourCutTwoShellCapNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, 0 -2, 1 -1), (1 -1, 1 6), CIRCULARSTRING (1 6, 0 7, -1 6), (-1 6, -1 -1)))");
+    assertLaserNotSlower("four-cut two-shell CAP",
+        () -> OverlayNGCurve.intersection(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testFourCutTwoShellCupNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, 0 -2, 1 -1), (1 -1, 1 6), CIRCULARSTRING (1 6, 0 7, -1 6), (-1 6, -1 -1)))");
+    assertLaserNotSlower("four-cut two-shell CUP",
+        () -> OverlayNGCurve.union(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.UNION));
+  }
+
+  public void testSameOuterHoleCapNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0 1, 1 1, 1 2, 0 2, 0 1))");
+    Geometry b = readCurve(HALF_DISC);
+    assertLaserNotSlower("same-outer hole CAP",
+        () -> OverlayNGCurve.intersection(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testSameOuterHoleCupNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0 1, 1 1, 1 2, 0 2, 0 1))");
+    Geometry b = readCurve(HALF_DISC);
+    assertLaserNotSlower("same-outer hole CUP",
+        () -> OverlayNGCurve.union(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.UNION));
+  }
+
+  public void testSameOuterHoleSubNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0 1, 1 1, 1 2, 0 2, 0 1))");
+    assertLaserNotSlower("same-outer hole SUB",
+        () -> OverlayNGCurve.difference(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.DIFFERENCE));
+  }
+
   public void testFourCutCapNotSlowerThanChord() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
     Geometry b = readCurve("POLYGON ((-8 -1, 8 -1, 8 1, -8 1, -8 -1))");

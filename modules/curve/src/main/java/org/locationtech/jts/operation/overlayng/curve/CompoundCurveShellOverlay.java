@@ -12,6 +12,8 @@
 package org.locationtech.jts.operation.overlayng.curve;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.locationtech.jts.algorithm.LineIntersector;
@@ -48,9 +50,12 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * a point-touch). Any other two hole-free CompoundCurve shells with
  * exactly two proper nodes walk the surviving pieces; 0 / 1 node is
  * containment or a disjoint touch via {@link TwoNodeClip#locateInShell}.
- * Holes, 3+ nodes, or a pair that would need a general circular
- * noder return {@code null} so the caller takes the chord baseline
- * without paying this path first.
+ * An even run of 4+ alternating nodes is the H-FOUR n-span assemble
+ * on two typed edge lists. A CurvePolygon with one hole whose outer
+ * matches an unholed partner, the hole strictly inside, is the
+ * holed / unholed / hole-as-polygon cell. Odd counts, mixed labels,
+ * crossing holes, or two holed shells return {@code null} so the
+ * caller takes the chord baseline without paying this path first.
  */
 final class CompoundCurveShellOverlay {
 
@@ -62,6 +67,10 @@ final class CompoundCurveShellOverlay {
    * not node.
    */
   static Geometry overlay(Geometry a, Geometry b, int opCode) {
+    Geometry holeCell = sameOuterContainedHole(a, b, opCode);
+    if (holeCell != null) {
+      return holeCell;
+    }
     CurvePolygon shellA = compoundCurveShell(a);
     CurvePolygon shellB = compoundCurveShell(b);
     if (shellA != null && shellB != null) {
@@ -288,10 +297,119 @@ final class CompoundCurveShellOverlay {
   }
 
   /**
+   * Same CompoundCurve outer; one operand has a single hole strictly
+   * inside the other. CAP is the holed polygon, CUP the unholed,
+   * SUB the empty or the hole ring. Not hole-nest noding.
+   */
+  private static Geometry sameOuterContainedHole(Geometry a, Geometry b,
+      int opCode) {
+    CurvePolygon ca = curvePolygonAllowHole(a);
+    CurvePolygon cb = curvePolygonAllowHole(b);
+    if (ca == null || cb == null) return null;
+    int ha = ca.getNumInteriorRing();
+    int hb = cb.getNumInteriorRing();
+    CurvePolygon holed = null;
+    CurvePolygon solid = null;
+    boolean holedFirst = false;
+    if (ha == 1 && hb == 0) {
+      holed = ca;
+      solid = cb;
+      holedFirst = true;
+    }
+    else if (ha == 0 && hb == 1) {
+      holed = cb;
+      solid = ca;
+      holedFirst = false;
+    }
+    if (holed == null || solid == null) return null;
+    if (!holed.getExteriorCurve().equalsExact(solid.getExteriorCurve())) {
+      return null;
+    }
+    if (!holeStrictlyInside(holed, solid)) return null;
+    GeometryFactory f = TwoNodeClip.curveFactory(a);
+    if (opCode == OverlayNG.INTERSECTION) {
+      return holedFirst ? a.copy() : holed.copy();
+    }
+    if (opCode == OverlayNG.UNION) {
+      return holedFirst ? solid.copy() : a.copy();
+    }
+    if (opCode == OverlayNG.DIFFERENCE) {
+      return holedFirst ? f.createEmpty(2) : holeAsPolygon(holed, f);
+    }
+    if (opCode == OverlayNG.SYMDIFFERENCE) {
+      return holeAsPolygon(holed, f);
+    }
+    return null;
+  }
+
+  private static CurvePolygon curvePolygonAllowHole(Geometry g) {
+    if (g instanceof MultiSurface) {
+      if (g.getNumGeometries() != 1) return null;
+      g = g.getGeometryN(0);
+    }
+    if (!(g instanceof CurvePolygon)) return null;
+    CurvePolygon cp = (CurvePolygon) g;
+    if (cp.isEmpty() || cp.getNumInteriorRing() > 1) return null;
+    LineString ring = cp.getExteriorCurve();
+    if (!(ring instanceof CompoundCurve) || !ring.isClosed()) return null;
+    CompoundCurve cc = (CompoundCurve) ring;
+    boolean hasArc = false;
+    boolean hasLine = false;
+    for (int i = 0; i < cc.getNumMembers(); i++) {
+      LineString m = cc.getMemberN(i);
+      if (m instanceof CircularString) {
+        hasArc = true;
+      }
+      else if (m instanceof LineString) {
+        hasLine = true;
+      }
+      else {
+        return null;
+      }
+    }
+    if (!hasArc || !hasLine) return null;
+    return cp;
+  }
+
+  private static boolean holeStrictlyInside(CurvePolygon holed,
+      CurvePolygon solid) {
+    LineString hole = holed.getInteriorCurveN(0);
+    if (hole == null || hole.isEmpty() || hole.getNumPoints() < 4) {
+      return false;
+    }
+    Coordinate[] c = hole.getCoordinates();
+    int n = c.length;
+    if (c[0].equals2D(c[n - 1])) {
+      n--;
+    }
+    boolean inside = true;
+    for (int i = 0; i < n && inside; i++) {
+      if (TwoNodeClip.locateInShell(c[i], solid) != TwoNodeClip.IN) {
+        inside = false;
+      }
+    }
+    return inside;
+  }
+
+  private static Geometry holeAsPolygon(CurvePolygon holed, GeometryFactory f) {
+    LineString hole = holed.getInteriorCurveN(0);
+    if (hole instanceof CircularString || hole instanceof CompoundCurve) {
+      return new CurvePolygon(hole, null, f);
+    }
+    try {
+      return f.createPolygon(f.createLinearRing(hole.getCoordinates()));
+    }
+    catch (RuntimeException ex) {
+      return null;
+    }
+  }
+
+  /**
    * Exactly two proper nodes between two hole-free CompoundCurve
    * shells. Segment–segment, segment–circle, and circle–circle hits
    * only; collinear overlap is a miss (answered above). 0 / 1 node
-   * is containment or a touch. 3+ nodes stay refused.
+   * is containment or a touch. An even 4+ alternating run is the
+   * H-FOUR n-span assemble. Odd counts stay refused.
    */
   private static Geometry twoShellClip(CurvePolygon a, CurvePolygon b,
       int opCode, Geometry first) {
@@ -307,6 +425,9 @@ final class CompoundCurveShellOverlay {
     if (!collectTwoShellHits(edgesA, edgesB, nodesA, scale)) return null;
     if (nodesA.size() <= 1) {
       return fewNodeOverlay(a, b, opCode, first);
+    }
+    if (nodesA.size() >= 4 && (nodesA.size() & 1) == 0) {
+      return nShellClip(a, b, edgesA, edgesB, nodesA, opCode, first, scale);
     }
     if (!TwoNodeClip.properPair(nodesA, scale)) return null;
 
@@ -338,6 +459,262 @@ final class CompoundCurveShellOverlay {
     List<LineString> bOut = bPQside == TwoNodeClip.IN ? bQP : bPQ;
     return TwoNodeClip.overlay(opCode, true, aIn, aOut, bIn, bOut,
         pA.pt, qA.pt, f, scale);
+  }
+
+  /**
+   * Even n≥4 nodes that alternate in/out on both shells. Same
+   * assemble as H-FOUR: CAP / CUP one stitched ring, SUB / XOR the
+   * paired faces. Each span keeps typed members (arc stays an arc).
+   */
+  private static Geometry nShellClip(CurvePolygon a, CurvePolygon b,
+      List<TwoNodeClip.Edge> edgesA, List<TwoNodeClip.Edge> edgesB,
+      List<TwoNodeClip.Node> nodesA, int opCode, Geometry first,
+      double scale) {
+    List<TwoNodeClip.Node> nodesB = new ArrayList<TwoNodeClip.Node>();
+    boolean miss = false;
+    for (int i = 0; i < nodesA.size() && !miss; i++) {
+      TwoNodeClip.Node nb = nodeOn(edgesB, nodesA.get(i).pt, scale);
+      if (nb == null) {
+        miss = true;
+      }
+      else {
+        nodesB.add(nb);
+      }
+    }
+    if (miss) return null;
+
+    Collections.sort(nodesA, RING_T);
+    Collections.sort(nodesB, RING_T);
+    GeometryFactory f = TwoNodeClip.curveFactory(first);
+    List<ShellSpan> spansA = edgeSpans(edgesA, nodesA, b, f);
+    List<ShellSpan> spansB = edgeSpans(edgesB, nodesB, a, f);
+    if (spansA == null || spansB == null) return null;
+    if (!alternates(spansA) || !alternates(spansB)) return null;
+
+    List<List<LineString>> aIn = spanPieces(spansA, true);
+    List<List<LineString>> aOut = spanPieces(spansA, false);
+    List<List<LineString>> bIn = spanPieces(spansB, true);
+    List<List<LineString>> bOut = spanPieces(spansB, false);
+    if (aIn.size() != bIn.size() || aOut.size() != bOut.size()) return null;
+    if (aIn.isEmpty() || aOut.isEmpty()) return null;
+
+    if (opCode == OverlayNG.INTERSECTION) {
+      return stitchRing(aIn, bIn, f, scale);
+    }
+    if (opCode == OverlayNG.UNION) {
+      return stitchRing(aOut, bOut, f, scale);
+    }
+    if (opCode == OverlayNG.DIFFERENCE) {
+      return multiFaces(pairFaces(aOut, bIn, f, scale), f);
+    }
+    if (opCode == OverlayNG.SYMDIFFERENCE) {
+      List<Polygon> faces = new ArrayList<Polygon>();
+      addFaces(faces, pairFaces(aOut, bIn, f, scale));
+      addFaces(faces, pairFaces(bOut, aIn, f, scale));
+      return multiFaces(faces, f);
+    }
+    return null;
+  }
+
+  private static List<ShellSpan> edgeSpans(List<TwoNodeClip.Edge> edges,
+      List<TwoNodeClip.Node> ord, CurvePolygon other, GeometryFactory f) {
+    List<ShellSpan> out = new ArrayList<ShellSpan>();
+    boolean miss = false;
+    for (int i = 0; i < ord.size() && !miss; i++) {
+      TwoNodeClip.Node from = ord.get(i);
+      TwoNodeClip.Node to = ord.get((i + 1) % ord.size());
+      List<LineString> walk = TwoNodeClip.walkEdges(edges, from, to, f);
+      if (walk == null) {
+        miss = true;
+      }
+      else {
+        int side = sideOfShell(walk, other);
+        if (side == TwoNodeClip.MIXED) {
+          miss = true;
+        }
+        else {
+          out.add(new ShellSpan(walk, side == TwoNodeClip.IN));
+        }
+      }
+    }
+    return miss ? null : out;
+  }
+
+  private static boolean alternates(List<ShellSpan> spans) {
+    if (spans.size() < 2) return false;
+    boolean ok = true;
+    for (int i = 0; i < spans.size() && ok; i++) {
+      if (spans.get(i).in == spans.get((i + 1) % spans.size()).in) {
+        ok = false;
+      }
+    }
+    return ok;
+  }
+
+  private static List<List<LineString>> spanPieces(List<ShellSpan> spans,
+      boolean wantIn) {
+    List<List<LineString>> out = new ArrayList<List<LineString>>();
+    for (int i = 0; i < spans.size(); i++) {
+      if (spans.get(i).in == wantIn) {
+        out.add(spans.get(i).members);
+      }
+    }
+    return out;
+  }
+
+  private static Polygon stitchRing(List<List<LineString>> a,
+      List<List<LineString>> b, GeometryFactory f, double scale) {
+    List<LineString> members = stitchSpans(a, b, scale);
+    if (members == null) return null;
+    return TwoNodeClip.closeRing(members, f,
+        Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12));
+  }
+
+  private static List<LineString> stitchSpans(List<List<LineString>> a,
+      List<List<LineString>> b, double scale) {
+    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12);
+    List<LineString> out = new ArrayList<LineString>();
+    boolean[] usedA = new boolean[a.size()];
+    boolean[] usedB = new boolean[b.size()];
+    Coordinate cur = startOf(b.get(0));
+    Coordinate origin = cur;
+    boolean wantA = false;
+    int steps = a.size() + b.size();
+    boolean miss = false;
+    for (int k = 0; k < steps && !miss; k++) {
+      List<List<LineString>> src = wantA ? a : b;
+      boolean[] used = wantA ? usedA : usedB;
+      int i = indexSpanAt(src, used, cur, eps);
+      if (i < 0) {
+        miss = true;
+      }
+      else {
+        used[i] = true;
+        List<LineString> piece = orientedSpan(src.get(i), cur, eps);
+        addMembers(out, piece);
+        cur = endOf(piece);
+        wantA = !wantA;
+      }
+    }
+    if (miss || cur.distance(origin) > eps) return null;
+    return out;
+  }
+
+  private static List<Polygon> pairFaces(List<List<LineString>> a,
+      List<List<LineString>> b, GeometryFactory f, double scale) {
+    List<Polygon> faces = new ArrayList<Polygon>();
+    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12);
+    boolean[] used = new boolean[b.size()];
+    boolean miss = false;
+    for (int i = 0; i < a.size() && !miss; i++) {
+      List<LineString> p = a.get(i);
+      int match = indexSpanConnecting(b, used, endOf(p), startOf(p), eps);
+      if (match < 0) {
+        miss = true;
+      }
+      else {
+        used[match] = true;
+        List<LineString> members = new ArrayList<LineString>();
+        addMembers(members, p);
+        addMembers(members, orientedSpan(b.get(match), endOf(p), eps));
+        Polygon face = TwoNodeClip.closeRing(members, f, eps);
+        if (face == null) {
+          miss = true;
+        }
+        else {
+          faces.add(face);
+        }
+      }
+    }
+    return miss ? null : faces;
+  }
+
+  private static int indexSpanAt(List<List<LineString>> spans, boolean[] used,
+      Coordinate at, double eps) {
+    int found = -1;
+    for (int i = 0; i < spans.size(); i++) {
+      if (!used[i] && found < 0) {
+        List<LineString> g = spans.get(i);
+        if (startOf(g).distance(at) <= eps || endOf(g).distance(at) <= eps) {
+          found = i;
+        }
+      }
+    }
+    return found;
+  }
+
+  private static int indexSpanConnecting(List<List<LineString>> spans,
+      boolean[] used, Coordinate from, Coordinate to, double eps) {
+    int found = -1;
+    for (int i = 0; i < spans.size(); i++) {
+      if (!used[i] && found < 0) {
+        List<LineString> g = spans.get(i);
+        boolean startFrom = startOf(g).distance(from) <= eps;
+        boolean endFrom = endOf(g).distance(from) <= eps;
+        if (startFrom || endFrom) {
+          Coordinate other = startFrom ? endOf(g) : startOf(g);
+          if (other.distance(to) <= eps) {
+            found = i;
+          }
+        }
+      }
+    }
+    return found;
+  }
+
+  private static List<LineString> orientedSpan(List<LineString> parts,
+      Coordinate from, double eps) {
+    if (startOf(parts).distance(from) <= eps) return parts;
+    List<LineString> rev = new ArrayList<LineString>(parts.size());
+    for (int i = parts.size() - 1; i >= 0; i--) {
+      rev.add((LineString) parts.get(i).reverse());
+    }
+    return rev;
+  }
+
+  private static Coordinate startOf(List<LineString> parts) {
+    return parts.get(0).getCoordinateN(0);
+  }
+
+  private static Coordinate endOf(List<LineString> parts) {
+    LineString last = parts.get(parts.size() - 1);
+    return last.getCoordinateN(last.getNumPoints() - 1);
+  }
+
+  private static void addMembers(List<LineString> dest, List<LineString> src) {
+    for (int i = 0; i < src.size(); i++) {
+      dest.add(src.get(i));
+    }
+  }
+
+  private static void addFaces(List<Polygon> dest, List<Polygon> src) {
+    if (src == null) return;
+    for (int i = 0; i < src.size(); i++) {
+      dest.add(src.get(i));
+    }
+  }
+
+  private static Geometry multiFaces(List<Polygon> faces, GeometryFactory f) {
+    if (faces == null || faces.isEmpty()) return null;
+    if (faces.size() == 1) return faces.get(0);
+    return new MultiSurface(faces.toArray(new Polygon[0]), f);
+  }
+
+  private static final Comparator<TwoNodeClip.Node> RING_T =
+      new Comparator<TwoNodeClip.Node>() {
+        public int compare(TwoNodeClip.Node a, TwoNodeClip.Node b) {
+          if (a.edge != b.edge) return a.edge < b.edge ? -1 : 1;
+          return Double.compare(a.t, b.t);
+        }
+      };
+
+  private static final class ShellSpan {
+    final List<LineString> members;
+    final boolean in;
+    ShellSpan(List<LineString> members, boolean in) {
+      this.members = members;
+      this.in = in;
+    }
   }
 
   private static boolean collectTwoShellHits(List<TwoNodeClip.Edge> edgesA,
