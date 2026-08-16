@@ -101,13 +101,13 @@ public class CurveExactHullTest extends GeometryTestCase {
     assertTrue("area must beat the control-point 50",
         exact.getArea() > CONTROL_POINT_AREA + 10.0);
 
-    Geometry bulge = getGeometryFactory().createPoint(new Coordinate(
+    Coordinate bulge = new Coordinate(
         5.0 + 5.0 * Math.cos(Math.toRadians(135.0)),
-        5.0 * Math.sin(Math.toRadians(135.0))));
-    assertEquals("bulge sits on the laser arc, not a chord",
-        0.0, exact.distance(bulge), 1.0e-9);
+        5.0 * Math.sin(Math.toRadians(135.0)));
     assertTrue("the bulge is on an arc member, not a straight chord",
-        bulgeOnCircularMember(exact, bulge.getCoordinate()));
+        bulgeOnCircularMember(exact, bulge));
+    assertEquals("analytical gap to the exposed arc is 0",
+        0.0, gapToCircularMember(exact, bulge), 1.0e-12);
 
     Geometry viaOps = g.convexHull();
     assertTrue(viaOps instanceof CurvePolygon);
@@ -186,10 +186,28 @@ public class CurveExactHullTest extends GeometryTestCase {
   }
 
   private static boolean pointOnCircular(CircularString cs, Coordinate p) {
-    if (cs.getNumPoints() < 3) return false;
-    CircularArcDensifier.Circle c = CircularArcDensifier.Circle.fromThreePoints(
-        cs.getCoordinateN(0), cs.getCoordinateN(1), cs.getCoordinateN(2));
-    if (c == null) return false;
-    return Math.abs(p.distance(new Coordinate(c.cx, c.cy)) - c.r) < 1.0e-8;
+    return gapToArc(cs, p) < 1.0e-8;
+  }
+
+  private static double gapToCircularMember(Geometry hull, Coordinate p) {
+    if (!(hull instanceof CurvePolygon)) return Double.POSITIVE_INFINITY;
+    LineString shell = ((CurvePolygon) hull).getExteriorCurve();
+    if (shell instanceof CircularString) return gapToArc((CircularString) shell, p);
+    if (!(shell instanceof CompoundCurve)) return Double.POSITIVE_INFINITY;
+    CompoundCurve cc = (CompoundCurve) shell;
+    double min = Double.POSITIVE_INFINITY;
+    for (int i = 0; i < cc.getNumMembers(); i++) {
+      LineString m = cc.getMemberN(i);
+      if (m instanceof CircularString) {
+        min = Math.min(min, gapToArc((CircularString) m, p));
+      }
+    }
+    return min;
+  }
+
+  private static double gapToArc(CircularString cs, Coordinate p) {
+    if (cs.getNumPoints() < 3) return Double.POSITIVE_INFINITY;
+    return CircularArcDensifier.distancePointToArc(
+        p, cs.getCoordinateN(0), cs.getCoordinateN(1), cs.getCoordinateN(2));
   }
 }
