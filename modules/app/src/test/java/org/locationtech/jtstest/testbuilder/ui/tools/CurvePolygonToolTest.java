@@ -36,8 +36,8 @@ import junit.textui.TestRunner;
  * anywhere (or click-start) must commit ISO/IEC 13249-3
  * {@code CURVEPOLYGON (CIRCULARSTRING …)}, never a linearized
  * {@code POLYGON} or a chord ring, and never a silent empty A.
- * Escape status is exactly {@link CurvePolygonTool#CANCELLED_STATUS}.
- * No Swing. No mixed-shell editor.
+ * Escape status is exactly {@link CurvePolygonTool#CANCELLED_STATUS}
+ * on the bottom status bar (not Log-only). No mixed-shell editor.
  */
 public class CurvePolygonToolTest extends TestCase {
 

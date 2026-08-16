@@ -88,6 +88,7 @@ public class TestCasePanel extends JPanel {
   JPanel statusBarPanel = new JPanel();
   JLabel lblMousePos = new JLabel();
   JLabel lblPrecisionModel = new JLabel();
+  JLabel lblStatus = new JLabel();
   ScalarFunctionPanel scalarFunctionPanel = new ScalarFunctionPanel();
   
   JPanel jPanelReveal = new JPanel();
@@ -332,11 +333,15 @@ public class TestCasePanel extends JPanel {
             }
         }});
     
+    lblStatus.setBorder(new EmptyBorder(0, 8, 0, 4));
+    lblStatus.setText("");
+
     JPanel panelCase = new JPanel();
     panelCase.setLayout(new BorderLayout());
     panelCase.setBorder(BorderFactory.createLoweredBevelBorder());
     panelCase.add(btnSaveImage, BorderLayout.EAST);
     panelCase.add(testCaseIndexLabel, BorderLayout.WEST);
+    panelCase.add(lblStatus, BorderLayout.CENTER);
     
     statusBarPanel.setLayout(new GridLayout(1,4));
     statusBarPanel.add(panelCase);
@@ -364,6 +369,17 @@ public class TestCasePanel extends JPanel {
     relateTabPanel.add(relatePanel, BorderLayout.CENTER);
     relateTabPanel.add(btnPanel, BorderLayout.NORTH);
     btnPanel.add(btnRunTests, null);
+  }
+
+  /**
+   * Bottom status-bar message (the Case / PM strip), not the Log tab.
+   */
+  public void setStatus(String s) {
+    lblStatus.setText(s == null ? "" : s);
+  }
+
+  public String getStatus() {
+    return lblStatus.getText();
   }
 
   private void updateTestCaseIndexLabel() {

@@ -442,6 +442,16 @@ public class JTSTestBuilderController
     frame().getLogPanel().addInfo(s);
     if (showTab) frame().showInfoTab();
   }
+
+  /**
+   * Bottom status bar on {@link org.locationtech.jtstest.testbuilder.TestCasePanel}
+   * (Case / PM strip). Not the Log tab; that is {@link #displayInfo}.
+   */
+  public void setStatus(String s)
+  {
+    if (!JTSTestBuilderFrame.isRunning()) return;
+    frame().getTestCasePanel().setStatus(s);
+  }
   
   //========================================
   

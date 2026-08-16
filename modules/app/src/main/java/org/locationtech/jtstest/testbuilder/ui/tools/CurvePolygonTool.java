@@ -40,7 +40,7 @@ import org.locationtech.jtstest.testbuilder.model.GeometryType;
  * CompoundCurve editor. A close that is already a CompoundCurve shell
  * is left as {@code COMPOUNDCURVE}; it is never linearized to
  * {@code POLYGON} or a chord ring. Escape cancels with
- * {@link #CANCELLED_STATUS}.
+ * {@link #CANCELLED_STATUS} on the bottom status bar.
  */
 public class CurvePolygonTool extends AbstractStreamDrawTool {
 
@@ -233,7 +233,8 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
     if (!JTSTestBuilderFrame.isRunning()) {
       return;
     }
-    JTSTestBuilder.controller().displayInfo(CANCELLED_STATUS, true);
+    JTSTestBuilder.controller().setStatus(CANCELLED_STATUS);
+    JTSTestBuilder.controller().displayInfo(CANCELLED_STATUS, false);
   }
 
   @Override
