@@ -24,14 +24,17 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * Nodes and shared edges. Intersects {@link CurveSegmentString}s
  * and returns the discrete node set the kits already compute, or
  * {@code null}. A shared run is an {@linkplain #edges edge}
- * (interval), not a pair of endpoints. Package-private -- not a
- * core {@code Noder}, not N-SS, not a public API, not a face walker.
+ * (interval), not a pair of endpoints. N strings (or N geometries)
+ * are the unique union of each unordered pair; N=2 is that pair.
+ * Package-private -- not a core {@code Noder}, not N-SS, not a
+ * public API, not a face walker.
  * <p>
  * MIXED (collinear overlap) is not a discrete node set; {@link #nodes}
- * stays {@code null} and {@link #edges} names the interval.
- * A tangent pinch (TOUCH-ext, H-ANNULUS-TANGENT) is a zero-length
- * edge, not a face. Overlay still goes through the existing kits.
- * Densify is never a noder.
+ * stays {@code null} and {@link #edges} names the interval. A MIXED
+ * or pinch pair inside an N-set adds no point. A tangent pinch
+ * (TOUCH-ext, H-ANNULUS-TANGENT) is a zero-length edge, not a face.
+ * Overlay still goes through the existing kits. Densify is never
+ * a noder.
  */
 final class CurveSegmentNoder {
 
@@ -82,6 +85,77 @@ final class CurveSegmentNoder {
       return null;
     }
     return hits.toArray(new Coordinate[0]);
+  }
+
+  /**
+   * Discrete nodes of N geometries: the unique union of each
+   * unordered pair's {@link #nodes(Geometry, Geometry)}. N=2 is
+   * that pair, bit-identical. A MIXED, pinch, or holed pair stays
+   * {@code null} and adds no point. Fewer than two operands, or
+   * every pair a miss, is {@code null}. Does not assemble a face.
+   */
+  static Coordinate[] nodes(Geometry[] geoms) {
+    if (geoms == null || geoms.length < 2) return null;
+    if (geoms.length == 2) {
+      return nodes(geoms[0], geoms[1]);
+    }
+    List<Coordinate> hits = new ArrayList<Coordinate>();
+    boolean any = false;
+    double scale = scaleOf(geoms);
+    for (int i = 0; i < geoms.length; i++) {
+      for (int j = i + 1; j < geoms.length; j++) {
+        Coordinate[] xs = nodes(geoms[i], geoms[j]);
+        if (xs != null) {
+          any = true;
+          addUnique(hits, xs, scale);
+        }
+      }
+    }
+    if (!any) return null;
+    return hits.toArray(new Coordinate[0]);
+  }
+
+  /**
+   * Discrete nodes of N string collections: the unique union of
+   * each unordered pair's {@link #nodes(List, List, double)}.
+   * N=2 is that pair, bit-identical. A MIXED pair stays
+   * {@code null} and adds no point.
+   */
+  static Coordinate[] nodes(List<List<CurveSegmentString>> groups,
+      double scale) {
+    if (groups == null || groups.size() < 2) return null;
+    if (groups.size() == 2) {
+      return nodes(groups.get(0), groups.get(1), scale);
+    }
+    List<Coordinate> hits = new ArrayList<Coordinate>();
+    boolean any = false;
+    for (int i = 0; i < groups.size(); i++) {
+      for (int j = i + 1; j < groups.size(); j++) {
+        Coordinate[] xs = nodes(groups.get(i), groups.get(j), scale);
+        if (xs != null) {
+          any = true;
+          addUnique(hits, xs, scale);
+        }
+      }
+    }
+    if (!any) return null;
+    return hits.toArray(new Coordinate[0]);
+  }
+
+  /**
+   * Discrete nodes of N strings. Each string is its own operand;
+   * the pair noder runs on each unordered pair of singletons.
+   */
+  static Coordinate[] nodes(CurveSegmentString[] strings, double scale) {
+    if (strings == null || strings.length < 2) return null;
+    List<List<CurveSegmentString>> groups =
+        new ArrayList<List<CurveSegmentString>>(strings.length);
+    for (int i = 0; i < strings.length; i++) {
+      List<CurveSegmentString> one = new ArrayList<CurveSegmentString>(1);
+      one.add(strings[i]);
+      groups.add(one);
+    }
+    return nodes(groups, scale);
   }
 
   /**
@@ -188,5 +262,21 @@ final class CurveSegmentNoder {
     double wb = Math.max(b.getEnvelopeInternal().getWidth(),
         b.getEnvelopeInternal().getHeight());
     return Math.max(Math.max(wa, wb), 1.0);
+  }
+
+  private static double scaleOf(Geometry[] geoms) {
+    double s = 1.0;
+    if (geoms == null) return s;
+    for (int i = 0; i < geoms.length; i++) {
+      if (geoms[i] == null || geoms[i].isEmpty()) {
+        continue;
+      }
+      double w = Math.max(geoms[i].getEnvelopeInternal().getWidth(),
+          geoms[i].getEnvelopeInternal().getHeight());
+      if (w > s) {
+        s = w;
+      }
+    }
+    return s;
   }
 }

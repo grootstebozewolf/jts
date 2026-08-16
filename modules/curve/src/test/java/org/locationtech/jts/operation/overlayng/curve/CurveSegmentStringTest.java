@@ -11,6 +11,7 @@
  */
 package org.locationtech.jts.operation.overlayng.curve;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -30,7 +31,8 @@ import test.jts.GeometryTestCase;
  * ring as strings into one face decision (bite vs hole). P2.4
  * walks two crossing hole rings into the hole faces. A hole
  * ring that overlaps the other shell (no crossing nodes) is
- * the same P2.3 bite. Not N-SS.
+ * the same P2.3 bite. P2.5.2 is N strings: the unique union of
+ * each unordered pair. Not N-SS, not a face walker.
  */
 public class CurveSegmentStringTest extends GeometryTestCase {
 
@@ -480,6 +482,132 @@ public class CurveSegmentStringTest extends GeometryTestCase {
     }
   }
 
+  /**
+   * N=2 is the pair noder. Kit-identical pins stay bit-identical.
+   */
+  public void testN2IsBitIdenticalToPairNoder() throws Exception {
+    assertN2Same(CIRCLE_5, CIRCLE_CROSSING);
+    assertN2Same(CIRCLE_5, SQUARE_RIGHT);
+    assertN2Same(HALF_DISC, HALF_HANGING);
+    assertN2Same(CIRCLE_5, BAND_FOUR);
+    assertN2Same(HALF_DISC, STADIUM_FOUR);
+    assertN2Same(HALF_DISC, STADIUM_ODD);
+    assertN2Same(HALF_DISC, ON_DIAMETER);
+    assertN2Same(CIRCLE_5, CIRCLE_INT_TAN);
+    assertN2Same(UNIT_DISC, UNIT_DISC_TOUCH);
+    assertN2Same(HALF_HOLED, HOLE_X);
+
+    List<CurveSegmentString> sa = Arrays.asList(
+        CurveSegmentString.arc(c(-5, 0), c(0, 5), c(5, 0)),
+        CurveSegmentString.arc(c(5, 0), c(0, -5), c(-5, 0)));
+    List<CurveSegmentString> sb = Arrays.asList(
+        CurveSegmentString.arc(c(2, 0), c(7, 5), c(12, 0)),
+        CurveSegmentString.arc(c(12, 0), c(7, -5), c(2, 0)));
+    Coordinate[] pair = CurveSegmentNoder.nodes(sa, sb, 12.0);
+    List<List<CurveSegmentString>> groups =
+        Arrays.asList(sa, sb);
+    assertSamePoints("N=2 string groups", pair,
+        CurveSegmentNoder.nodes(groups, 12.0));
+  }
+
+  /**
+   * Three pairwise-crossing CompoundCurve shells. Pair nodes are
+   * already named (H-SHELL-2, H-SHELL-N, hanging vs stadium). The
+   * N-set is that union, no extras.
+   */
+  public void testN3IsUnionOfPairSets() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(HALF_HANGING);
+    Geometry c = readCurve(STADIUM_FOUR);
+    Coordinate[] ab = CurveSegmentNoder.nodes(a, b);
+    Coordinate[] ac = CurveSegmentNoder.nodes(a, c);
+    Coordinate[] bc = CurveSegmentNoder.nodes(b, c);
+    assertNotNull("H-SHELL-2 pair", ab);
+    assertNotNull("H-SHELL-N pair", ac);
+    assertNotNull("hanging × stadium pair", bc);
+    Coordinate[] expect = unionNodes(ab, ac, bc);
+    Coordinate[] n3 = CurveSegmentNoder.nodes(new Geometry[] { a, b, c });
+    assertSamePoints("N=3 union", expect, n3);
+    assertHas(n3, 3.0, 4.0);
+    assertHas(n3, -3.0, 4.0);
+    assertHas(n3, 1.0, SQRT_24);
+    assertHas(n3, -1.0, SQRT_24);
+    assertHas(n3, 1.0, 0.0);
+    assertHas(n3, -1.0, 0.0);
+    assertSamePoints("N=3 permutation", n3,
+        CurveSegmentNoder.nodes(new Geometry[] { c, a, b }));
+
+    List<List<CurveSegmentString>> groups = Arrays.asList(
+        CurveSegmentString.of(a), CurveSegmentString.of(b),
+        CurveSegmentString.of(c));
+    assertSamePoints("N=3 string groups", expect,
+        CurveSegmentNoder.nodes(groups, 16.0));
+
+    CurveSegmentString[] shells = new CurveSegmentString[] {
+        CurveSegmentString.arc(c(-5, 0), c(0, 5), c(5, 0)),
+        CurveSegmentString.arc(c(-5, 8), c(0, 3), c(5, 8)) };
+    Coordinate[] hshell2 = TwoNodeClip.intersectCircles(0, 0, 5, 0, 8, 5);
+    assertSamePoints("N=2 strings is H-SHELL-2", hshell2,
+        CurveSegmentNoder.nodes(shells, 16.0));
+  }
+
+  /**
+   * A MIXED pair inside an N-set stays an edge. All-pairs must
+   * not invent a crossing there. The N-set is the other pairs.
+   */
+  public void testN3MixedPairAddsNoFakeCrossing() throws Exception {
+    Geometry half = readCurve(HALF_DISC);
+    Geometry mixed = readCurve(ON_DIAMETER);
+    Geometry cross = readCurve(CIRCLE_CROSSING);
+    assertNull("H-SHELL-N-MIXED pair stays null",
+        CurveSegmentNoder.nodes(half, mixed));
+    Coordinate[] named = CurveSegmentNoder.nodes(half, cross);
+    assertNotNull("half × crossing is a pair set", named);
+    Coordinate[] mc = CurveSegmentNoder.nodes(mixed, cross);
+    Coordinate[] n3 = CurveSegmentNoder.nodes(
+        new Geometry[] { half, mixed, cross });
+    if (mc == null) {
+      assertSamePoints("MIXED pair contributes nothing", named, n3);
+    }
+    else {
+      assertSamePoints("MIXED pair contributes nothing",
+          unionNodes(named, mc), n3);
+    }
+
+    Geometry disc = readCurve(CIRCLE_5);
+    Geometry tan = readCurve(CIRCLE_INT_TAN);
+    Geometry other = readCurve(CIRCLE_CROSSING);
+    assertNull("H-ANNULUS-TANGENT pair stays null",
+        CurveSegmentNoder.nodes(disc, tan));
+    Coordinate[] r15 = CurveSegmentNoder.nodes(disc, other);
+    Coordinate[] tanCross = CurveSegmentNoder.nodes(tan, other);
+    Coordinate[] pinchN = CurveSegmentNoder.nodes(
+        new Geometry[] { disc, tan, other });
+    assertSamePoints("pinch pair adds no node",
+        unionNodes(r15, tanCross), pinchN);
+    assertMissing(pinchN, 5.0, 0.0);
+  }
+
+  /**
+   * Geometry-level holed pair stays null. Hole rings are walked
+   * as strings (P2.3 / P2.4), not invented here.
+   */
+  public void testNHoledGeometryPairStaysNull() throws Exception {
+    Geometry holed = readCurve(HALF_HOLED);
+    Geometry holeX = readCurve(HOLE_X);
+    assertNull("H-SHELL-HOLE-X Geometry pair",
+        CurveSegmentNoder.nodes(holed, holeX));
+    assertNull("N=2 holed is the same miss",
+        CurveSegmentNoder.nodes(new Geometry[] { holed, holeX }));
+
+    Geometry disc = readCurve(CIRCLE_5);
+    Geometry cross = readCurve(CIRCLE_CROSSING);
+    Coordinate[] r15 = CurveSegmentNoder.nodes(disc, cross);
+    Coordinate[] n3 = CurveSegmentNoder.nodes(
+        new Geometry[] { holed, disc, cross });
+    assertSamePoints("holed pairs add no Geometry-level node", r15, n3);
+  }
+
   private static Coordinate c(double x, double y) {
     return new Coordinate(x, y);
   }
@@ -516,6 +644,59 @@ public class CurveSegmentStringTest extends GeometryTestCase {
       }
     }
     return found;
+  }
+
+  private void assertN2Same(String wa, String wb) throws Exception {
+    Geometry a = readCurve(wa);
+    Geometry b = readCurve(wb);
+    Coordinate[] pair = CurveSegmentNoder.nodes(a, b);
+    Coordinate[] n2 = CurveSegmentNoder.nodes(new Geometry[] { a, b });
+    if (pair == null) {
+      assertNull("N=2 miss " + wa, n2);
+    }
+    else {
+      assertSamePoints("N=2 " + wa, pair, n2);
+    }
+  }
+
+  private static Coordinate[] unionNodes(Coordinate[] a, Coordinate[] b) {
+    return unionNodes(a, b, null);
+  }
+
+  private static Coordinate[] unionNodes(Coordinate[] a, Coordinate[] b,
+      Coordinate[] c) {
+    List<Coordinate> hits = new ArrayList<Coordinate>();
+    addAll(hits, a);
+    addAll(hits, b);
+    addAll(hits, c);
+    return hits.toArray(new Coordinate[0]);
+  }
+
+  private static void addAll(List<Coordinate> hits, Coordinate[] xs) {
+    if (xs == null) return;
+    for (int k = 0; k < xs.length; k++) {
+      boolean seen = false;
+      for (int i = 0; i < hits.size() && !seen; i++) {
+        if (hits.get(i).x == xs[k].x && hits.get(i).y == xs[k].y) {
+          seen = true;
+        }
+      }
+      if (!seen) {
+        hits.add(xs[k]);
+      }
+    }
+  }
+
+  private static void assertMissing(Coordinate[] nodes, double x, double y) {
+    assertNotNull("missing node set", nodes);
+    Coordinate want = new Coordinate(x, y);
+    boolean found = false;
+    for (int i = 0; i < nodes.length && !found; i++) {
+      if (nodes[i].distance(want) <= EXACT) {
+        found = true;
+      }
+    }
+    assertFalse("unexpected node (" + x + " " + y + ")", found);
   }
 
   private static void assertHas(Coordinate[] nodes, double x, double y) {
