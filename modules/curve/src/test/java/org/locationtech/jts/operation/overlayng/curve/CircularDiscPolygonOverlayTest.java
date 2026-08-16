@@ -31,11 +31,18 @@ import test.jts.GeometryTestCase;
  * nodes. CAP / CUP / SUB / XOR keep the surviving arc, exact, and
  * JTS-class with the chord overlay. Anything else is {@code null} so
  * OverlayNGCurve can take R2 without paying this path first.
+ * A covering square minus a concentric disc has 0 line–circle
+ * nodes ({@code R1.6-honesty}): keep the miss, do not punch.
  */
 public class CircularDiscPolygonOverlayTest extends GeometryTestCase {
 
   private static final String CIRCLE_5 =
       "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0))";
+  private static final String CIRCLE_3 =
+      "CURVEPOLYGON (CIRCULARSTRING (-3 0, 0 3, 3 0, 0 -3, -3 0))";
+  /** Covering square: 0 line–circle nodes on CIRCLE_3. */
+  private static final String PLAIN_SQUARE =
+      "POLYGON ((-6 -6, 6 -6, 6 6, -6 6, -6 -6))";
   private static final String CIRCLE_CROSSING =
       "CURVEPOLYGON (CIRCULARSTRING (2 0, 7 5, 12 0, 7 -5, 2 0))";
   /** Axis-aligned half-plane cut: the right half of CIRCLE_5. */
@@ -123,6 +130,25 @@ public class CircularDiscPolygonOverlayTest extends GeometryTestCase {
     assertEquals("tri ∩ disc matches disc ∩ tri",
         OverlayNGCurve.intersection(disc, tri).getArea(),
         revCap.getArea(), EXACT);
+  }
+
+  /**
+   * Named R1.6-honesty stamp. Covering PLAIN_SQUARE minus
+   * CIRCLE_3 has 0 line–circle nodes, so this cell misses.
+   * Public overlay stays the chordsaw. Do not expand R1.6 past
+   * two-node / even-n. Not a disc-in-square nest punch. Not D4.
+   */
+  public void testR16HonestyCoveringSquareMinusDiscIsNamedMiss()
+      throws Exception {
+    Geometry square = readCurve(PLAIN_SQUARE);
+    Geometry inner = readCurve(CIRCLE_3);
+    assertNull("R1.6-honesty: overlay(PLAIN_SQUARE, CIRCLE_3, SUB) is null",
+        CircularDiscPolygonOverlay.overlay(square, inner, OverlayNG.DIFFERENCE));
+    OverlayNGCurve sub = new OverlayNGCurve(square, inner);
+    Geometry saw = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("the chordsaw still answers", saw.isEmpty());
+    assertTrue("R1.6-honesty: public isApproximate=true",
+        sub.isApproximate());
   }
 
   public void testNotDiscAndPlainPolygonReturnsNull() throws Exception {

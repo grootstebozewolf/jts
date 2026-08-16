@@ -38,9 +38,12 @@ import test.jts.GeometryTestCase;
  * outer CAP. A hole that straddles the other shell shares the
  * clip edge, so subtracting hole ∩ other is a bite, not an
  * interior punch. Two holes that cross are a noder. A
- * three-point LineString is not an arc. Collinear overlap,
- * mixed labels, and those named hole misses stay {@code null}
- * so OverlayNGCurve can take R2 without paying this path first.
+ * three-point LineString is not an arc. A 0-node mixed shell
+ * strictly inside a circular disc is the nest punch
+ * ({@code CC-NEST-ANNULUS}: P2.3 cousin, not a noder, not D4).
+ * Collinear overlap, mixed labels, and those named hole misses
+ * stay {@code null} so OverlayNGCurve can take R2 without paying
+ * this path first.
  */
 public class CompoundCurveShellOverlayTest extends GeometryTestCase {
 
@@ -638,10 +641,66 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
         CompoundCurveShellOverlay.overlay(chords, square, OverlayNG.INTERSECTION));
     Geometry stadiumNest = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, -2 0, -1 1), (-1 1, 1 1), CIRCULARSTRING (1 1, 2 0, 1 -1), (1 -1, -1 -1)))");
-    // Mixed stadium strictly inside CIRCLE_5: not two discs, and
-    // clip() is two-node only. TwoShellClip never runs. Named miss.
-    assertNull("CC-NEST-ANNULUS: 0-node mixed-vs-disc is not a punch",
+    // Mixed stadium strictly inside CIRCLE_5: not two discs (D4
+    // stays null). R1.7 punches the 0-node nest; see
+    // testMixedNestPunchIsExactAnnulus.
+    assertNull("CC-NEST-ANNULUS: mixed nest is not two discs",
+        CircularDiscOverlay.overlay(disc, stadiumNest, OverlayNG.DIFFERENCE));
+    assertNotNull("CC-NEST-ANNULUS: 0-node mixed-vs-disc is the nest punch",
         CompoundCurveShellOverlay.overlay(disc, stadiumNest, OverlayNG.DIFFERENCE));
+  }
+
+  /**
+   * P2.3 cousin — mixed nest punch, not a noder. Horizontal
+   * stadium |x|≤2, |y|≤1 strictly inside CIRCLE_5: 0 crossing
+   * nodes, both shells already representable. CAP the stadium,
+   * CUP the disc, SUB / XOR CurvePolygon(disc, [stadium]).
+   * Product: CAP 4+π, CUP 25π, SUB / XOR 24π−4, reverse SUB empty.
+   */
+  public void testMixedNestPunchIsExactAnnulus() throws Exception {
+    Geometry disc = readCurve(CIRCLE_5);
+    Geometry stadium = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, -2 0, -1 1), (-1 1, 1 1), CIRCULARSTRING (1 1, 2 0, 1 -1), (1 -1, -1 -1)))");
+    assertEquals("fixture stadium is 4 + π", 4.0 + Math.PI, stadium.getArea(),
+        EXACT);
+
+    OverlayNGCurve cap = new OverlayNGCurve(disc, stadium);
+    Geometry inner = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("mixed nest CAP is exact", cap.isApproximate());
+    assertEquals("CAP is the stadium, 4+π", 4.0 + Math.PI, inner.getArea(),
+        EXACT);
+    assertArcAndLineShell(inner);
+
+    OverlayNGCurve cup = new OverlayNGCurve(disc, stadium);
+    Geometry outer = cup.getResult(OverlayNG.UNION);
+    assertFalse("mixed nest CUP is exact", cup.isApproximate());
+    assertEquals("CUP is CIRCLE_5, 25π", DISC, outer.getArea(), EXACT);
+    assertArcShell(outer);
+
+    OverlayNGCurve rev = new OverlayNGCurve(stadium, disc);
+    Geometry empty = rev.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("stadium \\ disc is exact", rev.isApproximate());
+    assertTrue(empty.isEmpty());
+
+    OverlayNGCurve sub = new OverlayNGCurve(disc, stadium);
+    Geometry punched = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("mixed nest SUB is exact", sub.isApproximate());
+    assertEquals("CurvePolygon", punched.getGeometryType());
+    CurvePolygon cp = (CurvePolygon) punched;
+    assertEquals("one hole", 1, cp.getNumInteriorRing());
+    assertTrue("outer is the CircularString disc",
+        cp.getExteriorCurve() instanceof CircularString);
+    assertTrue("hole is the CompoundCurve stadium, not a densified n-gon",
+        cp.getInteriorCurveN(0) instanceof CompoundCurve);
+    assertEquals("SUB is 24π − 4", 24.0 * Math.PI - 4.0, punched.getArea(),
+        EXACT);
+    assertParity(disc, stadium, OverlayNG.DIFFERENCE, punched);
+
+    OverlayNGCurve xor = new OverlayNGCurve(disc, stadium);
+    Geometry both = xor.getResult(OverlayNG.SYMDIFFERENCE);
+    assertFalse("mixed nest XOR is exact", xor.isApproximate());
+    assertEquals("XOR is the same holed disc, 24π − 4",
+        24.0 * Math.PI - 4.0, both.getArea(), EXACT);
   }
 
   private static void assertParity(Geometry a, Geometry b, int opCode,

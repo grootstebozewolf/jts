@@ -34,9 +34,9 @@ import test.jts.GeometryTestCase;
  * An internal tangent nest ({@code H-ANNULUS-TANGENT}) is not
  * strictly inside and stays {@code null}. A mixed CompoundCurve
  * nest ({@code CC-NEST-ANNULUS}: stadium in a disc) is not two
- * discs and stays {@code null}. Disjoint and non-disc pairs stay
- * {@code null} so OverlayNGCurve can take R2 without paying this
- * path first.
+ * discs: D4 stays {@code null}; R1.7 punches it. Disjoint and
+ * non-disc pairs stay {@code null} so OverlayNGCurve can take the
+ * next rung without paying this path first.
  */
 public class CircularDiscOverlayTest extends GeometryTestCase {
 
@@ -199,10 +199,12 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
 
   /**
    * Mixed CompoundCurve nest (stadium in a CircularString disc) is
-   * not two certified discs. D4 and R1.7 return null. Named miss,
-   * not a laser. Public overlay may chordsaw.
+   * not two certified discs. D4 stays null. R1.7 punches it
+   * after R1.5 / R1.6 miss: CAP 4+π, CUP 25π, SUB / XOR 24π−4,
+   * reverse SUB empty. Do not re-encode the stadium as a two-arc
+   * disc.
    */
-  public void testMixedCompoundCurveNestIsNamedMiss() throws Exception {
+  public void testMixedCompoundCurveNestIsPunchNotD4() throws Exception {
     Geometry outer = readCurve(CIRCLE_5);
     Geometry stadium = readCurve(STADIUM_NEST);
     assertNull("inner stadium is not a disc",
@@ -211,20 +213,43 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
     // closed form; do not invent a CompoundCurve annulus noder.
     assertNull("CC-NEST-ANNULUS: mixed nest is not two discs; D4 stays null",
         CircularDiscOverlay.overlay(outer, stadium, OverlayNG.DIFFERENCE));
-    assertNull("CC-NEST-ANNULUS: reverse nest is the same miss",
+    assertNull("CC-NEST-ANNULUS: reverse nest is the same D4 miss",
         CircularDiscOverlay.overlay(stadium, outer, OverlayNG.DIFFERENCE));
-    // R1.7 clip() is two-node only. TwoShellClip never runs: only
-    // one operand is a mixed CompoundCurve shell.
-    assertNull("CC-NEST-ANNULUS: R1.7 is two-node; 0-node mixed-vs-disc is not a punch",
+
+    assertNotNull("CC-NEST-ANNULUS: R1.7 punches the 0-node mixed nest",
         CompoundCurveShellOverlay.overlay(outer, stadium, OverlayNG.DIFFERENCE));
-    assertNull("CC-NEST-ANNULUS: reverse R1.7 is the same miss",
-        CompoundCurveShellOverlay.overlay(stadium, outer, OverlayNG.DIFFERENCE));
+    assertNotNull("CC-NEST-ANNULUS: reverse CAP is the inner stadium",
+        CompoundCurveShellOverlay.overlay(stadium, outer, OverlayNG.INTERSECTION));
+
+    OverlayNGCurve cap = new OverlayNGCurve(outer, stadium);
+    Geometry common = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("mixed nest CAP is exact", cap.isApproximate());
+    assertEquals("CAP is the stadium, 4+π", 4.0 + Math.PI, common.getArea(),
+        EXACT);
+
+    OverlayNGCurve cup = new OverlayNGCurve(outer, stadium);
+    Geometry cover = cup.getResult(OverlayNG.UNION);
+    assertFalse("mixed nest CUP is exact", cup.isApproximate());
+    assertEquals("CUP is CIRCLE_5, 25π", 25.0 * Math.PI, cover.getArea(), EXACT);
+
+    OverlayNGCurve rev = new OverlayNGCurve(stadium, outer);
+    Geometry empty = rev.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("stadium \\ disc is exact", rev.isApproximate());
+    assertTrue(empty.isEmpty());
 
     OverlayNGCurve sub = new OverlayNGCurve(outer, stadium);
-    Geometry saw = sub.getResult(OverlayNG.DIFFERENCE);
-    assertFalse("the chordsaw still answers", saw.isEmpty());
-    assertTrue("CC-NEST-ANNULUS: public SUB is the chordsaw, not a laser",
+    Geometry punched = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("CC-NEST-ANNULUS: public SUB is the laser, not a chordsaw",
         sub.isApproximate());
+    assertEquals("CurvePolygon", punched.getGeometryType());
+    CurvePolygon cp = (CurvePolygon) punched;
+    assertEquals("one hole", 1, cp.getNumInteriorRing());
+    assertTrue("outer stays a CircularString disc ring",
+        cp.getExteriorCurve() instanceof CircularString);
+    assertTrue("hole stays the CompoundCurve stadium, not a densified n-gon",
+        cp.getInteriorCurveN(0) instanceof CompoundCurve);
+    assertEquals("SUB is 24π − 4", 24.0 * Math.PI - 4.0, punched.getArea(),
+        EXACT);
   }
 
   /**

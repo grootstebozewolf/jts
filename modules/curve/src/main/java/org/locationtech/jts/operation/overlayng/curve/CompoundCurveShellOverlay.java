@@ -14,6 +14,7 @@ package org.locationtech.jts.operation.overlayng.curve;
 import java.util.List;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
@@ -36,8 +37,12 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * as a degenerate NSpan), or a two-node walk vs a disc or plain
  * polygon via {@link TwoNodeClip}. A hole that straddles the
  * other shell, or two holes that cross, stay {@code null} (bite
- * / noder, not a kit). A 0-node mixed shell vs a circular disc
- * ({@code CC-NEST-ANNULUS}) is not a punch. A miss is {@code null}.
+ * / noder, not a kit). A 0-node mixed shell vs a CircularString
+ * disc is a dispatch gap, not missing math: D4
+ * {@code nestedAnnulus} and {@link TwoShellClip} already call
+ * {@link HalfDiscOverlay#containedShell}. This cell
+ * is only that type pair ({@code CC-NEST-ANNULUS}). A 1-node
+ * tangent stays {@code null}. A miss is {@code null}.
  */
 final class CompoundCurveShellOverlay {
 
@@ -81,6 +86,10 @@ final class CompoundCurveShellOverlay {
 
     double[] disc = CircularDiscOverlay.centreRadius(other);
     if (disc != null) {
+      Geometry nest = mixedNestPunch(shell, other, disc, shellFirst, opCode, a);
+      if (nest != null) {
+        return nest;
+      }
       return clip(shell, new DiscOther(disc), shellFirst, opCode, a);
     }
     if (TwoNodeClip.isPlainPolygon(other)) {
@@ -124,6 +133,120 @@ final class CompoundCurveShellOverlay {
   }
 
   /**
+   * Dispatch gap: mixed CompoundCurve vs CircularString disc.
+   * Not missing math -- {@link HalfDiscOverlay#containedShell} is
+   * the product. Not D4 (the stadium is not a disc). Not
+   * {@link TwoShellClip}'s sample walk: that path's
+   * {@code shellSample} collapses when both envelopes are
+   * centered at the origin. Certificate is disc-aware: 0 nodes,
+   * {@code centreRadius} already in hand, and the stadium
+   * strictly inside (envelope vs {@code r − eps}, or control
+   * points plus cap extrema). A 1-node tangent is not this cell.
+   */
+  private static Geometry mixedNestPunch(CurvePolygon shell, Geometry other,
+      double[] disc, boolean shellFirst, int opCode, Geometry factorySrc) {
+    List<TwoNodeClip.Edge> edges = TwoNodeClip.flatten(shell);
+    if (edges == null) return null;
+    List<TwoNodeClip.Node> nodes = TwoNodeClip.nodesVsDisc(edges, disc[0],
+        disc[1], disc[2]);
+    if (nodes == null || !nodes.isEmpty()) return null;
+    if (!shellInsideDisc(shell, edges, disc[0], disc[1], disc[2])) {
+      return null;
+    }
+    CurvePolygon discPoly = holeFreeCurvePolygon(other);
+    if (discPoly == null) return null;
+    return HalfDiscOverlay.containedShell(shell, discPoly, shellFirst, opCode,
+        factorySrc, TwoNodeClip.curveFactory(factorySrc));
+  }
+
+  /**
+   * Disc-aware inside test. Not a sample of both shells: those
+   * land on (0,0) for this fixture. Envelope vs {@code r − eps}
+   * is the cheap radii analog; control points plus each cap's
+   * outer pole cover a stadium whose AABB corners sit outside
+   * the circle.
+   */
+  private static boolean shellInsideDisc(CurvePolygon shell,
+      List<TwoNodeClip.Edge> edges, double cx, double cy, double r) {
+    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * r, 1.0e-12);
+    double lim = r - eps;
+    if (envelopeInsideDisc(shell, cx, cy, lim)) {
+      return true;
+    }
+    return controlsAndCapExtremaInside(edges, cx, cy, lim);
+  }
+
+  private static boolean envelopeInsideDisc(CurvePolygon shell, double cx,
+      double cy, double lim) {
+    Envelope env = shell.getEnvelopeInternal();
+    double dx = Math.max(Math.abs(env.getMinX() - cx),
+        Math.abs(env.getMaxX() - cx));
+    double dy = Math.max(Math.abs(env.getMinY() - cy),
+        Math.abs(env.getMaxY() - cy));
+    return Math.hypot(dx, dy) <= lim;
+  }
+
+  private static boolean controlsAndCapExtremaInside(
+      List<TwoNodeClip.Edge> edges, double cx, double cy, double lim) {
+    boolean inside = true;
+    for (int i = 0; i < edges.size() && inside; i++) {
+      TwoNodeClip.Edge e = edges.get(i);
+      if (!pointInsideDisc(e.a, cx, cy, lim)
+          || !pointInsideDisc(e.b, cx, cy, lim)) {
+        inside = false;
+      }
+      else if (e.isArc) {
+        if (e.mid != null && !pointInsideDisc(e.mid, cx, cy, lim)) {
+          inside = false;
+        }
+        else if (!capExtremumInside(e, cx, cy, lim)) {
+          inside = false;
+        }
+      }
+    }
+    return inside;
+  }
+
+  /**
+   * Outer pole of the cap: the supporting-circle point in the
+   * direction from the disc centre through the arc centre. On
+   * the sweep it is the cap extremum; off the sweep it is not
+   * a boundary point.
+   */
+  private static boolean capExtremumInside(TwoNodeClip.Edge e, double cx,
+      double cy, double lim) {
+    double vx = e.circle[0] - cx;
+    double vy = e.circle[1] - cy;
+    double n = Math.hypot(vx, vy);
+    if (n == 0.0) {
+      return e.circle[2] <= lim;
+    }
+    Coordinate pole = new Coordinate(
+        e.circle[0] + e.circle[2] * vx / n,
+        e.circle[1] + e.circle[2] * vy / n);
+    if (!TwoNodeClip.isOnSweep(pole, e.circle, e.a, e.mid, e.b)) {
+      return true;
+    }
+    return pointInsideDisc(pole, cx, cy, lim);
+  }
+
+  private static boolean pointInsideDisc(Coordinate p, double cx, double cy,
+      double lim) {
+    return Math.hypot(p.x - cx, p.y - cy) <= lim;
+  }
+
+  private static CurvePolygon holeFreeCurvePolygon(Geometry g) {
+    if (g instanceof MultiSurface) {
+      if (g.getNumGeometries() != 1) return null;
+      g = g.getGeometryN(0);
+    }
+    if (!(g instanceof CurvePolygon)) return null;
+    CurvePolygon cp = (CurvePolygon) g;
+    if (cp.isEmpty() || cp.getNumInteriorRing() > 0) return null;
+    return cp;
+  }
+
+  /**
    * One two-node walk. The partner supplies nodes, scale, side-of,
    * and the other-side pieces; the shell walk is always the typed
    * CompoundCurve members.
@@ -133,7 +256,6 @@ final class CompoundCurveShellOverlay {
     List<TwoNodeClip.Edge> edges = TwoNodeClip.flatten(shell);
     if (edges == null) return null;
     List<TwoNodeClip.Node> nodes = other.nodes(edges);
-    // 0-node mixed-vs-disc is CC-NEST-ANNULUS, not a stadium punch.
     if (!TwoNodeClip.properPair(nodes, other.scale())) return null;
 
     TwoNodeClip.Node p = nodes.get(0);
