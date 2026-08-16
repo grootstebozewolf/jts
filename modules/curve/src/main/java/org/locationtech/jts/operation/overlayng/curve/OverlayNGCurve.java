@@ -98,9 +98,12 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     surviving pieces; 0 / 1 node is containment or a disjoint
  *     touch. An even 4+ alternating cut of two CompoundCurve shells
  *     is the H-FOUR n-span assemble. A same-outer hole-inside pair
- *     is the holed / unholed / hole polygon. Odd counts, mixed
- *     labels, crossing holes, or a line-only shell return
- *     {@code null} without paying this path.</li>
+ *     is the holed / unholed / hole polygon. A different-outer hole
+ *     whose outers already clip composes: hole strictly inside the
+ *     outer CAP is punched, hole strictly outside is ignored on
+ *     CAP. Odd counts, mixed labels, a hole that meets or crosses
+ *     the other outer, or a line-only shell return {@code null}
+ *     without paying this path.</li>
  * <li><b>R-LL</b> -- one operand is a {@link org.locationtech.jts.geom.curve.CircularString}
  *     (or a lineal CompoundCurve of LineString + CircularString) and the
  *     other is a plain LineString. Line–circle nodes are exact. CAP is

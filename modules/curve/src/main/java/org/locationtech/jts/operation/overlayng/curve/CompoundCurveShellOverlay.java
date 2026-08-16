@@ -30,10 +30,11 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * and not a noder.
  * <p>
  * Flatten / classify the pair, then one kit:
- * {@link SameOuterHoleOverlay}, {@link HalfDiscOverlay} (complementary
- * / sectors / collinear), {@link TwoShellClip} (0 / 1 / 2 / even-n),
- * or a two-node walk vs a disc or plain polygon via
- * {@link TwoNodeClip}. A miss is {@code null}.
+ * {@link SameOuterHoleOverlay}, {@link DifferentOuterHoleOverlay},
+ * {@link HalfDiscOverlay} (complementary / sectors / collinear),
+ * {@link TwoShellClip} (0 / 1 / 2 / even-n), or a two-node walk vs a
+ * disc or plain polygon via {@link TwoNodeClip}. A miss is
+ * {@code null}.
  */
 final class CompoundCurveShellOverlay {
 
@@ -48,6 +49,10 @@ final class CompoundCurveShellOverlay {
     Geometry holeCell = SameOuterHoleOverlay.overlay(a, b, opCode);
     if (holeCell != null) {
       return holeCell;
+    }
+    Geometry differentHole = DifferentOuterHoleOverlay.overlay(a, b, opCode);
+    if (differentHole != null) {
+      return differentHole;
     }
     CurvePolygon shellA = compoundCurveShell(a);
     CurvePolygon shellB = compoundCurveShell(b);

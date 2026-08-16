@@ -362,7 +362,16 @@ public class CircularArcOverlayTest extends GeometryTestCase {
     assertFalse("H-SHELL-HOLE CAP is exact", holeCap.isApproximate());
     assertEquals("holed half", HALF - 1.0, holedHalf.getArea(), EXACT);
 
-    assertNull("H-SHELL-HOLE: different outers stay refused",
+    Geometry small = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-3 0, 0 3, 3 0), (3 0, -3 0)))");
+    OverlayNGCurve nestedCap = new OverlayNGCurve(holed, small);
+    Geometry punched = nestedCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-HOLE-OUTER inside CAP is exact",
+        nestedCap.isApproximate());
+    assertEquals("small half minus hole", 4.5 * Math.PI - 1.0,
+        punched.getArea(), EXACT);
+
+    assertNull("H-SHELL-HOLE-OUTER: hole meets the other diameter",
         CompoundCurveShellOverlay.overlay(holed, right, OverlayNG.INTERSECTION));
   }
 

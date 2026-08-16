@@ -70,6 +70,30 @@ final class SameOuterHoleOverlay {
     return null;
   }
 
+  static CurvePolygon mixedShell(Geometry g) {
+    return curvePolygonAllowHole(g);
+  }
+
+  static Geometry holePolygon(CurvePolygon holed, GeometryFactory f) {
+    return holeAsPolygon(holed, f);
+  }
+
+  static boolean holeInsideShell(CurvePolygon holed, CurvePolygon solid) {
+    return holeStrictlyInside(holed, solid);
+  }
+
+  static LineString plainHole(CurvePolygon holed) {
+    LineString hole = holed.getInteriorCurveN(0);
+    if (hole == null || hole.isEmpty() || hole.getNumPoints() < 4) {
+      return null;
+    }
+    if (hole instanceof CircularString || hole instanceof CompoundCurve) {
+      return null;
+    }
+    if (!hole.isClosed()) return null;
+    return hole;
+  }
+
   private static CurvePolygon curvePolygonAllowHole(Geometry g) {
     if (g instanceof MultiSurface) {
       if (g.getNumGeometries() != 1) return null;

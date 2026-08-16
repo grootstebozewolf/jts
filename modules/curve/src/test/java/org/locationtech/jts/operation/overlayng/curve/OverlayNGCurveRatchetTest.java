@@ -48,8 +48,10 @@ import test.jts.GeometryTestCase;
  * overlapping arcs are EEEE (interval overlay). Complementary half-discs
  * are 0EEE. Perpendicular same-circle half-discs, a two-node two-shell
  * clip, collinear same-side halves, nested halves, and a 1-node touch
- * are exact. A four-cut two-shell n-span and a same-outer hole-inside
- * pair are exact. A four-cut disc vs a band is EEEE. The cells that
+ * are exact. A four-cut two-shell n-span, a same-outer hole-inside
+ * pair, and a different-outer hole that sits strictly inside or
+ * outside a certified outer CAP are exact. A four-cut disc vs a
+ * band is EEEE. The cells that
  * stay approximate are the ones whose answer is a <em>new</em> non-disc
  * geometry -- SUB and XOR of a nested pair are an annulus, which this
  * stage does not build (0 intersections).
@@ -278,6 +280,24 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_sameOuterHoleReverse() throws Exception {
     assertRow("same-outer hole reverse", HALF_DISC, HALF_HOLED, "EEEE");
+  }
+
+  public void testMatrix_differentOuterHoleNested() throws Exception {
+    assertRow("different-outer hole nested", HALF_HOLED, HALF_SMALL, "EEEE");
+  }
+
+  public void testMatrix_differentOuterHoleNestedReverse() throws Exception {
+    assertRow("different-outer hole nested reverse", HALF_SMALL, HALF_HOLED,
+        "EEEE");
+  }
+
+  public void testMatrix_differentOuterHoleLens() throws Exception {
+    assertRow("different-outer hole lens", HALF_HOLED, HALF_HANGING, "EEEE");
+  }
+
+  public void testMatrix_differentOuterHoleComplementary() throws Exception {
+    assertRow("different-outer hole complementary", HALF_HOLED, HALF_LOWER,
+        "0EEE");
   }
 
   public void testMatrix_fourCut() throws Exception {
