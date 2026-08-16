@@ -17,7 +17,9 @@ import junit.textui.TestRunner;
 /**
  * Pins the bottom status bar (Case / PM strip), not the Log tab.
  * Escape for issue #56 must show exactly {@code CurvePolygon cancelled.}
- * there.
+ * there via {@link TestCasePanel#setStatus}. Log auto-switch
+ * ({@code showInfoTab} / {@code displayInfo(..., true)}) is not the
+ * lock and must not steal the Input tab.
  */
 public class TestCasePanelStatusTest extends TestCase {
 
@@ -34,5 +36,12 @@ public class TestCasePanelStatusTest extends TestCase {
     assertEquals("", panel.getStatus());
     panel.setStatus("CurvePolygon cancelled.");
     assertEquals("CurvePolygon cancelled.", panel.getStatus());
+  }
+
+  public void testSetStatusDoesNotRequireLogTab() {
+    TestCasePanel panel = new TestCasePanel();
+    panel.setStatus("CurvePolygon cancelled.");
+    assertEquals("status bar is the Case/PM strip, independent of Log",
+        "CurvePolygon cancelled.", panel.getStatus());
   }
 }

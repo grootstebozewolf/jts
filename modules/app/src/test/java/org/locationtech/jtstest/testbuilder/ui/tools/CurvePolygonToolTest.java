@@ -40,7 +40,8 @@ import junit.textui.TestRunner;
  * A third click that is not start only adds a point. Only Escape
  * cancels. Escape status is exactly
  * {@link CurvePolygonTool#CANCELLED_STATUS} on the bottom status bar
- * (not Log-only). No mixed-shell editor.
+ * via {@code setStatus} (not Log-only, and must not steal Input via
+ * {@code showInfoTab}). No mixed-shell editor.
  */
 public class CurvePolygonToolTest extends TestCase {
 
@@ -69,6 +70,13 @@ public class CurvePolygonToolTest extends TestCase {
     assertFalse(CurvePolygonTool.isCancelKey(KeyEvent.VK_ENTER));
     assertFalse(CurvePolygonTool.isCancelKey(KeyEvent.VK_BACK_SPACE));
     assertFalse(CurvePolygonTool.isCancelKey(KeyEvent.VK_DELETE));
+  }
+
+  public void testCancelDoesNotStealInputTab() {
+    assertFalse("Log auto-switch is not the lock; do not SIGN showInfoTab on cancel",
+        CurvePolygonTool.cancelStealsInputTab());
+    assertFalse("cancel must not call displayInfo (even showTab=false is optional; default true steals Input)",
+        CurvePolygonTool.cancelCallsDisplayInfo());
   }
 
   public void testThirdClickAfterTwoPointsAddsNotFinish() {

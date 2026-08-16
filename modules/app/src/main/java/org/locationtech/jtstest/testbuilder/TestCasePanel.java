@@ -373,6 +373,7 @@ public class TestCasePanel extends JPanel {
 
   /**
    * Bottom status-bar message (the Case / PM strip), not the Log tab.
+   * Does not select Log or steal the Input tab.
    */
   public void setStatus(String s) {
     lblStatus.setText(s == null ? "" : s);

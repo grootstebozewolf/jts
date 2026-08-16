@@ -41,8 +41,11 @@ import org.locationtech.jtstest.testbuilder.model.GeometryType;
  * that is not the start vertex only adds a point — it does not commit
  * and does not cancel, even when two points already close to a valid
  * ring. Only Escape cancels, and only Escape may write
- * {@link #CANCELLED_STATUS} on the Case/PM strip. This tool builds a
- * CircularString shell only — not a mixed-shell CompoundCurve editor.
+ * {@link #CANCELLED_STATUS} on the Case/PM strip via
+ * {@code setStatus}. That must not call {@code displayInfo} or
+ * {@code showInfoTab} — Log auto-switch is not the lock and must not
+ * steal the Input tab. This tool builds a CircularString shell only —
+ * not a mixed-shell CompoundCurve editor.
  * A close that is already a CompoundCurve shell is left as
  * {@code COMPOUNDCURVE}; it is never linearized to {@code POLYGON} or
  * a chord ring.
@@ -94,6 +97,7 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
   @Override
   public void keyPressed(KeyEvent e) {
     if (isCancelKey(e.getKeyCode())) {
+      e.consume();
       cancelInProgress();
     }
   }
@@ -277,6 +281,23 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
     return keyCode == KeyEvent.VK_ESCAPE;
   }
 
+  /**
+   * Log auto-switch is not the lock. Cancel must not steal Input
+   * via {@code showInfoTab} / {@code displayInfo(..., true)}.
+   */
+  static boolean cancelStealsInputTab() {
+    return false;
+  }
+
+  /**
+   * Cancel writes the Case/PM strip only ({@code setStatus}).
+   * It does not call {@code displayInfo}. If Log is ever also written,
+   * it must be {@code displayInfo(s, false)} so the tab does not switch.
+   */
+  static boolean cancelCallsDisplayInfo() {
+    return false;
+  }
+
   static boolean isSameViewClick(int x0, int y0, int x1, int y1, int slopPx) {
     int dx = x0 - x1;
     int dy = y0 - y1;
@@ -327,7 +348,8 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
 
   /**
    * Escape is the only caller. Click-start and double-click commit
-   * must never reach this, and must never write cancel to Log.
+   * must never reach this. Writes {@link #CANCELLED_STATUS} on the
+   * Case/PM strip only — never {@code displayInfo} / {@code showInfoTab}.
    */
   private void cancelInProgress() {
     if (capturedCount() == 0) {
@@ -345,6 +367,10 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
     }
   }
 
+  /**
+   * Always-on Case/PM strip via {@code setStatus}. Do not SIGN a Log
+   * tab switch. Do not call {@code displayInfo} or {@code showInfoTab}.
+   */
   private void showCancelled() {
     if (!JTSTestBuilderFrame.isRunning()) {
       return;

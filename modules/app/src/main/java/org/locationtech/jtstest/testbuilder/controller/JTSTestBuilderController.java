@@ -432,11 +432,21 @@ public class JTSTestBuilderController
     displayInfo( editPanel().getInfo(modelPt) );
   }
   
+  /**
+   * Writes the Log tab and selects it ({@link org.locationtech.jtstest.testbuilder.JTSTestBuilderFrame#showInfoTab}).
+   * That steals the Input tab. CurvePolygon Escape cancel must not
+   * call this — use {@link #setStatus} instead. If Log is also written,
+   * call {@link #displayInfo(String, boolean)} with {@code showTab=false}.
+   */
   public void displayInfo(String s)
   {
     displayInfo(s, true);
   }
   
+  /**
+   * Writes the Log tab. {@code showTab=true} selects Log and steals
+   * Input. Cancel must not pass {@code true}.
+   */
   public void displayInfo(String s, boolean showTab)
   {
     frame().getLogPanel().addInfo(s);
@@ -446,6 +456,7 @@ public class JTSTestBuilderController
   /**
    * Bottom status bar on {@link org.locationtech.jtstest.testbuilder.TestCasePanel}
    * (Case / PM strip). Not the Log tab; that is {@link #displayInfo}.
+   * CurvePolygon Escape writes {@code CurvePolygon cancelled.} here only.
    */
   public void setStatus(String s)
   {
