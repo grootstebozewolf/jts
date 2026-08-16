@@ -423,6 +423,8 @@ public class CurveSegmentStringTest extends GeometryTestCase {
     assertEquals("H-SHELL-HOLE-X: bite walk stays a miss",
         BiteVsHole.MISS, BiteVsHole.decide(holed, holeX));
 
+    CurvePolygon ha = (CurvePolygon) holed;
+    CurvePolygon hb = (CurvePolygon) holeX;
     List<CurveSegmentString> holeOnDiameter = CurveSegmentString.of(
         ha.getInteriorCurveN(0));
     List<CurveSegmentString> rightShell = CurveSegmentString.of(right);
@@ -445,8 +447,6 @@ public class CurveSegmentStringTest extends GeometryTestCase {
     assertEquals(1.0, diameterClip.length(), EXACT);
     assertTrue(sameEnds(diameterClip, 0.0, 1.0, 0.0, 2.0));
 
-    CurvePolygon ha = (CurvePolygon) holed;
-    CurvePolygon hb = (CurvePolygon) holeX;
     List<CurveSegmentString> holeA = CurveSegmentString.of(
         ha.getInteriorCurveN(0));
     List<CurveSegmentString> holeB = CurveSegmentString.of(
