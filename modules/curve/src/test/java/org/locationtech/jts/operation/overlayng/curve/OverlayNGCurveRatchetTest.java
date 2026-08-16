@@ -55,7 +55,9 @@ import test.jts.GeometryTestCase;
  * that sits strictly inside or outside a certified outer CAP, and
  * a straddling hole whose new edge ⊂ the other shell (a bite), and
  * two holes that cross on the same outer are exact. A four-cut
- * disc vs a band is EEEE.
+ * disc vs a band is EEEE. H-SHELL-N-MIXED (collinear diameter
+ * overlap) is EEEE via OverlayNG-for-circles; the reverse SUB
+ * is empty.
  */
 public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
@@ -113,6 +115,9 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (-1 1, 1 1, 1 2, -1 2, -1 1))";
   private static final String HOLE_X =
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0.5 0.5, 1.5 0.5, 1.5 1.5, 0.5 1.5, 0.5 0.5))";
+  /** H-SHELL-N-MIXED: collinear overlap on the HALF_DISC diameter. */
+  private static final String ON_DIAMETER =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, 0 2, 1 1), (1 1, 1 0), (1 0, -1 0), (-1 0, -1 1)))";
 
   private static final int[] OPS = { OverlayNGCurve.INTERSECTION, OverlayNGCurve.UNION,
       OverlayNGCurve.DIFFERENCE, OverlayNGCurve.SYMDIFFERENCE };
@@ -338,6 +343,14 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_holeMeetsDiameterReverse() throws Exception {
     assertRow("hole meets diameter reverse", HALF_RIGHT, HALF_HOLED, "EEEE");
+  }
+
+  public void testMatrix_mixedDiameter() throws Exception {
+    assertRow("H-SHELL-N-MIXED", HALF_DISC, ON_DIAMETER, "EEEE");
+  }
+
+  public void testMatrix_mixedDiameterReverse() throws Exception {
+    assertRow("H-SHELL-N-MIXED reverse", ON_DIAMETER, HALF_DISC, "EE0E");
   }
 
   // -- the disjoint CUP/XOR result, not just its exactness -----------------

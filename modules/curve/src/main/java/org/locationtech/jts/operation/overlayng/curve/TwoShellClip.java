@@ -87,6 +87,17 @@ final class TwoShellClip {
   /**
    * 0 or 1 proper node: one shell inside the other, or interiors
    * disjoint (including a single vertex touch). Not a 1-node walk.
+   * OverlayNG-for-circles reuses this after MIXED noding: the
+   * overlap is an edge, not a discrete node.
+   */
+  static Geometry containmentOverlay(CurvePolygon a, CurvePolygon b,
+      int opCode, Geometry first) {
+    return fewNodeOverlay(a, b, opCode, first);
+  }
+
+  /**
+   * 0 or 1 proper node: one shell inside the other, or interiors
+   * disjoint (including a single vertex touch). Not a 1-node walk.
    */
   private static Geometry fewNodeOverlay(CurvePolygon a, CurvePolygon b,
       int opCode, Geometry first) {
