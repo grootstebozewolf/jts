@@ -10,6 +10,7 @@ import java.util.List;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKBConstants;
 import org.locationtech.jts.io.WKBReader;
 
 import junit.framework.TestCase;
@@ -332,6 +333,37 @@ public class JTSOpCmdTest extends TestCase {
   public void testFormatWKB() {
     runCmd( args("-a", "LINESTRING ( 1 1, 2 2)", "-f", "wkb"), 
         "0000000002000000023FF00000000000003FF000000000000040000000000000004000000000000000" );
+  }
+
+  public void testFormatWKBCircularStringIsNotType2() {
+    JTSOpCmd cmd = runCmd(args("-a", "CIRCULARSTRING (0 0, 5 5, 10 0)", "-f", "wkb"),
+        null, null);
+    String hex = cmd.getOutput().trim();
+    byte[] wkb = WKBReader.hexToBytes(hex);
+    int type = ((wkb[1] & 0xff) << 24) | ((wkb[2] & 0xff) << 16)
+        | ((wkb[3] & 0xff) << 8) | (wkb[4] & 0xff);
+    type = type & 0xff;
+    assertTrue("jtsop -f wkb must not flatten CircularString to LineString type 2, got "
+        + type, type != WKBConstants.wkbLineString);
+    assertTrue("jtsop -f wkb must not flatten CircularString to Polygon type 3, got "
+        + type, type != WKBConstants.wkbPolygon);
+    assertEquals("jtsop -f wkb CircularString type", WKBConstants.wkbCircularString, type);
+  }
+
+  public void testFormatWKBCurvePolygonIsNotType3() {
+    JTSOpCmd cmd = runCmd(args("-a",
+        "CURVEPOLYGON (CIRCULARSTRING (-2 0, 0 2, 2 0, 0 -2, -2 0))", "-f", "wkb"),
+        null, null);
+    String hex = cmd.getOutput().trim();
+    byte[] wkb = WKBReader.hexToBytes(hex);
+    int type = ((wkb[1] & 0xff) << 24) | ((wkb[2] & 0xff) << 16)
+        | ((wkb[3] & 0xff) << 8) | (wkb[4] & 0xff);
+    type = type & 0xff;
+    assertTrue("jtsop -f wkb must not flatten CurvePolygon to LineString type 2, got "
+        + type, type != WKBConstants.wkbLineString);
+    assertTrue("jtsop -f wkb must not flatten CurvePolygon to Polygon type 3, got "
+        + type, type != WKBConstants.wkbPolygon);
+    assertEquals("jtsop -f wkb CurvePolygon type", WKBConstants.wkbCurvePolygon, type);
   }
   
   public void testFormatGeoJSON() {

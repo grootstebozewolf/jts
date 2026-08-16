@@ -14,6 +14,7 @@ package org.locationtech.jtstest.testbuilder.io;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.WKBWriter;
 import org.locationtech.jts.io.WKTWriter;
+import org.locationtech.jts.io.curve.CurveWKBWriter;
 import org.locationtech.jts.io.gml2.GMLWriter;
 
 public class IOUtil {
@@ -21,7 +22,7 @@ public class IOUtil {
   public static String toWKBHex(Geometry g)
   {
     if (g == null) return "";
-    return WKBWriter.toHex((new WKBWriter().write(g)));
+    return WKBWriter.toHex((new CurveWKBWriter().write(g)));
   }
   
   public static String toGML(Geometry g)
