@@ -18,9 +18,10 @@ overlay, and Hausdorff claims match the code on this tree.
 
 Figure-slot frame lock:
 
-- Guide shots (DG-1..4, TS-1..5, UG-1..7): empty 4:3 holes at
+- Guide shots (DG-1..4, TS-1..6, UG-1..8): empty 4:3 holes at
   1600×1200, full TestBuilder window. Slot id only; no caption on
-  unshot work. Do not invent screenshots.
+  unshot work. Do not invent screenshots. UG-8 / TS-6 are the
+  compound-hull holes (area 61.59119, CircularString shell).
 - MKT-1 is 16:9 1920×1080 canvas-only and is **not** a manual
   figure. Do not put it in these guides.
 

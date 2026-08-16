@@ -317,8 +317,11 @@ A certified disc's hull is the disc (radius-5 disc: area $25\pi$).
 A single-arc hull is the slice bounded by the arc and its chord (a
 CurvePolygon). The compound-curve hull of circular-plus-straight
 members (H-CC), including a stadium, keeps the exposed arcs as
-CircularString members of a CurvePolygon. Any other curve uses the
-linear hull of \texttt{toLinear} --- a fallback, not a fail.
+CircularString members of a CurvePolygon. The H-CC witness
+\texttt{COMPOUNDCURVE (CIRCULARSTRING (0 0, 5 5, 10 0), (10 0, 10 10))}
+has hull area $50 + 12.5\arccos(0.6) \approx 61.59119$ and a
+CircularString shell. Any other curve uses the linear hull of
+\texttt{toLinear} --- a fallback, not a fail.
 
 \paragraph{Inscribed and empty circles (jts-curve).}
 \texttt{MaximumInscribedCircle} on a certified disc and on a stadium
@@ -328,6 +331,7 @@ circular noder.
 
 \fighole{TS-2 disc hull}
 \fighole{TS-3 single-arc hull}
+\fighole{TS-6 compound hull}
 
 \section{Other methods}
 Boundary, isClosed, isSimple, isValid keep the 2003 tables for
