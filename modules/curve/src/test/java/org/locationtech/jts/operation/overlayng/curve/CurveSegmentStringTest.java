@@ -28,7 +28,9 @@ import test.jts.GeometryTestCase;
  * is the unit; {@link CurveSegmentNoder} emits the discrete node
  * set or a shared run as an edge (interval). P2.3 walks a hole
  * ring as strings into one face decision (bite vs hole). P2.4
- * walks two crossing hole rings into the hole faces. Not N-SS.
+ * walks two crossing hole rings into the hole faces. A hole
+ * ring that overlaps the other shell (no crossing nodes) is
+ * the same P2.3 bite. Not N-SS.
  */
 public class CurveSegmentStringTest extends GeometryTestCase {
 
@@ -423,6 +425,28 @@ public class CurveSegmentStringTest extends GeometryTestCase {
 
     CurvePolygon ha = (CurvePolygon) holed;
     CurvePolygon hb = (CurvePolygon) holeX;
+    List<CurveSegmentString> holeOnDiameter = CurveSegmentString.of(
+        ha.getInteriorCurveN(0));
+    List<CurveSegmentString> rightShell = CurveSegmentString.of(right);
+    assertNull("H-SHELL-HOLE-OUTER: collinear hole-edge is not a node set",
+        CurveSegmentNoder.nodes(holeOnDiameter, rightShell, 10.0));
+    List<CurveSegmentString> diameterEdges = CurveSegmentNoder.edges(
+        holeOnDiameter, rightShell, 10.0);
+    assertNotNull(diameterEdges);
+    CurveSegmentString diameterRun = findChord(diameterEdges, 0.0, 1.0,
+        0.0, 2.0);
+    assertNotNull("H-SHELL-HOLE-OUTER: noder names (0 1)–(0 2)",
+        diameterRun);
+    assertFalse(diameterRun.isArc());
+    assertFalse(diameterRun.isDegenerate());
+    assertEquals(1.0, diameterRun.length(), EXACT);
+    assertEquals("hole-edge ⊂ other.shell ⇒ bite", BiteVsHole.BITE,
+        BiteVsHole.decide(holed, right));
+    CurveSegmentString diameterClip = BiteVsHole.clipEdge(holed, right);
+    assertNotNull(diameterClip);
+    assertEquals(1.0, diameterClip.length(), EXACT);
+    assertTrue(sameEnds(diameterClip, 0.0, 1.0, 0.0, 2.0));
+
     List<CurveSegmentString> holeA = CurveSegmentString.of(
         ha.getInteriorCurveN(0));
     List<CurveSegmentString> holeB = CurveSegmentString.of(

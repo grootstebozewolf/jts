@@ -108,8 +108,10 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     outer CAP is punched, hole strictly outside is ignored on
  *     CAP. A hole that crosses the other outer shares the clip
  *     edge: if that new edge is a subset of the other shell it
- *     is a bite, not an interior punch. Two holes that cross
- *     stay a named miss. Collinear overlap, mixed labels,
+ *     is a bite, not an interior punch. A hole that does not
+ *     cross but whose ring overlaps the other shell (hole-edge
+ *     ⊂ other.shell) is the same bite. Two holes that cross
+ *     assemble the hole faces. Collinear overlap, mixed labels,
  *     or a line-only shell return {@code null} without paying
  *     this path.</li>
  * <li><b>R-LL</b> -- one operand is a {@link org.locationtech.jts.geom.curve.CircularString}
