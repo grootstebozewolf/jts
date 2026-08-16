@@ -452,7 +452,10 @@ Closed-form constructions on this tree:
   \item Compound-curve hull of circular-plus-straight members
         (H-CC), including a stadium. The exposed arc stays a
         \texttt{CircularString}; the result is a
-        \texttt{CurvePolygon}, not a densified polygon.
+        \texttt{CurvePolygon}, not a densified polygon. A clothoid
+        hull stays the linear fallback
+        (\texttt{CurveExact} null $\rightarrow$
+        \texttt{linearise().convexHull()}), not a laser.
   \item \texttt{MaximumInscribedCircle} on a certified disc and on a
         stadium; \texttt{LargestEmptyCircle} on legal curve
         obstacles. These are constructions, not a general circular
@@ -461,6 +464,7 @@ Closed-form constructions on this tree:
 
 The curve overlay type is \texttt{OverlayNGCurve}. There is no public
 noder. Closed-form overlay answers are limited to certified discs.
+TestBuilder can draw \texttt{logoLines} as curves.
 
 \section{WKT and WKB on this tree}
 Core \texttt{WKTReader} still rejects \texttt{CIRCULARSTRING} and the

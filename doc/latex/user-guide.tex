@@ -251,7 +251,10 @@ single-arc convex hull, the compound-curve hull of
 circular-plus-straight members (H-CC witness area $\approx 61.59119$,
 CircularString shell), \texttt{MaximumInscribedCircle} on a
 certified disc and on a stadium, and \texttt{LargestEmptyCircle} on
-legal curve obstacles.
+legal curve obstacles. A clothoid hull stays the linear fallback
+(\texttt{CurveExact} null $\rightarrow$
+\texttt{linearise().convexHull()}), not a laser.
+TestBuilder can draw \texttt{logoLines} as curves.
 
 \subsection{Saving}
 File / Save As XML writes the current cases. Default / export WKB

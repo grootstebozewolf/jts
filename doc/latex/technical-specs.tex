@@ -320,8 +320,11 @@ members (H-CC), including a stadium, keeps the exposed arcs as
 CircularString members of a CurvePolygon. The H-CC witness
 \texttt{COMPOUNDCURVE (CIRCULARSTRING (0 0, 5 5, 10 0), (10 0, 10 10))}
 has hull area $50 + 12.5\arccos(0.6) \approx 61.59119$ and a
-CircularString shell. Any other curve uses the linear hull of
-\texttt{toLinear} --- a fallback, not a fail.
+CircularString shell. A clothoid hull stays the linear fallback
+(\texttt{CurveExact} null $\rightarrow$
+\texttt{linearise().convexHull()}), not a laser. Any other curve uses
+the linear hull of \texttt{toLinear} --- a fallback, not a fail.
+TestBuilder can draw \texttt{logoLines} as curves.
 
 \paragraph{Inscribed and empty circles (jts-curve).}
 \texttt{MaximumInscribedCircle} on a certified disc and on a stadium
