@@ -29,22 +29,27 @@ import junit.textui.TestRunner;
 
 /**
  * Locks the hero halo: {@code logoLines} then {@code logoBuffer} at
- * distance 4, {@link BufferParameters#JOIN_MITRE},
- * {@link BufferParameters#CAP_SQUARE} (box caps).
+ * distance 4, {@link BufferParameters#JOIN_MITRE} with a real mitre
+ * limit (not 0), {@link BufferParameters#CAP_SQUARE} (box caps).
  * <p>
- * Honesty: named {@link BufferOp} / CHORD-PATH / NAMED-APPROX. Arcs
- * (ISO/IEC 13249-3 {@code CircularString} / {@code CompoundCurve} /
- * {@code MultiCurve}) are densified, then one BufferOp runs on the
- * whole linearized collection. Not a laser. Not clothoid. This test
- * does not assert {@code isApproximate()=false}.
+ * Honesty: named {@link BufferOp} / CHORD-PATH / NAMED-APPROX.
+ * {@code toLinear(0.0)} is CircularArcDensifier 1% of radius, then
+ * one BufferOp on the whole ISO/IEC 13249-3 MultiCurve. Not a laser.
+ * Not clothoid. This test does not assert {@code isApproximate()=false}.
  * <p>
- * {@code BufferFunctions.bufferWithParams} on the raw MultiCurve stays
- * the named quiet-chainsaw default and is not the product path here.
+ * Quiet defaults, written not flattened:
+ * {@code Buffer.bufferWithParams} still BufferOps the raw MultiCurve
+ * (control-point chords); empty Mitre Limit → 0.0 bevels.
+ * {@code Buffer.buffer} after logo in A is CAP_ROUND + JOIN_ROUND.
+ * Connectedness is already BufferOp union of overlapping sausages
+ * (T–S gap 5, d=4, 4+4&gt;5). This is not a weld and not a
+ * {@code logoLines} overlay-union.
  */
 public class JTSFunctionsLogoBufferTest extends TestCase {
 
   private static final double DISTANCE = 4.0;
-  private static final double SAGITTA = Math.max(0.001, Math.abs(DISTANCE) / 100.0);
+  /** Linearizable 0.0 → CircularArcDensifier 1% of radius. */
+  private static final double SAGITTA = 0.0;
 
   private static final double HEIGHT = 70.0;
   private static final double S_RADIUS = HEIGHT / 4.0;
@@ -56,7 +61,7 @@ public class JTSFunctionsLogoBufferTest extends TestCase {
 
   /**
    * logoLines stays an ISO/IEC 13249-3 MultiCurve of four members.
-   * Overlay-union of the letters is not this path.
+   * Do not weld J/T/S. Do not overlay-union the letters.
    */
   public void testLogoLinesStaysFourMemberMultiCurve() {
     Geometry logo = JTSFunctions.logoLines(null);
@@ -66,43 +71,49 @@ public class JTSFunctionsLogoBufferTest extends TestCase {
   }
 
   /**
-   * One BufferOp on the whole linearized logo. Letter offsets at d=4
-   * overlap (T–S gap is 5), so the halo is one polygon, not four
-   * isolated per-letter buffers from bufferEach.
+   * BufferOp on the whole collection already unions. T-top ends at
+   * x=127.5, S top at x=132.5, gap=5; at d=4 the sausages overlap
+   * (4+4&gt;5). One polygonal result is that overlap, not a weld.
+   * {@code bufferEach} is the named disconnect path (off by default).
    */
-  public void testOneBufferOpConnectsOverlappingLetterOffsets() {
+  public void testOverlappingSausagesAreAlreadyOnePolygon() {
     Geometry halo = JTSFunctions.logoBuffer(null, DISTANCE);
     assertTrue("halo is polygonal, got " + halo.getGeometryType(),
         halo instanceof Polygon || halo instanceof MultiPolygon);
-    assertEquals("overlapping d=4 offsets union in one BufferOp",
+    assertEquals("4+4>5 sausages already union in one BufferOp",
         1, halo.getNumGeometries());
 
     Geometry each = BufferFunctions.bufferEach(JTSFunctions.logoLines(null), DISTANCE);
-    assertEquals("bufferEach keeps a member per logo stroke",
+    assertEquals("bufferEach is the named per-stroke disconnect (off by default)",
         4, each.getNumGeometries());
     assertFalse("hero is not bufferEach", halo.equalsExact(each));
   }
 
   /**
-   * Params that land are JOIN_MITRE + CAP_SQUARE at distance 4, on the
-   * named toLinear + BufferOp path. Old logoBuffer set box caps only
-   * (JOIN_ROUND default).
+   * Params that land are JOIN_MITRE + DEFAULT_MITRE_LIMIT + CAP_SQUARE
+   * at distance 4, on toLinear(0.0) + BufferOp. Old logoBuffer set
+   * box caps only (JOIN_ROUND default). Mitre limit 0 bevels.
    */
-  public void testMitreAndBoxCapsLandOnNamedBufferOp() {
+  public void testMitreBoxAndRealMitreLimitLandOnNamedBufferOp() {
     Geometry halo = JTSFunctions.logoBuffer(null, DISTANCE);
-    Geometry named = namedBufferOp(BufferParameters.CAP_SQUARE, BufferParameters.JOIN_MITRE);
-    assertTrue("logoBuffer is toLinear(sagitta) + BufferOp(mitre, box)",
+    Geometry named = namedBufferOp(BufferParameters.CAP_SQUARE,
+        BufferParameters.JOIN_MITRE, BufferParameters.DEFAULT_MITRE_LIMIT);
+    assertTrue("logoBuffer is toLinear(0.0) + BufferOp(mitre, box, limit 5)",
         halo.equalsExact(named));
 
-    Geometry squareRound = namedBufferOp(BufferParameters.CAP_SQUARE, BufferParameters.JOIN_ROUND);
+    Geometry squareRound = namedBufferOp(BufferParameters.CAP_SQUARE,
+        BufferParameters.JOIN_ROUND, BufferParameters.DEFAULT_MITRE_LIMIT);
     assertFalse("JOIN_MITRE must actually be set; JOIN_ROUND was the old default",
         halo.equalsExact(squareRound));
 
-    Geometry roundRound = namedBufferOp(BufferParameters.CAP_ROUND, BufferParameters.JOIN_ROUND);
+    Geometry mitreZero = namedBufferOp(BufferParameters.CAP_SQUARE,
+        BufferParameters.JOIN_MITRE, 0.0);
+    assertFalse("mitreLimit 0 bevels; hero must use a real limit, not 0",
+        halo.equalsExact(mitreZero));
+
+    Geometry roundRound = namedBufferOp(BufferParameters.CAP_ROUND,
+        BufferParameters.JOIN_ROUND, BufferParameters.DEFAULT_MITRE_LIMIT);
     assertFalse("CAP_SQUARE (box) must land", halo.equalsExact(roundRound));
-    // The J 90° mitre tip (34, 74) lies on the T-bar's north offset, so
-    // a point-in-halo witness cannot separate JOIN_MITRE from JOIN_ROUND.
-    // equalsExact against the named BufferOp is the lock that mitre landed.
   }
 
   /**
@@ -116,16 +127,17 @@ public class JTSFunctionsLogoBufferTest extends TestCase {
     assertTrue("CAP_SQUARE corner (-4, 4) must land in the halo",
         halo.covers(boxCorner) || halo.intersects(boxCorner));
 
-    Geometry mitreRound = namedBufferOp(BufferParameters.CAP_ROUND, BufferParameters.JOIN_MITRE);
+    Geometry mitreRound = namedBufferOp(BufferParameters.CAP_ROUND,
+        BufferParameters.JOIN_MITRE, BufferParameters.DEFAULT_MITRE_LIMIT);
     assertFalse("round cap must not cover the box corner — otherwise the witness is dead",
         mitreRound.covers(boxCorner) || mitreRound.intersects(boxCorner));
   }
 
   /**
-   * Quiet chainsaw: BufferOp on the raw MultiCurve reads CircularString
-   * control triples as polyline chords. The S upper-bowl quarter-arc
-   * bulge, offset outward by 4, is on the named halo and off the
-   * chainsaw.
+   * Quiet chainsaw, written not flattened: BufferOp on the raw
+   * MultiCurve reads CircularString control triples as polyline
+   * chords. The S lower-bowl quarter-arc bulge, offset outward by 4,
+   * is on the named halo and off that default.
    */
   public void testNotAThreePointChordChainsaw() {
     Geometry halo = JTSFunctions.logoBuffer(null, DISTANCE);
@@ -133,7 +145,7 @@ public class JTSFunctionsLogoBufferTest extends TestCase {
 
     assertFalse("densified halo must not equal the control-point BufferOp",
         halo.equalsExact(chainsaw));
-    assertTrue("named densify must add vertices the 3-point chords cannot",
+    assertTrue("toLinear(0.0) must add vertices the 3-point chords cannot",
         halo.getNumPoints() > chainsaw.getNumPoints());
 
     // S lower bowl (ISO/IEC 13249-3 CircularString): centre (132.5, 17.5),
@@ -154,20 +166,25 @@ public class JTSFunctionsLogoBufferTest extends TestCase {
 
   // -- named BufferOp path (same densify + params the hero must use) --------
 
-  private static Geometry namedBufferOp(int capStyle, int joinStyle) {
+  private static Geometry namedBufferOp(int capStyle, int joinStyle, double mitreLimit) {
     Geometry lines = JTSFunctions.logoLines(null);
     lines = ((Linearizable) lines).toLinear(SAGITTA);
     BufferParameters bufParams = new BufferParameters();
     bufParams.setEndCapStyle(capStyle);
     bufParams.setJoinStyle(joinStyle);
+    bufParams.setMitreLimit(mitreLimit);
     return BufferOp.bufferOp(lines, DISTANCE, bufParams);
   }
 
-  /** The named quiet default: BufferOp on raw curve control points. */
+  /**
+   * The named quiet default: BufferOp on raw curve control points
+   * (what {@code bufferWithParams} does). Not the product path.
+   */
   private static Geometry rawControlPointBuffer() {
     BufferParameters bufParams = new BufferParameters();
     bufParams.setEndCapStyle(BufferParameters.CAP_SQUARE);
     bufParams.setJoinStyle(BufferParameters.JOIN_MITRE);
+    bufParams.setMitreLimit(BufferParameters.DEFAULT_MITRE_LIMIT);
     return BufferOp.bufferOp(JTSFunctions.logoLines(null), DISTANCE, bufParams);
   }
 
