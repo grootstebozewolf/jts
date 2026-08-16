@@ -55,6 +55,9 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
   /** Visible status on Escape. Exact text, including the period. */
   static final String CANCELLED_STATUS = "CurvePolygon cancelled.";
 
+  /** Click-start / double-click commit clears a prior Escape. */
+  static final String COMMIT_CLEARS_STATUS = "";
+
   private static CurvePolygonTool singleton = null;
 
   private boolean cancelling = false;
@@ -156,6 +159,7 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
       if (cancelling) {
         return;
       }
+      clearStatusOnCommit();
       if (panel() != null && panel().getGeomModel() != null) {
         panel().getGeomModel().setGeometryType(getGeometryType());
       }
@@ -370,12 +374,21 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
   /**
    * Always-on Case/PM strip via {@code setStatus}. Do not SIGN a Log
    * tab switch. Do not call {@code displayInfo} or {@code showInfoTab}.
+   * Only Escape writes {@link #CANCELLED_STATUS}.
    */
   private void showCancelled() {
     if (!JTSTestBuilderFrame.isRunning()) {
       return;
     }
     JTSTestBuilder.controller().setStatus(CANCELLED_STATUS);
+  }
+
+  /** Click-start and double-click must not leave a prior Escape on the strip. */
+  private void clearStatusOnCommit() {
+    if (!JTSTestBuilderFrame.isRunning()) {
+      return;
+    }
+    JTSTestBuilder.controller().setStatus(COMMIT_CLEARS_STATUS);
   }
 
   private void resetGestureFlags() {

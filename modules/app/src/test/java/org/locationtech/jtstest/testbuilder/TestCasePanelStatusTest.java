@@ -11,6 +11,10 @@
  */
 package org.locationtech.jtstest.testbuilder;
 
+import java.awt.Dimension;
+import java.awt.FontMetrics;
+import java.awt.GridLayout;
+
 import junit.framework.TestCase;
 import junit.textui.TestRunner;
 
@@ -43,5 +47,29 @@ public class TestCasePanelStatusTest extends TestCase {
     panel.setStatus("CurvePolygon cancelled.");
     assertEquals("status bar is the Case/PM strip, independent of Log",
         "CurvePolygon cancelled.", panel.getStatus());
+  }
+
+  public void testCancelledStatusIsNotClipped() {
+    TestCasePanel panel = new TestCasePanel();
+    assertFalse("1x4 GridLayout Case cell clips CurvePolygon cancelled.",
+        panel.statusBarPanel.getLayout() instanceof GridLayout);
+    panel.setStatus("CurvePolygon cancelled.");
+    assertEquals("CurvePolygon cancelled.", panel.getStatus());
+    FontMetrics fm = panel.lblStatus.getFontMetrics(panel.lblStatus.getFont());
+    int need = fm.stringWidth("CurvePolygon cancelled.")
+        + panel.lblStatus.getInsets().left + panel.lblStatus.getInsets().right;
+    Dimension min = panel.lblStatus.getMinimumSize();
+    assertTrue("visible label must reserve the full lock string, not a tooltip",
+        min.width >= need);
+    panel.layoutStatusBar(800);
+    assertTrue("allocated width must show CurvePolygon cancelled. including the period",
+        panel.isStatusFullyVisible());
+  }
+
+  public void testSetStatusEmptyClearsStrip() {
+    TestCasePanel panel = new TestCasePanel();
+    panel.setStatus("CurvePolygon cancelled.");
+    panel.setStatus("");
+    assertEquals("", panel.getStatus());
   }
 }

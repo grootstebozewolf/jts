@@ -65,6 +65,12 @@ public class CurvePolygonToolTest extends TestCase {
     assertEquals("CurvePolygon cancelled.", CurvePolygonTool.CANCELLED_STATUS);
   }
 
+  public void testCommitClearsPriorCancelOnStrip() {
+    assertEquals("", CurvePolygonTool.COMMIT_CLEARS_STATUS);
+    assertFalse("only Escape writes the cancel string",
+        CurvePolygonTool.CANCELLED_STATUS.equals(CurvePolygonTool.COMMIT_CLEARS_STATUS));
+  }
+
   public void testOnlyEscapeIsCancelKey() {
     assertTrue(CurvePolygonTool.isCancelKey(KeyEvent.VK_ESCAPE));
     assertFalse(CurvePolygonTool.isCancelKey(KeyEvent.VK_ENTER));
