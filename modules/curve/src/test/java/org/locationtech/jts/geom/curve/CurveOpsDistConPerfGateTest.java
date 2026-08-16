@@ -15,6 +15,7 @@ import java.util.Arrays;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.textui.TestRunner;
@@ -197,15 +198,25 @@ public class CurveOpsDistConPerfGateTest extends GeometryTestCase {
    */
   public void testCompoundConvexHullReachesBulge() throws Exception {
     Geometry hull = readCurve(COMPOUND).convexHull();
-    Geometry bulge = getGeometryFactory().createPoint(new Coordinate(
+    Coordinate bulge = new Coordinate(
         5.0 + 5.0 * Math.cos(Math.toRadians(135.0)),
-        5.0 * Math.sin(Math.toRadians(135.0))));
+        5.0 * Math.sin(Math.toRadians(135.0)));
     assertTrue("H-CC hull is a CurvePolygon, not a densified POLYGON",
         hull instanceof CurvePolygon);
     assertEquals("exact H-CC area is 50 + 12.5 acos(0.6)",
         50.0 + 12.5 * Math.acos(0.6), hull.getArea(), 1.0e-9);
-    assertEquals("bulge sits on the laser arc",
-        0.0, hull.distance(bulge), 1.0e-9);
+    LineString shell = ((CurvePolygon) hull).getExteriorCurve();
+    assertTrue(shell instanceof CompoundCurve);
+    double gap = Double.POSITIVE_INFINITY;
+    CompoundCurve cc = (CompoundCurve) shell;
+    for (int i = 0; i < cc.getNumMembers(); i++) {
+      LineString m = cc.getMemberN(i);
+      if (m instanceof CircularString && m.getNumPoints() >= 3) {
+        gap = Math.min(gap, CircularArcDensifier.distancePointToArc(
+            bulge, m.getCoordinateN(0), m.getCoordinateN(1), m.getCoordinateN(2)));
+      }
+    }
+    assertEquals("bulge sits on the laser arc", 0.0, gap, 1.0e-12);
     assertNotNull("closed form must answer; densify is not flagged exact",
         CurveExact.convexHull(readCurve(COMPOUND)));
   }

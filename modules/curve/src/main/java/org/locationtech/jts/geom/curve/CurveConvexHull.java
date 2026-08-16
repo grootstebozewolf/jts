@@ -152,7 +152,7 @@ final class CurveConvexHull {
       Cand best = bestCand(curr, currAng, riding, rideArc, inDir, points, arcs);
       if (best == null) return null;
       if (best.rideArc != null && best.sweep > ANG_EPS) {
-        ring.add(Member.arc(best.rideArc, currAng, best.leaveAng));
+        ring.add(Member.arc(best.rideArc, currAng, best.leaveAng, curr, best.leave));
         curr = best.leave;
         currAng = best.leaveAng;
       }
@@ -498,7 +498,7 @@ final class CurveConvexHull {
           // skip a collapsed arc
         }
         else {
-          members.add(m.arc.toCircularString(m.a0, m.a1, f));
+          members.add(m.arc.toCircularString(m.a0, m.a1, m.p0, m.p1, f));
           anyArc = true;
         }
       }
@@ -510,6 +510,7 @@ final class CurveConvexHull {
     }
     if (members.isEmpty()) return null;
     closeRing(members, f);
+    snapClosed(members, f);
     if (!anyArc) return null;
     LineString shell;
     if (members.size() == 1) {
@@ -530,6 +531,49 @@ final class CurveConvexHull {
           new Coordinate(lastPt), new Coordinate(first)
       }));
     }
+  }
+
+  /**
+   * Force the concatenated control points to be a closed ring. Arc
+   * endpoints come from {@code cos}/{@code sin} and will not
+   * {@code equals} the input vertex they represent, which
+   * {@link CurvePolygon} rejects when it derives the legacy
+   * {@code LinearRing}.
+   */
+  private static void snapClosed(List<LineString> members, GeometryFactory f) {
+    Coordinate first = new Coordinate(members.get(0).getCoordinateN(0));
+    for (int i = 1; i < members.size(); i++) {
+      LineString prev = members.get(i - 1);
+      Coordinate join = prev.getCoordinateN(prev.getNumPoints() - 1);
+      members.set(i, withStart(members.get(i), join, f));
+    }
+    LineString last = members.get(members.size() - 1);
+    members.set(members.size() - 1, withEnd(last, first, f));
+    members.set(0, withStart(members.get(0), first, f));
+  }
+
+  private static LineString withStart(LineString ls, Coordinate start,
+      GeometryFactory f) {
+    if (ls instanceof CircularString) {
+      Coordinate[] c = ls.getCoordinates();
+      c[0] = new Coordinate(start);
+      return new CircularString(f.getCoordinateSequenceFactory().create(c), f);
+    }
+    Coordinate[] c = ls.getCoordinates();
+    c[0] = new Coordinate(start);
+    return f.createLineString(c);
+  }
+
+  private static LineString withEnd(LineString ls, Coordinate end,
+      GeometryFactory f) {
+    if (ls instanceof CircularString) {
+      Coordinate[] c = ls.getCoordinates();
+      c[c.length - 1] = new Coordinate(end);
+      return new CircularString(f.getCoordinateSequenceFactory().create(c), f);
+    }
+    Coordinate[] c = ls.getCoordinates();
+    c[c.length - 1] = new Coordinate(end);
+    return f.createLineString(c);
   }
 
   private static boolean isFullCircle(List<Member> ring, List<Site> arcs) {
@@ -608,8 +652,8 @@ final class CurveConvexHull {
       this.p1 = p1;
     }
 
-    static Member arc(Site s, double from, double to) {
-      return new Member(s, from, to, s.at(from), s.at(to));
+    static Member arc(Site s, double from, double to, Coordinate p0, Coordinate p1) {
+      return new Member(s, from, to, new Coordinate(p0), new Coordinate(p1));
     }
 
     static Member seg(Coordinate a, Coordinate b) {
@@ -698,10 +742,13 @@ final class CurveConvexHull {
           c.y + r * Math.cos(ang) + r * Math.sin(ang));
     }
 
-    CircularString toCircularString(double from, double to, GeometryFactory f) {
+    CircularString toCircularString(double from, double to, Coordinate start,
+        Coordinate end, GeometryFactory f) {
       double sweep = normPos(to - from);
       double mid = from + 0.5 * sweep;
-      Coordinate[] pts = new Coordinate[] { at(from), at(mid), at(to) };
+      Coordinate[] pts = new Coordinate[] {
+          new Coordinate(start), at(mid), new Coordinate(end)
+      };
       return new CircularString(f.getCoordinateSequenceFactory().create(pts), f);
     }
   }
