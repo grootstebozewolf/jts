@@ -33,9 +33,9 @@ import test.jts.GeometryTestCase;
  * ring that overlaps the other shell (no crossing nodes) is
  * the same P2.3 bite. P2.5.2 is N strings: the unique union of
  * each unordered pair. P2.5.3 walks the faces of that node set.
- * P2.5.4 classifies a coincident leave-angle by signed curvature
- * or stamps {@link CurveSegmentFaces#TANGENT_LEAVE_ANGLE}.
- * Not N-SS, not a core {@code Noder}.
+ * P2.5.4 names a coincident leave-angle
+ * {@link CurveSegmentFaces#TANGENT_LEAVE_ANGLE} -- curvature
+ * order walks the wrong rings. Not N-SS, not a core {@code Noder}.
  */
 public class CurveSegmentStringTest extends GeometryTestCase {
 
@@ -501,6 +501,24 @@ public class CurveSegmentStringTest extends GeometryTestCase {
     assertN2Faces(HALF_DISC, STADIUM_FOUR);
     assertN2Faces(HALF_DISC, STADIUM_ODD);
     assertN2Faces(HALF_DISC, HALF_RIGHT);
+
+    Geometry oddA = readCurve(HALF_DISC);
+    Geometry oddB = readCurve(STADIUM_ODD);
+    List<List<CurveSegmentString>> oddGroups = Arrays.asList(
+        CurveSegmentString.of(oddA), CurveSegmentString.of(oddB));
+    assertNull("H-SHELL-N-ODD string-group stamps the tangent",
+        CurveSegmentFaces.faces(oddGroups, 16.0));
+    assertEquals("H-SHELL-N-ODD string-group stamp",
+        CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
+        CurveSegmentFaces.missReason());
+    Geometry oddFaces = CurveSegmentFaces.faces(
+        new Geometry[] { oddA, oddB });
+    Geometry oddKit = CurveSegmentFaces.pairKitFaces(oddA, oddB);
+    assertNotNull("H-SHELL-N-ODD Geometry fallback", oddFaces);
+    assertEquals("H-SHELL-N-ODD fallback area", oddKit.getArea(),
+        oddFaces.getArea(), EXACT);
+    assertNull("H-SHELL-N-ODD fallback clears the stamp",
+        CurveSegmentFaces.missReason());
   }
 
   public void testN2MixedPinchHoledFacesStayNull() throws Exception {
@@ -563,34 +581,32 @@ public class CurveSegmentStringTest extends GeometryTestCase {
 
   /**
    * HALF_DISC × HALF_HANGING × STADIUM_ODD: coincident leave-angles
-   * at the top-cap pinch. Closed-form curvature order walks them,
-   * or the miss is the named P2.5.4 stamp. Never a bare null.
+   * at the top-cap pinch. A local curvature order walks the wrong
+   * rings (H-SHELL-N-ODD pair-kit is not recovered). Named stamp,
+   * not a HotPixel, not a bare null.
    */
   public void testN3TangentLeaveAngleIsNamed() throws Exception {
     Geometry a = readCurve(HALF_DISC);
     Geometry b = readCurve(HALF_HANGING);
     Geometry c = readCurve(STADIUM_ODD);
     Geometry faces = CurveSegmentFaces.faces(new Geometry[] { a, b, c });
-    if (faces == null) {
-      assertEquals("N≥3 tangent is the named stamp",
-          CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
-          CurveSegmentFaces.missReason());
-      assertNull("permutation is the same stamp",
-          CurveSegmentFaces.faces(new Geometry[] { c, a, b }));
-      assertEquals("permutation stamp",
-          CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
-          CurveSegmentFaces.missReason());
-    }
-    else {
-      assertNull("laser has no stamp", CurveSegmentFaces.missReason());
-      assertSameArea("N=3 STADIUM_ODD permutation", faces,
-          CurveSegmentFaces.faces(new Geometry[] { c, a, b }));
-      List<List<CurveSegmentString>> groups = Arrays.asList(
-          CurveSegmentString.of(a), CurveSegmentString.of(b),
-          CurveSegmentString.of(c));
-      Geometry viaStrings = CurveSegmentFaces.faces(groups, 16.0);
-      assertSameArea("N=3 STADIUM_ODD string groups", faces, viaStrings);
-    }
+    assertNull("N≥3 tangent is the named stamp", faces);
+    assertEquals("P2.5.4 tangent leave-angle",
+        CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
+        CurveSegmentFaces.missReason());
+    assertNull("permutation is the same stamp",
+        CurveSegmentFaces.faces(new Geometry[] { c, a, b }));
+    assertEquals("permutation stamp",
+        CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
+        CurveSegmentFaces.missReason());
+    List<List<CurveSegmentString>> groups = Arrays.asList(
+        CurveSegmentString.of(a), CurveSegmentString.of(b),
+        CurveSegmentString.of(c));
+    assertNull("string-group stamp",
+        CurveSegmentFaces.faces(groups, 16.0));
+    assertEquals("string-group reason",
+        CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
+        CurveSegmentFaces.missReason());
   }
 
   public void testNoderDoesNotAssembleFaces() throws Exception {
