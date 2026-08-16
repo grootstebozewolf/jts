@@ -39,9 +39,10 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * inside ({@code H-ANNULUS-TANGENT}: internal tangent, 1 node,
  * d+r = R), or a nest that is not two certified discs
  * ({@code CC-NEST-ANNULUS}: mixed CompoundCurve stadium / half-disc
- * in a disc) -- returns {@code null} so the caller can take the chord
- * baseline without paying this path first. A CompoundCurve of only
- * CircularStrings that sweep 2π certifies as a disc and stays here.
+ * in a disc; D4 stays null, R1.7 may punch it) -- returns
+ * {@code null} so the caller can take the next rung without paying
+ * this path first. A CompoundCurve of only CircularStrings that
+ * sweep 2π certifies as a disc and stays here.
  */
 final class CircularDiscOverlay {
 

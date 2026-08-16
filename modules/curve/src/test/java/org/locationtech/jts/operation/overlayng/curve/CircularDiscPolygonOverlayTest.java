@@ -31,6 +31,8 @@ import test.jts.GeometryTestCase;
  * nodes. CAP / CUP / SUB / XOR keep the surviving arc, exact, and
  * JTS-class with the chord overlay. Anything else is {@code null} so
  * OverlayNGCurve can take R2 without paying this path first.
+ * A covering square minus a concentric disc has 0 line–circle
+ * nodes ({@code R1.6-honesty}): keep the miss, do not punch.
  */
 public class CircularDiscPolygonOverlayTest extends GeometryTestCase {
 
@@ -123,6 +125,30 @@ public class CircularDiscPolygonOverlayTest extends GeometryTestCase {
     assertEquals("tri ∩ disc matches disc ∩ tri",
         OverlayNGCurve.intersection(disc, tri).getArea(),
         revCap.getArea(), EXACT);
+  }
+
+  /**
+   * R1.6-honesty KEEP. Covering square minus CIRCLE_3 has 0
+   * line–circle nodes, so this cell misses. Public overlay stays
+   * the chordsaw. Not a disc-in-square nest punch. Not D4
+   * (Phase 0 two-disc SUB is the 16π annulus). Two-node / even-n
+   * disc-vs-plain stays exact on the other rows.
+   */
+  public void testCoveringSquareMinusDiscIsHonestyKeep() throws Exception {
+    Geometry square = readCurve(
+        "POLYGON ((-6 -6, 6 -6, 6 6, -6 6, -6 -6))");
+    Geometry inner = readCurve(
+        "CURVEPOLYGON (CIRCULARSTRING (-3 0, 0 3, 3 0, 0 -3, -3 0))");
+    assertNull("R1.6-honesty: 0 line–circle nodes, not a punch",
+        CircularDiscPolygonOverlay.overlay(square, inner, OverlayNG.DIFFERENCE));
+    assertNull("R1.6-honesty: reverse is the same miss",
+        CircularDiscPolygonOverlay.overlay(inner, square, OverlayNG.DIFFERENCE));
+
+    OverlayNGCurve sub = new OverlayNGCurve(square, inner);
+    Geometry saw = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("the chordsaw still answers", saw.isEmpty());
+    assertTrue("R1.6-honesty: public SUB stays the chordsaw",
+        sub.isApproximate());
   }
 
   public void testNotDiscAndPlainPolygonReturnsNull() throws Exception {
