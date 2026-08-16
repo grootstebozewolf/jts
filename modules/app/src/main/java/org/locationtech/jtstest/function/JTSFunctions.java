@@ -65,19 +65,30 @@ public class JTSFunctions
   }
   
   /**
-   * Buffers the logo the same way as before ({@link BufferOp} + square
-   * caps). The curve result is linearised first so the buffer sees the
-   * arcs rather than their control-point chords; that densify is not
-   * claimed exact.
+   * Hero halo for the JTS wordmark: one {@link BufferOp} on the whole
+   * linearized ISO/IEC 13249-3 {@code MultiCurve} (J + T-stem +
+   * T-crossbar + S). Named linear fallback / CHORD-PATH / NAMED-APPROX
+   * — {@code BufferOp} consumes coordinates as chords, so arcs are
+   * densified first at a sagitta tied to the buffer distance. Not a
+   * laser. Not clothoid. Never claimed exact.
+   * <p>
+   * Distance, {@link BufferParameters#JOIN_MITRE} and
+   * {@link BufferParameters#CAP_SQUARE} (box caps) all apply. Do not
+   * union the letters in {@link #logoLines} — overlay linearises.
    */
   public static Geometry logoBuffer(Geometry g, double distance)
   {
     Geometry lines = logoLines(g);
+    // NAMED-APPROX / CHORD-PATH: Linearizable 0.0 selects the
+    // implementation default sagitta (1% of radius), not "no densify".
+    // Tie chord error to the offset so it cannot show up in the halo.
+    double sagitta = Math.max(0.001, Math.abs(distance) / 100.0);
     if (lines instanceof Linearizable) {
-      lines = ((Linearizable) lines).toLinear(0.0);
+      lines = ((Linearizable) lines).toLinear(sagitta);
     }
     BufferParameters bufParams = new BufferParameters();
-    bufParams.setEndCapStyle(BufferParameters.CAP_SQUARE);   
+    bufParams.setEndCapStyle(BufferParameters.CAP_SQUARE);
+    bufParams.setJoinStyle(BufferParameters.JOIN_MITRE);
     return BufferOp.bufferOp(lines, distance, bufParams);
   }
   
