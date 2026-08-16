@@ -61,7 +61,7 @@ Make JTS preserve OGC SFA / ISO 19125-2 curve geometries — `CIRCULARSTRING`, `
 | `feat:` | **R-PR DE-9IM** for disc vs Point, LineString, hole-free Polygon, and two discs. Point: interior `0F2FF1FF2`, boundary `FF20F1FF2`, exterior `FF2FF10F2`. Line: crossing `1F20F1102`, tangent `FF20F1102`, miss `FF2FF1102`, endpoint-interior `1020F1102`. Polygon: disjoint `FF2FF1212`, nested `212FF1FF2`, disc-in-square `2FF1FF212`, crossing `212101212`. Two discs: crossing `212101212`, disjoint `FF2FF1212`, nested `212FF1FF2` / `2FF1FF212`, ext tangent `FF2F01212`, int tangent `212F01FF2`, equal `2FFF1FFF2`. Finish slice: single-member MultiSurface both orders; `equalsTopo` on equal/crossing/rotated-control discs; full SFS table; `crosses` of two areas always false. Half-disc / CompoundCurve miss still null → linearise. | **R-PR partial**. Not “any combination of curved/flat”. Do not delete `test_R_PR_*` / `test_R_CONT_*`. |
 | `feat:` | Distance closed-form helpers in `CurveExact` (arc-to-segment, overlapping discs `nearestPoints` 0, `decideTolerance` arc-aware). | Helpers only. **D-PT / D-AA / D-OP** still describe the public `DistanceOp` TAG — keep those spec methods red. |
 | `feat:` | Disc / arc convex hull closed forms. | **H-CV partial**. **H-CC** still open. |
-| `feat:` | TestBuilder `CurveExactFns` Hausdorff laser. Public `DiscreteHausdorffDistance` still sees chords in general. Closed-form exception (two pairs only, owned via `getGeometryType()`): (1) single-arc `CircularString` → single-segment `LineString`, (2) two circular discs. A single-member `MultiSurface` of one disc is the same two-disc pair (unwrap via `circularDisc`), not a third pair. Witness √949/6 − 7/6. Do not claim public Hausdorff is generally closed-form. | **D-HF half-red**. Keep the spec method. |
+| `feat:` | TestBuilder `CurveExactFns` Hausdorff laser. Public `DiscreteHausdorffDistance` still sees chords in general. `DiscreteHausdorffDistance` on #7 has closed-form for two pairs only: single-arc `CircularString` → single-segment `LineString` (apex √949/6 − 7/6 ≈ 3.967641), and two circular discs. A single-member `MultiSurface` of one disc is the same pair, not a third. Exact path skips densify; densify 0.05 is not the laser. Keep the spec `fail()`. | **D-HF half-red**. Keep the spec method. |
 | `feat:` | Disc `CurvePolygon` area 25π. | **M-AREA-CP partial** (circular discs). Keep the spec method. |
 | `arch:` | PERF-GATE: identity/chord-path rows use `assertChordPath`; slack stays **15%** (`1.15`). | Contract, not a TAG. |
 
@@ -69,7 +69,7 @@ These closed-form subsets of **OV** and **R-PR** did **not** wait for N-SS. Line
 
 **Still open** (say so, do not close as “future work” a TAG that already has a named subset):
 
-- Public `DiscreteHausdorffDistance` (D-HF) — still sees chords in general; TestBuilder laser only. Closed-form exception: the two locked pairs above (witness √949/6 − 7/6). A single-member `MultiSurface` of one disc is the same two-disc pair (unwrap), not a third pair. Fréchet still open.
+- Public `DiscreteHausdorffDistance` (D-HF) — still sees chords in general; TestBuilder laser only. `DiscreteHausdorffDistance` on #7 has closed-form for two pairs only: single-arc `CircularString` → single-segment `LineString` (apex √949/6 − 7/6 ≈ 3.967641), and two circular discs. A single-member `MultiSurface` of one disc is the same pair, not a third.
 - General circular noding / CompoundCurve overlay (N-AA, N-AL, N-SS, rest of OV)
 - Open-arc buffer, CompoundCurve hull, Fréchet, LEC
 - OFF = concentric arc (refactor)
@@ -199,7 +199,7 @@ Mirror the `CompoundCurve` work onto the remaining composite types.
 
 - **D-PT / D-AA** — analytical point-arc and arc-arc distance. Closed-form helpers exist in `CurveExact`; the public `DistanceOp` TAG is still red.
 - **D-OP** — `DistanceOp` accepts curved inputs without forced densification. Still the public TAG; keep the spec method.
-- **D-HF** — `DiscreteHausdorffDistance` / `DiscreteFrechetDistance` parameterise by arc length. **Partial (half-red):** public DHD still sees chords in general; TestBuilder `CurveExactFns` laser only. Closed-form exception (two pairs only, owned by public `DiscreteHausdorffDistance` via `getGeometryType()`): (1) single-arc `CircularString` → single-segment `LineString`, (2) two circular discs. A single-member `MultiSurface` of one disc is the same two-disc pair (unwrap via `circularDisc`), not a third pair. Witness √949/6 − 7/6. Do not claim public Hausdorff is generally closed-form. Keep the spec method. Fréchet is still open.
+- **D-HF** — **Partial (half-red):** public DHD still sees chords in general; TestBuilder `CurveExactFns` laser only. `DiscreteHausdorffDistance` on #7 has closed-form for two pairs only: single-arc `CircularString` → single-segment `LineString` (apex √949/6 − 7/6 ≈ 3.967641), and two circular discs. A single-member `MultiSurface` of one disc is the same pair, not a third. Exact path skips densify; densify 0.05 is not the laser. Keep the spec `fail()`.
 - **C-LIN / C-AREA / C-IP** — centroids and interior point.
 
 **Depends on:** Phase 1 (F-CP for `CurvePolygon` cases).

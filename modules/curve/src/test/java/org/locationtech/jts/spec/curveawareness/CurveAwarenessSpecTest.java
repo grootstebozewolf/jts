@@ -261,44 +261,39 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
    *   B = LINESTRING (0 0, 10 0)   // the chord / diameter baseline
    * </pre>
    * Oriented Hausdorff {@code h(A,B) = max_{a in A} min_{b in B} d(a,b)} is the
-   * max height of A above B. On the true circular arc the apex is
-   * {@code √949/6 − 7/6} (circle centre {@code (5, -7/6)}, r = √949/6), so
-   * continuous {@code h(A,B)} is that APEX (≈ 3.96764). Public
-   * {@code DiscreteHausdorffDistance} now owns this locked pair (and two
-   * circular discs) via {@code getGeometryType()}, so both
-   * {@code orientedDistance} and densify 0.05 measure APEX — not the stale
-   * mid-control {@code h = 3}. That exception is not the full TAG: public DHD
-   * still sees chords in general; TestBuilder laser only; Fréchet still open.
-   * Keep this method. Do not delete it because the witness pair now hits APEX.
-   * <p>
-   * Spec: densify / sample along <em>arc length</em> (uniform sweep) for the
-   * general case, so the discrete max-min approaches the continuous directed
-   * Hausdorff. Same gap applies to {@code DiscreteFrechetDistance}.
+   * max height of A above B. {@code DiscreteHausdorffDistance} on #7 has
+   * closed-form for two pairs only: single-arc {@code CircularString} →
+   * single-segment {@code LineString} (apex {@code √949/6 − 7/6} ≈ 3.967641),
+   * and two circular discs. A single-member {@code MultiSurface} of one disc
+   * is the same pair, not a third. The exact path owns APEX and skips densify;
+   * densify 0.05 is not the laser. Stale mid-control {@code h = 3} is retired.
+   * That exception is not the full TAG: public DHD still sees chords in
+   * general. Keep this {@code fail()}.
    */
   public void test_D_HF_hausdorffFrechetCurveAware() throws Exception {
     Geometry arc = read("CIRCULARSTRING (0 0, 2 3, 10 0)");
     Geometry baseline = read("LINESTRING (0 0, 10 0)");
 
-    // Continuous directed Hausdorff (analytic apex of the circle through the
-    // three control points, relative to the x-axis baseline): √949/6 − 7/6.
-    final double expectedContinuous = 3.96764;
+    // Apex of the locked pair: √949/6 − 7/6. Exact path owns this; densifyFrac
+    // is skipped on this pair (not the laser).
+    final double expectedContinuous = 3.967641;
     final double tol = 1e-3;
 
-    double controlOnly =
+    double exactPath =
         DiscreteHausdorffDistance.orientedDistance(arc, baseline);
-    double chordDensified =
+    double densifyCall =
         DiscreteHausdorffDistance.orientedDistance(arc, baseline, 0.05);
 
-    // Full-TAG ratchet: always fail with measured numbers. This locked pair
-    // now measures APEX, not mid-control h=3. Keep the method — public DHD
-    // still sees chords in general; Fréchet still open. Do not delete on APEX.
-    fail("D-HF: full TAG still open (arc-length sample in general; Fréchet still open). "
-        + "Locked pair CIRCULARSTRING(0 0, 2 3, 10 0) vs LINESTRING(0 0, 10 0) is the "
-        + "closed-form exception: orientedDistance got " + controlOnly
-        + ", densify(frac=0.05) got " + chordDensified
-        + " — both now APEX √949/6 − 7/6 ≈ " + expectedContinuous
-        + " (±" + tol + "; stale h=3 claim retired; public DHD still sees chords "
-        + "on other pairs; TestBuilder laser only).");
+    // Full-TAG ratchet: always fail. Exact path owns APEX; densify is skipped
+    // on this pair, not the laser. Stale h=3 retired. Keep this fail().
+    fail("D-HF: full TAG still open. Public DiscreteHausdorffDistance still sees chords in general. "
+        + "DiscreteHausdorffDistance on #7 has closed-form for two pairs only: "
+        + "single-arc CircularString → single-segment LineString "
+        + "(apex √949/6 − 7/6 ≈ " + expectedContinuous + "), and two circular discs. "
+        + "A single-member MultiSurface of one disc is the same pair, not a third. "
+        + "Exact path owns APEX (orientedDistance got " + exactPath
+        + "); densifyFrac is skipped on this pair (call returned " + densifyCall
+        + ", not the laser). Stale h=3 retired. Keep this fail() (±" + tol + ").");
   }
 
   // ============================================================
