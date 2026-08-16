@@ -27,6 +27,14 @@ Distributions for older JTS versions can be obtained at the
 * Add `MinimumBoundingTriangle` (#1160)
 * Add `DirectedHausdorffDistance` class (#1182)
 
+### SQL-MM / SFA Curves
+
+* Add `CircularString`, `CompoundCurve`, `CurvePolygon`, `MultiCurve`, and `MultiSurface` in `jts-curve` via opt-in `CurveGeometryFactory` (#1195)
+* Read ISO WKB types 8–12 in core `WKBReader`; write them via `CurveWKBWriter` (bare `WKBWriter` still emits type 2/3)
+* Add `OverlayNGCurve` closed-form overlay for certified circular pairs (not a public noder)
+* Closed-form hull for discs, single arcs, and circular-plus-straight members; stadium `MaximumInscribedCircle`; point-site `LargestEmptyCircle` candidates
+* `DiscreteHausdorffDistance` closed-form for two pairs only (single-arc vs single segment; two discs); public DHD still sees chords in general
+
 ### Functionality Improvements
 
 * Improve `DouglasPeuckerSimplifier` to preserve XYZM coordinates (#1045)
@@ -79,6 +87,7 @@ Distributions for older JTS versions can be obtained at the
 * Add Layer style presets
 * Add Layer List Zoom to Geometry button
 * Add Layer List Copy Geometry button
+* Draw CircularString, CompoundCurve, and CurvePolygon; WKT apply via `CurveWKTReader` (#1195)
 
 ### Bug Fixes
 
