@@ -31,13 +31,18 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * First face walk: bite versus hole. One predicate -- if the new
  * edge of {@code hole ∩ other} is a subset of the other shell, it
  * is a bite, not an interior punch ({@code H-SHELL-HOLE-CROSS}).
+ * A hole that does not cross, but whose ring overlaps the other
+ * shell ({@code H-SHELL-HOLE-OUTER}: hole-edge ⊂ other.shell),
+ * is the same bite. {@link CurveSegmentNoder#edges} already names
+ * that shared run; there are no crossing nodes.
  * <p>
- * The noder already names the two hole–shell nodes. This rung walks
- * those into the clip edge on the other shell. Overlay then splices
- * the bite (SUB / XOR face) or punches the leftover hole. Two holes
- * that cross ({@code H-SHELL-HOLE-X}) are {@link TwoHoleOverlay}.
- * A pair this walk cannot certify keeps the named miss. Not a
- * noder, not N-SS.
+ * The noder already names the two hole–shell nodes of a straddle.
+ * This rung walks those into the clip edge on the other shell, or
+ * walks the shared edge when the hole sits entirely in the solid.
+ * Overlay then splices the bite (SUB / XOR face) or punches the
+ * leftover hole. Two holes that cross ({@code H-SHELL-HOLE-X})
+ * are {@link TwoHoleOverlay}. A pair this walk cannot certify
+ * keeps the named miss. Not a noder, not N-SS.
  */
 final class BiteVsHole {
 
@@ -68,6 +73,9 @@ final class BiteVsHole {
     if (opCode == OverlayNG.UNION) {
       Geometry cup = CompoundCurveShellOverlay.overlay(
           firstOuter, secondOuter, OverlayNG.UNION);
+      if (walk.leftover == null || walk.leftover.isEmpty()) {
+        return cup;
+      }
       return punch(cup, walk.leftover, f);
     }
     if (opCode == OverlayNG.DIFFERENCE) {
@@ -154,19 +162,22 @@ final class BiteVsHole {
     List<TwoNodeClip.Edge> shell = TwoNodeClip.flatten(solid);
     if (shell == null) return null;
     Coordinate[] ring = hole.getCoordinates();
-    List<TwoNodeClip.Node> nodes = TwoNodeClip.nodesVsPolygon(shell, ring);
-    if (nodes == null || nodes.size() != 2) return null;
     double scale = scaleOf(holed, solid);
-    if (nodes.get(0).pt.distance(nodes.get(1).pt)
-        < TwoNodeClip.PROPER_CROSS_FRAC * scale) {
-      return null;
-    }
-
     List<CurveSegmentString> holeStr = CurveSegmentString.of(hole);
     List<CurveSegmentString> shellStr = CurveSegmentString.of(solid);
     if (holeStr == null || shellStr == null) return null;
     Coordinate[] named = CurveSegmentNoder.nodes(holeStr, shellStr, scale);
-    if (named == null || named.length != 2) return null;
+    if (named != null && named.length != 2) return null;
+    if (named == null) {
+      return walkSharedEdge(holed, solid, hole, holedFirst, scale, f);
+    }
+
+    List<TwoNodeClip.Node> nodes = TwoNodeClip.nodesVsPolygon(shell, ring);
+    if (nodes == null || nodes.size() != 2) return null;
+    if (nodes.get(0).pt.distance(nodes.get(1).pt)
+        < TwoNodeClip.PROPER_CROSS_FRAC * scale) {
+      return null;
+    }
 
     TwoNodeClip.Node n0 = nodes.get(0);
     TwoNodeClip.Node n1 = nodes.get(1);
@@ -226,6 +237,151 @@ final class BiteVsHole {
     w.leftover = leftover;
     w.scale = scale;
     return w;
+  }
+
+  /**
+   * Hole-edge ⊂ other.shell, no crossing nodes. P2.2 already names
+   * the shared run. The hole sits entirely in the solid, so the
+   * shared edge is the clip and the rest of the ring is a bite.
+   * CUP is the outer union: the solid fills the hole.
+   */
+  private static Walk walkSharedEdge(CurvePolygon holed, CurvePolygon solid,
+      LineString hole, boolean holedFirst, double scale, GeometryFactory f) {
+    List<CurveSegmentString> holeStr = CurveSegmentString.of(hole);
+    List<CurveSegmentString> shellStr = CurveSegmentString.of(solid);
+    if (holeStr == null || shellStr == null) return null;
+    List<CurveSegmentString> shared = CurveSegmentNoder.edges(holeStr,
+        shellStr, scale);
+    CurveSegmentString run = singleChord(shared, scale);
+    if (run == null) return null;
+    if (TwoNodeClip.locateInShell(run.getStart(), solid) != TwoNodeClip.MIXED) {
+      return null;
+    }
+    if (TwoNodeClip.locateInShell(run.getEnd(), solid) != TwoNodeClip.MIXED) {
+      return null;
+    }
+
+    Coordinate[] ring = hole.getCoordinates();
+    List<Coordinate> pq = TwoNodeClip.walkRing(ring, run.getStart(),
+        run.getEnd());
+    List<Coordinate> qp = TwoNodeClip.walkRing(ring, run.getEnd(),
+        run.getStart());
+    if (pq == null || qp == null) return null;
+    int pqSide = sideOfShell(pq, solid);
+    int qpSide = sideOfShell(qp, solid);
+    List<Coordinate> holeIn = null;
+    List<Coordinate> holeOut = null;
+    if (pqSide == TwoNodeClip.IN && isOnShellWalk(qp, run, scale)) {
+      holeIn = pq;
+      holeOut = qp;
+    }
+    else if (qpSide == TwoNodeClip.IN && isOnShellWalk(pq, run, scale)) {
+      holeIn = qp;
+      holeOut = pq;
+    }
+    if (holeIn == null || holeOut == null) return null;
+    if (!holeInteriorInSolid(ring, run, solid, scale)) return null;
+
+    Coordinate p = holeIn.get(0);
+    Coordinate q = holeIn.get(holeIn.size() - 1);
+    List<LineString> newEdge = new ArrayList<LineString>();
+    newEdge.add(f.createLineString(new Coordinate[] {
+        new Coordinate(run.getStart()), new Coordinate(run.getEnd())
+    }));
+    List<LineString> oriented = directed(newEdge, q, p, scale, f);
+    if (oriented == null) return null;
+    if (lengthOf(oriented) <= TwoNodeClip.PROPER_CROSS_FRAC * scale) {
+      return null;
+    }
+
+    Geometry bite = closePlain(holeIn, oriented, f, scale);
+    if (bite == null) return null;
+    Walk w = new Walk();
+    w.kind = BITE;
+    w.holed = holed;
+    w.solid = solid;
+    w.holedFirst = holedFirst;
+    w.holeIn = holeIn;
+    w.holeOut = holeOut;
+    w.newEdge = oriented;
+    w.p = p;
+    w.q = q;
+    w.bite = bite;
+    w.leftover = f.createEmpty(2);
+    w.scale = scale;
+    return w;
+  }
+
+  private static CurveSegmentString singleChord(
+      List<CurveSegmentString> shared, double scale) {
+    if (shared == null) return null;
+    CurveSegmentString found = null;
+    boolean two = false;
+    for (int i = 0; i < shared.size() && !two; i++) {
+      CurveSegmentString e = shared.get(i);
+      if (e.isArc() || e.isDegenerate()) {
+        continue;
+      }
+      if (e.length() <= TwoNodeClip.PROPER_CROSS_FRAC * scale) {
+        continue;
+      }
+      if (found != null) {
+        two = true;
+      }
+      else {
+        found = e;
+      }
+    }
+    return two ? null : found;
+  }
+
+  private static boolean isOnShellWalk(List<Coordinate> path,
+      CurveSegmentString run, double scale) {
+    if (path == null || path.size() != 2) return false;
+    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12);
+    return onRun(path.get(0), run, eps) && onRun(path.get(1), run, eps);
+  }
+
+  private static boolean holeInteriorInSolid(Coordinate[] ring,
+      CurveSegmentString run, CurvePolygon solid, double scale) {
+    if (ring == null || ring.length < 4) return false;
+    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12);
+    int n = ring.length;
+    if (ring[0].equals2D(ring[n - 1])) {
+      n--;
+    }
+    if (n < 3) return false;
+    boolean ok = true;
+    for (int i = 0; i < n && ok; i++) {
+      if (onRun(ring[i], run, eps)) {
+        continue;
+      }
+      if (TwoNodeClip.locateInShell(ring[i], solid) != TwoNodeClip.IN) {
+        ok = false;
+      }
+    }
+    for (int i = 0; i < n && ok; i++) {
+      Coordinate a = ring[i];
+      Coordinate b = ring[(i + 1) % n];
+      if (onRun(a, run, eps) && onRun(b, run, eps)) {
+        continue;
+      }
+      Coordinate mid = new Coordinate(0.5 * (a.x + b.x), 0.5 * (a.y + b.y));
+      if (TwoNodeClip.locateInShell(mid, solid) != TwoNodeClip.IN) {
+        ok = false;
+      }
+    }
+    return ok;
+  }
+
+  private static boolean onRun(Coordinate p, CurveSegmentString run,
+      double eps) {
+    if (p.distance(run.getStart()) <= eps || p.distance(run.getEnd()) <= eps) {
+      return true;
+    }
+    double t = TwoNodeClip.parameter(run.getStart(), run.getEnd(), p);
+    if (t < -1.0e-12 || t > 1.0 + 1.0e-12) return false;
+    return onChord(p, run.getStart(), run.getEnd());
   }
 
   /**
@@ -424,6 +580,7 @@ final class BiteVsHole {
   private static Geometry punch(Geometry solid, Geometry hole, GeometryFactory f) {
     if (solid == null || hole == null) return null;
     if (solid.isEmpty()) return solid;
+    if (hole.isEmpty()) return solid;
     if (solid.getNumGeometries() != 1) return null;
     Geometry g = solid.getGeometryN(0);
     LineString ring = asHoleRing(hole, f);

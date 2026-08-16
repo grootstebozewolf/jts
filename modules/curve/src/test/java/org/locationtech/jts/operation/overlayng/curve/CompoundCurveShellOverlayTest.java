@@ -38,7 +38,9 @@ import test.jts.GeometryTestCase;
  * composes when it sits strictly inside or outside a certified
  * outer CAP. A hole that straddles the other shell shares the
  * clip edge: if that new edge is a subset of the other shell
- * it is a bite, not an interior punch. Two holes that cross
+ * it is a bite, not an interior punch. A hole that does not
+ * cross but whose ring overlaps the other shell is the same
+ * bite. Two holes that cross
  * on the same outer are the two-hole arrangement. A
  * three-point LineString is not an arc. Collinear overlap
  * and mixed labels stay {@code null} so OverlayNGCurve can
@@ -727,22 +729,89 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
     assertParity(holed, holeX, OverlayNG.SYMDIFFERENCE, x);
   }
 
+  /**
+   * H-SHELL-HOLE-OUTER: the hole sits entirely in the other solid
+   * and its ring overlaps the other diameter. Not two crossing
+   * nodes -- P2.2 names (0 1)–(0 2) as an edge. Same bite
+   * predicate as HOLE-CROSS (hole-edge ⊂ other.shell). CUP is
+   * the three-quarter: the solid fills the hole.
+   */
+  public void testHoleMeetsTheOtherDiameterIsABite() throws Exception {
+    Geometry holed = readCurve(HALF_HOLED);
+    Geometry right = readCurve(HALF_RIGHT);
+    assertEquals("hole-edge ⊂ other.shell is a bite", BiteVsHole.BITE,
+        BiteVsHole.decide(holed, right));
+    CurveSegmentString clip = BiteVsHole.clipEdge(holed, right);
+    assertNotNull("clip edge is the shared diameter run", clip);
+    assertFalse(clip.isArc());
+    assertFalse(clip.isDegenerate());
+    assertEquals(1.0, clip.length(), EXACT);
+    assertTrue("clip edge (0 1)–(0 2)",
+        (clip.getStart().distance(new Coordinate(0, 1)) <= EXACT
+            && clip.getEnd().distance(new Coordinate(0, 2)) <= EXACT)
+        || (clip.getStart().distance(new Coordinate(0, 2)) <= EXACT
+            && clip.getEnd().distance(new Coordinate(0, 1)) <= EXACT));
+
+    OverlayNGCurve cap = new OverlayNGCurve(holed, right);
+    Geometry q = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-HOLE-OUTER hole-on-diameter CAP is exact",
+        cap.isApproximate());
+    assertEquals("Q1 minus the rectangle", 6.25 * Math.PI - 1.0,
+        q.getArea(), EXACT);
+    assertEquals("bite is a shell, not an interior ring", 0,
+        ((CurvePolygon) q).getNumInteriorRing());
+    assertArcAndLineShell(q);
+    assertParity(holed, right, OverlayNG.INTERSECTION, q);
+
+    OverlayNGCurve cup = new OverlayNGCurve(holed, right);
+    Geometry u = cup.getResult(OverlayNG.UNION);
+    assertFalse("H-SHELL-HOLE-OUTER hole-on-diameter CUP is exact",
+        cup.isApproximate());
+    assertEquals("three-quarter; the solid fills the hole",
+        18.75 * Math.PI, u.getArea(), EXACT);
+    assertEquals("CUP has no leftover hole", 0,
+        ((CurvePolygon) u).getNumInteriorRing());
+    assertParity(holed, right, OverlayNG.UNION, u);
+
+    OverlayNGCurve sub = new OverlayNGCurve(holed, right);
+    Geometry ears = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("H-SHELL-HOLE-OUTER hole-on-diameter SUB is exact",
+        sub.isApproximate());
+    assertEquals("Q2; the hole was entirely in the other",
+        6.25 * Math.PI, ears.getArea(), EXACT);
+    assertEquals("SUB is a shell", 0,
+        ((CurvePolygon) ears).getNumInteriorRing());
+    assertParity(holed, right, OverlayNG.DIFFERENCE, ears);
+
+    OverlayNGCurve rev = new OverlayNGCurve(right, holed);
+    Geometry other = rev.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("H-SHELL-HOLE-OUTER hole-on-diameter reverse SUB is exact",
+        rev.isApproximate());
+    assertEquals("Q4 plus the rectangle", 6.25 * Math.PI + 1.0,
+        other.getArea(), EXACT);
+    assertParity(right, holed, OverlayNG.DIFFERENCE, other);
+
+    OverlayNGCurve xor = new OverlayNGCurve(holed, right);
+    Geometry x = xor.getResult(OverlayNG.SYMDIFFERENCE);
+    assertFalse("H-SHELL-HOLE-OUTER hole-on-diameter XOR is exact",
+        xor.isApproximate());
+    assertEquals("both ears plus the rectangle", 12.5 * Math.PI + 1.0,
+        x.getArea(), EXACT);
+    assertParity(holed, right, OverlayNG.SYMDIFFERENCE, x);
+  }
+
   public void testNotThisCellReturnsNull() throws Exception {
     Geometry half = readCurve(HALF_DISC);
     Geometry disc = readCurve(CIRCLE_5);
     Geometry other = readCurve(CIRCLE_CROSSING);
     Geometry square = readCurve(SQUARE_CAP);
     Geometry chords = readCurve(CHORD_SHELL);
-    Geometry holed = readCurve(HALF_HOLED);
-    Geometry right = readCurve(HALF_RIGHT);
     Geometry onDiameter = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, 0 2, 1 1), (1 1, 1 0), (1 0, -1 0), (-1 0, -1 1)))");
     assertNull("two discs stay on R1.5",
         CompoundCurveShellOverlay.overlay(disc, other, OverlayNG.INTERSECTION));
     assertNull("plain vs plain",
         CompoundCurveShellOverlay.overlay(square, square, OverlayNG.UNION));
-    assertNull("H-SHELL-HOLE-OUTER: hole meets the other diameter",
-        CompoundCurveShellOverlay.overlay(holed, right, OverlayNG.INTERSECTION));
     // Collinear overlap is not a discrete node set; no cheap closed
     // form without a noder.
     assertNull("H-SHELL-N-MIXED: collinear overlap stays refused",

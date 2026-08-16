@@ -375,8 +375,12 @@ public class CircularArcOverlayTest extends GeometryTestCase {
     assertEquals("small half minus hole", 4.5 * Math.PI - 1.0,
         punched.getArea(), EXACT);
 
-    assertNull("H-SHELL-HOLE-OUTER: hole meets the other diameter",
-        CompoundCurveShellOverlay.overlay(holed, right, OverlayNG.INTERSECTION));
+    OverlayNGCurve diameterCap = new OverlayNGCurve(holed, right);
+    Geometry diameterBite = diameterCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-HOLE-OUTER: hole meets the other diameter",
+        diameterCap.isApproximate());
+    assertEquals("Q1 minus the rectangle", 6.25 * Math.PI - 1.0,
+        diameterBite.getArea(), EXACT);
     Geometry straddle = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (-1 1, 1 1, 1 2, -1 2, -1 1))");
     OverlayNGCurve crossCap = new OverlayNGCurve(straddle, right);

@@ -332,6 +332,14 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
     assertRow("two-hole cross reverse", HOLE_X, HALF_HOLED, "EEEE");
   }
 
+  public void testMatrix_holeMeetsDiameter() throws Exception {
+    assertRow("hole meets diameter", HALF_HOLED, HALF_RIGHT, "EEEE");
+  }
+
+  public void testMatrix_holeMeetsDiameterReverse() throws Exception {
+    assertRow("hole meets diameter reverse", HALF_RIGHT, HALF_HOLED, "EEEE");
+  }
+
   // -- the disjoint CUP/XOR result, not just its exactness -----------------
 
   /**
