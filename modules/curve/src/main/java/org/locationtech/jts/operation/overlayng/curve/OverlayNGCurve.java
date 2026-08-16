@@ -129,6 +129,16 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     angular-interval overlay on that circle. A three-point
  *     LineString, or 3+ nodes on one sweep window of different
  *     circles, return {@code null} without paying this path.</li>
+ * <li><b>R-OV</b> -- OverlayNG-for-circles. A leftover pair of mixed
+ *     CompoundCurve shells whose only shared run is a collinear
+ *     overlap (H-SHELL-N-MIXED) is converted onto core
+ *     {@code CircularNodedSegmentString}, noded by OverlayNG's
+ *     {@code Noder} entry, and assembled as a named exact area
+ *     (operand or holed shell). Closed form; no densification. A
+ *     proper crossing, {@code CC-NEST-ANNULUS}, or the P2.5.4
+ *     tangent stamp returns {@code null} without paying this
+ *     path. R1.5–R1.7 / R-LL / R-AA stay in charge of cells they
+ *     already laser.</li>
  * <li>Otherwise, densify both at the ops tolerance and delegate to core,
  *     flagging the result approximate (<b>R2</b>). This <em>is</em> the chord
  *     baseline.</li>
@@ -245,7 +255,8 @@ public class OverlayNGCurve {
    * certified outer clip, a straddling hole whose new edge is a
    * subset of the other shell (a bite, not a punch), and an even
    * 4+ line–circle cut of a disc
-   * by a plain polygon. In
+   * by a plain polygon, and a MIXED-diameter leftover
+   * (H-SHELL-N-MIXED) noded by OverlayNG-for-circles. In
    * the R1 case the <em>answer</em> is exact even though the <em>decision</em>
    * to return it was made on densified copies.
    * <p>
@@ -287,6 +298,9 @@ public class OverlayNGCurve {
 
     Geometry arcClip = CircularArcOverlay.overlay(a, b, opCode); // R-AA
     if (arcClip != null) return arcClip;
+
+    Geometry ovCircles = OverlayNGCircle.overlay(a, b, opCode); // R-OV
+    if (ovCircles != null) return ovCircles;
 
     // R2. The chord baseline: densify at the ops tolerance and run core.
     // Approximate only if something was actually densified: for operands with

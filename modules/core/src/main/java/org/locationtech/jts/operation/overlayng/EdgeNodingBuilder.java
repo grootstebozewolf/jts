@@ -412,7 +412,34 @@ class EdgeNodingBuilder {
   
   private void addEdge(Coordinate[] pts, EdgeSourceInfo info) {
     NodedSegmentString ss = new NodedSegmentString(pts, info);
+    addEdge(ss);
+  }
+
+  /**
+   * Accepts a prepared {@link NodedSegmentString}, including a
+   * {@link org.locationtech.jts.noding.CircularNodedSegmentString}
+   * whose {@code [i, i+1]} may be an arc. OverlayNGCurve converts
+   * CircularString / CompoundCurve at this boundary so core does
+   * not depend on jts-curve.
+   *
+   * @param ss the extracted edge (may be circular)
+   */
+  void addEdge(NodedSegmentString ss) {
+    if (ss == null) {
+      return;
+    }
     inputEdges.add(ss);
+  }
+
+  /**
+   * Nodes prepared edges and merges them. Skips geometry extract;
+   * the caller already supplied {@link #addEdge(NodedSegmentString)}.
+   *
+   * @return the noded, merged, labelled edges
+   */
+  List<Edge> buildPrepared() {
+    List<Edge> nodedEdges = node(inputEdges);
+    return EdgeMerger.merge(nodedEdges);
   }
 
   /**
