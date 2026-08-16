@@ -200,9 +200,9 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
   /**
    * Mixed CompoundCurve nest (stadium in a CircularString disc) is
    * not two certified discs. D4 stays null. R1.7 punches it
-   * (P2.3 cousin, not a noder): CAP the stadium, CUP the disc,
-   * SUB / XOR the punched shell. Area is 25π minus the fixture's
-   * own stadium area.
+   * after R1.5 / R1.6 miss: CAP 4+π, CUP 25π, SUB / XOR 24π−4,
+   * reverse SUB empty. Do not re-encode the stadium as a two-arc
+   * disc.
    */
   public void testMixedCompoundCurveNestIsPunchNotD4() throws Exception {
     Geometry outer = readCurve(CIRCLE_5);
@@ -221,16 +221,16 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
     assertNotNull("CC-NEST-ANNULUS: reverse CAP is the inner stadium",
         CompoundCurveShellOverlay.overlay(stadium, outer, OverlayNG.INTERSECTION));
 
-    double stadiumArea = stadium.getArea();
     OverlayNGCurve cap = new OverlayNGCurve(outer, stadium);
     Geometry common = cap.getResult(OverlayNG.INTERSECTION);
     assertFalse("mixed nest CAP is exact", cap.isApproximate());
-    assertEquals("CAP is the inner stadium", stadiumArea, common.getArea(), EXACT);
+    assertEquals("CAP is the stadium, 4+π", 4.0 + Math.PI, common.getArea(),
+        EXACT);
 
     OverlayNGCurve cup = new OverlayNGCurve(outer, stadium);
     Geometry cover = cup.getResult(OverlayNG.UNION);
     assertFalse("mixed nest CUP is exact", cup.isApproximate());
-    assertEquals("CUP is the outer disc", 25.0 * Math.PI, cover.getArea(), EXACT);
+    assertEquals("CUP is CIRCLE_5, 25π", 25.0 * Math.PI, cover.getArea(), EXACT);
 
     OverlayNGCurve rev = new OverlayNGCurve(stadium, outer);
     Geometry empty = rev.getResult(OverlayNG.DIFFERENCE);
@@ -248,8 +248,8 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
         cp.getExteriorCurve() instanceof CircularString);
     assertTrue("hole stays the CompoundCurve stadium, not a densified n-gon",
         cp.getInteriorCurveN(0) instanceof CompoundCurve);
-    assertEquals("25π minus the fixture stadium area",
-        25.0 * Math.PI - stadiumArea, punched.getArea(), EXACT);
+    assertEquals("SUB is 24π − 4", 24.0 * Math.PI - 4.0, punched.getArea(),
+        EXACT);
   }
 
   /**
