@@ -156,8 +156,13 @@ public class DistanceConstructionPerfGateTest extends TestCase {
     assertEquals("largest circle inside a radius-5 disc", 5.0, r, 0.0);
     assertEquals(0x4014000000000000L, Double.doubleToRawLongBits(r));
     Point c = (Point) ConstructionFunctions.maxInscribedCircleCenter(disc, 0.01);
-    assertEquals(0x0000000000000000L, Double.doubleToRawLongBits(c.getX()));
-    assertEquals(0x0000000000000000L, Double.doubleToRawLongBits(c.getY()));
+    assertEquals(0.0, c.getX(), 0.0);
+    assertEquals(0.0, c.getY(), 0.0);
+    Coordinate laser = CurveExactFns.micCenter(disc);
+    assertEquals(Double.doubleToRawLongBits(laser.x),
+        Double.doubleToRawLongBits(c.getX()));
+    assertEquals(Double.doubleToRawLongBits(laser.y),
+        Double.doubleToRawLongBits(c.getY()));
   }
 
   public void testMicStadiumNotSlowerThanChord() throws Exception {

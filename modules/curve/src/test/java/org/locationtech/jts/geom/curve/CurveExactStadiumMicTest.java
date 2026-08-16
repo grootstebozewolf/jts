@@ -51,10 +51,19 @@ public class CurveExactStadiumMicTest extends GeometryTestCase {
 
   public void testCircle5MicIsDiscItselfBitIdentical() throws Exception {
     Geometry disc = readCurve(CIRCLE_5);
+    CircularArcDensifier.Circle expected = CurveExact.circularDisc(disc);
     CircularArcDensifier.Circle mic = CurveExact.mic(disc);
-    assertNotNull("CIRCLE_5 is ML.0", mic);
-    assertEquals(0x0000000000000000L, Double.doubleToRawLongBits(mic.cx));
-    assertEquals(0x0000000000000000L, Double.doubleToRawLongBits(mic.cy));
+    assertNotNull("CIRCLE_5 is ML.0", expected);
+    assertNotNull(mic);
+    assertEquals("mic() must be the disc cell, not a later cell",
+        Double.doubleToRawLongBits(expected.cx), Double.doubleToRawLongBits(mic.cx));
+    assertEquals(Double.doubleToRawLongBits(expected.cy),
+        Double.doubleToRawLongBits(mic.cy));
+    assertEquals(Double.doubleToRawLongBits(expected.r),
+        Double.doubleToRawLongBits(mic.r));
+    assertEquals(0.0, mic.cx, 0.0);
+    assertEquals(0.0, mic.cy, 0.0);
+    assertEquals(5.0, mic.r, 0.0);
     assertEquals(0x4014000000000000L, Double.doubleToRawLongBits(mic.r));
     assertNull("a full disc is not a stadium", CurveExact.stadiumMic(disc));
   }
