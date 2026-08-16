@@ -73,6 +73,9 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
       "CURVEPOLYGON (CIRCULARSTRING (2 0, 7 5, 12 0, 7 -5, 2 0))";
   private static final String CIRCLE_EXT_TAN =
       "CURVEPOLYGON (CIRCULARSTRING (5 0, 10 5, 15 0, 10 -5, 5 0))";
+  /** R.1 T-ext kiss at (4, 3), not a control vertex. */
+  private static final String CIRCLE_3_4_5 =
+      "CURVEPOLYGON (CIRCULARSTRING (13 6, 8 11, 3 6, 8 1, 13 6))";
   private static final String EMPTY = "CURVEPOLYGON EMPTY";
   private static final String POINT_INSIDE = "POINT (3 3)";
   private static final String POINT_FAR = "POINT (100 100)";
@@ -760,6 +763,17 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
     assertLaserNotSlower("disc vs disc ext tangent relate",
         () -> a.relate(tan),
         () -> CurveOps.linearise(a).relate(CurveOps.linearise(tan)));
+  }
+
+  public void testRelateR1TouchKissNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry kiss = readCurve(CIRCLE_3_4_5);
+    assertLaserNotSlower("R.1 T-ext 3-4-5 relate",
+        () -> a.relate(kiss),
+        () -> CurveOps.linearise(a).relate(CurveOps.linearise(kiss)));
+    assertLaserNotSlower("R.1 T-ext 3-4-5 touches",
+        () -> a.touches(kiss),
+        () -> CurveOps.linearise(a).touches(CurveOps.linearise(kiss)));
   }
 
   public void testRelateCrossingDiscsReverseNotSlowerThanChord() throws Exception {

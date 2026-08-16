@@ -152,6 +152,11 @@ public class CurveExactRelateDiscTest extends GeometryTestCase {
     assertTrue(inner.coveredBy(big));
   }
 
+  /**
+   * Axis-aligned pair kisses at the shared control {@code (5, 0)}.
+   * R.1 ({@link CurveExactRelateTouchTest}) pins the same matrix on a
+   * 3-4-5 pair whose kiss is not a control vertex.
+   */
   public void testExternalTangent() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
     Geometry b = readCurve(CIRCLE_EXT_TAN);

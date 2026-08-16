@@ -35,7 +35,7 @@ import org.locationtech.jts.geom.Polygon;
  * a Point or MultiPoint (PIP and DE-9IM), a disc against a LineString
  * (DE-9IM from line–circle nodes), a disc against a plain Polygon
  * (DE-9IM from vertices, edge nodes, and mid-arc PIP), or two circular
- * discs (DE-9IM from radical-axis nodes and {@link #locatePoint}).
+ * discs (DE-9IM from {@code d²} vs {@code (r1±r2)²} in {@code R²}).
  * Package-private -- not a new public API.
  * {@link CurveOps} takes these only when they can answer; anything else
  * goes straight to the chord baseline. Trying and falling through would
@@ -201,9 +201,9 @@ final class CurveExact {
    * lineal and polygonal use
    * {@link CircularArcDensifier#intersectSegmentCircle}
    * ({@code t ∈ [0,1]}, the R1.6 / {@code ARC_SEGMENT_XY} quadratic)
-   * plus endpoint / vertex location. Two discs reuse
-   * {@link CircularArcDensifier#intersectCircles} (radical axis) and
-   * locate each centre in the other disc. A polygonal miss also samples
+   * plus endpoint / vertex location. Two discs classify in {@code R²}
+   * ({@code d²} vs {@code (r1±r2)²}); the kiss coordinates are not
+   * needed for the matrix. A polygonal miss also samples
    * mid-arc points in the polygon (jts-core PIP). Mixed MultiPoint
    * location classes, a multi-member MultiLineString or MultiSurface,
    * a holed or non-disc curve polygon return {@code null} so the caller
@@ -342,10 +342,14 @@ final class CurveExact {
 
   /**
    * Location classes of two circular discs. Envelope miss is disjoint.
-   * Node count is {@link CircularArcDensifier#intersectCircles} (empty
-   * when {@code d == 0}, {@code d > r1+r2}, or {@code d < |r1-r2|});
-   * each centre is then located in the other disc. A non-disc
-   * {@code CurvePolygon} never reaches this method.
+   * The class is decided in {@code R²}: {@code d²} against
+   * {@code (r1+r2)²} and {@code (r1-r2)²}. No {@code hypot} and no
+   * radical-axis node for the decision (V1, before noding). Public
+   * numbers may take {@code sqrt}; this matrix does not need the kiss
+   * coordinates. T-ext is {@link #IM_AREA_EXT_TANGENT} {@code FF2F01212}
+   * — one kiss, no shared flesh — ISO/IEC 13249-3 {@code ST_Touches}
+   * (DE-9IM {@code FT*******} / {@code F**T*****} / {@code F***T****}).
+   * A non-disc {@code CurvePolygon} never reaches this method.
    */
   private static IntersectionMatrix relateDisc(CircularArcDensifier.Circle a,
       CircularArcDensifier.Circle b) {
@@ -354,30 +358,33 @@ final class CurveExact {
     if (!ea.intersects(eb)) {
       return new IntersectionMatrix(IM_AREA_DISJOINT);
     }
-    Coordinate[] nodes = CircularArcDensifier.intersectCircles(a, b);
-    Coordinate ca = new Coordinate(a.cx, a.cy);
-    Coordinate cb = new Coordinate(b.cx, b.cy);
-    double r2a = a.r * a.r;
-    double r2b = b.r * b.r;
-    if (nodes.length == 2) {
-      return new IntersectionMatrix(IM_AREA_OVERLAP);
+    double dx = a.cx - b.cx;
+    double dy = a.cy - b.cy;
+    double d2 = dx * dx + dy * dy;
+    double sum = a.r + b.r;
+    double sum2 = sum * sum;
+    double diff = a.r - b.r;
+    double diff2 = diff * diff;
+    if (d2 == 0.0 && a.r == b.r) {
+      return new IntersectionMatrix(IM_AREA_EQUAL);
     }
-    int locAinB = locatePoint(b, ca, r2b);
-    int locBinA = locatePoint(a, cb, r2a);
-    if (nodes.length == 1) {
-      if (locAinB == Location.EXTERIOR && locBinA == Location.EXTERIOR) {
-        return new IntersectionMatrix(IM_AREA_EXT_TANGENT);
-      }
+    if (d2 > sum2) {
+      return new IntersectionMatrix(IM_AREA_DISJOINT);
+    }
+    if (d2 == sum2) {
+      return new IntersectionMatrix(IM_AREA_EXT_TANGENT);
+    }
+    if (d2 == diff2) {
       return a.r > b.r
           ? new IntersectionMatrix(IM_AREA_INT_TANGENT)
           : new IntersectionMatrix(IntersectionMatrix.transpose(IM_AREA_INT_TANGENT));
     }
-    if (locAinB == Location.EXTERIOR && locBinA == Location.EXTERIOR) {
-      return new IntersectionMatrix(IM_AREA_DISJOINT);
+    if (d2 < diff2) {
+      return a.r > b.r
+          ? new IntersectionMatrix(IM_AREA_COVERS)
+          : new IntersectionMatrix(IM_AREA_COVEREDBY);
     }
-    if (a.r > b.r) return new IntersectionMatrix(IM_AREA_COVERS);
-    if (a.r < b.r) return new IntersectionMatrix(IM_AREA_COVEREDBY);
-    return new IntersectionMatrix(IM_AREA_EQUAL);
+    return new IntersectionMatrix(IM_AREA_OVERLAP);
   }
 
   /**
