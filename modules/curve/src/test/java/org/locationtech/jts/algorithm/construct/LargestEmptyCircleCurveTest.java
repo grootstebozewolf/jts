@@ -75,6 +75,24 @@ public class LargestEmptyCircleCurveTest extends GeometryTestCase {
     Coordinate c = center.getCoordinate();
     assertEquals(5.0, c.distance(radius.getCoordinateN(1)), 0.0);
     assertTrue(LargestEmptyCircle.hasCertifiedClosedForm(disc, null));
+    LargestEmptyCircle lec = new LargestEmptyCircle(disc, disc, 0.01);
+    lec.getCenter();
+    assertTrue("disc closed form is not the point-site walk",
+        !lec.usedPointSiteCandidates());
+  }
+
+  /**
+   * A CircularString obstacle is not a point-site set. The grid (or
+   * the disc closed form for a full ring) stays; Apollonius is not
+   * this PR.
+   */
+  public void testArcObstacleIsNotPointSiteEnumeration() throws Exception {
+    Geometry arc = readCurve("CIRCULARSTRING (0 0, 2 3, 10 0)");
+    Geometry box = readCurve("POLYGON ((0 3.5, 10 3.5, 10 5.5, 0 5.5, 0 3.5))");
+    LargestEmptyCircle lec = new LargestEmptyCircle(arc, box, 0.01);
+    lec.getCenter();
+    assertTrue(!lec.usedPointSiteCandidates());
+    assertTrue(!LargestEmptyCircle.hasCertifiedClosedForm(arc, box));
   }
 
   public void testCircularStringEncodingAgrees() throws Exception {

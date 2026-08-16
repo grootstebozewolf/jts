@@ -58,6 +58,18 @@ import org.locationtech.jts.operation.distance.IndexedFacetDistance;
  * (Euclidean, facet, point-to-arc, or the disc formulas), not the
  * control-point polyline of a {@code CircularString}.
  * <p>
+ * When obstacles flatten to point sites only and the boundary is a
+ * 2-D polygonal domain (or the convex hull, when that hull is
+ * polygonal), the centre is taken from the three candidate classes
+ * proven exhaustive by NetTopologySuite.Proofs #474
+ * ({@code lec_candidate_completeness_interior},
+ * {@code lec_candidate_completeness_boundary_edge}): Voronoi
+ * vertices, Voronoi-edge × domain-boundary crossings, and domain
+ * vertices. Clearance is the existing Euclidean
+ * {@link ObstacleDistance}. That path is exact. The two-point
+ * convex hull is a line, not a polygon — it is not treated as a
+ * domain (F8: interiority is load-bearing).
+ * <p>
  * One certified cell uses a closed form instead of the grid:
  * a circular disc as the containing boundary with its own
  * circumference as the linear obstacle (or the equivalent
@@ -67,7 +79,10 @@ import org.locationtech.jts.operation.distance.IndexedFacetDistance;
  * {@link DiscreteHausdorffDistance#circularDisc(Geometry)}
  * and {@link DiscreteHausdorffDistance#circularRing(Geometry)}
  * via {@link Geometry#getGeometryType()} so this class does
- * not import jts-curve. Any other obstacle set keeps the grid.
+ * not import jts-curve. {@link #hasCertifiedClosedForm} reports
+ * only that disc cell — a point-site enumeration is not a disc
+ * closed form. Any other non-point obstacle set keeps the grid.
+ * Weighted / Apollonius disc-site candidates are not implemented.
  * 
  * @author Martin Davis
  * 
@@ -171,6 +186,8 @@ public class LargestEmptyCircle {
   /**
    * True when {@link #getCenter(Geometry, Geometry, double)} uses the
    * certified disc closed form (centre, r) instead of the grid.
+   * Point-site candidate enumeration is exact but is not this
+   * predicate — do not treat it as the disc closed form.
    *
    * @param obstacles a geometry representing the obstacles
    * @param boundary a polygonal geometry (may be null or empty)
@@ -198,6 +215,8 @@ public class LargestEmptyCircle {
   private Point radiusPoint = null;
   private Geometry bounds;
   private double[] certifiedCircle;
+  private boolean usedPointSiteCandidates = false;
+  private boolean allowPointSiteCandidates = true;
 
   /**
    * Creates a new instance of a Largest Empty Circle construction,
@@ -345,6 +364,15 @@ public class LargestEmptyCircle {
       radiusPoint = factory.createPoint(pt);
       return;
     }
+
+    if (allowPointSiteCandidates) {
+      Coordinate siteCenter = LargestEmptyCirclePointSites.findCenter(
+          obstacles, bounds, obstacleDistance, boundaryPtLocater, factory);
+      if (siteCenter != null) {
+        applyPointSiteCenter(siteCenter);
+        return;
+      }
+    }
     
     // Priority queue of cells, ordered by decreasing distance from constraints
     PriorityQueue<Cell> cellQueue = new PriorityQueue<>();
@@ -411,6 +439,40 @@ public class LargestEmptyCircle {
     radiusPt = new Coordinate(c[0] + c[2], c[1]);
     radiusPoint = factory.createPoint(radiusPt);
     centerCell = new Cell(c[0], c[1], 0.0, c[2]);
+  }
+
+  /**
+   * Exact point-site centre from the three Proofs #474 classes.
+   * Radius point is the nearest site via {@link ObstacleDistance}.
+   */
+  private void applyPointSiteCenter(Coordinate c) {
+    usedPointSiteCandidates = true;
+    centerPt = c.copy();
+    centerPoint = factory.createPoint(centerPt);
+    Coordinate[] nearestPts = obstacleDistance.nearestPoints(centerPoint);
+    radiusPt = nearestPts[0].copy();
+    radiusPoint = factory.createPoint(radiusPt);
+    centerCell = new Cell(centerPt.x, centerPt.y, 0.0,
+        centerPt.distance(radiusPt));
+  }
+
+  /**
+   * True after {@link #getCenter()} when the point-site candidate
+   * walk supplied the answer. Package-private for tests.
+   *
+   * @return {@code true} if the three-class enumeration was used
+   */
+  boolean usedPointSiteCandidates() {
+    return usedPointSiteCandidates;
+  }
+
+  /**
+   * Force the branch-and-bound grid even for point sites.
+   * Package-private so tests can compare the exact walk to the grid
+   * at a tight tolerance. Must be called before {@link #getCenter()}.
+   */
+  void disablePointSiteCandidates() {
+    allowPointSiteCandidates = false;
   }
 
   /**

@@ -43,9 +43,20 @@ import org.locationtech.jts.geom.Polygon;
 class ObstacleDistance {
 
   private final List<Component> components = new ArrayList<Component>();
+  private boolean pointSitesOnly = true;
 
   ObstacleDistance(Geometry obstacles) {
     flatten(obstacles);
+  }
+
+  /**
+   * True when every flattened component is a point site.
+   * Empty collections and any facet / arc / disc row fail this.
+   *
+   * @return {@code true} if the obstacle set is points only
+   */
+  boolean isPointSitesOnly() {
+    return pointSitesOnly && !components.isEmpty();
   }
 
   /**
@@ -103,6 +114,7 @@ class ObstacleDistance {
     }
     double[] disc = DiscreteHausdorffDistance.circularDisc(g);
     if (disc != null) {
+      pointSitesOnly = false;
       components.add(new DiscComponent(disc[0], disc[1], disc[2], true));
       return;
     }
@@ -130,9 +142,11 @@ class ObstacleDistance {
       return;
     }
     if (g instanceof Polygon || g instanceof LineString) {
+      pointSitesOnly = false;
       components.add(new FacetComponent(g));
       return;
     }
+    pointSitesOnly = false;
     components.add(new FacetComponent(g));
   }
 
@@ -166,6 +180,7 @@ class ObstacleDistance {
       }
     }
     catch (ReflectiveOperationException ex) {
+      pointSitesOnly = false;
       components.add(new FacetComponent(g));
     }
   }
@@ -173,9 +188,11 @@ class ObstacleDistance {
   private void addCircularString(Geometry g) {
     double[] ring = DiscreteHausdorffDistance.circularRing(g);
     if (ring != null) {
+      pointSitesOnly = false;
       components.add(new DiscComponent(ring[0], ring[1], ring[2], false));
       return;
     }
+    pointSitesOnly = false;
     Coordinate[] pts = g.getCoordinates();
     for (int i = 0; i + 2 < pts.length; i += 2) {
       components.add(new ArcComponent(pts[i], pts[i + 1], pts[i + 2]));
