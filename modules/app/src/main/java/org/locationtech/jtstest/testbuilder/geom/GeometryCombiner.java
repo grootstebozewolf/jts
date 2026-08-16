@@ -70,13 +70,31 @@ public class GeometryCombiner
     return combine(orig, line);
   }
 
+  /**
+   * Builds a {@link CircularString} through {@code pts}.
+   * <p>
+   * Honest factory only: {@code createCircularString}. Do not call
+   * {@code createLineString} or {@code createCompoundCurve(CoordinateSequence)}
+   * — those emit a control-point polyline whose CurveWKT is
+   * {@code LINESTRING} / a COMPOUNDCURVE wrapping a LineString.
+   * Even leftover or fewer than 3 points abort without adding.
+   * <p>
+   * The first component is returned as-is. {@link #combine} would be
+   * safe for a single member ({@code buildGeometry} of one item returns
+   * that item), but skipping it keeps the drawn triple off the
+   * collection-rebuild path that boxed arcs into a plain MultiLineString
+   * before {@link CurveGeometryFactory#buildGeometry} learned to upgrade.
+   */
   public Geometry addCircularString(Geometry orig, Coordinate[] pts)
   {
-    CurveGeometryFactory cgf = (geomFactory instanceof CurveGeometryFactory)
-        ? (CurveGeometryFactory) geomFactory
-        : new CurveGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
-    CircularString line = cgf.createCircularString(geomFactory.getCoordinateSequenceFactory().create(pts));
-    return combine(orig, line);
+    if (!isValidCircularControl(pts)) {
+      return orig;
+    }
+    CircularString arc = circularString(pts);
+    if (orig == null || orig.isEmpty()) {
+      return arc;
+    }
+    return combine(orig, arc);
   }
 
   /**
@@ -393,8 +411,9 @@ public class GeometryCombiner
       // return a clone of the orig geometry
       return (Geometry) orig.clone();
     }
-    // return the "simplest possible" geometry
-    return geomFactory.buildGeometry(origList);
+    // Curve factory so a CircularString is not rebuilt as a LineString
+    // (or boxed in a plain MultiLineString) when the model factory is core.
+    return curveFactory().buildGeometry(origList);
   }
   
   public static List extractElements(Geometry geom, boolean skipEmpty)
