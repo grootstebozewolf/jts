@@ -1,5 +1,7 @@
 package org.locationtech.jts.algorithm.construct;
 
+import java.util.List;
+
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
@@ -127,6 +129,164 @@ public class LargestEmptyCircleTest extends GeometryTestCase {
   }
 
   /**
+   * NTS.Proofs ({@code grootstebozewolf/NetTopologySuite.Proofs#474})
+   * / {@code LECCandidateVertex.v} Family I: sites
+   * (0,0), (4,0), (2,3) on their hull. Unique maximiser is the
+   * Voronoi vertex (2, 5/6) at radius 13/6
+   * ({@code lec_three_points}). The walk must include
+   * {@code tri_candidates}: that vertex, (2,0), (1, 3/2), (3, 3/2),
+   * and the three sites. Not a disc closed form.
+   */
+  public void testPointSitesVoronoiVertexThreeSites() {
+    Geometry sites = read("MULTIPOINT ((0 0), (4 0), (2 3))");
+    Geometry hull = read("POLYGON ((0 0, 4 0, 2 3, 0 0))");
+    double x = 2.0;
+    double y = 5.0 / 6.0;
+    double r = 13.0 / 6.0;
+
+    LargestEmptyCircle lec = new LargestEmptyCircle(sites, hull, 0.01);
+    checkCircle(lec, 1.0e-12, x, y, r);
+    assertTrue(lec.usedPointSiteCandidates());
+    assertTrue(!LargestEmptyCircle.hasCertifiedClosedForm(sites, hull));
+    List<Coordinate> cands = lec.lastPointSiteCandidates();
+    assertNotNull(cands);
+    assertTrue(hasCandidate(cands, 2.0, 5.0 / 6.0));
+    assertTrue(hasCandidate(cands, 2.0, 0.0));
+    assertTrue(hasCandidate(cands, 1.0, 1.5));
+    assertTrue(hasCandidate(cands, 3.0, 1.5));
+    assertTrue(hasCandidate(cands, 0.0, 0.0));
+    assertTrue(hasCandidate(cands, 4.0, 0.0));
+    assertTrue(hasCandidate(cands, 2.0, 3.0));
+
+    LargestEmptyCircle grid = new LargestEmptyCircle(sites, hull, 1.0e-4);
+    grid.disablePointSiteCandidates();
+    checkCircle(grid, 2.0e-4, x, y, r);
+    assertTrue(!grid.usedPointSiteCandidates());
+  }
+
+  /**
+   * Same three sites in a square that does not let a corner beat the
+   * circumcentre. Centre remains the Voronoi vertex.
+   */
+  public void testPointSitesVoronoiVertexInSquare() {
+    Geometry sites = read("MULTIPOINT ((0 0), (4 0), (2 3))");
+    Geometry square = read("POLYGON ((0 0, 4 0, 4 3, 0 3, 0 0))");
+    LargestEmptyCircle lec = new LargestEmptyCircle(sites, square, 0.01);
+    checkCircle(lec, 1.0e-12, 2.0, 5.0 / 6.0, 13.0 / 6.0);
+    assertTrue(lec.usedPointSiteCandidates());
+  }
+
+  /**
+   * F3/F8 class: two sites, no Voronoi vertex. The maximiser is a
+   * bisector × boundary crossing, not a domain vertex.
+   * Sites (0,0) and (2,0); domain taller on +y so (1, 3) uniquely wins
+   * at radius √10. Corners clear only √9.25.
+   */
+  public void testTwoSitesRectangleBisectorEdge() {
+    Geometry sites = read("MULTIPOINT ((0 0), (2 0))");
+    Geometry domain = read(
+        "POLYGON ((-0.5 -0.5, 2.5 -0.5, 2.5 3, -0.5 3, -0.5 -0.5))");
+    LargestEmptyCircle lec = new LargestEmptyCircle(sites, domain, 0.01);
+    checkCircle(lec, 1.0e-12, 1.0, 3.0, Math.sqrt(10.0));
+    assertTrue(lec.usedPointSiteCandidates());
+    assertTrue(!LargestEmptyCircle.hasCertifiedClosedForm(sites, domain));
+  }
+
+  /**
+   * F8 witness. Proofs: sites (0,0) and (2,0), domain = the connecting
+   * segment, midpoint (1,0) radius 1, exactly two nearest sites; the
+   * naive two-nearest direction is antipodal and stalls
+   * ({@code f8_interiority_load_bearing}). Empty-interior domains use
+   * the edge theorem — do not filter “not ≥ 3”. JTS {@code boundary}
+   * must be {@code Polygonal}; the two-point hull is a LineString
+   * ({@link #testTwoSitesHullIsNotAPolygon}). Pin the same geometry
+   * with a thin rectangle containing the segment so the maximiser is
+   * forced onto the bisector × edge class.
+   */
+  public void testF8ThinDomainBisectorEdge() {
+    Geometry sites = read("MULTIPOINT ((0 0), (2 0))");
+    Geometry thin = read(
+        "POLYGON ((-0.1 -0.1, 2.1 -0.1, 2.1 0.1, -0.1 0.1, -0.1 -0.1))");
+    LargestEmptyCircle lec = new LargestEmptyCircle(sites, thin, 0.01);
+    Coordinate c = lec.getCenter().getCoordinate();
+    assertTrue(lec.usedPointSiteCandidates());
+    assertEquals(1.0, c.x, 1.0e-12);
+    assertEquals(0.1, Math.abs(c.y), 1.0e-12);
+    assertEquals(Math.sqrt(1.01), lec.getRadiusLine().getLength(), 1.0e-12);
+  }
+
+  /**
+   * Convex hull of two points is not a polygon. Keep the existing
+   * degenerate zero-radius answer; F8 is pinned by the thin domain.
+   */
+  public void testTwoSitesHullIsNotAPolygon() {
+    Geometry sites = read("MULTIPOINT ((0 0), (2 0))");
+    LargestEmptyCircle lec = new LargestEmptyCircle(sites, null, 0.01);
+    assertEquals(0.0, lec.getRadiusLine().getLength(), 0.01);
+    assertTrue(!lec.usedPointSiteCandidates());
+  }
+
+  /**
+   * Domain-vertex win: two sites clustered near (0,0) in [0,10]².
+   * The opposite corner is strictly farther than every bisector ×
+   * edge crossing (those land near the cluster).
+   */
+  public void testDomainVertexWins() {
+    Geometry sites = read("MULTIPOINT ((1 1), (1.2 1.1))");
+    Geometry domain = read("POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))");
+    double r = Math.hypot(10.0 - 1.2, 10.0 - 1.1);
+    LargestEmptyCircle lec = new LargestEmptyCircle(sites, domain, 0.01);
+    checkCircle(lec, 1.0e-9, 10.0, 10.0, r);
+    assertTrue(lec.usedPointSiteCandidates());
+  }
+
+  /**
+   * Lines / polygons / mixed sets stay on the Lipschitz grid (F2).
+   * Disc closed form is a curve-module cell and is not this path.
+   */
+  public void testNonPointObstaclesStayOnGrid() {
+    Geometry obs = read("LINESTRING (0 0, 10 0)");
+    Geometry domain = read("POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))");
+    LargestEmptyCircle lec = new LargestEmptyCircle(obs, domain, 0.01);
+    lec.getCenter();
+    assertTrue(!lec.usedPointSiteCandidates());
+    assertTrue(!LargestEmptyCircle.hasCertifiedClosedForm(obs, domain));
+  }
+
+  public void testMixedPointAndLineStayOnGrid() {
+    Geometry obs = read(
+        "GEOMETRYCOLLECTION (LINESTRING (0 0, 4 0), POINT (2 3))");
+    Geometry domain = read("POLYGON ((0 0, 4 0, 4 3, 0 3, 0 0))");
+    LargestEmptyCircle lec = new LargestEmptyCircle(obs, domain, 0.01);
+    lec.getCenter();
+    assertTrue(!lec.usedPointSiteCandidates());
+  }
+
+  /**
+   * One unique site (coincidences collapsed) keeps the grid.
+   */
+  public void testCoincidentSitesKeepGrid() {
+    Geometry sites = read("MULTIPOINT ((1 1), (1 1), (1 1))");
+    Geometry domain = read("POLYGON ((0 0, 4 0, 4 4, 0 4, 0 0))");
+    LargestEmptyCircle lec = new LargestEmptyCircle(sites, domain, 0.01);
+    assertNotNull(lec.getCenter());
+    assertTrue(!lec.usedPointSiteCandidates());
+  }
+
+  /**
+   * Three collinear sites: no Voronoi vertex. Must not crash; the
+   * three-class walk still applies. Corners of this rectangle beat
+   * the mid-edge crossings (clearance √5).
+   */
+  public void testCollinearSitesDoNotCrash() {
+    Geometry sites = read("MULTIPOINT ((0 0), (1 0), (2 0))");
+    Geometry domain = read("POLYGON ((-1 -2, 3 -2, 3 2, -1 2, -1 -2))");
+    LargestEmptyCircle lec = new LargestEmptyCircle(sites, domain, 0.01);
+    assertEquals(Math.sqrt(5.0), lec.getRadiusLine().getLength(), 1.0e-9);
+    assertTrue(lec.usedPointSiteCandidates());
+  }
+
+  /**
    * The four chords of the r=2 circle are a diamond, not a disk.
    * LEC of that n-gon (boundary as obstacle) is the inscribed radius √2,
    * not the continuous disk radius 2.
@@ -198,6 +358,18 @@ public class LargestEmptyCircleTest extends GeometryTestCase {
   
   private void checkCircleZeroRadius(String wkt, double tolerance) {
     checkCircleZeroRadius(read(wkt), tolerance);
+  }
+
+  private static boolean hasCandidate(List<Coordinate> cands, double x,
+      double y) {
+    for (int i = 0; i < cands.size(); i++) {
+      Coordinate c = cands.get(i);
+      if (c != null && Math.abs(c.x - x) <= 1.0e-8
+          && Math.abs(c.y - y) <= 1.0e-8) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void checkCircleZeroRadius(Geometry geom, double tolerance) {
