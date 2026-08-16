@@ -153,22 +153,43 @@ final class CurveSegmentFaces {
         if (members == null) {
           miss = true;
         }
-        else {
-          double signed = signedArea(members);
-          if (signed > eps * eps) {
-            Polygon face = TwoNodeClip.closeRing(members, f, eps);
-            if (face == null) {
-              miss = true;
-            }
-            else {
-              faces.add(face);
-            }
+        else if (Math.abs(signedArea(members)) > eps * eps) {
+          Polygon face = TwoNodeClip.closeRing(members, f, eps);
+          if (face == null) {
+            miss = true;
+          }
+          else {
+            faces.add(face);
           }
         }
       }
     }
     if (miss || faces.isEmpty()) return null;
+    dropUnion(faces, eps);
+    if (faces.isEmpty()) return null;
     return toGeometry(faces, f);
+  }
+
+  /**
+   * The walk also closes the union (the complementary outer ring).
+   * That ring's area is the sum of the bounded faces; drop it.
+   */
+  private static void dropUnion(List<Polygon> faces, double eps) {
+    if (faces.size() < 2) return;
+    int maxAt = 0;
+    double maxA = faces.get(0).getArea();
+    double sum = maxA;
+    for (int i = 1; i < faces.size(); i++) {
+      double a = faces.get(i).getArea();
+      sum += a;
+      if (a > maxA) {
+        maxA = a;
+        maxAt = i;
+      }
+    }
+    if (Math.abs(maxA - (sum - maxA)) <= Math.max(eps, 1.0e-8)) {
+      faces.remove(maxAt);
+    }
   }
 
   private static List<CurveSegmentString> splitAll(

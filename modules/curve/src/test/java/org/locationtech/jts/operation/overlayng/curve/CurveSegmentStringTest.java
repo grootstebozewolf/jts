@@ -749,6 +749,8 @@ public class CurveSegmentStringTest extends GeometryTestCase {
       assertNotNull("N=2 faces " + wa, faces);
       assertEquals("N=2 face area " + wa, kit.getArea(), faces.getArea(),
           EXACT);
+      assertEquals("N=2 face count " + wa, kit.getNumGeometries(),
+          faces.getNumGeometries());
     }
   }
 
