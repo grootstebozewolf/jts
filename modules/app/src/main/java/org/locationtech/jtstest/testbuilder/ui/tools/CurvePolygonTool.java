@@ -24,6 +24,7 @@ import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.awt.curve.CircularArcRenderer;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Triangle;
+import org.locationtech.jtstest.testbuilder.AppConstants;
 import org.locationtech.jtstest.testbuilder.GeometryEditPanel;
 import org.locationtech.jtstest.testbuilder.JTSTestBuilder;
 import org.locationtech.jtstest.testbuilder.JTSTestBuilderFrame;
@@ -89,26 +90,32 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
   }
 
   /**
-   * Click on the start vertex auto-closes and commits, same as a
-   * double-click anywhere. The start point is not added again;
-   * {@link #closeCircularShell} appends it.
+   * The first click on the start vertex auto-closes and commits, same
+   * as a double-click anywhere. Click-start is never cancel: Escape
+   * is the only cancel path. Hit-test uses the visible vertex (view
+   * pixels), not a grid-snapped model point that can miss.
    */
   @Override
   public void mousePressed(MouseEvent e) {
     if (panel() != null) {
       panel().requestFocusInWindow();
     }
-    if (e.getClickCount() == 1) {
-      try {
-        if (isClickOnStart(toModelSnapped(e.getPoint()))) {
-          finishGesture();
-          return;
-        }
-      } catch (Exception ignored) {
+    if (e.getClickCount() != 1) {
+      super.mousePressed(e);
+      return;
+    }
+    try {
+      if (isClickOnStartVertex(e) && canCommitCurrent()) {
+        finishGesture();
         return;
       }
+      super.mousePressed(e);
+      if (isNowClosedOnStart() && canCommitCurrent()) {
+        finishGesture();
+      }
+    } catch (Exception ex) {
+      super.mousePressed(e);
     }
-    super.mousePressed(e);
   }
 
   @Override
@@ -117,18 +124,16 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
       showCancelled();
       return;
     }
-    if (panel().getModel() == null) return;
-    panel().getGeomModel().setGeometryType(getGeometryType());
-
-    List<Coordinate> coords = new ArrayList<Coordinate>();
-    for (Object o : getCoordinates()) {
-      coords.add((Coordinate) o);
+    if (panel() != null && panel().getGeomModel() != null) {
+      panel().getGeomModel().setGeometryType(getGeometryType());
     }
-    List<Coordinate> shell = closeCircularShell(coords);
+    List<Coordinate> shell = closeCircularShell(copyCoords());
     if (shell == null) return;
 
     geomModel().addComponent(shell);
-    panel().updateGeom();
+    if (panel() != null) {
+      panel().updateGeom();
+    }
   }
 
   /**
@@ -209,13 +214,60 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
     return new Coordinate((from.x + to.x - dy) / 2.0, (from.y + to.y + dx) / 2.0);
   }
 
-  private boolean isClickOnStart(Coordinate click) {
-    List coords = getCoordinates();
-    if (coords.size() < 2 || click == null) {
+  /**
+   * True when a click on the start vertex should commit on this press
+   * (enough points for {@link #closeCircularShell}). Not a cancel.
+   */
+  static boolean firstStartClickCommits(List<Coordinate> coords, Coordinate click,
+      double tolerance) {
+    return isStartVertexClick(coords, click, tolerance)
+        && closeCircularShell(coords) != null;
+  }
+
+  static boolean isStartVertexClick(List<Coordinate> coords, Coordinate click,
+      double tolerance) {
+    if (coords == null || coords.size() < 2 || click == null) {
       return false;
     }
-    Coordinate start = (Coordinate) coords.get(0);
-    return start.distance(click) <= getModelSnapTolerance();
+    return coords.get(0).distance(click) <= tolerance;
+  }
+
+  private boolean isClickOnStartVertex(MouseEvent e) {
+    List<Coordinate> coords = copyCoords();
+    if (coords.size() < 2) {
+      return false;
+    }
+    Coordinate start = coords.get(0);
+    Point2D startView = toView(start);
+    double dx = e.getX() - startView.getX();
+    double dy = e.getY() - startView.getY();
+    double slop = AppConstants.TOLERANCE_PIXELS;
+    if (dx * dx + dy * dy <= slop * slop) {
+      return true;
+    }
+    double tol = getModelSnapTolerance();
+    return isStartVertexClick(coords, toModelCoordinate(e.getPoint()), tol)
+        || isStartVertexClick(coords, toModelSnapped(e.getPoint()), tol);
+  }
+
+  private boolean isNowClosedOnStart() {
+    List<Coordinate> coords = copyCoords();
+    if (coords.size() < 3) {
+      return false;
+    }
+    return coords.get(0).equals2D(coords.get(coords.size() - 1));
+  }
+
+  private boolean canCommitCurrent() {
+    return closeCircularShell(copyCoords()) != null;
+  }
+
+  private List<Coordinate> copyCoords() {
+    List<Coordinate> coords = new ArrayList<Coordinate>();
+    for (Object o : getCoordinates()) {
+      coords.add((Coordinate) o);
+    }
+    return coords;
   }
 
   private void cancelInProgress() {

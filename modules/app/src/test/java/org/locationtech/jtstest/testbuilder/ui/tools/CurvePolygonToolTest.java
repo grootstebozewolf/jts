@@ -77,6 +77,21 @@ public class CurvePolygonToolTest extends TestCase {
     assertEquals(2.0 * Math.PI * RADIUS, g.getLength(), ARC_EPS);
   }
 
+  public void testFirstClickOnStartCommitsNotCancel() {
+    List<Coordinate> drawn = Arrays.asList(A, B, C);
+    assertTrue("first click on start must commit, not wait for a second start click",
+        CurvePolygonTool.firstStartClickCommits(drawn, A, 1e-9));
+    assertFalse("a far click is not click-start",
+        CurvePolygonTool.firstStartClickCommits(drawn, new Coordinate(100, 100), 1e-9));
+    assertFalse("one point cannot click-start commit (would look like cancel)",
+        CurvePolygonTool.firstStartClickCommits(Arrays.asList(A), A, 1e-9));
+
+    List<Coordinate> shell = CurvePolygonTool.closeCircularShell(drawn);
+    assertNotNull(shell);
+    Geometry g = commit(shell);
+    assertCurvePolygonCircularString(g);
+  }
+
   public void testClickStartOnClosedCircleCommitsUnchanged() {
     List<Coordinate> closed = Arrays.asList(A, B, C, D, A);
     List<Coordinate> shell = CurvePolygonTool.closeCircularShell(closed);
