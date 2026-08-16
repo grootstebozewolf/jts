@@ -156,6 +156,50 @@ public class WKBWriterTest extends GeometryTestCase {
       assertEquals(8.0, lineZMRead.getPointN(1).getCoordinate().getM());
   }
 
+  public void testDefaultFlavorIsExtended() {
+    assertEquals(WKBConstants.wkbExtended, new WKBWriter().getFlavor());
+  }
+
+  public void testSetFlavorIsoOnlyWhenAsked() {
+    WKBWriter w = new WKBWriter(3);
+    assertEquals(WKBConstants.wkbExtended, w.getFlavor());
+    w.setFlavor(WKBConstants.wkbIso);
+    assertEquals(WKBConstants.wkbIso, w.getFlavor());
+  }
+
+  public void testInvalidFlavorThrows() {
+    try {
+      new WKBWriter().setFlavor(0);
+      fail("expected IllegalArgumentException");
+    }
+    catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().toLowerCase().indexOf("flavour") >= 0);
+    }
+  }
+
+  public void testIsoFlavorPointZIs1001() {
+    Point p = new GeometryFactory().createPoint(new Coordinate(1, 2, 3));
+    WKBWriter w = new WKBWriter(3);
+    w.setFlavor(WKBConstants.wkbIso);
+    byte[] wkb = w.write(p);
+    int type = ((wkb[1] & 0xff) << 24) | ((wkb[2] & 0xff) << 16)
+        | ((wkb[3] & 0xff) << 8) | (wkb[4] & 0xff);
+    assertEquals(1001, type);
+    assertEquals(WKBConstants.wkbIso, WKBReader.detectFlavor(type));
+  }
+
+  public void testIsoFlavorOmitsSrid() {
+    Point p = new GeometryFactory().createPoint(new Coordinate(1, 2));
+    p.setSRID(4326);
+    WKBWriter iso = new WKBWriter(2, ByteOrderValues.BIG_ENDIAN, true);
+    iso.setFlavor(WKBConstants.wkbIso);
+    byte[] wkb = iso.write(p);
+    int type = ((wkb[1] & 0xff) << 24) | ((wkb[2] & 0xff) << 16)
+        | ((wkb[3] & 0xff) << 8) | (wkb[4] & 0xff);
+    assertEquals(WKBConstants.wkbPoint, type);
+    assertEquals(21, wkb.length);
+  }
+
   void checkWKB(String wkt, int dimension, String expectedWKBHex) {
     checkWKB(wkt, dimension, ByteOrderValues.LITTLE_ENDIAN, -1, expectedWKBHex);
   }

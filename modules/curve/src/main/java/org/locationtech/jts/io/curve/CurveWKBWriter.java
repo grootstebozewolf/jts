@@ -26,11 +26,22 @@ import org.locationtech.jts.io.WKBConstants;
 import org.locationtech.jts.io.WKBWriter;
 
 /**
- * A {@link WKBWriter} subclass that emits ISO/OGC SQL/MM type codes
- * 8–12 for the curve types. Control points are written as the curve's
- * own coordinates; this path does not call {@code toLinear} /
- * {@code linearise}. Endian, EWKB Z/M/SRID flags, and ISO type-range
- * reading stay those of {@link WKBWriter}.
+ * A {@link WKBWriter} subclass that emits ISO/IEC 13249-3 SQL/MM type
+ * codes 8–12 for the curve types. Control points are written as the
+ * curve's own coordinates; this path does not call {@code toLinear} /
+ * {@code linearise}.
+ * <p>
+ * Flavour matches GEOS {@code WKBWriter} ({@code setFlavor}):
+ * <ul>
+ * <li>Default {@link WKBConstants#wkbExtended} — types 8–12 plus EWKB
+ * bits {@code 0x80000000} Z / {@code 0x40000000} M /
+ * {@code 0x20000000} SRID.</li>
+ * <li>{@link WKBConstants#wkbIso} — types 8 / 1008 / 2008 / 3008
+ * (and the 9–12 family). ISO has no SRID.</li>
+ * </ul>
+ * CurvePolygon rings are full child WKB (type header), not bare
+ * coordinate sequences. {@link org.locationtech.jts.geom.LinearRing}
+ * → LineString is the only type collapse.
  */
 public class CurveWKBWriter extends WKBWriter {
 

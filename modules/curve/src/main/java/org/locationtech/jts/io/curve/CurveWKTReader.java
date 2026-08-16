@@ -41,9 +41,10 @@ import org.locationtech.jts.io.WKTConstants;
 import org.locationtech.jts.io.WKTReader;
 
 /**
- * A {@link WKTReader} subclass that recognises the OGC SFA / ISO 19125-2
- * extended geometry types via the {@code readOtherGeometryText} extension
- * point in core:
+ * A {@link WKTReader} subclass that recognises the ISO/IEC 13249-3
+ * SQL/MM curve keywords via the {@code readOtherGeometryText} extension
+ * point in core. Accepts both glued and spaced dimension suffixes
+ * ({@code CIRCULARSTRINGZ} and {@code CIRCULARSTRING Z}), matching GEOS.
  * <ul>
  *   <li>{@code CIRCULARSTRING}</li>
  *   <li>{@code COMPOUNDCURVE}</li>

@@ -31,8 +31,13 @@ import org.locationtech.jts.io.WKTConstants;
 import org.locationtech.jts.io.WKTWriter;
 
 /**
- * A {@link WKTWriter} subclass for the OGC SFA / ISO 19125-2 extended
- * geometry types.
+ * A {@link WKTWriter} subclass for the ISO/IEC 13249-3 SQL/MM curve
+ * types. Keywords are {@code CIRCULARSTRING} / {@code COMPOUNDCURVE} /
+ * {@code CURVEPOLYGON} / {@code MULTICURVE} / {@code MULTISURFACE}
+ * plus a spaced {@code Z} / {@code M} / {@code ZM} suffix matching
+ * GEOS ({@code CIRCULARSTRING Z}, not glued {@code CIRCULARSTRINGZ}).
+ * CompoundCurve / MultiCurve / CurvePolygon rings: a LineString is
+ * bare {@code (x y, …)}; a CircularString stays tagged.
  *
  * <p>For most curve subclasses the inherited {@link WKTWriter} already
  * does the right thing — it dispatches by parent type and uses
@@ -95,6 +100,20 @@ public class CurveWKTWriter extends WKTWriter {
     return false;
   }
 
+  /**
+   * GEOS {@code WKTWriter::appendOrdinateText}: {@code Z} / {@code M} /
+   * {@code ZM} plus a trailing space so the suffix is
+   * {@code CIRCULARSTRING Z (…)}, not glued to the body.
+   */
+  @Override
+  protected void appendOrdinateText(EnumSet<Ordinate> outputOrdinates, Writer writer)
+      throws IOException {
+    super.appendOrdinateText(outputOrdinates, writer);
+    if (outputOrdinates.contains(Ordinate.Z) || outputOrdinates.contains(Ordinate.M)) {
+      writer.write(" ");
+    }
+  }
+
   private static boolean hasCurveMember(MultiCurve mc) {
     for (int i = 0; i < mc.getNumGeometries(); i++) {
       Geometry m = mc.getGeometryN(i);
@@ -135,8 +154,7 @@ public class CurveWKTWriter extends WKTWriter {
         continue;
       }
       if (m instanceof CircularString) {
-        writer.write(WKTConstants.CIRCULARSTRING);
-        writer.write(" ");
+        appendCircularStringTag(outputOrdinates, writer);
       }
       appendSequenceText(m.getCoordinateSequence(), outputOrdinates, useFormatting,
           level, false, writer, formatter);
@@ -227,8 +245,7 @@ public class CurveWKTWriter extends WKTWriter {
       return;
     }
     if (ring instanceof CircularString) {
-      writer.write(WKTConstants.CIRCULARSTRING);
-      writer.write(" ");
+      appendCircularStringTag(outputOrdinates, writer);
     }
     appendSequenceText(ring.getCoordinateSequence(), outputOrdinates, useFormatting,
         level, false, writer, formatter);
@@ -254,14 +271,20 @@ public class CurveWKTWriter extends WKTWriter {
       }
       else {
         if (m instanceof CircularString) {
-          writer.write(WKTConstants.CIRCULARSTRING);
-          writer.write(" ");
+          appendCircularStringTag(outputOrdinates, writer);
         }
         appendSequenceText(m.getCoordinateSequence(), outputOrdinates, useFormatting,
             level, false, writer, formatter);
       }
     }
     writer.write(")");
+  }
+
+  private void appendCircularStringTag(EnumSet<Ordinate> outputOrdinates, Writer writer)
+      throws IOException {
+    writer.write(WKTConstants.CIRCULARSTRING);
+    writer.write(" ");
+    appendOrdinateText(outputOrdinates, writer);
   }
 
   /** grammars-v4 member form: {@code CLOTHOID (k0, k1, L)}. Never top-level. */

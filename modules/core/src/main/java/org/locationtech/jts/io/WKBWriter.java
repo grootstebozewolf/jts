@@ -52,14 +52,22 @@ import org.locationtech.jts.util.Assert;
  * </ul></li>
  * </ul>
  * <p>
- * This implementation supports the <b>Extended WKB</b> standard. 
- * Extended WKB allows writing 3-dimensional coordinates
- * and the geometry SRID value.  
- * The presence of 3D coordinates is indicated
- * by setting the high bit of the <tt>wkbType</tt> word.
- * The presence of a SRID is indicated
- * by setting the third bit of the <tt>wkbType</tt> word.
- * EWKB format is upward-compatible with the original SFS WKB format.
+ * This implementation supports two WKB flavours, matching GEOS
+ * {@code WKBWriter} ({@code setFlavor}):
+ * <ul>
+ * <li>{@link WKBConstants#wkbExtended} (default) — PostGIS / SFSQL
+ * Extended WKB. Z / M / SRID are high bits
+ * {@code 0x80000000} / {@code 0x40000000} / {@code 0x20000000}.</li>
+ * <li>{@link WKBConstants#wkbIso} — ISO/IEC 13249-3. Dimension is
+ * {@code type+1000} (Z), {@code +2000} (M), {@code +3000} (ZM).
+ * ISO has no SRID embedding.</li>
+ * </ul>
+ * The default flavour is Extended. ISO is emitted only when
+ * {@link #setFlavor(int)} is called with {@link WKBConstants#wkbIso}.
+ * SQL/MM types 8–12 are not flattened to {@code LineString} /
+ * {@code Polygon}; the core writer throws unless a subclass
+ * (for example {@code CurveWKBWriter}) handles them.
+ * {@link LinearRing} → {@link LineString} is the only type collapse.
  * <p>
  * SRID output is optimized, if specified. 
  * Only the top-level geometry has the SRID included.
@@ -228,6 +236,7 @@ public class WKBWriter
   private int outputDimension = 2;
   private int byteOrder;
   private boolean includeSRID = false;
+  private int flavor = WKBConstants.wkbExtended;
   private ByteArrayOutputStream byteArrayOS = new ByteArrayOutputStream();
   private OutStream byteArrayOutStream = new OutputStreamOutStream(byteArrayOS);
   // holds output data values
@@ -367,6 +376,31 @@ public class WKBWriter
   }
 
   /**
+   * Returns the WKB flavour this writer will emit.
+   * Default is {@link WKBConstants#wkbExtended}.
+   *
+   * @return {@link WKBConstants#wkbExtended} or {@link WKBConstants#wkbIso}
+   */
+  public int getFlavor() {
+    return flavor;
+  }
+
+  /**
+   * Sets the WKB flavour this writer will emit.
+   * Default is Extended; ISO is used only when this is set to
+   * {@link WKBConstants#wkbIso}.
+   *
+   * @param newFlavor {@link WKBConstants#wkbIso} or {@link WKBConstants#wkbExtended}
+   * @throws IllegalArgumentException if {@code newFlavor} is not a known flavour
+   */
+  public void setFlavor(int newFlavor) {
+    if (newFlavor != WKBConstants.wkbIso && newFlavor != WKBConstants.wkbExtended) {
+      throw new IllegalArgumentException("Invalid WKB output flavour");
+    }
+    this.flavor = newFlavor;
+  }
+
+  /**
    * Writes a {@link Geometry} into a byte array.
    *
    * @param geom the geometry to write
@@ -405,6 +439,13 @@ public class WKBWriter
       return;
     }
 
+    if (isSqlMmCurveType(geom)) {
+      throw new IllegalArgumentException(
+          "WKB type " + geom.getGeometryType()
+              + " requires CurveWKBWriter; core WKBWriter must not flatten"
+              + " SQL/MM types 8–12 to LineString or Polygon");
+    }
+
     if (geom instanceof Point)
       writePoint((Point) geom, actualOutputOrdinates, os);
     // LinearRings will be written as LineStrings
@@ -431,13 +472,29 @@ public class WKBWriter
 
   /**
    * Hook for subclasses to write geometry types the core dispatch does
-   * not handle (ISO/OGC SQL/MM codes 8–12). Called before the
+   * not handle (ISO/IEC 13249-3 SQL/MM codes 8–12). Called before the
    * {@code instanceof} ladder. Return {@code true} if the geometry was
    * written; {@code false} to continue with the core path.
+   * If this returns {@code false} for a type 8–12 geometry, the writer
+   * throws rather than flattening to {@code LineString} / {@code Polygon}.
    */
   protected boolean writeOtherGeometry(Geometry geom,
       EnumSet<Ordinate> outputOrdinates, OutStream os) throws IOException {
     return false;
+  }
+
+  /**
+   * SQL/MM curve types 8–12 identified by {@link Geometry#getGeometryType()}
+   * so core does not import {@code jts-curve}. LinearRing is not included;
+   * it remains the only allowed collapse (to LineString).
+   */
+  private static boolean isSqlMmCurveType(Geometry geom) {
+    String type = geom.getGeometryType();
+    return WKTConstants.CIRCULARSTRING.equalsIgnoreCase(type)
+        || WKTConstants.COMPOUNDCURVE.equalsIgnoreCase(type)
+        || WKTConstants.CURVEPOLYGON.equalsIgnoreCase(type)
+        || WKTConstants.MULTICURVE.equalsIgnoreCase(type)
+        || WKTConstants.MULTISURFACE.equalsIgnoreCase(type);
   }
 
   private void writePoint(Point pt, EnumSet<Ordinate> outputOrdinates, OutStream os) throws IOException
@@ -524,17 +581,35 @@ public class WKBWriter
   protected void writeGeometryType(int geometryType, EnumSet<Ordinate> outputOrdinates, Geometry g, OutStream os)
       throws IOException
   {
+    int typeInt = geometryType;
+    if (flavor == WKBConstants.wkbIso) {
+      // ISO/IEC 13249-3: type+1000 Z, +2000 M, +3000 ZM. No SRID.
+      if (outputDimension > 2) {
+        if (outputOrdinates.contains(Ordinate.Z)) {
+          typeInt += 1000;
+        }
+        if (outputOrdinates.contains(Ordinate.M)) {
+          typeInt += 2000;
+        }
+      }
+      writeInt(typeInt, os);
+      return;
+    }
+    if (flavor != WKBConstants.wkbExtended) {
+      throw new IllegalArgumentException("Unknown WKB flavor");
+    }
+
     int ordinals = 0;
     if (outputOrdinates.contains(Ordinate.Z)) {
       ordinals = ordinals | 0x80000000;
-      }
+    }
 
     if (outputOrdinates.contains(Ordinate.M)) {
       ordinals = ordinals | 0x40000000;
-      }
+    }
 
     int flag3D = (outputDimension > 2) ? ordinals : 0;
-    int typeInt = geometryType | flag3D;
+    typeInt = geometryType | flag3D;
     typeInt |= includeSRID ? 0x20000000 : 0;
     writeInt(typeInt, os);
     if (includeSRID) {
