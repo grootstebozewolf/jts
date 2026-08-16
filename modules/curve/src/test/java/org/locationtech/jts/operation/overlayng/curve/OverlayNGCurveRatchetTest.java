@@ -51,8 +51,9 @@ import test.jts.GeometryTestCase;
  * Complementary half-discs are 0EEE. Perpendicular same-circle
  * half-discs, a two-node two-shell clip, collinear same-side halves,
  * nested halves, and a 1-node touch are exact. A four-cut two-shell
- * n-span, a same-outer hole-inside pair, and a different-outer hole
- * that sits strictly inside or outside a certified outer CAP are
+ * n-span, a same-outer hole-inside pair, a different-outer hole
+ * that sits strictly inside or outside a certified outer CAP, and
+ * a straddling hole whose new edge ⊂ the other shell (a bite) are
  * exact. A four-cut disc vs a band is EEEE.
  */
 public class OverlayNGCurveRatchetTest extends GeometryTestCase {
@@ -107,6 +108,8 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, 0 -2, 1 -1), (1 -1, 1 6), CIRCULARSTRING (1 6, 0 7, -1 6), (-1 6, -1 -1)))";
   private static final String HALF_HOLED =
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0 1, 1 1, 1 2, 0 2, 0 1))";
+  private static final String HOLE_STRADDLE =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (-1 1, 1 1, 1 2, -1 2, -1 1))";
 
   private static final int[] OPS = { OverlayNGCurve.INTERSECTION, OverlayNGCurve.UNION,
       OverlayNGCurve.DIFFERENCE, OverlayNGCurve.SYMDIFFERENCE };
@@ -308,6 +311,14 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_fourCut() throws Exception {
     assertRow("four-cut disc ∩ band", CIRCLE_5, BAND_FOUR, "EEEE");
+  }
+
+  public void testMatrix_holeStraddleBite() throws Exception {
+    assertRow("hole-straddle bite", HOLE_STRADDLE, HALF_RIGHT, "EEEE");
+  }
+
+  public void testMatrix_holeStraddleBiteReverse() throws Exception {
+    assertRow("hole-straddle bite reverse", HALF_RIGHT, HOLE_STRADDLE, "EEEE");
   }
 
   // -- the disjoint CUP/XOR result, not just its exactness -----------------

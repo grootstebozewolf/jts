@@ -12,6 +12,7 @@
 package org.locationtech.jts.operation.overlayng.curve;
 
 import org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.curve.CircularString;
@@ -36,11 +37,12 @@ import test.jts.GeometryTestCase;
  * hole-inside pair is the holed cell. A different-outer hole
  * composes when it sits strictly inside or outside a certified
  * outer CAP. A hole that straddles the other shell shares the
- * clip edge, so subtracting hole ∩ other is a bite, not an
- * interior punch. Two holes that cross are a noder. A
- * three-point LineString is not an arc. Collinear overlap,
- * mixed labels, and those named hole misses stay {@code null}
- * so OverlayNGCurve can take R2 without paying this path first.
+ * clip edge: if that new edge is a subset of the other shell
+ * it is a bite, not an interior punch. Two holes that cross
+ * are a noder. A three-point LineString is not an arc.
+ * Collinear overlap, mixed labels, and the two-hole miss stay
+ * {@code null} so OverlayNGCurve can take R2 without paying
+ * this path first.
  */
 public class CompoundCurveShellOverlayTest extends GeometryTestCase {
 
@@ -602,6 +604,69 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
     assertEquals("disc minus the rectangle", DISC - 1.0, both.getArea(), EXACT);
   }
 
+  /**
+   * H-SHELL-HOLE-CROSS: the hole straddles the other shell. Even-n
+   * hole ∩ other shares the clip edge (0,1)–(0,2) on the vertical
+   * diameter. That new edge ⊂ other.shell, so the walk says bite,
+   * not a punched hole.
+   */
+  public void testHoleStraddleIsABiteNotAHole() throws Exception {
+    Geometry straddle = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (-1 1, 1 1, 1 2, -1 2, -1 1))");
+    Geometry right = readCurve(HALF_RIGHT);
+    assertEquals("new edge ⊂ other.shell is a bite", BiteVsHole.BITE,
+        BiteVsHole.decide(straddle, right));
+    CurveSegmentString clip = BiteVsHole.clipEdge(straddle, right);
+    assertNotNull("clip edge is the shared diameter run", clip);
+    assertFalse(clip.isArc());
+    assertFalse(clip.isDegenerate());
+    assertEquals(1.0, clip.length(), EXACT);
+    assertTrue("clip edge (0 1)–(0 2)",
+        (clip.getStart().distance(new Coordinate(0, 1)) <= EXACT
+            && clip.getEnd().distance(new Coordinate(0, 2)) <= EXACT)
+        || (clip.getStart().distance(new Coordinate(0, 2)) <= EXACT
+            && clip.getEnd().distance(new Coordinate(0, 1)) <= EXACT));
+
+    OverlayNGCurve cap = new OverlayNGCurve(straddle, right);
+    Geometry q = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-HOLE-CROSS CAP is exact (bite, not hole)",
+        cap.isApproximate());
+    assertEquals("Q1 minus the right half-rectangle", 6.25 * Math.PI - 1.0,
+        q.getArea(), EXACT);
+    assertEquals("bite is a shell, not an interior ring", 0,
+        ((CurvePolygon) q).getNumInteriorRing());
+    assertArcAndLineShell(q);
+    assertParity(straddle, right, OverlayNG.INTERSECTION, q);
+
+    OverlayNGCurve cup = new OverlayNGCurve(straddle, right);
+    Geometry u = cup.getResult(OverlayNG.UNION);
+    assertFalse("H-SHELL-HOLE-CROSS CUP is exact", cup.isApproximate());
+    assertEquals("three-quarter minus the leftover hole",
+        18.75 * Math.PI - 1.0, u.getArea(), EXACT);
+    assertEquals("leftover is a hole (new edge not on the CUP shell)",
+        1, ((CurvePolygon) u).getNumInteriorRing());
+
+    OverlayNGCurve sub = new OverlayNGCurve(straddle, right);
+    Geometry ears = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("H-SHELL-HOLE-CROSS SUB is exact", sub.isApproximate());
+    assertEquals("Q2 minus the left half-rectangle", 6.25 * Math.PI - 1.0,
+        ears.getArea(), EXACT);
+    assertEquals("SUB bite is a shell", 0,
+        ((CurvePolygon) ears).getNumInteriorRing());
+
+    OverlayNGCurve rev = new OverlayNGCurve(right, straddle);
+    Geometry other = rev.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("H-SHELL-HOLE-CROSS reverse SUB is exact",
+        rev.isApproximate());
+    assertEquals("Q4 plus the right half-rectangle", 6.25 * Math.PI + 1.0,
+        other.getArea(), EXACT);
+
+    OverlayNGCurve xor = new OverlayNGCurve(straddle, right);
+    Geometry x = xor.getResult(OverlayNG.SYMDIFFERENCE);
+    assertFalse("H-SHELL-HOLE-CROSS XOR is exact", xor.isApproximate());
+    assertEquals("both bites", 12.5 * Math.PI, x.getArea(), EXACT);
+  }
+
   public void testNotThisCellReturnsNull() throws Exception {
     Geometry half = readCurve(HALF_DISC);
     Geometry disc = readCurve(CIRCLE_5);
@@ -612,19 +677,12 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
     Geometry right = readCurve(HALF_RIGHT);
     Geometry onDiameter = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, 0 2, 1 1), (1 1, 1 0), (1 0, -1 0), (-1 0, -1 1)))");
-    Geometry straddle = readCurve(
-        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (-1 1, 1 1, 1 2, -1 2, -1 1))");
     assertNull("two discs stay on R1.5",
         CompoundCurveShellOverlay.overlay(disc, other, OverlayNG.INTERSECTION));
     assertNull("plain vs plain",
         CompoundCurveShellOverlay.overlay(square, square, OverlayNG.UNION));
     assertNull("H-SHELL-HOLE-OUTER: hole meets the other diameter",
         CompoundCurveShellOverlay.overlay(holed, right, OverlayNG.INTERSECTION));
-    // The hole crosses the other outer (the vertical diameter), not
-    // the other hole. hole ∩ other shares that clip edge, so a punch
-    // would guess a bite versus a hole.
-    assertNull("H-SHELL-HOLE-CROSS: hole straddles the other shell",
-        CompoundCurveShellOverlay.overlay(straddle, right, OverlayNG.INTERSECTION));
     Geometry holeX = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0.5 0.5, 1.5 0.5, 1.5 1.5, 0.5 1.5, 0.5 0.5))");
     // Two holes that cross each other is a noder, not a kit.
