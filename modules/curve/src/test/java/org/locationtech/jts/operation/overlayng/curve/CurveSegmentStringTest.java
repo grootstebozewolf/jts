@@ -23,9 +23,9 @@ import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
 
 /**
- * P2.1: {@link CurveSegmentString} is the unit; {@link CurveSegmentNoder}
- * emits the discrete node set the kits already know. MIXED is the
- * first miss. No faces. Not N-SS.
+ * P2.1 nodes plus P2.2 overlap-as-edge. {@link CurveSegmentString}
+ * is the unit; {@link CurveSegmentNoder} emits the discrete node
+ * set or a shared run as an edge (interval). No faces. Not N-SS.
  */
 public class CurveSegmentStringTest extends GeometryTestCase {
 
@@ -56,6 +56,28 @@ public class CurveSegmentStringTest extends GeometryTestCase {
   /** r=3 at (2,0); internally tangent to CIRCLE_5 at (5,0). */
   private static final String CIRCLE_INT_TAN =
       "CURVEPOLYGON (CIRCULARSTRING (-1 0, 2 3, 5 0, 2 -3, -1 0))";
+  /**
+   * TOUCH-ext / Qed OverlayTouchRow: unit discs, centres (0,0) and
+   * (2,0), d = r1+r2, kiss (1,0). Oracle EXT_TANGENT.
+   */
+  private static final String UNIT_DISC =
+      "CURVEPOLYGON (CIRCULARSTRING (-1 0, 0 1, 1 0, 0 -1, -1 0))";
+  private static final String UNIT_DISC_TOUCH =
+      "CURVEPOLYGON (CIRCULARSTRING (1 0, 2 1, 3 0, 2 -1, 1 0))";
+  /** H-SAME-CIRCLE: overlapping quarters of CIRCLE_5. */
+  private static final String ARC_SAME_Q1 =
+      "CIRCULARSTRING (-5 0, 0 5, 5 0)";
+  private static final String ARC_SAME_Q2 =
+      "CIRCULARSTRING (0 5, 5 0, 0 -5)";
+  /** R-LL: LineString member overlaps a plain line; the arc is a rider. */
+  private static final String RLL_COMPOUND =
+      "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 12 2, 14 0))";
+  /**
+   * Extends past the LineString member so R1 cannot retain. Public
+   * CAP is a point count; the overlap is a segment.
+   */
+  private static final String RLL_OVERLAP_LINE =
+      "LINESTRING (2 0, 12 0)";
   private static final String HALF_RIGHT =
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (0 -5, 5 0, 0 5), (0 5, 0 -5)))";
   private static final String HALF_HOLED =
@@ -114,6 +136,9 @@ public class CurveSegmentStringTest extends GeometryTestCase {
     assertHas(nodes, 3.5, SQRT_12_75);
     assertHas(nodes, 3.5, -SQRT_12_75);
     assertSamePoints("R1.5 reverse", nodes, CurveSegmentNoder.nodes(b, a));
+    List<CurveSegmentString> edges = CurveSegmentNoder.edges(a, b);
+    assertNotNull(edges);
+    assertEquals("R1.5 is nodes, not a shared run", 0, edges.size());
   }
 
   /**
@@ -205,33 +230,175 @@ public class CurveSegmentStringTest extends GeometryTestCase {
   }
 
   /**
-   * MIXED is the first miss: collinear overlap is an interval.
+   * MIXED: collinear overlap is an edge, not a discrete node set.
+   * Overlay still refuses -- this rung does not walk faces.
    */
-  public void testMixedIsTheFirstMiss() throws Exception {
+  public void testMixedOverlapIsTheDiameterEdge() throws Exception {
     Geometry half = readCurve(HALF_DISC);
     Geometry onDiameter = readCurve(ON_DIAMETER);
-    assertNull("H-SHELL-N-MIXED: collinear overlap stays refused",
+    assertNull("H-SHELL-N-MIXED: overlay stays refused (no face walk)",
         CompoundCurveShellOverlay.overlay(half, onDiameter,
             org.locationtech.jts.operation.overlayng.OverlayNG.INTERSECTION));
-    assertNull("H-SHELL-N-MIXED: noder does not invent overlap-as-edge",
+    assertNull("H-SHELL-N-MIXED: nodes stay null (interval, not points)",
         CurveSegmentNoder.nodes(half, onDiameter));
+
+    List<CurveSegmentString> edges = CurveSegmentNoder.edges(half,
+        onDiameter);
+    assertNotNull("H-SHELL-N-MIXED: noder names the overlap", edges);
+    CurveSegmentString run = findChord(edges, -1.0, 0.0, 1.0, 0.0);
+    assertNotNull("H-SHELL-N-MIXED: overlapping diameter (-1 0)–(1 0)",
+        run);
+    assertFalse(run.isArc());
+    assertFalse("overlap is an interval, not a pinch", run.isDegenerate());
+    assertEquals(2.0, run.length(), EXACT);
   }
 
-  public void testPinchAndHolesStayNamedMiss() throws Exception {
+  /**
+   * H-SAME-CIRCLE: CircleSweepOverlay already sews the shared quarter.
+   * Lock that interval on the string, then lift it onto two shells.
+   */
+  public void testHSameCircleOverlapIsASweepEdge() throws Exception {
+    CurveSegmentString q1 = CurveSegmentString.arc(
+        c(-5, 0), c(0, 5), c(5, 0));
+    CurveSegmentString q2 = CurveSegmentString.arc(
+        c(0, 5), c(5, 0), c(0, -5));
+    CurveSegmentString run = CurveSegmentString.overlap(q1, q2, 10.0);
+    assertNotNull("H-SAME-CIRCLE: shared quarter is an edge", run);
+    assertTrue(run.isArc());
+    assertFalse(run.isDegenerate());
+    assertEquals("shared quarter length", 2.5 * Math.PI, run.length(),
+        EXACT);
+    assertTrue(sameEnds(run, 0.0, 5.0, 5.0, 0.0));
+
+    CurveSegmentString lower = CurveSegmentString.arc(
+        c(5, 0), c(0, -5), c(-5, 0));
+    assertNull("same-circle endpoint kiss is not an interval",
+        CurveSegmentString.overlap(q1, lower, 10.0));
+
+    Geometry a = readCurve(ARC_SAME_Q1);
+    Geometry b = readCurve(ARC_SAME_Q2);
+    assertNull("H-SAME-CIRCLE: not a discrete node set",
+        CurveSegmentNoder.nodes(a, b));
+    List<CurveSegmentString> edges = CurveSegmentNoder.edges(a, b);
+    assertEquals("one shared quarter", 1, edges.size());
+    assertEquals(2.5 * Math.PI, edges.get(0).length(), EXACT);
+    assertTrue(sameEnds(edges.get(0), 0.0, 5.0, 5.0, 0.0));
+  }
+
+  /**
+   * Two CompoundCurve shells on CIRCLE_5 share the first-quadrant arc.
+   */
+  public void testHSameCircleLiftsToTwoShells() throws Exception {
+    Geometry upper = readCurve(HALF_DISC);
+    Geometry right = readCurve(HALF_RIGHT);
+    List<CurveSegmentString> edges = CurveSegmentNoder.edges(upper,
+        right);
+    assertNotNull(edges);
+    CurveSegmentString quarter = findArc(edges, 0.0, 5.0, 5.0, 0.0);
+    assertNotNull("H-SAME-CIRCLE two-shell: shared quarter", quarter);
+    assertEquals(2.5 * Math.PI, quarter.length(), EXACT);
+  }
+
+  /**
+   * H-ANNULUS-TANGENT: internal tangent is a zero-width pinch, not
+   * an annulus. Named as a degenerate edge. No face.
+   */
+  public void testAnnulusTangentIsADegenerateEdge() throws Exception {
     Geometry disc = readCurve(CIRCLE_5);
     Geometry tan = readCurve(CIRCLE_INT_TAN);
+    assertNull("H-ANNULUS-TANGENT: overlay does not punch an annulus",
+        CircularDiscOverlay.overlay(disc, tan,
+            org.locationtech.jts.operation.overlayng.OverlayNG.DIFFERENCE));
     assertNull("H-ANNULUS-TANGENT: pinch is not a discrete set",
         CurveSegmentNoder.nodes(disc, tan));
 
+    List<CurveSegmentString> edges = CurveSegmentNoder.edges(disc, tan);
+    assertNotNull(edges);
+    assertEquals("one pinch", 1, edges.size());
+    assertTrue("zero-width edge at (5 0)", edges.get(0).isDegenerate());
+    assertEquals(5.0, edges.get(0).getStart().x, EXACT);
+    assertEquals(0.0, edges.get(0).getStart().y, EXACT);
+    assertEquals(0.0, edges.get(0).length(), EXACT);
+  }
+
+  /**
+   * TOUCH-ext: external tangent, d = r1+r2, one kiss, disjoint
+   * interiors. Named as a degenerate edge at (1 0). A point is not
+   * an interval and not a CurvePolygon. Overlay stays null.
+   */
+  public void testTouchExtIsADegenerateEdge() throws Exception {
+    Geometry a = readCurve(UNIT_DISC);
+    Geometry b = readCurve(UNIT_DISC_TOUCH);
+    assertEquals("TOUCH-ext: oracle EXT_TANGENT",
+        "FF2F01212", a.relate(b).toString());
+    assertNull("TOUCH-ext: overlay does not invent a CurvePolygon",
+        CircularDiscOverlay.overlay(a, b,
+            org.locationtech.jts.operation.overlayng.OverlayNG.INTERSECTION));
+    assertNull("TOUCH-ext: nestedAnnulus is not this pair",
+        CircularDiscOverlay.overlay(a, b,
+            org.locationtech.jts.operation.overlayng.OverlayNG.DIFFERENCE));
+    assertNull("TOUCH-ext: kiss is not a 2-node set",
+        CurveSegmentNoder.nodes(a, b));
+
+    List<CurveSegmentString> edges = CurveSegmentNoder.edges(a, b);
+    assertNotNull(edges);
+    assertEquals("one kiss", 1, edges.size());
+    assertTrue("zero-width edge at (1 0)", edges.get(0).isDegenerate());
+    assertFalse(edges.get(0).isArc());
+    assertEquals(1.0, edges.get(0).getStart().x, EXACT);
+    assertEquals(0.0, edges.get(0).getStart().y, EXACT);
+    assertEquals(0.0, edges.get(0).length(), EXACT);
+    List<CurveSegmentString> rev = CurveSegmentNoder.edges(b, a);
+    assertEquals("TOUCH-ext reverse", 1, rev.size());
+    assertTrue(rev.get(0).isDegenerate());
+    assertEquals(1.0, rev.get(0).getStart().x, EXACT);
+    assertEquals(0.0, rev.get(0).getStart().y, EXACT);
+  }
+
+  /**
+   * R-LL collinear overlap: public CAP is a point count and the
+   * helper still misses. The noder names the overlapping segment.
+   * Do not chordsaw-as-exact.
+   */
+  public void testRllCollinearOverlapIsAnEdge() throws Exception {
+    Geometry curve = readCurve(RLL_COMPOUND);
+    Geometry line = readCurve(RLL_OVERLAP_LINE);
+    assertNull("R-LL: helper still misses collinear overlap",
+        CircularLineOverlay.overlay(curve, line,
+            org.locationtech.jts.operation.overlayng.OverlayNG.INTERSECTION));
+    OverlayNGCurve pub = new OverlayNGCurve(curve, line);
+    Geometry publicCap = pub.getResult(
+        org.locationtech.jts.operation.overlayng.OverlayNG.INTERSECTION);
+    assertTrue("R-LL collinear: public stays approximate (not exact)",
+        pub.isApproximate());
+    assertFalse("R-LL collinear: public count is not the overlap segment",
+        publicCap.getLength() == 8.0 && !pub.isApproximate());
+
+    assertNull("R-LL collinear: not a discrete node set",
+        CurveSegmentNoder.nodes(curve, line));
+    List<CurveSegmentString> edges = CurveSegmentNoder.edges(curve,
+        line);
+    assertNotNull(edges);
+    CurveSegmentString run = findChord(edges, 2.0, 0.0, 10.0, 0.0);
+    assertNotNull("R-LL: overlapping segment (2 0)–(10 0)", run);
+    assertFalse(run.isArc());
+    assertEquals(8.0, run.length(), EXACT);
+  }
+
+  public void testPinchAndHolesStayNamedMiss() throws Exception {
     Geometry right = readCurve(HALF_RIGHT);
     Geometry straddle = readCurve(HOLE_STRADDLE);
     assertNull("H-SHELL-HOLE-CROSS: holes are P2.3",
         CurveSegmentNoder.nodes(straddle, right));
+    assertNull("H-SHELL-HOLE-CROSS: edges stay null",
+        CurveSegmentNoder.edges(straddle, right));
 
     Geometry holed = readCurve(HALF_HOLED);
     Geometry holeX = readCurve(HOLE_X);
     assertNull("H-SHELL-HOLE-X: two holes are P2.4",
         CurveSegmentNoder.nodes(holed, holeX));
+    assertNull("H-SHELL-HOLE-X: edges stay null",
+        CurveSegmentNoder.edges(holed, holeX));
   }
 
   public void testNoderDoesNotAssembleFaces() throws Exception {
@@ -247,6 +414,40 @@ public class CurveSegmentStringTest extends GeometryTestCase {
 
   private static Coordinate c(double x, double y) {
     return new Coordinate(x, y);
+  }
+
+  private static boolean sameEnds(CurveSegmentString e, double x0, double y0,
+      double x1, double y1) {
+    Coordinate p = new Coordinate(x0, y0);
+    Coordinate q = new Coordinate(x1, y1);
+    return (e.getStart().distance(p) <= EXACT
+            && e.getEnd().distance(q) <= EXACT)
+        || (e.getStart().distance(q) <= EXACT
+            && e.getEnd().distance(p) <= EXACT);
+  }
+
+  private static CurveSegmentString findChord(List<CurveSegmentString> edges,
+      double x0, double y0, double x1, double y1) {
+    CurveSegmentString found = null;
+    for (int i = 0; i < edges.size() && found == null; i++) {
+      CurveSegmentString e = edges.get(i);
+      if (!e.isArc() && sameEnds(e, x0, y0, x1, y1)) {
+        found = e;
+      }
+    }
+    return found;
+  }
+
+  private static CurveSegmentString findArc(List<CurveSegmentString> edges,
+      double x0, double y0, double x1, double y1) {
+    CurveSegmentString found = null;
+    for (int i = 0; i < edges.size() && found == null; i++) {
+      CurveSegmentString e = edges.get(i);
+      if (e.isArc() && sameEnds(e, x0, y0, x1, y1)) {
+        found = e;
+      }
+    }
+    return found;
   }
 
   private static void assertHas(Coordinate[] nodes, double x, double y) {

@@ -19,11 +19,13 @@ import org.locationtech.jts.algorithm.RobustLineIntersector;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularArcDensifier;
 import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
+import org.locationtech.jts.geom.curve.MultiCurve;
 import org.locationtech.jts.geom.curve.MultiSurface;
 
 /**
@@ -33,8 +35,11 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * stay the existing atoms. A noder that densifies is a lie; this string
  * carries the control triple or the chord the kits already use.
  * <p>
- * Same-circle sweep overlap is not a discrete node (P2.2). Collinear
- * overlap is {@code null} from {@link #intersect} (MIXED, the first miss).
+ * A shared run is an {@linkplain #overlap edge} (a same-circle sweep
+ * interval, or a collinear segment). {@link #intersect} stays a
+ * discrete node set: collinear overlap is still {@code null} there
+ * (MIXED is not a pair of endpoints). A pinch / kiss that is not an
+ * interval is a zero-length degenerate edge, or {@code null}.
  */
 final class CurveSegmentString {
 
@@ -94,8 +99,36 @@ final class CurveSegmentString {
   }
 
   /**
-   * Exterior pieces of a hole-free circular / compound / plain ring.
-   * Holes stay {@code null} (P2.3 / P2.4). A miss is {@code null}.
+   * Zero-length pinch / kiss. A point is not an interval; the noder
+   * may still name it as a degenerate edge. A full-circle arc
+   * ({@code a == b} with a mid on the opposite side) is not this.
+   * Not a face.
+   */
+  boolean isDegenerate() {
+    if (a.distance(b) > 1.0e-12) return false;
+    if (!isArc) return true;
+    return mid == null || mid.distance(a) <= 1.0e-12;
+  }
+
+  /**
+   * Chord length, or r × sweep. A degenerate edge is 0.
+   */
+  double length() {
+    if (!isArc) return a.distance(b);
+    double a0 = Math.atan2(a.y - circle[1], a.x - circle[0]);
+    double aM = Math.atan2(mid.y - circle[1], mid.x - circle[0]);
+    double a1 = Math.atan2(b.y - circle[1], b.x - circle[0]);
+    boolean ccw = TwoNodeClip.normPos(aM - a0) < TwoNodeClip.normPos(a1 - a0);
+    double sweep = ccw ? TwoNodeClip.normPos(a1 - a0)
+        : TwoNodeClip.normPos(a0 - a1);
+    if (sweep == 0.0) sweep = TwoNodeClip.TWO_PI;
+    return circle[2] * sweep;
+  }
+
+  /**
+   * Exterior pieces of a hole-free circular / compound / plain ring,
+   * or the pieces of a lineal CircularString / CompoundCurve /
+   * LineString (R-LL). Holes stay {@code null} (P2.3 / P2.4).
    */
   static List<CurveSegmentString> of(Geometry g) {
     Geometry geom = unwrap(g);
@@ -116,13 +149,65 @@ final class CurveSegmentString {
     if (TwoNodeClip.isPlainPolygon(geom)) {
       return ofPlain(((Polygon) geom).getExteriorRing().getCoordinates());
     }
+    if (geom instanceof LineString) {
+      List<TwoNodeClip.Edge> edges = CircularLineOverlay.flattenLineal(
+          (LineString) geom);
+      return edges == null ? null : ofEdges(edges);
+    }
     return null;
   }
 
   /**
+   * Shared run of two strings: a same-circle sweep interval, a
+   * collinear segment, or a different-circle tangent pinch (zero
+   * length). {@code null} is no interval and no pinch this rung
+   * will name. Does not assemble a face.
+   */
+  static CurveSegmentString overlap(CurveSegmentString p,
+      CurveSegmentString q, double scale) {
+    List<CurveSegmentString> s = shared(p, q, scale);
+    if (s.isEmpty()) return null;
+    return s.get(0);
+  }
+
+  /**
+   * All shared runs of a pair. Empty is no interval / no pinch.
+   */
+  static List<CurveSegmentString> shared(CurveSegmentString p,
+      CurveSegmentString q, double scale) {
+    List<CurveSegmentString> out = new ArrayList<CurveSegmentString>();
+    if (p == null || q == null) return out;
+    if (p.isArc && q.isArc) {
+      if (sameCircle(p, q, scale)) {
+        List<TwoNodeClip.Edge> sweeps = CircleSweepOverlay.sharedSweep(
+            p.asEdge(), q.asEdge(), scale);
+        if (sweeps != null) {
+          for (int i = 0; i < sweeps.size(); i++) {
+            out.add(of(sweeps.get(i)));
+          }
+        }
+        return out;
+      }
+      CurveSegmentString pinch = tangentPinch(p, q);
+      if (pinch != null) {
+        out.add(pinch);
+      }
+      return out;
+    }
+    if (!p.isArc && !q.isArc) {
+      CurveSegmentString seg = overlapSegments(p, q);
+      if (seg != null) {
+        out.add(seg);
+      }
+    }
+    return out;
+  }
+
+  /**
    * Discrete hits of this string and {@code other}. {@code null} is
-   * collinear overlap (MIXED). Same-circle arcs add no node here
-   * (interval, P2.2). Empty is a miss-free pair with no point.
+   * collinear overlap (MIXED) -- an interval, not a node set.
+   * Same-circle arcs add no node here. Empty is a miss-free pair
+   * with no point.
    */
   static Coordinate[] intersect(CurveSegmentString p, CurveSegmentString q,
       double scale) {
@@ -184,6 +269,45 @@ final class CurveSegmentString {
     return new Coordinate[0];
   }
 
+  /**
+   * Collinear overlap as a segment. A kiss (zero length) is not an
+   * interval -- {@code null}, not a pair of endpoints.
+   */
+  private static CurveSegmentString overlapSegments(CurveSegmentString p,
+      CurveSegmentString q) {
+    LineIntersector li = new RobustLineIntersector();
+    li.computeIntersection(p.a, p.b, q.a, q.b);
+    if (li.getIntersectionNum() != LineIntersector.COLLINEAR_INTERSECTION) {
+      return null;
+    }
+    Coordinate u = li.getIntersection(0);
+    Coordinate v = li.getIntersection(1);
+    if (u.distance(v) <= 1.0e-12) return null;
+    return segment(u, v);
+  }
+
+  /**
+   * Different-circle tangent: {@code intersectCircles} returns one
+   * point, and it lies on both sweeps. Named as a zero-length edge.
+   * Covers TOUCH-ext ({@code d = r1+r2}) and H-ANNULUS-TANGENT
+   * ({@code d+r = R}). Two crossings with only one on-sweep hit
+   * stay a node, not this. Not a face.
+   */
+  private static CurveSegmentString tangentPinch(CurveSegmentString p,
+      CurveSegmentString q) {
+    Coordinate[] xs = TwoNodeClip.intersectCircles(
+        p.circle[0], p.circle[1], p.circle[2],
+        q.circle[0], q.circle[1], q.circle[2]);
+    if (xs.length != 1) return null;
+    if (!TwoNodeClip.isOnSweep(xs[0], p.circle, p.a, p.mid, p.b)) {
+      return null;
+    }
+    if (!TwoNodeClip.isOnSweep(xs[0], q.circle, q.a, q.mid, q.b)) {
+      return null;
+    }
+    return segment(xs[0], xs[0]);
+  }
+
   static boolean sameCircle(CurveSegmentString p, CurveSegmentString q,
       double scale) {
     if (!p.isArc || !q.isArc) return false;
@@ -224,7 +348,8 @@ final class CurveSegmentString {
 
   private static Geometry unwrap(Geometry g) {
     if (g == null || g.isEmpty()) return null;
-    if (g instanceof MultiSurface) {
+    if (g instanceof MultiSurface || g instanceof MultiCurve
+        || g instanceof MultiLineString) {
       if (g.getNumGeometries() != 1) return null;
       return unwrap(g.getGeometryN(0));
     }
