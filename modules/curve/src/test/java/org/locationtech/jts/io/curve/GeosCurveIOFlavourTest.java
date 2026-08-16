@@ -23,6 +23,7 @@ import org.locationtech.jts.geom.curve.MultiCurve;
 import org.locationtech.jts.geom.curve.MultiSurface;
 import org.locationtech.jts.io.ByteOrderValues;
 import org.locationtech.jts.io.Ordinate;
+import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBConstants;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.io.WKBWriter;
@@ -265,11 +266,42 @@ public class GeosCurveIOFlavourTest extends GeometryTestCase {
     assertTrue(typeWord(WKBWriter.toHex(honest)) != WKBConstants.wkbLineString);
   }
 
+  /**
+   * GEO-TIN (Triangle=15, PolyhedralSurface=16, TIN=17) waits Architect
+   * SIGN. This draft is curve 8–12 plus ISO/EXTENDED Z/M/ZM only.
+   */
+  public void testWkb15_16_17StayUnknown() {
+    assertUnknownWkbType("010F000000", 15);
+    assertUnknownWkbType("0110000000", 16);
+    assertUnknownWkbType("0111000000", 17);
+    assertUnknownWkbType("01F7030000", 15);
+  }
+
   public void testCoreWkbWriterDoesNotFlattenOtherCurveTypes() throws Exception {
     assertCoreRefuses(CC_2D);
     assertCoreRefuses(CP_2D);
     assertCoreRefuses(MC_2D);
     assertCoreRefuses(MS_2D);
+  }
+
+  private static void assertUnknownWkbType(String hex, int typeCode) {
+    byte[] wkb = WKBReader.hexToBytes(hex);
+    try {
+      new WKBReader().read(wkb);
+      fail("core WKBReader must throw for WKB type " + typeCode);
+    }
+    catch (ParseException e) {
+      assertTrue(e.getMessage(),
+          e.getMessage().indexOf("Unknown WKB type " + typeCode) >= 0);
+    }
+    try {
+      new CurveWKBReader().read(wkb);
+      fail("CurveWKBReader must throw for WKB type " + typeCode);
+    }
+    catch (ParseException e) {
+      assertTrue(e.getMessage(),
+          e.getMessage().indexOf("Unknown WKB type " + typeCode) >= 0);
+    }
   }
 
   private static void assertCoreRefuses(String wkt) throws Exception {

@@ -80,9 +80,11 @@ import org.locationtech.jts.geom.PrecisionModel;
  * CurvePolygon, MultiCurve, MultiSurface) are recognised. Construction
  * is delegated to the {@link GeometryFactory}; the default factory
  * throws {@link UnsupportedOperationException}, which this reader
- * wraps as {@link ParseException}. Subclasses may override
+ * wraps as {@link ParseException}. Codes 15–17 (Triangle /
+ * PolyhedralSurface / TIN) are not recognised here — GEO-TIN waits
+ * Architect SIGN. Unknown types throw. Subclasses may override
  * {@link #readOtherGeometry} for types the core reader does not
- * recognise (codes 13+). Helpers used to read nested geometries,
+ * recognise. Helpers used to read nested geometries,
  * coordinate sequences, and field counts are {@code protected}.
  * 
  * @see WKBWriter for a formal format specification

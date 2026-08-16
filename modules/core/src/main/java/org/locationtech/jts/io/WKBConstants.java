@@ -28,8 +28,10 @@ public interface WKBConstants {
 
   /**
    * ISO/IEC 13249-3 (SQL/MM Spatial) type codes for curve geometries.
-   * Same integers as GEOS {@code WKBConstants}: no {@code wkbCurve} /
-   * {@code wkbSurface}; unknown types throw.
+   * Same integers as GEOS {@code WKBConstants}: types 8–12 only.
+   * No {@code wkbCurve} / {@code wkbSurface}. No WKB 15–17
+   * (Triangle / PolyhedralSurface / TIN) — GEO-TIN waits Architect SIGN.
+   * Unknown types throw.
    */
   int wkbCircularString = 8;
   int wkbCompoundCurve = 9;

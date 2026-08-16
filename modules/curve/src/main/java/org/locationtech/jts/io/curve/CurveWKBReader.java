@@ -21,7 +21,9 @@ import org.locationtech.jts.io.WKBReader;
  * curve types from both WKB flavours (ISO {@code type+1000/2000/3000}
  * and Extended EWKB high bits). Z / M / ZM coordinates survive.
  * Flavour is detected on read the way GEOS {@code WKBReader.cpp} does.
- * There is no {@code wkbCurve} / {@code wkbSurface}; unknown types throw.
+ * There is no {@code wkbCurve} / {@code wkbSurface}. WKB 15–17
+ * (Triangle / PolyhedralSurface / TIN) are not added here — GEO-TIN
+ * waits Architect SIGN. Unknown types throw.
  * The core reader already recognises codes 8–12 and delegates
  * construction to the factory; this subclass is the convenience
  * no-arg constructor.
