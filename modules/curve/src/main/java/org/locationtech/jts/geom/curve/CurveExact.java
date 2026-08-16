@@ -29,11 +29,12 @@ import org.locationtech.jts.geom.Polygon;
 
 /**
  * Closed-form answers for the shapes a cheap check can recognise: a circular
- * disc, a single circular arc, a point against an arc, a disc against a
- * Point or MultiPoint (PIP and DE-9IM), a disc against a LineString
- * (DE-9IM from line–circle nodes), a disc against a plain Polygon
- * (DE-9IM from vertices, edge nodes, and mid-arc PIP), or two circular
- * discs (DE-9IM from radical-axis nodes and {@link #locatePoint}).
+ * disc, a single circular arc, the convex hull of circular-plus-straight
+ * members, a point against an arc, a disc against a Point or MultiPoint
+ * (PIP and DE-9IM), a disc against a LineString (DE-9IM from line–circle
+ * nodes), a disc against a plain Polygon (DE-9IM from vertices, edge
+ * nodes, and mid-arc PIP), or two circular discs (DE-9IM from radical-axis
+ * nodes and {@link #locatePoint}).
  * Package-private -- not a new public API.
  * {@link CurveOps} takes these only when they can answer; anything else
  * goes straight to the chord baseline. Trying and falling through would
@@ -82,10 +83,15 @@ final class CurveExact {
   private CurveExact() { }
 
   /**
-   * Exact convex hull, or {@code null} if this geometry is not a disc or a
-   * single arc. A disc's hull is the disc; a single arc's hull is the slice
-   * bounded by the arc and its chord -- a {@link CurvePolygon}, so the result
-   * contains the arc instead of an inscribed polyline.
+   * Exact convex hull, or {@code null} if this geometry is not a circular
+   * disc, a single arc, or a circular-plus-straight mix
+   * {@link CurveConvexHull} can certify. A disc's hull is the disc; a
+   * single arc's hull is the slice bounded by the arc and its chord; a
+   * CompoundCurve of arcs and segments (H-CC, a stadium) is a
+   * {@link CurvePolygon} whose shell is the exposed arcs plus the
+   * supporting tangents. A clothoid or any uncertified mix is
+   * {@code null} so {@link CurveOps} can take the chords alone -- never
+   * densify-then-hull and flag the result exact.
    */
   static Geometry convexHull(Geometry g) {
     if (g == null || g.isEmpty()) return null;
@@ -99,7 +105,7 @@ final class CurveExact {
         return arcChordHull(cs);
       }
     }
-    return null;
+    return CurveConvexHull.hull(g);
   }
 
   /**
