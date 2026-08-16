@@ -35,6 +35,8 @@ import test.jts.GeometryTestCase;
  * each unordered pair. P2.5.3 walks the faces of that node set.
  * P2.5.4 is near-tangent robustness: a coincident leave-angle
  * stamps {@link CurveSegmentFaces#TANGENT_LEAVE_ANGLE}.
+ * HP.1 pins that a signed-curvature leave-angle order at
+ * (0, 5) walks the wrong rings -- not a laser.
  * Not N-SS, not a core {@code Noder}.
  */
 public class CurveSegmentStringTest extends GeometryTestCase {
@@ -113,6 +115,19 @@ public class CurveSegmentStringTest extends GeometryTestCase {
   private static final double N3_B_REST = HALF - LENS - N3_BC_NOT_A;
   /** area(A ∪ B ∪ C) = 25.5π − LENS + 2. */
   private static final double N3_UNION = 25.5 * Math.PI - LENS + 2.0;
+  /**
+   * H-SHELL-N-ODD N=2 pair-kit (CAP + XOR) = 13π + 2 ≈ 42.84.
+   * HALF + STADIUM_ODD − ODD_CAP.
+   */
+  private static final double HSHELL_N_ODD_PAIR_KIT = 13.0 * Math.PI + 2.0;
+  /**
+   * Observed area of the 70c72c0 signed-curvature leave-angle
+   * order on H-SHELL-N-ODD. Wrong rings. Not a laser. Catalog
+   * never: curvature-order walk.
+   */
+  private static final double CURVATURE_ORDER_WRONG_AREA = 18.42;
+  /** Same as {@code CurveSegmentFaces.ANGLE_EPS}. */
+  private static final double LEAVE_ANGLE_EPS = 1.0e-8;
 
   public static void main(String[] args) {
     TestRunner.run(CurveSegmentStringTest.class);
@@ -569,6 +584,50 @@ public class CurveSegmentStringTest extends GeometryTestCase {
         CurveSegmentFaces.missReason());
   }
 
+  /**
+   * HP.1: coincident leave-angles at (0, 5) ordered by signed
+   * curvature walk the wrong rings. H-SHELL-N-ODD pair-kit is
+   * 13π+2 ≈ 42.84. The 70c72c0 curvature-order walk was 18.42.
+   * That is not a laser. Catalog never: curvature-order walk.
+   * P2.5.4 still stamps; this pin fails if that stamp is turned
+   * into a curvature-order "laser" without changing these
+   * numbers. Not a HotPixel, not a noder, not a face walk.
+   */
+  public void testCurvatureOrderWalksWrongRings() throws Exception {
+    Geometry half = readCurve(HALF_DISC);
+    Geometry hanging = readCurve(HALF_HANGING);
+    Geometry stadium = readCurve(STADIUM_ODD);
+
+    Geometry stamped = CurveSegmentFaces.faces(
+        new Geometry[] { half, hanging, stadium });
+    assertNull("HP.1: P2.5.4 stamp is not a curvature-order laser",
+        stamped);
+    assertEquals("HP.1: named stamp unchanged",
+        CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
+        CurveSegmentFaces.missReason());
+
+    Geometry kit = CurveSegmentFaces.pairKitFaces(half, stadium);
+    assertNotNull("H-SHELL-N-ODD pair-kit fallback", kit);
+    assertEquals("pair-kit rings 13π+2", HSHELL_N_ODD_PAIR_KIT,
+        kit.getArea(), EXACT);
+
+    // Renaming 18.42 to the pair-kit area claims the wrong walk
+    // is a laser. The pin must stay a miss.
+    assertTrue("curvature-order walk is not the pair-kit rings",
+        Math.abs(kit.getArea() - CURVATURE_ORDER_WRONG_AREA) > 1.0);
+
+    Coordinate pinch = c(0, 5);
+    CurveSegmentString halfLeave = leaveFrom(halfDiscArc(), pinch,
+        c(5, 0));
+    CurveSegmentString stadiumLeave = leaveFrom(stadiumOddCap(),
+        pinch, c(1, 4));
+    assertTrue("HALF_DISC and STADIUM_ODD leave (0, 5) together",
+        coincidentLeave(halfLeave, stadiumLeave));
+    assertTrue("signed curvatures differ — the 70c72c0 tie-break",
+        Math.abs(signedCurvature(halfLeave)
+            - signedCurvature(stadiumLeave)) > LEAVE_ANGLE_EPS);
+  }
+
   public void testNoderDoesNotAssembleFaces() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
     Geometry b = readCurve(CIRCLE_CROSSING);
@@ -708,6 +767,70 @@ public class CurveSegmentStringTest extends GeometryTestCase {
 
   private static Coordinate c(double x, double y) {
     return new Coordinate(x, y);
+  }
+
+  /** HALF_DISC circular member. Existing fixture, not a new geometry. */
+  private static CurveSegmentString halfDiscArc() {
+    return CurveSegmentString.arc(c(-5, 0), c(0, 5), c(5, 0));
+  }
+
+  /** STADIUM_ODD top cap. Existing fixture, not a new geometry. */
+  private static CurveSegmentString stadiumOddCap() {
+    return CurveSegmentString.arc(c(-1, 4), c(0, 5), c(1, 4));
+  }
+
+  /**
+   * The piece of {@code full} that leaves {@code pinch} toward
+   * {@code toward}. Closed-form split of an existing fixture arc.
+   */
+  private static CurveSegmentString leaveFrom(CurveSegmentString full,
+      Coordinate pinch, Coordinate toward) {
+    Coordinate mid = TwoNodeClip.midOnSweep(pinch, toward, full.asEdge());
+    return CurveSegmentString.arc(pinch, mid, toward);
+  }
+
+  /**
+   * Same closed form as {@code CurveSegmentFaces.leaveAngle}.
+   * Test-local -- not a leave-angle snap, not a walk.
+   */
+  private static double leaveAngle(CurveSegmentString s) {
+    Coordinate from = s.getStart();
+    if (!s.isArc()) {
+      return Math.atan2(s.getEnd().y - from.y, s.getEnd().x - from.x);
+    }
+    TwoNodeClip.Edge e = s.asEdge();
+    double rx = from.x - e.circle[0];
+    double ry = from.y - e.circle[1];
+    double a0 = Math.atan2(e.a.y - e.circle[1], e.a.x - e.circle[0]);
+    double aM = Math.atan2(e.mid.y - e.circle[1], e.mid.x - e.circle[0]);
+    double a1 = Math.atan2(e.b.y - e.circle[1], e.b.x - e.circle[0]);
+    boolean ccw = TwoNodeClip.normPos(aM - a0) < TwoNodeClip.normPos(a1 - a0);
+    return ccw ? Math.atan2(rx, -ry) : Math.atan2(-rx, ry);
+  }
+
+  /**
+   * Same closed form as the 70c72c0 try. Test-local -- not an
+   * order, not a HotPixel.
+   */
+  private static double signedCurvature(CurveSegmentString s) {
+    if (!s.isArc()) return 0.0;
+    TwoNodeClip.Edge e = s.asEdge();
+    if (e.circle[2] <= 0.0) return 0.0;
+    double k = 1.0 / e.circle[2];
+    double a0 = Math.atan2(e.a.y - e.circle[1], e.a.x - e.circle[0]);
+    double aM = Math.atan2(e.mid.y - e.circle[1], e.mid.x - e.circle[0]);
+    double a1 = Math.atan2(e.b.y - e.circle[1], e.b.x - e.circle[0]);
+    boolean ccw = TwoNodeClip.normPos(aM - a0) < TwoNodeClip.normPos(a1 - a0);
+    return ccw ? k : -k;
+  }
+
+  private static boolean coincidentLeave(CurveSegmentString a,
+      CurveSegmentString b) {
+    double d = Math.abs(leaveAngle(a) - leaveAngle(b));
+    if (d > Math.PI) {
+      d = TwoNodeClip.TWO_PI - d;
+    }
+    return d < LEAVE_ANGLE_EPS;
   }
 
   private static boolean sameEnds(CurveSegmentString e, double x0, double y0,
