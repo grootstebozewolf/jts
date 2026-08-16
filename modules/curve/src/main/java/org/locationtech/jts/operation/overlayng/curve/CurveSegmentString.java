@@ -289,7 +289,9 @@ final class CurveSegmentString {
   /**
    * Different-circle tangent: {@code intersectCircles} returns one
    * point, and it lies on both sweeps. Named as a zero-length edge.
-   * Two crossings with only one on-sweep hit stay a node, not this.
+   * Covers TOUCH-ext ({@code d = r1+r2}) and H-ANNULUS-TANGENT
+   * ({@code d+r = R}). Two crossings with only one on-sweep hit
+   * stay a node, not this. Not a face.
    */
   private static CurveSegmentString tangentPinch(CurveSegmentString p,
       CurveSegmentString q) {

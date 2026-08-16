@@ -56,6 +56,14 @@ public class CurveSegmentStringTest extends GeometryTestCase {
   /** r=3 at (2,0); internally tangent to CIRCLE_5 at (5,0). */
   private static final String CIRCLE_INT_TAN =
       "CURVEPOLYGON (CIRCULARSTRING (-1 0, 2 3, 5 0, 2 -3, -1 0))";
+  /**
+   * TOUCH-ext / Qed OverlayTouchRow: unit discs, centres (0,0) and
+   * (2,0), d = r1+r2, kiss (1,0). Oracle EXT_TANGENT.
+   */
+  private static final String UNIT_DISC =
+      "CURVEPOLYGON (CIRCULARSTRING (-1 0, 0 1, 1 0, 0 -1, -1 0))";
+  private static final String UNIT_DISC_TOUCH =
+      "CURVEPOLYGON (CIRCULARSTRING (1 0, 2 1, 3 0, 2 -1, 1 0))";
   /** H-SAME-CIRCLE: overlapping quarters of CIRCLE_5. */
   private static final String ARC_SAME_Q1 =
       "CIRCULARSTRING (-5 0, 0 5, 5 0)";
@@ -311,6 +319,40 @@ public class CurveSegmentStringTest extends GeometryTestCase {
     assertEquals(5.0, edges.get(0).getStart().x, EXACT);
     assertEquals(0.0, edges.get(0).getStart().y, EXACT);
     assertEquals(0.0, edges.get(0).length(), EXACT);
+  }
+
+  /**
+   * TOUCH-ext: external tangent, d = r1+r2, one kiss, disjoint
+   * interiors. Named as a degenerate edge at (1 0). A point is not
+   * an interval and not a CurvePolygon. Overlay stays null.
+   */
+  public void testTouchExtIsADegenerateEdge() throws Exception {
+    Geometry a = readCurve(UNIT_DISC);
+    Geometry b = readCurve(UNIT_DISC_TOUCH);
+    assertEquals("TOUCH-ext: oracle EXT_TANGENT",
+        "FF2F01212", a.relate(b).toString());
+    assertNull("TOUCH-ext: overlay does not invent a CurvePolygon",
+        CircularDiscOverlay.overlay(a, b,
+            org.locationtech.jts.operation.overlayng.OverlayNG.INTERSECTION));
+    assertNull("TOUCH-ext: nestedAnnulus is not this pair",
+        CircularDiscOverlay.overlay(a, b,
+            org.locationtech.jts.operation.overlayng.OverlayNG.DIFFERENCE));
+    assertNull("TOUCH-ext: kiss is not a 2-node set",
+        CurveSegmentNoder.nodes(a, b));
+
+    List<CurveSegmentString> edges = CurveSegmentNoder.edges(a, b);
+    assertNotNull(edges);
+    assertEquals("one kiss", 1, edges.size());
+    assertTrue("zero-width edge at (1 0)", edges.get(0).isDegenerate());
+    assertFalse(edges.get(0).isArc());
+    assertEquals(1.0, edges.get(0).getStart().x, EXACT);
+    assertEquals(0.0, edges.get(0).getStart().y, EXACT);
+    assertEquals(0.0, edges.get(0).length(), EXACT);
+    List<CurveSegmentString> rev = CurveSegmentNoder.edges(b, a);
+    assertEquals("TOUCH-ext reverse", 1, rev.size());
+    assertTrue(rev.get(0).isDegenerate());
+    assertEquals(1.0, rev.get(0).getStart().x, EXACT);
+    assertEquals(0.0, rev.get(0).getStart().y, EXACT);
   }
 
   /**
