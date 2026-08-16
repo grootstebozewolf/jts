@@ -91,9 +91,10 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
 
   /**
    * The first click on the start vertex auto-closes and commits, same
-   * as a double-click anywhere. Click-start is never cancel: Escape
-   * is the only cancel path. Hit-test uses the visible vertex (view
-   * pixels), not a grid-snapped model point that can miss.
+   * as a double-click anywhere. A mid-gesture click that is not the
+   * start vertex does not commit, even if the count is now a valid
+   * odd closed ring. Click-start is never cancel: Escape is the only
+   * cancel path. Hit-test uses the visible start vertex (view pixels).
    */
   @Override
   public void mousePressed(MouseEvent e) {
