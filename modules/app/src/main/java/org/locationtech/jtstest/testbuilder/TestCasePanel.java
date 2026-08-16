@@ -14,8 +14,10 @@ package org.locationtech.jtstest.testbuilder;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.FontMetrics;
+import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.GridLayout;
+import java.awt.Insets;
 import java.awt.SystemColor;
 import java.awt.event.ActionEvent;
 import java.awt.event.FocusEvent;
@@ -88,6 +90,7 @@ public class TestCasePanel extends JPanel {
   JPanel statusBarPanel = new JPanel();
   JLabel lblMousePos = new JLabel();
   JLabel lblPrecisionModel = new JLabel();
+  JLabel lblStatus = new JLabel();
   ScalarFunctionPanel scalarFunctionPanel = new ScalarFunctionPanel();
   
   JPanel jPanelReveal = new JPanel();
@@ -332,18 +335,42 @@ public class TestCasePanel extends JPanel {
             }
         }});
     
+    lblStatus.setBorder(new EmptyBorder(0, 8, 0, 4));
+    lblStatus.setText("");
+    lblStatus.setHorizontalAlignment(SwingConstants.LEFT);
+    reserveStatusRoom();
+
     JPanel panelCase = new JPanel();
     panelCase.setLayout(new BorderLayout());
     panelCase.setBorder(BorderFactory.createLoweredBevelBorder());
     panelCase.add(btnSaveImage, BorderLayout.EAST);
     panelCase.add(testCaseIndexLabel, BorderLayout.WEST);
-    
-    statusBarPanel.setLayout(new GridLayout(1,4));
-    statusBarPanel.add(panelCase);
-    //statusBarPanel.add(testCaseIndexLabel);
-    statusBarPanel.add(jPanelReveal);
-    statusBarPanel.add(lblPrecisionModel);
-    statusBarPanel.add(lblMousePos);
+
+    JPanel statusCell = new JPanel(new BorderLayout());
+    statusCell.setBorder(BorderFactory.createLoweredBevelBorder());
+    statusCell.add(lblStatus, BorderLayout.CENTER);
+    statusCell.setMinimumSize(lblStatus.getMinimumSize());
+
+    statusBarPanel.setLayout(new GridBagLayout());
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.gridy = 0;
+    gbc.fill = GridBagConstraints.BOTH;
+    gbc.weighty = 1;
+    gbc.gridx = 0;
+    gbc.weightx = 0;
+    statusBarPanel.add(panelCase, gbc);
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    statusBarPanel.add(statusCell, gbc);
+    gbc.gridx = 2;
+    gbc.weightx = 0.4;
+    statusBarPanel.add(jPanelReveal, gbc);
+    gbc.gridx = 3;
+    gbc.weightx = 0.3;
+    statusBarPanel.add(lblPrecisionModel, gbc);
+    gbc.gridx = 4;
+    gbc.weightx = 0.3;
+    statusBarPanel.add(lblMousePos, gbc);
     
     add(jTabbedPane1, BorderLayout.WEST);
     //jTabbedPane1.add(editCtlPanel, "Edit");
@@ -364,6 +391,60 @@ public class TestCasePanel extends JPanel {
     relateTabPanel.add(relatePanel, BorderLayout.CENTER);
     relateTabPanel.add(btnPanel, BorderLayout.NORTH);
     btnPanel.add(btnRunTests, null);
+  }
+
+  /**
+   * Bottom status-bar message (the Case / PM strip), not the Log tab.
+   * Does not select Log or steal the Input tab. The visible label is
+   * sized so {@code CurvePolygon cancelled.} is not clipped.
+   */
+  public void setStatus(String s) {
+    lblStatus.setText(s == null ? "" : s);
+    reserveStatusRoom();
+  }
+
+  public String getStatus() {
+    return lblStatus.getText();
+  }
+
+  /**
+   * Keep enough strip width for the lock string. A tooltip is not
+   * the lock — the visible label must not clip.
+   */
+  private void reserveStatusRoom() {
+    String room = "CurvePolygon cancelled.";
+    FontMetrics fm = lblStatus.getFontMetrics(lblStatus.getFont());
+    Insets in = lblStatus.getInsets();
+    int w = fm.stringWidth(room) + in.left + in.right;
+    int h = Math.max(21, fm.getHeight() + in.top + in.bottom);
+    Dimension size = new Dimension(w, h);
+    lblStatus.setMinimumSize(size);
+    lblStatus.setPreferredSize(size);
+    if (lblStatus.getParent() != null) {
+      lblStatus.getParent().setMinimumSize(size);
+    }
+  }
+
+  boolean isStatusFullyVisible() {
+    String t = lblStatus.getText();
+    if (t == null || t.isEmpty()) {
+      return true;
+    }
+    int need = lblStatus.getFontMetrics(lblStatus.getFont()).stringWidth(t)
+        + lblStatus.getInsets().left + lblStatus.getInsets().right;
+    return lblStatus.getWidth() >= need;
+  }
+
+  void layoutStatusBar(int width) {
+    Dimension pref = getPreferredSize();
+    setSize(Math.max(width, pref.width), Math.max(pref.height, 200));
+    validate();
+    doLayout();
+    editGroupPanel.doLayout();
+    statusBarPanel.doLayout();
+    if (lblStatus.getParent() != null) {
+      lblStatus.getParent().doLayout();
+    }
   }
 
   private void updateTestCaseIndexLabel() {
