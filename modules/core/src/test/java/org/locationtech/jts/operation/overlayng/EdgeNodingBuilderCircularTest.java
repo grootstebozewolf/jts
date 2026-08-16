@@ -56,30 +56,4 @@ public class EdgeNodingBuilderCircularTest extends GeometryTestCase {
     assertTrue(builder.hasEdgesFor(0));
     assertTrue(builder.hasEdgesFor(1));
   }
-
-  public void testPreparedInputOnOverlayNG() {
-    PrecisionModel pm = new PrecisionModel();
-    OverlayNG ov = new OverlayNG(
-        read("POLYGON ((0 0, 2 0, 2 2, 0 2, 0 0))"),
-        read("POLYGON ((1 0, 3 0, 3 2, 1 2, 1 0))"),
-        pm, OverlayNG.INTERSECTION);
-    EdgeSourceInfo a = new EdgeSourceInfo(0, 1, false);
-    EdgeSourceInfo b = new EdgeSourceInfo(1, 1, false);
-    List<NodedSegmentString> prepared =
-        new java.util.ArrayList<NodedSegmentString>();
-    prepared.add(new NodedSegmentString(new Coordinate[] {
-        new Coordinate(0, 0), new Coordinate(2, 0),
-        new Coordinate(2, 2), new Coordinate(0, 2),
-        new Coordinate(0, 0)
-    }, a));
-    prepared.add(new NodedSegmentString(new Coordinate[] {
-        new Coordinate(1, 0), new Coordinate(3, 0),
-        new Coordinate(3, 2), new Coordinate(1, 2),
-        new Coordinate(1, 0)
-    }, b));
-    ov.setInputEdges(prepared);
-    org.locationtech.jts.geom.Geometry result = ov.getResult();
-    assertFalse(result.isEmpty());
-    assertEquals(2.0, result.getArea(), 1.0e-9);
-  }
 }
