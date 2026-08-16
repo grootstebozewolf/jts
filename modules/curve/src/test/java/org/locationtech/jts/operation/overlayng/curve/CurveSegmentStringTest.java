@@ -38,8 +38,9 @@ import test.jts.GeometryTestCase;
  * HP.1 pins that a signed-curvature leave-angle order at
  * (0, 5) walks the wrong rings -- not a laser. HP.2 is
  * {@link CurveHotPixel}: arc ∩ pixel in the squared metric,
- * one node. Not a leave-angle snap, not a face walk.
- * Not N-SS, not a core {@code Noder}.
+ * one node. HP.3 snaps each leave's pixel-exit onto a
+ * discrete grid heading ({@link CurveHotPixelSnap}). Not a
+ * face walk. Not N-SS, not a core {@code Noder}.
  */
 public class CurveSegmentStringTest extends GeometryTestCase {
 
@@ -700,6 +701,114 @@ public class CurveSegmentStringTest extends GeometryTestCase {
         pixel.intersects(halfDiscArc()));
     assertTrue("the STADIUM_ODD cap is the hit, not its chord",
         pixel.intersects(stadiumOddCap()));
+  }
+
+  /**
+   * HP.3: snap is a new key. Unsnapped leave-angles at (0, 5)
+   * stay coincident ({@code ANGLE_EPS = 1e-8}). Do not rewrite
+   * {@code leaveAngle}.
+   */
+  public void testUnsnappedLeavesStillCoincident() {
+    CurveSegmentString halfLeave = leaveFrom(halfDiscArc(), c(0, 5),
+        c(5, 0));
+    CurveSegmentString stadiumLeave = leaveFrom(stadiumOddCap(),
+        c(0, 5), c(1, 4));
+    assertTrue("HALF_DISC and STADIUM_ODD leave (0, 5) together",
+        coincidentLeave(halfLeave, stadiumLeave));
+    assertEquals("HALF_DISC leave is still +x", 0.0,
+        leaveAngle(halfLeave), LEAVE_ANGLE_EPS);
+    assertEquals("STADIUM_ODD leave is still +x", 0.0,
+        leaveAngle(stadiumLeave), LEAVE_ANGLE_EPS);
+  }
+
+  /**
+   * HP.3: heading comes from the arc's pixel-exit, not the
+   * supporting chord. Those chords miss the pixel (HP.2); a
+   * chord-fake heading is a missing key.
+   */
+  public void testHeadingIsPixelExitNotChord() {
+    CurveHotPixel pixel = new CurveHotPixel(c(0, 5), HP2_SCALE);
+    CurveSegmentString halfLeave = leaveFrom(halfDiscArc(), c(0, 5),
+        c(5, 0));
+    CurveSegmentString stadiumLeave = leaveFrom(stadiumOddCap(),
+        c(0, 5), c(1, 4));
+    CurveSegmentString halfChord = CurveSegmentString.segment(
+        c(-5, 0), c(5, 0));
+    CurveSegmentString capChord = CurveSegmentString.segment(
+        c(-1, 4), c(1, 4));
+
+    assertNull("HALF_DISC diameter has no heading at (0, 5)",
+        CurveHotPixelSnap.heading(pixel, halfChord));
+    assertNull("STADIUM_ODD cap chord has no heading at (0, 5)",
+        CurveHotPixelSnap.heading(pixel, capChord));
+
+    Coordinate halfExit = pixel.exit(halfLeave);
+    Coordinate stadiumExit = pixel.exit(stadiumLeave);
+    assertNotNull("HALF_DISC leave exits the pixel", halfExit);
+    assertNotNull("STADIUM_ODD leave exits the pixel", stadiumExit);
+    assertEquals("HALF_DISC leave exits the open right side",
+        0.05, halfExit.x, 1.0e-8);
+    assertEquals("STADIUM_ODD leave exits the open right side",
+        0.05, stadiumExit.x, 1.0e-8);
+    assertTrue("HALF_DISC exit is the arc, not diameter y=0",
+        halfExit.y > 4.99);
+    assertTrue("STADIUM_ODD exit is the arc, not cap chord y=4",
+        stadiumExit.y > 4.99);
+
+    assertNotNull("HALF_DISC leave has an arc-exit heading",
+        CurveHotPixelSnap.heading(pixel, halfLeave));
+    assertNotNull("STADIUM_ODD leave has an arc-exit heading",
+        CurveHotPixelSnap.heading(pixel, stadiumLeave));
+  }
+
+  /**
+   * HP.3 at scale 10: both leaves exit the open right side of
+   * the (0, 5) pixel and snap to the same lattice heading
+   * {@code (1, 0)}. Shared snapped ray -- stamp, do not walk.
+   * Not a curvature-order split (HP.1).
+   * <p>
+   * Key: integer (dx, dy) = round(scale · exit) − round(scale ·
+   * node). HALF_DISC exit ≈ (0.05, 4.99975) and STADIUM_ODD
+   * exit ≈ (0.05, 4.99875) both round to lattice (1, 50).
+   */
+  public void testSnappedHeadingsShareRayAtScale10() {
+    CurveHotPixel pixel = new CurveHotPixel(c(0, 5), HP2_SCALE);
+    CurveSegmentString halfLeave = leaveFrom(halfDiscArc(), c(0, 5),
+        c(5, 0));
+    CurveSegmentString stadiumLeave = leaveFrom(stadiumOddCap(),
+        c(0, 5), c(1, 4));
+    CurveHotPixelSnap.Heading halfH = CurveHotPixelSnap.heading(
+        pixel, halfLeave);
+    CurveHotPixelSnap.Heading stadiumH = CurveHotPixelSnap.heading(
+        pixel, stadiumLeave);
+    assertNotNull("HALF_DISC leave heading", halfH);
+    assertNotNull("STADIUM_ODD leave heading", stadiumH);
+    assertEquals("HALF_DISC snapped key", "(1, 0)", halfH.toString());
+    assertEquals("STADIUM_ODD snapped key", "(1, 0)",
+        stadiumH.toString());
+    assertEquals("same snapped grid point", halfH, stadiumH);
+    assertEquals("HP.3 stamps; do not walk",
+        CurveHotPixelSnap.SHARED_SNAPPED_RAY,
+        CurveHotPixelSnap.sharedRayOrNull(halfH, stadiumH));
+    assertFalse("unsnapped faces path keeps P2.5.4",
+        CurveHotPixelSnap.SHARED_SNAPPED_RAY.equals(
+            CurveSegmentFaces.TANGENT_LEAVE_ANGLE));
+  }
+
+  /**
+   * HP.3: HALF_HANGING is not a leave at this pixel. HP.2 miss
+   * stays a miss -- no invented heading.
+   */
+  public void testHangingHasNoHeadingAtTangentPixel() {
+    CurveHotPixel pixel = new CurveHotPixel(c(0, 5), HP2_SCALE);
+    assertFalse("HP.2 miss stays a miss",
+        pixel.intersects(hangingArc()));
+    assertNull("no heading for an arc that misses the pixel",
+        CurveHotPixelSnap.heading(pixel, hangingArc()));
+    assertNull("STADIUM_ODD bottom cap is not a leave here",
+        CurveHotPixelSnap.heading(pixel, stadiumOddBottom()));
+    assertNull("exit of a miss is empty",
+        pixel.exit(hangingArc()));
   }
 
   public void testNoderDoesNotAssembleFaces() throws Exception {
