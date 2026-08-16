@@ -110,9 +110,6 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
         return;
       }
       super.mousePressed(e);
-      if (isNowClosedOnStart() && canCommitCurrent()) {
-        finishGesture();
-      }
     } catch (Exception ex) {
       super.mousePressed(e);
     }
@@ -242,20 +239,7 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
     double dx = e.getX() - startView.getX();
     double dy = e.getY() - startView.getY();
     double slop = AppConstants.TOLERANCE_PIXELS;
-    if (dx * dx + dy * dy <= slop * slop) {
-      return true;
-    }
-    double tol = getModelSnapTolerance();
-    return isStartVertexClick(coords, toModelCoordinate(e.getPoint()), tol)
-        || isStartVertexClick(coords, toModelSnapped(e.getPoint()), tol);
-  }
-
-  private boolean isNowClosedOnStart() {
-    List<Coordinate> coords = copyCoords();
-    if (coords.size() < 3) {
-      return false;
-    }
-    return coords.get(0).equals2D(coords.get(coords.size() - 1));
+    return dx * dx + dy * dy <= slop * slop;
   }
 
   private boolean canCommitCurrent() {
@@ -286,7 +270,6 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
       return;
     }
     JTSTestBuilder.controller().setStatus(CANCELLED_STATUS);
-    JTSTestBuilder.controller().displayInfo(CANCELLED_STATUS, false);
   }
 
   @Override

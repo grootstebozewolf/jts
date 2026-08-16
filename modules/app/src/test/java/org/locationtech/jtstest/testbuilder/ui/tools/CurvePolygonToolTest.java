@@ -77,6 +77,21 @@ public class CurvePolygonToolTest extends TestCase {
     assertEquals(2.0 * Math.PI * RADIUS, g.getLength(), ARC_EPS);
   }
 
+  public void testMidGestureFifthClickDoesNotCommit() {
+    List<Coordinate> four = Arrays.asList(A, B, C, D);
+    Coordinate fifth = new Coordinate(3, 4);
+    assertNotNull("odd leftover after close can form a shell, but must not auto-commit",
+        CurvePolygonTool.closeCircularShell(four));
+    assertFalse("5th click that is not the start vertex must not commit",
+        CurvePolygonTool.firstStartClickCommits(four, fifth, 1e-9));
+    assertFalse("5th click on the last vertex is not click-start",
+        CurvePolygonTool.firstStartClickCommits(four, D, 1e-9));
+    List<Coordinate> five = Arrays.asList(A, B, C, D, fifth);
+    assertNotNull(CurvePolygonTool.closeCircularShell(five));
+    assertFalse("a valid odd-count in-progress ring still needs double-click or click-start",
+        CurvePolygonTool.firstStartClickCommits(five, fifth, 1e-9));
+  }
+
   public void testFirstClickOnStartCommitsNotCancel() {
     List<Coordinate> drawn = Arrays.asList(A, B, C);
     assertTrue("first click on start must commit, not wait for a second start click",
