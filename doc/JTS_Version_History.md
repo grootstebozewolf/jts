@@ -29,11 +29,14 @@ Distributions for older JTS versions can be obtained at the
 
 ### SQL-MM / SFA Curves
 
-* Add `CircularString`, `CompoundCurve`, `CurvePolygon`, `MultiCurve`, and `MultiSurface` in `jts-curve` via opt-in `CurveGeometryFactory` (#1195)
-* Read ISO WKB types 8–12 in core `WKBReader`; write them via `CurveWKBWriter` (bare `WKBWriter` still emits type 2/3)
-* Add `OverlayNGCurve` closed-form overlay for certified circular pairs (not a public noder)
-* Closed-form hull for discs, single arcs, and circular-plus-straight members; stadium `MaximumInscribedCircle`; point-site `LargestEmptyCircle` candidates
-* `DiscreteHausdorffDistance` closed-form for two pairs only (single-arc vs single segment; two discs); public DHD still sees chords in general
+* Add `CircularString`, `CompoundCurve`, and `CurvePolygon`
+* Read ISO WKB types 8–12 in core `WKBReader`; write via `CurveWKBWriter` (bare `WKBWriter` still emits types 2/3); default/export paths use `CurveWKBWriter`
+* Closed-form convex hull for discs and single arcs
+* Laser convex hull of circular-plus-straight members (H-CC)
+* `DiscreteHausdorffDistance` closed-form for two pairs only: single-arc `CircularString` vs single-segment `LineString` (apex √949/6 − 7/6); two circular discs (a single-member `MultiSurface` of one disc is the same pair). Public DHD still sees chords. Exact path skips densify. Densify 0.05 is not the laser.
+* Point-site `LargestEmptyCircle` candidate completeness
+* Stadium `MaximumInscribedCircle` certified cell
+* Clothoid playground extras (editor/inspect/WKT; not a laser)
 
 ### Functionality Improvements
 
@@ -87,7 +90,9 @@ Distributions for older JTS versions can be obtained at the
 * Add Layer style presets
 * Add Layer List Zoom to Geometry button
 * Add Layer List Copy Geometry button
-* Draw CircularString, CompoundCurve, and CurvePolygon; WKT apply via `CurveWKTReader` (#1195)
+* TB-IN: Enter loads A/B WKT; labeled Clear does not wipe on apply
+* JTS logoLines as curves, not densified polylines
+* A/B draw-tool colors and honest `CircularString`
 
 ### Bug Fixes
 
