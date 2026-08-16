@@ -440,7 +440,9 @@ final class CurveSegmentDcel {
    * True when {@code p} lies on this string. The residual stays in
    * R²: compare {@code dx²+dy²} to {@code R²} (arc) or to the
    * projected chord point (chord) with tolerance {@code eps²}.
-   * Not {@code hypot}, not a length {@code eps} on {@code d²},
+   * The arc compare floors at 1 ulp of the two squares so a
+   * representable on-circle node is not rejected. Not
+   * {@code hypot}, not a length {@code eps} on {@code d²},
    * not a sagitta quotient. Package-private so the extreme-sagitta
    * pin can call it; not a public API.
    */
@@ -452,7 +454,10 @@ final class CurveSegmentDcel {
       double dx = p.x - e.circle[0];
       double dy = p.y - e.circle[1];
       double r = e.circle[2];
-      if (Math.abs(dx * dx + dy * dy - r * r) > eps2) {
+      double d2 = dx * dx + dy * dy;
+      double r2 = r * r;
+      double tol2 = Math.max(eps2, Math.ulp(d2) + Math.ulp(r2));
+      if (Math.abs(d2 - r2) > tol2) {
         return false;
       }
       return TwoNodeClip.isOnSweep(p, e.circle, e.a, e.mid, e.b);
