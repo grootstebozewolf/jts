@@ -268,7 +268,8 @@ and \texttt{CurvePolygon} (toolbar tools plus WKT via
 \texttt{CurveWKTReader}). It also exposes OverlayNGCurve and the
 distance functions.
 
-On this tree the concrete SFA/SQL-MM curve types live in the
+On this tree the concrete SQL/MM Spatial (ISO/IEC 13249-3) curve
+types live in the
 \texttt{jts-curve} module
 (\texttt{org.locationtech.jts.geom.curve}). Construction is opt-in:
 the default \texttt{GeometryFactory} throws on the curve
@@ -276,7 +277,7 @@ the default \texttt{GeometryFactory} throws on the curve
 Constructors do not linearise.
 
 Core \texttt{WKTReader} still rejects \texttt{CIRCULARSTRING} and the
-other SQL-MM keywords. Read them with \texttt{CurveWKTReader}. Write
+other SQL/MM keywords. Read them with \texttt{CurveWKTReader}. Write
 structured members with \texttt{CurveWKTWriter}.
 
 WKB type codes 8--12 are first-class in core \texttt{WKBReader}.
@@ -355,9 +356,9 @@ Eclipse Distribution License 1.0. See \texttt{LICENSE\_EPLv2.txt},
 project licence on this tree.
 
 \vspace{1.2em}
-\noindent\textit{End of TestRunner \& TestBuilder User Guide. Named
-figure holes are empty 4:3 slots (target 1600$\times$1200, full
-TestBuilder window). 2005 Amyuni screen-shots are omitted; the
-procedures they illustrated are kept in prose.}
+\noindent\textit{End of TestRunner \& TestBuilder User Guide.
+Remaining named holes (WKB, D-HF) are empty 4:3 slots (target
+1600$\times$1200, full TestBuilder window). 2005 Amyuni screen-shots
+are omitted; the procedures they illustrated are kept in prose.}
 
 \end{document}

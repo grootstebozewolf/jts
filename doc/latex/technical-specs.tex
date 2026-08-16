@@ -47,7 +47,7 @@ specification, JTS chooses a reasonable and consistent alternative.
 Differences from and elaborations of the SFS are documented here.
 
 The 2003 spec stopped at linear SFS. This tree adds opt-in
-ISO 19125-2 / SQL-MM curve types in \texttt{jts-curve}. The detailed
+SQL/MM Spatial (ISO/IEC 13249-3) curve types in \texttt{jts-curve}. The detailed
 class hierarchy remains JavaDoc. This rebuild records the contract a
 reader of the 2003 PDF would otherwise get wrong.
 
@@ -56,8 +56,9 @@ reader of the 2003 PDF would otherwise get wrong.
   \item OpenGIS Simple Features Specification for SQL Revision 1.1
         (SFS) --- master specification for the linear spatial model
         and predicates.
-  \item OGC Simple Features Access 1.2.1 / ISO 19125-2 --- curve
-        types and WKB codes 8--12.
+  \item SQL/MM Spatial (ISO/IEC 13249-3) --- CircularString,
+        CompoundCurve, CurvePolygon, and WKB codes 8--12. No
+        13249-3 DOI is cited.
   \item \emph{JTS Developer's Guide} and \emph{TestBuilder \&
         TestRunner User Guide} (siblings in this directory), rebuilt
         against the same tree.
@@ -98,7 +99,7 @@ densify-then-core is refused, and the linear path runs instead.
   Robust computation & Numerical computation guaranteed to return
                    the correct answer for all inputs. \\
   SFS            & OGC Simple Features Specification (linear). \\
-  SQL-MM / SFA 1.2.1 & Extended types: CircularString, CompoundCurve,
+  SQL/MM Spatial (ISO/IEC 13249-3) & CircularString, CompoundCurve,
                    CurvePolygon, MultiCurve, MultiSurface. \\
   Closed form    & A cheap shape check that answers exactly. On this
                    tree: certified discs, the single-arc hull, the
@@ -213,7 +214,8 @@ GeometryFactory on this tree also has
 \texttt{CurveGeometryFactory} (jts-curve).
 
 \section{Spatial model --- curve types on this tree}
-On this tree the concrete SFA/SQL-MM curve types live in the
+On this tree the concrete SQL/MM Spatial (ISO/IEC 13249-3) curve
+types live in the
 \texttt{jts-curve} module
 (\texttt{org.locationtech.jts.geom.curve}):
 \texttt{CircularString}, \texttt{CompoundCurve},
@@ -225,7 +227,8 @@ linearise.
 
 \subsection{CircularString (jts-curve)}
 A CircularString is a LineString whose consecutive triples (start,
-mid, end) are circular arcs. OGC SFA requires an odd point count
+mid, end) are circular arcs. SQL/MM Spatial (ISO/IEC 13249-3)
+requires an odd point count
 $\ge 3$. It is not a LineString of those control chords.
 \texttt{toLinear(tolerance)} densifies explicitly. The class is not
 constructed by the default GeometryFactory.
@@ -248,7 +251,7 @@ not promoted to a laser.
 
 \subsection{MultiCurve and MultiSurface (jts-curve)}
 MultiCurve extends MultiLineString; MultiSurface extends
-MultiPolygon. They are the SQL-MM collections (WKB 11 and 12). A
+MultiPolygon. They are the SQL/MM collections (WKB 11 and 12). A
 MultiSurface of one certified disc unwraps to that disc for the D-HF
 disc pair. They are not a general overlay noder.
 
@@ -341,7 +344,7 @@ Boundary, isClosed, isSimple, isValid keep the 2003 tables for
 linear types. JTS does not validate on construct (efficiency).
 IsValidOp reports the nature and location of a failure. Curve
 validation is best-effort structural (odd CircularString count,
-member connectivity); it is not a full SQL-MM validator.
+member connectivity); it is not a full SQL/MM validator.
 
 \section{Well-Known Text and Well-Known Binary}
 
@@ -354,13 +357,13 @@ the precision model.
 
 \subsection{WKT --- curve (jts-curve)}
 Core \texttt{WKTReader} still rejects \texttt{CIRCULARSTRING} and
-the other SQL-MM keywords. Read them with \texttt{CurveWKTReader}.
+the other SQL/MM keywords. Read them with \texttt{CurveWKTReader}.
 Write structured members with \texttt{CurveWKTWriter}. Core
 \texttt{WKTWriter} already emits the subclass keyword via
 \texttt{getGeometryType()} for a flat CircularString; composite
 types need the curve writer to keep member tags.
 
-Added tagged text (SQL-MM): \texttt{CIRCULARSTRING},
+Added tagged text (SQL/MM Spatial): \texttt{CIRCULARSTRING},
 \texttt{COMPOUNDCURVE}, \texttt{CURVEPOLYGON}, \texttt{MULTICURVE},
 \texttt{MULTISURFACE}. \texttt{CLOTHOID} is recognised only by
 \texttt{CurveWKTReader}, and only as a non-leading
@@ -457,9 +460,11 @@ the project licence.
   \item [SFS] OpenGIS Simple Features Specification For SQL
         Revision 1.1. Open GIS Consortium, Inc. OpenGIS project
         Document 99-049.
-  \item [SFA] OpenGIS Implementation Standard for Geographic
-        information --- Simple feature access --- Part 1: Common
-        architecture, 1.2.1 / ISO 19125.
+  \item [SQL/MM] ISO/IEC 13249-3, Information technology ---
+        Database languages --- SQL multimedia and application
+        packages --- Part 3: Spatial. Source of CircularString,
+        CompoundCurve, and CurvePolygon. No 13249-3 DOI is cited.
+        No JTS DOI is cited.
   \item [Ava97] F.\ Avnaim, J-D.\ Boissonnat, O.\ Devillers,
         F.\ Preparata and M.\ Yvinec. Evaluating signs of
         determinants using single-precision arithmetic.
@@ -472,8 +477,8 @@ the project licence.
 \end{itemize}
 
 \vspace{1.2em}
-\noindent\textit{End of Technical Specifications. Named figure holes
-are empty 4:3 slots (target 1600$\times$1200, full TestBuilder
-window). No clothoid DOI is cited.}
+\noindent\textit{End of Technical Specifications. Remaining named
+holes (WKB, D-HF) are empty 4:3 slots (target 1600$\times$1200,
+full TestBuilder window). No clothoid DOI is cited.}
 
 \end{document}

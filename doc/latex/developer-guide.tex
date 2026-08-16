@@ -13,8 +13,8 @@
 The JTS Topology Suite is a Java API for spatial data operations. This
 manual keeps the 2003 Developer's Guide chapter plan (getting started,
 relate, overlay, buffer, polygonize, line merge, custom coordinates,
-tips) and adds a short honest account of the SQL-MM curve types that
-are on this tree.
+tips) and adds a short honest account of the SQL/MM Spatial
+(ISO/IEC 13249-3) curve types that are on this tree.
 
 Package names in this tree are \texttt{org.locationtech.jts}. The 2003
 copies used \texttt{com.vividsolutions.jts}. LocationTech JTS remains
@@ -56,9 +56,9 @@ An opt-in curve module sits beside that model; it does not replace it.
         (SFS). The reference specification for the linear spatial data
         model and the spatial predicates and functions implemented by
         JTS.
-  \item OGC Simple Features Access 1.2.1 / ISO 19125-2 --- the SQL-MM
-        curve keywords and WKB codes 8--12 used by the opt-in curve
-        module.
+  \item SQL/MM Spatial (ISO/IEC 13249-3) --- CircularString,
+        CompoundCurve, CurvePolygon, and WKB codes 8--12 used by the
+        opt-in curve module. No 13249-3 DOI is cited.
   \item \emph{JTS Technical Specifications}. The design specification
         for the classes, methods and algorithms.
   \item JTS JavaDoc for packages under \texttt{org.locationtech.jts}.
@@ -95,7 +95,8 @@ centroid, and buffer. See the JavaDoc for
 \texttt{org.locationtech.jts.geom.Geometry}.
 
 \begin{amendment}
-On this tree the concrete SFA/SQL-MM curve types live in the
+On this tree the concrete SQL/MM Spatial (ISO/IEC 13249-3) curve
+types live in the
 \texttt{jts-curve} module
 (\texttt{org.locationtech.jts.geom.curve}):
 \texttt{CircularString}, \texttt{CompoundCurve},
@@ -415,7 +416,8 @@ remains documented as history.
 
 \section{Curve types on this tree}
 \label{sec:curves}
-On this tree the concrete SFA/SQL-MM curve types live in the
+On this tree the concrete SQL/MM Spatial (ISO/IEC 13249-3) curve
+types live in the
 \texttt{jts-curve} module
 (\texttt{org.locationtech.jts.geom.curve}):
 
@@ -468,7 +470,7 @@ TestBuilder can draw \texttt{logoLines} as curves.
 
 \section{WKT and WKB on this tree}
 Core \texttt{WKTReader} still rejects \texttt{CIRCULARSTRING} and the
-other SQL-MM keywords. Read them with \texttt{CurveWKTReader}. Write
+other SQL/MM keywords. Read them with \texttt{CurveWKTReader}. Write
 structured members with \texttt{CurveWKTWriter}. Core
 \texttt{WKTWriter} already emits the subclass keyword via
 \texttt{getGeometryType()} for a flat \texttt{CircularString};
@@ -538,9 +540,9 @@ TestBuilder guide's ACME licence appendix is historical and is not
 the project licence.
 
 \vspace{1.2em}
-\noindent\textit{End of Developer's Guide. Named figure holes are
-empty 4:3 slots (target 1600$\times$1200, full TestBuilder window).
-2003 Amyuni conversion cartoons are omitted; the prose they
-illustrated is kept.}
+\noindent\textit{End of Developer's Guide. Remaining named holes
+(WKB, D-HF) are empty 4:3 slots (target 1600$\times$1200, full
+TestBuilder window). 2003 Amyuni conversion cartoons are omitted;
+the prose they illustrated is kept.}
 
 \end{document}
