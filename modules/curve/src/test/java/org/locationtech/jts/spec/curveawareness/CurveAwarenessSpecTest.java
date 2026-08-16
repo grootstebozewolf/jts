@@ -252,8 +252,9 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   }
 
   /**
-   * D-HF: discrete / directed Hausdorff on curved inputs must sample the arc,
-   * not the control-point polyline (or chord-fraction densify of that polyline).
+   * D-HF: public {@code DiscreteHausdorffDistance} on #7 ({@code 0ca71b})
+   * has closed-form for two pairs only. Public DHD still sees chords in
+   * general. Keep this {@code fail()}.
    * <p>
    * Witness (asymmetric single arc above the x-axis):
    * <pre>
@@ -263,12 +264,11 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
    * Oriented Hausdorff {@code h(A,B) = max_{a in A} min_{b in B} d(a,b)} is the
    * max height of A above B. {@code DiscreteHausdorffDistance} on #7 has
    * closed-form for two pairs only: single-arc {@code CircularString} →
-   * single-segment {@code LineString} (apex {@code √949/6 − 7/6} ≈ 3.967641),
-   * and two circular discs. A single-member {@code MultiSurface} of one disc
-   * is the same pair, not a third. The exact path owns APEX and skips densify;
-   * densify 0.05 is not the laser. Stale mid-control {@code h = 3} is retired.
-   * That exception is not the full TAG: public DHD still sees chords in
-   * general. Keep this {@code fail()}.
+   * single-segment {@code LineString} (apex {@code √949/6 − 7/6} =
+   * 3.967640600249787), and two circular discs (10.0). A single-member
+   * {@code MultiSurface} of one disc is the same pair, not a third. The exact
+   * path owns APEX and skips densify; densify 0.05 is not the laser. Stale
+   * mid-control {@code h = 3} is retired.
    */
   public void test_D_HF_hausdorffFrechetCurveAware() throws Exception {
     Geometry arc = read("CIRCULARSTRING (0 0, 2 3, 10 0)");
@@ -276,7 +276,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
 
     // Apex of the locked pair: √949/6 − 7/6. Exact path owns this; densifyFrac
     // is skipped on this pair (not the laser).
-    final double expectedContinuous = 3.967641;
+    final double expectedContinuous = 3.967640600249787;
     final double tol = 1e-3;
 
     double exactPath =
@@ -287,9 +287,9 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
     // Full-TAG ratchet: always fail. Exact path owns APEX; densify is skipped
     // on this pair, not the laser. Stale h=3 retired. Keep this fail().
     fail("D-HF: full TAG still open. Public DiscreteHausdorffDistance still sees chords in general. "
-        + "DiscreteHausdorffDistance on #7 has closed-form for two pairs only: "
+        + "DiscreteHausdorffDistance on #7 via 0ca71b has closed-form for two pairs only: "
         + "single-arc CircularString → single-segment LineString "
-        + "(apex √949/6 − 7/6 ≈ " + expectedContinuous + "), and two circular discs. "
+        + "(apex √949/6 − 7/6 = " + expectedContinuous + "), and two circular discs (10.0). "
         + "A single-member MultiSurface of one disc is the same pair, not a third. "
         + "Exact path owns APEX (orientedDistance got " + exactPath
         + "); densifyFrac is skipped on this pair (call returned " + densifyCall
