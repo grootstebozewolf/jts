@@ -569,9 +569,10 @@ public class CurveSegmentStringTest extends GeometryTestCase {
 
   /**
    * HALF_DISC × HALF_HANGING × STADIUM_ODD: crossings (±1, 0) plus
-   * the tangent at (0, 5). Two pieces leave at the same angle
-   * ({@code ANGLE_EPS = 1e-8}). Ordering them is snap-rounding
-   * (P2.5.4). Named stamp, not a HotPixel, not a bare null.
+   * the tangent at (0, 5). Two pieces leave in the same direction
+   * (endpoint quadrant + orientation, not atan2 of deltas).
+   * Ordering them is snap-rounding (P2.5.4). Named stamp, not a
+   * HotPixel, not a bare null.
    */
   public void testN3TangentStampsNull() throws Exception {
     Geometry faces = CurveSegmentFaces.faces(new Geometry[] {

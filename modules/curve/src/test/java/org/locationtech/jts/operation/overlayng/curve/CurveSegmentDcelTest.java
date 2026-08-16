@@ -224,6 +224,50 @@ public class CurveSegmentDcelTest extends GeometryTestCase {
   }
 
   /**
+   * Locationtech #1224 / #1226 on this walk, not on core
+   * HalfEdge / Quadrant. Subtracted leave-vectors can make
+   * (1 1)→(0 0.5) and (1 1)→(0 0.49999999999999994) look equal
+   * under atan2; endpoint quadrant + orientation keeps them
+   * distinct and antisymmetric. Not a TANGENT stamp.
+   */
+  public void testLeaveAngleCompareRobust() {
+    Coordinate o = new Coordinate(1, 1);
+    CurveSegmentDcel.Half upper = chordHalf(o, 0, 0.5);
+    CurveSegmentDcel.Half lower = chordHalf(o, 0, 0.49999999999999994);
+    CurveSegmentDcel.Half north = chordHalf(o, 0, 1);
+    assertTrue("edges with distinct direction points must not compare equal",
+        CurveSegmentDcel.compareLeave(upper, lower) != 0);
+    assertTrue("leave comparison must be antisymmetric",
+        CurveSegmentDcel.compareLeave(upper, lower)
+            == -CurveSegmentDcel.compareLeave(lower, upper));
+    assertTrue("north is a different leave",
+        CurveSegmentDcel.compareLeave(upper, north) != 0);
+    assertEquals("same-ray leave is coincident",
+        0, CurveSegmentDcel.compareLeave(upper, chordHalf(o, -1, 0)));
+  }
+
+  /**
+   * HALF_DISC and STADIUM_ODD leave (0 5) on the same east
+   * tangent. The robust compare still ties, so the N=3 walk
+   * keeps the TANGENT_LEAVE_ANGLE stamp.
+   */
+  public void testArcLeaveTangentStillCoincident() {
+    Coordinate o = new Coordinate(0, 5);
+    double s = Math.sqrt(0.5);
+    CurveSegmentString disc = CurveSegmentString.arc(o,
+        new Coordinate(5 * s, 5 * s), new Coordinate(5, 0));
+    CurveSegmentString cap = CurveSegmentString.arc(o,
+        new Coordinate(s, 4 + s), new Coordinate(1, 4));
+    CurveSegmentDcel.Half a = new CurveSegmentDcel.Half(o, disc.getEnd(),
+        disc);
+    CurveSegmentDcel.Half b = new CurveSegmentDcel.Half(o, cap.getEnd(),
+        cap);
+    assertTrue("both pieces stay arcs", a.isArc() && b.isArc());
+    assertEquals("same leave tangent at (0 5)",
+        0, CurveSegmentDcel.compareLeave(a, b));
+  }
+
+  /**
    * HALF_DISC × HALF_CROSSING_UPPER: collinear diameters abort the
    * node set and hide the arc–arc lens nodes. Generic
    * {@code nodes==null} walk is unsafe. Named stamp, not a noder.
@@ -339,6 +383,13 @@ public class CurveSegmentDcelTest extends GeometryTestCase {
     }
     assertNotNull("missing vertex (" + x + " " + y + ")", found);
     return found;
+  }
+
+  private static CurveSegmentDcel.Half chordHalf(Coordinate origin,
+      double x, double y) {
+    Coordinate dest = new Coordinate(x, y);
+    return new CurveSegmentDcel.Half(origin, dest,
+        CurveSegmentString.segment(origin, dest));
   }
 
   private static CurveSegmentDcel.Half findHalfNear(CurveSegmentDcel dcel,

@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -56,8 +57,6 @@ final class CurveSegmentDcel {
    */
   static final String MIXED_HIDES_CROSSING =
       "MIXED nodes==null hides a crossing";
-
-  private static final double ANGLE_EPS = 1.0e-8;
 
   private static String missReason;
 
@@ -274,9 +273,10 @@ final class CurveSegmentDcel {
       }
       for (int j = 0; j < out.size(); j++) {
         Half back = out.get(j);
-        // atan2-sorted outgoing is CCW. The outgoing after `back`
-        // in that list is a right turn; the one before is a left
-        // turn (interior on the left, CCW face).
+        // Leave-sorted outgoing is CCW (endpoint quadrant, then
+        // orientation — not atan2 of subtracted deltas). The
+        // outgoing after `back` in that list is a right turn; the
+        // one before is a left turn (interior on the left, CCW face).
         int left = (j - 1 + out.size()) % out.size();
         Half nxt = out.get(left);
         back.twin.next = nxt;
@@ -541,8 +541,11 @@ final class CurveSegmentDcel {
   }
 
   /**
-   * Two different pieces leaving at the same angle are a tangent.
-   * Ordering them is snap-rounding (P2.5.4). Stamp and stop.
+   * Two different pieces leaving in the same direction are a
+   * tangent. Distinct direction points stay distinct (locationtech
+   * #1224); the quadrant comes from the endpoints, not FP deltas
+   * (#1226). Ordering a true tie is snap-rounding (P2.5.4). Stamp
+   * and stop.
    */
   private static boolean hasCoincidentLeave(List<Vertex> verts) {
     boolean hit = false;
@@ -551,7 +554,7 @@ final class CurveSegmentDcel {
       for (int j = 0; j < out.size() && !hit; j++) {
         Half a = out.get(j);
         Half b = out.get((j + 1) % out.size());
-        if (a != b && angleDiff(a.leaveAngle, b.leaveAngle) < ANGLE_EPS) {
+        if (a != b && compareLeave(a, b) == 0) {
           hit = true;
         }
       }
@@ -650,27 +653,82 @@ final class CurveSegmentDcel {
     return found;
   }
 
-  private static double leaveAngle(CurveSegmentString s) {
-    Coordinate from = s.getStart();
+  /**
+   * CCW order of leave directions around a shared origin. Same
+   * walk as locationtech {@code HalfEdge.compareAngularDirection}
+   * after #1224 / #1226, kept here: this DCEL does not use core
+   * {@code HalfEdge} or {@code Quadrant}. Direction-point equality
+   * first (not subtracted-vector {@code ==}), then quadrant from
+   * the endpoints, then {@link Orientation#index}.
+   */
+  static int compareLeave(Half a, Half b) {
+    if (a.leaveDir.equals2D(b.leaveDir)) {
+      return 0;
+    }
+    int qa = leaveQuadrant(a);
+    int qb = leaveQuadrant(b);
+    if (qa > qb) {
+      return 1;
+    }
+    if (qa < qb) {
+      return -1;
+    }
+    return Orientation.index(b.origin, b.leaveDir, a.leaveDir);
+  }
+
+  /**
+   * Quadrant of the leave ray from the endpoints, not from
+   * subtracted {@code dx}/{@code dy}. A chord uses origin→dest.
+   * An arc uses origin vs centre so the tangent quadrant does
+   * not go through {@code (origin - centre)}.
+   */
+  private static int leaveQuadrant(Half h) {
+    if (!h.member.isArc()) {
+      return quadrant(h.origin, h.dest);
+    }
+    TwoNodeClip.Edge e = h.member.asEdge();
+    Coordinate c = new Coordinate(e.circle[0], e.circle[1]);
+    if (sweepCcw(e)) {
+      return quadrantBits(c.y >= h.origin.y, h.origin.x >= c.x);
+    }
+    return quadrantBits(h.origin.y >= c.y, c.x >= h.origin.x);
+  }
+
+  private static int quadrant(Coordinate o, Coordinate d) {
+    return quadrantBits(d.x >= o.x, d.y >= o.y);
+  }
+
+  private static int quadrantBits(boolean xNonNeg, boolean yNonNeg) {
+    if (xNonNeg) {
+      return yNonNeg ? 0 : 3;
+    }
+    return yNonNeg ? 1 : 2;
+  }
+
+  /**
+   * Point that names the leave direction. A chord uses dest. An
+   * arc uses the tangent at the start (radius rotated 90°), not
+   * the chord to dest.
+   */
+  private static Coordinate leaveDir(CurveSegmentString s,
+      Coordinate origin, Coordinate dest) {
     if (!s.isArc()) {
-      return Math.atan2(s.getEnd().y - from.y, s.getEnd().x - from.x);
+      return dest;
     }
     TwoNodeClip.Edge e = s.asEdge();
-    double rx = from.x - e.circle[0];
-    double ry = from.y - e.circle[1];
+    double rx = origin.x - e.circle[0];
+    double ry = origin.y - e.circle[1];
+    if (sweepCcw(e)) {
+      return new Coordinate(origin.x - ry, origin.y + rx);
+    }
+    return new Coordinate(origin.x + ry, origin.y - rx);
+  }
+
+  private static boolean sweepCcw(TwoNodeClip.Edge e) {
     double a0 = Math.atan2(e.a.y - e.circle[1], e.a.x - e.circle[0]);
     double aM = Math.atan2(e.mid.y - e.circle[1], e.mid.x - e.circle[0]);
     double a1 = Math.atan2(e.b.y - e.circle[1], e.b.x - e.circle[0]);
-    boolean ccw = TwoNodeClip.normPos(aM - a0) < TwoNodeClip.normPos(a1 - a0);
-    return ccw ? Math.atan2(rx, -ry) : Math.atan2(-rx, ry);
-  }
-
-  private static double angleDiff(double a, double b) {
-    double d = Math.abs(a - b);
-    if (d > Math.PI) {
-      d = TwoNodeClip.TWO_PI - d;
-    }
-    return d;
+    return TwoNodeClip.normPos(aM - a0) < TwoNodeClip.normPos(a1 - a0);
   }
 
   private static boolean hasHole(Geometry g) {
@@ -731,13 +789,13 @@ final class CurveSegmentDcel {
   static final class Half {
     static final Comparator<Half> BY_ANGLE = new Comparator<Half>() {
       public int compare(Half a, Half b) {
-        return Double.compare(a.leaveAngle, b.leaveAngle);
+        return compareLeave(a, b);
       }
     };
     final Coordinate origin;
     final Coordinate dest;
     final CurveSegmentString member;
-    final double leaveAngle;
+    final Coordinate leaveDir;
     Half twin;
     Half next;
     Half prev;
@@ -748,7 +806,7 @@ final class CurveSegmentDcel {
       this.origin = origin;
       this.dest = dest;
       this.member = member;
-      this.leaveAngle = leaveAngle(member);
+      this.leaveDir = leaveDir(member, origin, dest);
     }
 
     Coordinate origin() {
