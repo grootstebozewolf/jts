@@ -35,8 +35,8 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * inside the other) are the annulus: CAP the inner, CUP the outer,
  * SUB / XOR the outer with the inner as a hole. Same closed form as
  * {@link HalfDiscOverlay#containedShell}; not a noder. Anything else
- * -- not both discs, 1 intersection, a tangent nest (hole would meet
- * the shell) -- returns {@code null} so the caller can take the chord
+ * -- not both discs, 1 intersection, a nest that is not strictly
+ * inside -- returns {@code null} so the caller can take the chord
  * baseline without paying this path first.
  */
 final class CircularDiscOverlay {
@@ -131,8 +131,7 @@ final class CircularDiscOverlay {
 
   /**
    * 0-node nested discs. CAP the inner, CUP the outer, SUB / XOR the
-   * annulus. A tangent nest is {@code null} -- punching a hole that
-   * meets the shell is a noder.
+   * annulus. A nest that is not strictly inside is {@code null}.
    */
   private static Geometry nestedAnnulus(Geometry a, Geometry b, Disc da,
       Disc db, int opCode) {

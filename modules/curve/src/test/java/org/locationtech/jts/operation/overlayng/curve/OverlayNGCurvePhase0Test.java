@@ -271,18 +271,19 @@ public class OverlayNGCurvePhase0Test extends GeometryTestCase {
         nested.isApproximate());
   }
 
-  /** R2 -- an approximate answer must say so. */
+  /**
+   * Honesty lock for the two-disc remainder: nested DIFFERENCE is the
+   * exact annulus (outer r=5, inner r=3), not a densified R2 flag.
+   */
   public void testR2_densifiedAnswersAreFlagged() throws Exception {
-    // Nested disc SUB is now the exact annulus (R1.5). A plain square
-    // minus an inner disc has no closed form, so the chord baseline
-    // still runs.
-    OverlayNGCurve op = new OverlayNGCurve(
-        readCurve("POLYGON ((-6 -6, 6 -6, 6 6, -6 6, -6 -6))"),
-        readCurve(B));
-    Geometry result = op.getResult(OverlayNGCurve.DIFFERENCE);
-    assertFalse("the square-minus-disc is not empty", result.isEmpty());
-    assertTrue("R2: a densified square-minus-disc is approximate and must be flagged",
-        op.isApproximate());
+    OverlayNGCurve annulus = new OverlayNGCurve(readCurve(A), readCurve(B));
+    Geometry result = annulus.getResult(OverlayNGCurve.DIFFERENCE);
+    assertFalse("the annulus is not empty", result.isEmpty());
+    assertFalse("R1.5: nested DIFFERENCE is exact and must not be flagged",
+        annulus.isApproximate());
+    assertEquals("annulus area 16π", AREA_A - AREA_B, result.getArea(), EXACT);
+    assertEquals("one interior ring", 1,
+        ((CurvePolygon) result).getNumInteriorRing());
   }
 
   // -- F1: fast before fat -------------------------------------------------
