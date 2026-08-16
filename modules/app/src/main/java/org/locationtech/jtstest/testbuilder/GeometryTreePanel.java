@@ -137,9 +137,20 @@ public class GeometryTreePanel extends JPanel implements TreeWillExpandListener
   }
 
   private TreePath nextPath(TreePath path, int offset) {
-    GeometricObjectNode node = (GeometricObjectNode) path.getLastPathComponent();
+    Object last = path.getLastPathComponent();
+    if (!(last instanceof GeometricObjectNode)) {
+      return path;
+    }
+    GeometricObjectNode node = (GeometricObjectNode) last;
     TreePath parentPath = path.getParentPath();
-    GeometricObjectNode parent = (GeometricObjectNode) parentPath.getLastPathComponent();
+    if (parentPath == null) {
+      return path;
+    }
+    Object parentObj = parentPath.getLastPathComponent();
+    if (!(parentObj instanceof GeometricObjectNode)) {
+      return path;
+    }
+    GeometricObjectNode parent = (GeometricObjectNode) parentObj;
     int index = parent.getIndexOfChild(node);
     int nextIndex = index + offset;
     if (nextIndex < 0) {
@@ -154,7 +165,7 @@ public class GeometryTreePanel extends JPanel implements TreeWillExpandListener
   }
 
   private static Geometry getGeometryFromNode(Object value) {
-    if (value == null) 
+    if (!(value instanceof GeometricObjectNode))
       return null;
     return ((GeometricObjectNode) value).getGeometry();
   }
