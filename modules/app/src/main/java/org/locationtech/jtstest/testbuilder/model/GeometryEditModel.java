@@ -278,6 +278,20 @@ public class GeometryEditModel
       Coordinate[] arcPts = CoordinateArrays.toCoordinateArray(coordList);
       newGeom = creator.addCircularString(getGeometry(), arcPts);
       break;
+    case GeometryType.COMPOUNDCURVE:
+      Coordinate[] ccPts = CoordinateArrays.toCoordinateArray(coordList);
+      Coordinate[][] ccPieces = GeometryCombiner.circularStringPieces(ccPts);
+      if (ccPieces == null) {
+        newGeom = getGeometry();
+      }
+      else {
+        newGeom = creator.addCompoundCurve(getGeometry(), ccPieces);
+      }
+      break;
+    case GeometryType.CURVEPOLYGON:
+      Coordinate[] cpPts = CoordinateArrays.toCoordinateArray(coordList);
+      newGeom = creator.addCurvePolygon(getGeometry(), cpPts);
+      break;
     case GeometryType.TRIANGLE:
       Coordinate[] triPts = CoordinateArrays.toCoordinateArray(coordList);
       newGeom = creator.addTriangle(getGeometry(), triPts);

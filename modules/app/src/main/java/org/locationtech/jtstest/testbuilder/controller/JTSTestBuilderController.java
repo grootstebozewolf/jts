@@ -40,6 +40,8 @@ import org.locationtech.jtstest.testbuilder.ui.tools.DeleteByBoxTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.EditVertexTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.ExtractComponentTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.CircularStringTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.CompoundCurveTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.CurvePolygonTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.InfoTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.LineStringTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.TinTool;
@@ -301,6 +303,14 @@ public class JTSTestBuilderController
 
   public void modeDrawCircularString() {
     setTool(CircularStringTool.getInstance());
+  }
+
+  public void modeDrawCompoundCurve() {
+    setTool(CompoundCurveTool.getInstance());
+  }
+
+  public void modeDrawCurvePolygon() {
+    setTool(CurvePolygonTool.getInstance());
   }
 
   public void modeDrawTriangle() {
