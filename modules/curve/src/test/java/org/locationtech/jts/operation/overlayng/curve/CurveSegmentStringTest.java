@@ -36,7 +36,9 @@ import test.jts.GeometryTestCase;
  * P2.5.4 is near-tangent robustness: a coincident leave-angle
  * stamps {@link CurveSegmentFaces#TANGENT_LEAVE_ANGLE}.
  * HP.1 pins that a signed-curvature leave-angle order at
- * (0, 5) walks the wrong rings -- not a laser.
+ * (0, 5) walks the wrong rings -- not a laser. HP.2 is
+ * {@link CurveHotPixel}: arc ∩ pixel in the squared metric,
+ * one node. Not a leave-angle snap, not a face walk.
  * Not N-SS, not a core {@code Noder}.
  */
 public class CurveSegmentStringTest extends GeometryTestCase {
@@ -128,6 +130,12 @@ public class CurveSegmentStringTest extends GeometryTestCase {
   private static final double CURVATURE_ORDER_WRONG_AREA = 18.42;
   /** Same as {@code CurveSegmentFaces.ANGLE_EPS}. */
   private static final double LEAVE_ANGLE_EPS = 1.0e-8;
+  /**
+   * Envelope scale of HALF_DISC ({@code max(width, height) = 10}).
+   * Pixel width is 1/10. The tangent node (0, 5) is on that grid.
+   * Same scale the noder uses for that shell.
+   */
+  private static final double HP2_SCALE = 10.0;
 
   public static void main(String[] args) {
     TestRunner.run(CurveSegmentStringTest.class);
@@ -628,6 +636,72 @@ public class CurveSegmentStringTest extends GeometryTestCase {
             - signedCurvature(stadiumLeave)) > LEAVE_ANGLE_EPS);
   }
 
+  /**
+   * HP.2: one {@link CurveHotPixel} at the H-SHELL-N-ODD tangent
+   * (0, 5). The HALF_DISC and STADIUM_ODD arcs that leave that
+   * node intersect the pixel. One node, not a chord fake, not a
+   * leave-angle snap, not a face walk.
+   */
+  public void testCurveHotPixelHitsLeaveArcsAtTangentNode() {
+    CurveHotPixel pixel = new CurveHotPixel(c(0, 5), HP2_SCALE);
+    assertEquals(0.0, pixel.getCoordinate().x, 0.0);
+    assertEquals(5.0, pixel.getCoordinate().y, 0.0);
+    assertEquals("documented envelope scale", HP2_SCALE,
+        pixel.getScaleFactor(), 0.0);
+    assertEquals("width 1/scale", 0.1, pixel.getWidth(), 0.0);
+    assertTrue("node is inside its pixel", pixel.intersects(c(0, 5)));
+
+    CurveSegmentString half = halfDiscArc();
+    CurveSegmentString cap = stadiumOddCap();
+    assertTrue("HALF_DISC arc ∩ pixel at (0, 5)", pixel.intersects(half));
+    assertTrue("STADIUM_ODD cap ∩ pixel at (0, 5)", pixel.intersects(cap));
+
+    CurveSegmentString halfLeave = leaveFrom(half, c(0, 5), c(5, 0));
+    CurveSegmentString stadiumLeave = leaveFrom(cap, c(0, 5), c(1, 4));
+    assertTrue("HALF_DISC leave from (0, 5)",
+        pixel.intersects(halfLeave));
+    assertTrue("STADIUM_ODD leave from (0, 5)",
+        pixel.intersects(stadiumLeave));
+  }
+
+  /**
+   * HP.2 miss: HALF_HANGING's circular member stays on the circle
+   * at (0, 8), r=5. The pixel at (0, 5) of width 0.1 sits inside
+   * that disc (d²_max &lt; r²) and never meets the arc.
+   */
+  public void testCurveHotPixelMissesHangingArc() {
+    CurveHotPixel pixel = new CurveHotPixel(c(0, 5), HP2_SCALE);
+    CurveSegmentString hanging = hangingArc();
+    assertFalse("HALF_HANGING arc misses the (0, 5) pixel",
+        pixel.intersects(hanging));
+    assertFalse("hanging mid (0, 3) is not in the pixel",
+        pixel.intersects(c(0, 3)));
+    assertFalse("STADIUM_ODD bottom cap misses (0, 5)",
+        pixel.intersects(stadiumOddBottom()));
+  }
+
+  /**
+   * HP.2 is arc ∩ pixel, not the supporting chord. HALF_DISC's
+   * diameter is y=0; STADIUM_ODD's cap chord is y=4. Both miss
+   * a width-0.1 pixel at (0, 5). {@code intersectsScaled} on
+   * either chord is the lie — the arcs go through the node.
+   */
+  public void testCurveHotPixelIsNotChordFake() {
+    CurveHotPixel pixel = new CurveHotPixel(c(0, 5), HP2_SCALE);
+    CurveSegmentString halfChord = CurveSegmentString.segment(
+        c(-5, 0), c(5, 0));
+    CurveSegmentString capChord = CurveSegmentString.segment(
+        c(-1, 4), c(1, 4));
+    assertFalse("HALF_DISC diameter misses the (0, 5) pixel",
+        pixel.intersects(halfChord));
+    assertFalse("STADIUM_ODD cap chord (y=4) misses the pixel",
+        pixel.intersects(capChord));
+    assertTrue("the HALF_DISC arc is the hit, not its chord",
+        pixel.intersects(halfDiscArc()));
+    assertTrue("the STADIUM_ODD cap is the hit, not its chord",
+        pixel.intersects(stadiumOddCap()));
+  }
+
   public void testNoderDoesNotAssembleFaces() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
     Geometry b = readCurve(CIRCLE_CROSSING);
@@ -777,6 +851,16 @@ public class CurveSegmentStringTest extends GeometryTestCase {
   /** STADIUM_ODD top cap. Existing fixture, not a new geometry. */
   private static CurveSegmentString stadiumOddCap() {
     return CurveSegmentString.arc(c(-1, 4), c(0, 5), c(1, 4));
+  }
+
+  /** HALF_HANGING circular member. Existing fixture, not a new geometry. */
+  private static CurveSegmentString hangingArc() {
+    return CurveSegmentString.arc(c(-5, 8), c(0, 3), c(5, 8));
+  }
+
+  /** STADIUM_ODD bottom cap. Existing fixture, not a new geometry. */
+  private static CurveSegmentString stadiumOddBottom() {
+    return CurveSegmentString.arc(c(1, -1), c(0, -2), c(-1, -1));
   }
 
   /**
