@@ -261,39 +261,39 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
    *   B = LINESTRING (0 0, 10 0)   // the chord / diameter baseline
    * </pre>
    * Oriented Hausdorff {@code h(A,B) = max_{a in A} min_{b in B} d(a,b)} is the
-   * max height of A above B. On the true circular arc the apex sits near
-   * {@code (5, 3.968)} (circle centre {@code (5, -7/6)}, r ≈ 5.134), so
-   * continuous {@code h(A,B) ≈ 3.968}. The control-point-only discrete reading
-   * attains only the mid control {@code (2, 3)} → {@code h = 3}. Chord-fraction
-   * densify cannot close the gap: it densifies the straight control chords,
-   * which lie <em>inside</em> the arc and never reach the true apex.
-   * <p>
-   * Spec: densify / sample along <em>arc length</em> (uniform sweep), so the
-   * discrete max-min approaches the continuous directed Hausdorff. Same gap
-   * applies to {@code DiscreteFrechetDistance}. Delete on green (epic D-HF).
+   * max height of A above B. {@code DiscreteHausdorffDistance} on #7 has
+   * closed-form for two pairs only: single-arc {@code CircularString} →
+   * single-segment {@code LineString} (apex {@code √949/6 − 7/6} ≈ 3.967641),
+   * and two circular discs. A single-member {@code MultiSurface} of one disc
+   * is the same pair, not a third. The exact path owns APEX and skips densify;
+   * densify 0.05 is not the laser. Stale mid-control {@code h = 3} is retired.
+   * That exception is not the full TAG: public DHD still sees chords in
+   * general. Keep this {@code fail()}.
    */
   public void test_D_HF_hausdorffFrechetCurveAware() throws Exception {
     Geometry arc = read("CIRCULARSTRING (0 0, 2 3, 10 0)");
     Geometry baseline = read("LINESTRING (0 0, 10 0)");
 
-    // Continuous directed Hausdorff (analytic apex of the circle through the
-    // three control points, relative to the x-axis baseline): ≈ 3.96764.
-    final double expectedContinuous = 3.96764;
+    // Apex of the locked pair: √949/6 − 7/6. Exact path owns this; densifyFrac
+    // is skipped on this pair (not the laser).
+    final double expectedContinuous = 3.967641;
     final double tol = 1e-3;
 
-    double controlOnly =
+    double exactPath =
         DiscreteHausdorffDistance.orientedDistance(arc, baseline);
-    double chordDensified =
+    double densifyCall =
         DiscreteHausdorffDistance.orientedDistance(arc, baseline, 0.05);
 
-    // Red ratchet: always fail with measured numbers. When arc-length densify
-    // (or a curve-native path) reaches expectedContinuous within tol, delete
-    // this method (do not edit it green) — epic D-HF.
-    fail("D-HF: oriented DiscreteHausdorffDistance on CIRCULARSTRING(0 0, 2 3, 10 0) "
-        + "vs LINESTRING(0 0, 10 0) should approach continuous h≈" + expectedContinuous
-        + " (±" + tol + ") by sampling along arc length; control-only got " + controlOnly
-        + ", chord-densify(frac=0.05) got " + chordDensified
-        + " (today both ≈ mid-control height 3 — densify walks control chords, not the arc).");
+    // Full-TAG ratchet: always fail. Exact path owns APEX; densify is skipped
+    // on this pair, not the laser. Stale h=3 retired. Keep this fail().
+    fail("D-HF: full TAG still open. Public DiscreteHausdorffDistance still sees chords in general. "
+        + "DiscreteHausdorffDistance on #7 has closed-form for two pairs only: "
+        + "single-arc CircularString → single-segment LineString "
+        + "(apex √949/6 − 7/6 ≈ " + expectedContinuous + "), and two circular discs. "
+        + "A single-member MultiSurface of one disc is the same pair, not a third. "
+        + "Exact path owns APEX (orientedDistance got " + exactPath
+        + "); densifyFrac is skipped on this pair (call returned " + densifyCall
+        + ", not the laser). Stale h=3 retired. Keep this fail() (±" + tol + ").");
   }
 
   // ============================================================
