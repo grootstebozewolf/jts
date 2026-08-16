@@ -227,7 +227,8 @@ public class OverlayNGCurve {
    * half-discs, perpendicular same-circle half-disc sectors, a
    * two-node walk of two CompoundCurve shells, an even 4+
    * alternating cut of two CompoundCurve shells, a same-outer
-   * hole-inside pair, and an even 4+ line–circle cut of a disc
+   * hole-inside pair, a different-outer hole composed from a
+   * certified outer clip, and an even 4+ line–circle cut of a disc
    * by a plain polygon. In
    * the R1 case the <em>answer</em> is exact even though the <em>decision</em>
    * to return it was made on densified copies.

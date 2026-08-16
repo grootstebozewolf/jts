@@ -202,8 +202,46 @@ final class DifferentOuterHoleOverlay {
       GeometryFactory f) {
     if (solid == null) return null;
     if (solid.isEmpty()) return solid;
-    if (solid.getNumGeometries() != 1) return null;
-    Geometry g = solid.getGeometryN(0);
+    if (solid.getNumGeometries() == 1) {
+      return punchOne(solid.getGeometryN(0), hole, f);
+    }
+    int hit = -1;
+    boolean miss = false;
+    for (int i = 0; i < solid.getNumGeometries() && !miss; i++) {
+      int side = classifyHole(hole, solid.getGeometryN(i));
+      if (side == TwoNodeClip.IN) {
+        if (hit >= 0) {
+          miss = true;
+        }
+        else {
+          hit = i;
+        }
+      }
+      else if (side != TwoNodeClip.OUT) {
+        miss = true;
+      }
+    }
+    if (miss || hit < 0) return null;
+    List<Polygon> faces = new ArrayList<Polygon>();
+    boolean ok = true;
+    for (int i = 0; i < solid.getNumGeometries() && ok; i++) {
+      Geometry face = i == hit
+          ? punchOne(solid.getGeometryN(i), hole, f)
+          : solid.getGeometryN(i);
+      if (face instanceof Polygon && !face.isEmpty()) {
+        faces.add((Polygon) face);
+      }
+      else {
+        ok = false;
+      }
+    }
+    if (!ok || faces.isEmpty()) return null;
+    if (faces.size() == 1) return faces.get(0);
+    return new MultiSurface(faces.toArray(new Polygon[0]), f);
+  }
+
+  private static Geometry punchOne(Geometry g, LineString hole,
+      GeometryFactory f) {
     if (g instanceof CurvePolygon) {
       CurvePolygon cp = (CurvePolygon) g;
       if (cp.getNumInteriorRing() > 0) return null;

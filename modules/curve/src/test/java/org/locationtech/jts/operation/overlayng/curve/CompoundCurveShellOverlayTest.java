@@ -32,8 +32,10 @@ import test.jts.GeometryTestCase;
  * keep the surviving arc, exact, and JTS-class with the chord overlay.
  * Two CompoundCurve shells walk at 0 / 1 / 2 nodes, or an even 4+
  * alternating n-span. A same-outer hole-inside pair is the holed
- * cell. A three-point LineString is not an arc. Odd counts, mixed
- * labels, and crossing holes stay {@code null} so OverlayNGCurve can
+ * cell. A different-outer hole composes when it sits strictly
+ * inside or outside a certified outer CAP. A three-point LineString
+ * is not an arc. Odd counts, mixed labels, a hole that meets or
+ * crosses the other outer stay {@code null} so OverlayNGCurve can
  * take R2 without paying this path first.
  */
 public class CompoundCurveShellOverlayTest extends GeometryTestCase {
@@ -491,6 +493,12 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
     Geometry rect = bite.getResult(OverlayNG.DIFFERENCE);
     assertFalse("small \\ holed is exact", bite.isApproximate());
     assertEquals("the rectangular hole", 1.0, rect.getArea(), EXACT);
+
+    OverlayNGCurve xor = new OverlayNGCurve(holed, small);
+    Geometry x = xor.getResult(OverlayNG.SYMDIFFERENCE);
+    assertFalse("inside-CAP XOR is exact", xor.isApproximate());
+    assertEquals("annulus plus the rectangle", HALF - SMALL_HALF + 1.0,
+        x.getArea(), EXACT);
   }
 
   public void testDifferentOuterHoleOutsideCapIsIgnoredOnCap() throws Exception {
@@ -508,6 +516,13 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
         2.0 * HALF - LENS - 1.0, blob.getArea(), EXACT);
     assertEquals("keeps the hole", 1,
         ((CurvePolygon) blob).getNumInteriorRing());
+
+    OverlayNGCurve xor = new OverlayNGCurve(holed, hanging);
+    Geometry x = xor.getResult(OverlayNG.SYMDIFFERENCE);
+    assertFalse("outside-CAP XOR is exact", xor.isApproximate());
+    assertEquals("two bites minus the far hole",
+        2.0 * HALF - 2.0 * LENS - 1.0, x.getArea(), EXACT);
+    assertEquals("two members", 2, x.getNumGeometries());
   }
 
   public void testDifferentOuterHoleComplementaryIsDiscMinusHole()
@@ -524,6 +539,11 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
     Geometry disc = cup.getResult(OverlayNG.UNION);
     assertFalse("holed complementary CUP is exact", cup.isApproximate());
     assertEquals("disc minus the rectangle", DISC - 1.0, disc.getArea(), EXACT);
+
+    OverlayNGCurve xor = new OverlayNGCurve(holed, lower);
+    Geometry both = xor.getResult(OverlayNG.SYMDIFFERENCE);
+    assertFalse("holed complementary XOR is exact", xor.isApproximate());
+    assertEquals("disc minus the rectangle", DISC - 1.0, both.getArea(), EXACT);
   }
 
   public void testNotThisCellReturnsNull() throws Exception {
@@ -538,6 +558,8 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, 0 2, 1 1), (1 1, 1 0), (1 0, -1 0), (-1 0, -1 1)))");
     Geometry straddle = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (-1 1, 1 1, 1 2, -1 2, -1 1))");
+    Geometry oddStadium = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 4, 0 5, 1 4), (1 4, 1 -1), CIRCULARSTRING (1 -1, 0 -2, -1 -1), (-1 -1, -1 4)))");
     assertNull("two discs stay on R1.5",
         CompoundCurveShellOverlay.overlay(disc, other, OverlayNG.INTERSECTION));
     assertNull("plain vs plain",
@@ -548,6 +570,8 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
         CompoundCurveShellOverlay.overlay(straddle, right, OverlayNG.INTERSECTION));
     assertNull("H-SHELL-N-MIXED: collinear overlap stays refused",
         CompoundCurveShellOverlay.overlay(half, onDiameter, OverlayNG.INTERSECTION));
+    assertNull("H-SHELL-N-ODD: two crossings plus a tangent stay refused",
+        CompoundCurveShellOverlay.overlay(half, oddStadium, OverlayNG.INTERSECTION));
     assertNull("line-only shell",
         CompoundCurveShellOverlay.overlay(chords, square, OverlayNG.INTERSECTION));
   }

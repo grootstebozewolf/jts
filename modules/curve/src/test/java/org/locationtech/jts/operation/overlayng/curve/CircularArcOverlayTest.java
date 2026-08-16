@@ -283,8 +283,9 @@ public class CircularArcOverlayTest extends GeometryTestCase {
    * proper nodes walk the surviving arcs. Collinear same-side halves
    * are the half-lens. An even 4+ alternating cut is the n-span
    * assemble. A same-outer hole-inside pair is the holed cell.
-   * Odd counts, mixed labels, and holes that do not share the outer
-   * stay refused.
+   * A different-outer hole composes when it sits strictly inside
+   * or outside a certified outer CAP. Odd counts, mixed labels,
+   * and a hole that meets or crosses the other outer stay refused.
    */
   public void testHShellComplementaryHalfDiscsAreTheDisc() throws Exception {
     Geometry upper = readCurve(HALF_UPPER);
@@ -373,6 +374,18 @@ public class CircularArcOverlayTest extends GeometryTestCase {
 
     assertNull("H-SHELL-HOLE-OUTER: hole meets the other diameter",
         CompoundCurveShellOverlay.overlay(holed, right, OverlayNG.INTERSECTION));
+    Geometry straddle = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (-1 1, 1 1, 1 2, -1 2, -1 1))");
+    assertNull("H-SHELL-HOLE-CROSS: hole straddles the other shell",
+        CompoundCurveShellOverlay.overlay(straddle, right, OverlayNG.INTERSECTION));
+    Geometry onDiameter = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, 0 2, 1 1), (1 1, 1 0), (1 0, -1 0), (-1 0, -1 1)))");
+    assertNull("H-SHELL-N-MIXED: collinear overlap stays refused",
+        CompoundCurveShellOverlay.overlay(upper, onDiameter, OverlayNG.INTERSECTION));
+    Geometry oddStadium = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 4, 0 5, 1 4), (1 4, 1 -1), CIRCULARSTRING (1 -1, 0 -2, -1 -1), (-1 -1, -1 4)))");
+    assertNull("H-SHELL-N-ODD: two crossings plus a tangent stay refused",
+        CompoundCurveShellOverlay.overlay(upper, oddStadium, OverlayNG.INTERSECTION));
   }
 
   public void testRllStillRefusesTwoArcs() throws Exception {
