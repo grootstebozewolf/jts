@@ -35,8 +35,10 @@ public class ConstructionFunctions {
    * disc cell) already see arcs and discs.
    * <p>
    * <b>PERF-GATE.</b> A circular disc's MIC is the disc itself (centre +
-   * radius) and is taken in closed form. LargestEmptyCircle of a circular
-   * disc used as boundary-as-obstacle is the same closed form (centre, r).
+   * radius) and is taken in closed form. A certified stadium's MIC is
+   * the cap radius with centre at the midpoint of the two cap centres.
+   * LargestEmptyCircle of a circular disc used as boundary-as-obstacle
+   * is the same closed form (centre, r).
    */
   private static Geometry arc(Geometry g) {
     return CurveFunctions.linearizeForOps(g);

@@ -15,7 +15,9 @@ import java.util.Arrays;
 
 import org.locationtech.jts.algorithm.construct.MaximumInscribedCircle;
 import org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jts.operation.distance.DistanceOp;
@@ -46,8 +48,9 @@ import junit.textui.TestRunner;
  * </table>
  * After the lasers (same harness): two discs 0.007 / 15.5 (0.000),
  * arc-baseline 0.009 / 0.063 (0.14), nearest 0.001 / 0.105 (0.01),
- * MIC 0.001 / 0.971 (0.001). Fréchet and LEC certified cells are gated
- * next to the public classes (15% slack).
+ * MIC disc 0.001 / 0.971 (0.001). Stadium MIC is the same 15% gate
+ * against linearise-then-{@link MaximumInscribedCircle}. Fréchet and
+ * LEC certified cells are gated next to the public classes.
  * <p>
  * Each row asserts {@code median(laser) <= median(chainsaw)}. A 15% slack
  * covers timer noise.
@@ -61,6 +64,12 @@ public class DistanceConstructionPerfGateTest extends TestCase {
   private static final String ARC = "CIRCULARSTRING (0 0, 2 3, 10 0)";
   private static final String BASELINE = "LINESTRING (0 0, 10 0)";
   private static final String APEX_POINT = "POINT (5 6)";
+  private static final String STADIUM_FOUR =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, 0 -2, 1 -1), (1 -1, 1 6), CIRCULARSTRING (1 6, 0 7, -1 6), (-1 6, -1 -1)))";
+  private static final String STADIUM_ODD =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 4, 0 5, 1 4), (1 4, 1 -1), CIRCULARSTRING (1 -1, 0 -2, -1 -1), (-1 -1, -1 4)))";
+  private static final String HALF_DISC =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)))";
 
   private static final int WARMUP = 15;
   private static final int SAMPLES = 31;
@@ -142,8 +151,58 @@ public class DistanceConstructionPerfGateTest extends TestCase {
 
   /** MIC of a radius-5 disc is 5, exactly -- not the grid approximation. */
   public void testMicDiscRadiusIsExact() throws Exception {
-    assertEquals("largest circle inside a radius-5 disc",
-        5.0, ConstructionFunctions.maxInscribedCircleRadiusLen(read(DISC_5), 0.01),
-        1.0e-12);
+    Geometry disc = read(DISC_5);
+    double r = ConstructionFunctions.maxInscribedCircleRadiusLen(disc, 0.01);
+    assertEquals("largest circle inside a radius-5 disc", 5.0, r, 0.0);
+    assertEquals(0x4014000000000000L, Double.doubleToRawLongBits(r));
+    Point c = (Point) ConstructionFunctions.maxInscribedCircleCenter(disc, 0.01);
+    assertEquals(0.0, c.getX(), 0.0);
+    assertEquals(0.0, c.getY(), 0.0);
+    Coordinate laser = CurveExactFns.micCenter(disc);
+    assertEquals(Double.doubleToRawLongBits(laser.x),
+        Double.doubleToRawLongBits(c.getX()));
+    assertEquals(Double.doubleToRawLongBits(laser.y),
+        Double.doubleToRawLongBits(c.getY()));
+  }
+
+  public void testMicStadiumNotSlowerThanChord() throws Exception {
+    Geometry a = read(STADIUM_FOUR);
+    assertLaserNotSlower("MIC stadium",
+        () -> ConstructionFunctions.maxInscribedCircleRadiusLen(a, 0.01),
+        () -> MaximumInscribedCircle.getRadiusLine(
+            CurveFunctions.linearizeForOps(a), 0.01).getLength());
+  }
+
+  public void testMicStadiumFourIsClosedFormNotGrid() throws Exception {
+    Geometry g = read(STADIUM_FOUR);
+    assertEquals(1.0,
+        ConstructionFunctions.maxInscribedCircleRadiusLen(g, 0.01), 0.0);
+    Point c = (Point) ConstructionFunctions.maxInscribedCircleCenter(g, 0.01);
+    assertEquals(0.0, c.getX(), 0.0);
+    assertEquals(2.5, c.getY(), 0.0);
+    Coordinate laser = CurveExactFns.micCenter(g);
+    assertNotNull("stadium takes the closed form, not a densified grid", laser);
+    double chordR = MaximumInscribedCircle.getRadiusLine(
+        CurveFunctions.linearizeForOps(g), 0.01).getLength();
+    assertTrue("chord MIC may be close; the laser is exactly 1",
+        Math.abs(chordR - 1.0) < 0.05);
+    assertEquals(1.0, laser.distance(new Coordinate(1.0, 2.5)), 0.0);
+  }
+
+  public void testMicStadiumOddIsClosedForm() throws Exception {
+    Geometry g = read(STADIUM_ODD);
+    assertEquals(1.0,
+        ConstructionFunctions.maxInscribedCircleRadiusLen(g, 0.01), 0.0);
+    Point c = (Point) ConstructionFunctions.maxInscribedCircleCenter(g, 0.01);
+    assertEquals(0.0, c.getX(), 0.0);
+    assertEquals(1.5, c.getY(), 0.0);
+  }
+
+  public void testMicHalfDiscIsNotAStadiumLaser() throws Exception {
+    Geometry half = read(HALF_DISC);
+    assertNull("HALF_DISC stamps -- chordsaw, not a claimed half-disc diamond",
+        CurveExactFns.micRadius(half));
+    assertNull(CurveExactFns.micCenter(half));
+    assertNull(CurveExactFns.stadiumMic(half));
   }
 }
