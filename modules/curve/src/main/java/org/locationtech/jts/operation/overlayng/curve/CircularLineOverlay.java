@@ -25,6 +25,7 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.curve.CircularArcDensifier;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurveOps;
 import org.locationtech.jts.geom.curve.MultiCurve;
@@ -109,6 +110,9 @@ final class CircularLineOverlay {
     boolean hasArc = false;
     for (int i = 0; i < cc.getNumMembers(); i++) {
       LineString m = cc.getMemberN(i);
+      if (m instanceof ClothoidSegment) {
+        return null;
+      }
       if (m instanceof CircularString) {
         hasArc = true;
       }
@@ -123,6 +127,7 @@ final class CircularLineOverlay {
     g = unwrapLineal(g);
     if (g == null || g.isEmpty()) return null;
     if (g instanceof CircularString || g instanceof CompoundCurve) return null;
+    if (g instanceof ClothoidSegment) return null;
     if (!(g instanceof LineString)) return null;
     if (CurveOps.tolerance(g) > 0.0) return null;
     return (LineString) g;
@@ -151,6 +156,9 @@ final class CircularLineOverlay {
   }
 
   private static boolean addMember(List<TwoNodeClip.Edge> edges, LineString m) {
+    if (m instanceof ClothoidSegment) {
+      return false;
+    }
     Coordinate[] pts = m.getCoordinates();
     if (m instanceof CircularString) {
       if (pts.length < 3) return false;

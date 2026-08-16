@@ -91,12 +91,15 @@ public final class CurveOps {
   }
 
   /**
-   * True when {@code g} contains a {@link CircularString}. An arc-free
-   * {@link CurvePolygon} of plain rings is {@link Linearizable} but has
-   * no arc, so {@link #tolerance(Geometry)} is zero.
+   * True when {@code g} contains a {@link CircularString} or a
+   * {@link ClothoidSegment}. An arc-free {@link CurvePolygon} of
+   * plain rings is {@link Linearizable} but has no arc, so
+   * {@link #tolerance(Geometry)} is zero. A clothoid is not a
+   * chord: densify must be flagged.
    */
   static boolean hasCircularArc(Geometry g) {
     if (g == null || g.isEmpty()) return false;
+    if (g instanceof ClothoidSegment) return true;
     if (g instanceof CircularString) return true;
     if (g instanceof CompoundCurve) {
       CompoundCurve cc = (CompoundCurve) g;
