@@ -1,5 +1,7 @@
 package org.locationtech.jts.algorithm.construct;
 
+import java.util.List;
+
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
@@ -127,9 +129,12 @@ public class LargestEmptyCircleTest extends GeometryTestCase {
   }
 
   /**
-   * Proofs #474 / Family I: sites (0,0), (4,0), (2,3) on their hull.
-   * The unique interior maximiser is the Voronoi vertex (circumcentre)
-   * (2, 5/6) at radius 13/6. Not a disc closed form.
+   * Proofs #474 / {@code LECCandidateVertex.v} Family I: sites
+   * (0,0), (4,0), (2,3) on their hull. Unique maximiser is the
+   * Voronoi vertex (2, 5/6) at radius 13/6
+   * ({@code lec_three_points}). The walk must include
+   * {@code tri_candidates}: that vertex, (2,0), (1, 3/2), (3, 3/2),
+   * and the three sites. Not a disc closed form.
    */
   public void testPointSitesVoronoiVertexThreeSites() {
     Geometry sites = read("MULTIPOINT ((0 0), (4 0), (2 3))");
@@ -142,6 +147,15 @@ public class LargestEmptyCircleTest extends GeometryTestCase {
     checkCircle(lec, 1.0e-12, x, y, r);
     assertTrue(lec.usedPointSiteCandidates());
     assertTrue(!LargestEmptyCircle.hasCertifiedClosedForm(sites, hull));
+    List<Coordinate> cands = lec.lastPointSiteCandidates();
+    assertNotNull(cands);
+    assertTrue(hasCandidate(cands, 2.0, 5.0 / 6.0));
+    assertTrue(hasCandidate(cands, 2.0, 0.0));
+    assertTrue(hasCandidate(cands, 1.0, 1.5));
+    assertTrue(hasCandidate(cands, 3.0, 1.5));
+    assertTrue(hasCandidate(cands, 0.0, 0.0));
+    assertTrue(hasCandidate(cands, 4.0, 0.0));
+    assertTrue(hasCandidate(cands, 2.0, 3.0));
 
     LargestEmptyCircle grid = new LargestEmptyCircle(sites, hull, 1.0e-4);
     grid.disablePointSiteCandidates();
@@ -181,8 +195,9 @@ public class LargestEmptyCircleTest extends GeometryTestCase {
    * F8 witness. Proofs: sites (0,0) and (2,0), domain = the connecting
    * segment, midpoint (1,0) radius 1, exactly two nearest sites; the
    * naive two-nearest direction is antipodal and stalls
-   * ({@code f8_interiority_load_bearing}). The two-point convex hull
-   * is a LineString — this class does not pretend it is a polygon
+   * ({@code f8_interiority_load_bearing}). Empty-interior domains use
+   * the edge theorem — do not filter “not ≥ 3”. JTS {@code boundary}
+   * must be {@code Polygonal}; the two-point hull is a LineString
    * ({@link #testTwoSitesHullIsNotAPolygon}). Pin the same geometry
    * with a thin rectangle containing the segment so the maximiser is
    * forced onto the bisector × edge class.
@@ -342,6 +357,18 @@ public class LargestEmptyCircleTest extends GeometryTestCase {
   
   private void checkCircleZeroRadius(String wkt, double tolerance) {
     checkCircleZeroRadius(read(wkt), tolerance);
+  }
+
+  private static boolean hasCandidate(List<Coordinate> cands, double x,
+      double y) {
+    for (int i = 0; i < cands.size(); i++) {
+      Coordinate c = cands.get(i);
+      if (c != null && Math.abs(c.x - x) <= 1.0e-8
+          && Math.abs(c.y - y) <= 1.0e-8) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void checkCircleZeroRadius(Geometry geom, double tolerance) {

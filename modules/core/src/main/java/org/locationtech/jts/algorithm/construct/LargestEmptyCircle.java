@@ -11,6 +11,9 @@
  */
 package org.locationtech.jts.algorithm.construct;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.PriorityQueue;
 
 import org.locationtech.jts.algorithm.Centroid;
@@ -18,14 +21,22 @@ import org.locationtech.jts.algorithm.InteriorPoint;
 import org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance;
 import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateArrays;
+import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineSegment;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.TopologyException;
+import org.locationtech.jts.geom.Triangle;
 import org.locationtech.jts.operation.distance.IndexedFacetDistance;
+import org.locationtech.jts.triangulate.VoronoiDiagramBuilder;
+import org.locationtech.jts.triangulate.quadedge.QuadEdgeSubdivision;
 
 /**
  * Constructs the Largest Empty Circle for a set
@@ -217,6 +228,7 @@ public class LargestEmptyCircle {
   private double[] certifiedCircle;
   private boolean usedPointSiteCandidates = false;
   private boolean allowPointSiteCandidates = true;
+  private List<Coordinate> lastPointSiteCandidates = null;
 
   /**
    * Creates a new instance of a Largest Empty Circle construction,
@@ -365,13 +377,10 @@ public class LargestEmptyCircle {
       return;
     }
 
-    if (allowPointSiteCandidates) {
-      Coordinate siteCenter = LargestEmptyCirclePointSites.findCenter(
-          obstacles, bounds, obstacleDistance, boundaryPtLocater, factory);
-      if (siteCenter != null) {
-        applyPointSiteCenter(siteCenter);
-        return;
-      }
+    Coordinate siteCenter = tryPointSiteCandidates();
+    if (siteCenter != null) {
+      applyPointSiteCenter(siteCenter);
+      return;
     }
     
     // Priority queue of cells, ordered by decreasing distance from constraints
@@ -473,6 +482,291 @@ public class LargestEmptyCircle {
    */
   void disablePointSiteCandidates() {
     allowPointSiteCandidates = false;
+  }
+
+  /**
+   * Candidates collected by the last successful three-class walk.
+   * Package-private so tests can pin Family I
+   * ({@code (2, 5/6)}, {@code (2,0)}, {@code (1, 3/2)},
+   * {@code (3, 3/2)}, and the three sites).
+   *
+   * @return the list, or {@code null} if the walk did not run
+   */
+  List<Coordinate> lastPointSiteCandidates() {
+    return lastPointSiteCandidates;
+  }
+
+  private static final double ON_EDGE_TOL = 1.0e-8;
+
+  /**
+   * Proofs #474 three-class walk for point sites in a 2-D polygonal
+   * domain. Returns {@code null} to fall through to the grid.
+   * Does not filter “not ≥ 3 nearest” — F8 empty-interior maximisers
+   * are two-nearest bisector × edge crossings
+   * ({@code lec_candidate_completeness_boundary_edge}).
+   */
+  private Coordinate tryPointSiteCandidates() {
+    if (!allowPointSiteCandidates) {
+      return null;
+    }
+    if (obstacleDistance == null || boundaryPtLocater == null
+        || bounds == null || bounds.getDimension() < 2) {
+      return null;
+    }
+    if (!arePointSites(obstacles) || uniqueSiteCount(obstacles) < 2) {
+      return null;
+    }
+
+    List<Coordinate> candidates = new ArrayList<Coordinate>();
+    addDomainVertices(bounds, candidates);
+    addVoronoiCandidates(obstacles, bounds, candidates);
+    lastPointSiteCandidates = candidates;
+    return pickBestPointSite(candidates);
+  }
+
+  private Coordinate pickBestPointSite(List<Coordinate> candidates) {
+    Coordinate best = null;
+    double bestClearance = -1.0;
+    for (int i = 0; i < candidates.size(); i++) {
+      Coordinate c = candidates.get(i);
+      if (isInDomainCandidate(c)) {
+        double d = obstacleDistance.distance(factory.createPoint(c));
+        if (d > bestClearance) {
+          bestClearance = d;
+          best = c;
+        }
+      }
+    }
+    return best;
+  }
+
+  private boolean isInDomainCandidate(Coordinate c) {
+    if (c == null || Double.isNaN(c.x) || Double.isNaN(c.y)
+        || Double.isInfinite(c.x) || Double.isInfinite(c.y)) {
+      return false;
+    }
+    return boundaryPtLocater.locate(c) != Location.EXTERIOR;
+  }
+
+  /**
+   * True when every flattened obstacle is a point. Empty members are
+   * skipped. Lines, polygons, arcs, and discs fail — those stay on
+   * the grid. Does not consult or modify {@link ObstacleDistance}.
+   */
+  private static boolean arePointSites(Geometry g) {
+    if (g == null || g.isEmpty()) {
+      return true;
+    }
+    if (DiscreteHausdorffDistance.circularDisc(g) != null) {
+      return false;
+    }
+    String type = g.getGeometryType();
+    if ("CircularString".equals(type) || "CompoundCurve".equals(type)
+        || "CurvePolygon".equals(type)) {
+      return false;
+    }
+    if (g instanceof Point) {
+      return true;
+    }
+    if (g instanceof LineString || g instanceof Polygon) {
+      return false;
+    }
+    if (g.getNumGeometries() > 1 || isCollectionType(type)) {
+      boolean any = false;
+      for (int i = 0; i < g.getNumGeometries(); i++) {
+        Geometry mem = g.getGeometryN(i);
+        if (mem != null && !mem.isEmpty()) {
+          if (!arePointSites(mem)) {
+            return false;
+          }
+          any = true;
+        }
+      }
+      return any;
+    }
+    return false;
+  }
+
+  private static boolean isCollectionType(String type) {
+    return "GeometryCollection".equals(type)
+        || "MultiPoint".equals(type)
+        || "MultiLineString".equals(type)
+        || "MultiPolygon".equals(type)
+        || "MultiCurve".equals(type)
+        || "MultiSurface".equals(type);
+  }
+
+  private static int uniqueSiteCount(Geometry sites) {
+    Coordinate[] pts = sites.getCoordinates();
+    if (pts.length == 0) {
+      return 0;
+    }
+    Coordinate[] copy = CoordinateArrays.copyDeep(pts);
+    Arrays.sort(copy);
+    return new CoordinateList(copy, false).size();
+  }
+
+  /**
+   * Class 3: domain-ring coordinates, including holes.
+   */
+  private static void addDomainVertices(Geometry domain,
+      List<Coordinate> candidates) {
+    if (domain instanceof Polygon) {
+      addPolygonVertices((Polygon) domain, candidates);
+    }
+    else {
+      for (int i = 0; i < domain.getNumGeometries(); i++) {
+        addDomainVertices(domain.getGeometryN(i), candidates);
+      }
+    }
+  }
+
+  private static void addPolygonVertices(Polygon poly,
+      List<Coordinate> candidates) {
+    addRingVertices(poly.getExteriorRing(), candidates);
+    for (int i = 0; i < poly.getNumInteriorRing(); i++) {
+      addRingVertices(poly.getInteriorRingN(i), candidates);
+    }
+  }
+
+  private static void addRingVertices(LineString ring,
+      List<Coordinate> candidates) {
+    int n = ring.getNumPoints();
+    int last = n > 1 ? n - 1 : n;
+    for (int i = 0; i < last; i++) {
+      candidates.add(ring.getCoordinateN(i).copy());
+    }
+  }
+
+  /**
+   * Classes 1 and 2 from {@link VoronoiDiagramBuilder} /
+   * {@link QuadEdgeSubdivision}: Delaunay circumcentres (Voronoi
+   * vertices) and neighbour-bisector × domain-edge crossings.
+   * Two-site / collinear sets have no triangular vertex; the edge
+   * theorem still supplies the crossings. Do not drop two-nearest.
+   */
+  private void addVoronoiCandidates(Geometry sites, Geometry domain,
+      List<Coordinate> candidates) {
+    try {
+      VoronoiDiagramBuilder builder = new VoronoiDiagramBuilder();
+      builder.setSites(sites);
+      Envelope clip = domain.getEnvelopeInternal().copy();
+      clip.expandToInclude(sites.getEnvelopeInternal());
+      double pad = Math.max(clip.getWidth(), clip.getHeight());
+      if (pad <= 0.0) {
+        pad = 1.0;
+      }
+      clip.expandBy(pad);
+      builder.setClipEnvelope(clip);
+
+      QuadEdgeSubdivision subdiv = builder.getSubdivision();
+      List tris = subdiv.getTriangleCoordinates(false);
+      for (int i = 0; i < tris.size(); i++) {
+        Coordinate[] p = (Coordinate[]) tris.get(i);
+        if (p != null && p.length >= 3) {
+          candidates.add(Triangle.circumcentre(p[0], p[1], p[2]));
+        }
+      }
+
+      List<LineSegment> domainEdges = collectDomainEdges(domain);
+      Geometry delEdges = subdiv.getEdges(factory);
+      for (int i = 0; i < delEdges.getNumGeometries(); i++) {
+        Coordinate[] p = delEdges.getGeometryN(i).getCoordinates();
+        if (p.length >= 2) {
+          addBisectorCrossings(p[0], p[1], domainEdges, candidates);
+        }
+      }
+
+      Geometry diagram = builder.getDiagram(factory);
+      for (int i = 0; i < diagram.getNumGeometries(); i++) {
+        addSegmentCrossings(polygonEdges(diagram.getGeometryN(i)),
+            domainEdges, candidates);
+      }
+    }
+    catch (RuntimeException ex) {
+      if (!(ex instanceof TopologyException)
+          && !(ex instanceof IllegalArgumentException)) {
+        throw ex;
+      }
+    }
+  }
+
+  private static void addBisectorCrossings(Coordinate a, Coordinate b,
+      List<LineSegment> domainEdges, List<Coordinate> candidates) {
+    double dx = b.x - a.x;
+    double dy = b.y - a.y;
+    if (dx == 0.0 && dy == 0.0) {
+      return;
+    }
+    double mx = (a.x + b.x) * 0.5;
+    double my = (a.y + b.y) * 0.5;
+    LineSegment bisector = new LineSegment(
+        new Coordinate(mx - dy, my + dx),
+        new Coordinate(mx + dy, my - dx));
+    for (int i = 0; i < domainEdges.size(); i++) {
+      LineSegment e = domainEdges.get(i);
+      Coordinate hit = bisector.lineIntersection(e);
+      if (hit != null && e.distance(hit) <= ON_EDGE_TOL) {
+        candidates.add(hit);
+      }
+    }
+  }
+
+  private static void addSegmentCrossings(List<LineSegment> edgesA,
+      List<LineSegment> edgesB, List<Coordinate> candidates) {
+    for (int i = 0; i < edgesA.size(); i++) {
+      LineSegment a = edgesA.get(i);
+      for (int j = 0; j < edgesB.size(); j++) {
+        Coordinate hit = a.intersection(edgesB.get(j));
+        if (hit != null) {
+          candidates.add(hit);
+        }
+      }
+    }
+  }
+
+  private static List<LineSegment> collectDomainEdges(Geometry domain) {
+    List<LineSegment> edges = new ArrayList<LineSegment>();
+    collectDomainEdges(domain, edges);
+    return edges;
+  }
+
+  private static void collectDomainEdges(Geometry domain,
+      List<LineSegment> edges) {
+    if (domain instanceof Polygon) {
+      Polygon poly = (Polygon) domain;
+      addRingEdges(poly.getExteriorRing(), edges);
+      for (int i = 0; i < poly.getNumInteriorRing(); i++) {
+        addRingEdges(poly.getInteriorRingN(i), edges);
+      }
+    }
+    else {
+      for (int i = 0; i < domain.getNumGeometries(); i++) {
+        collectDomainEdges(domain.getGeometryN(i), edges);
+      }
+    }
+  }
+
+  private static List<LineSegment> polygonEdges(Geometry g) {
+    List<LineSegment> edges = new ArrayList<LineSegment>();
+    if (g instanceof Polygon) {
+      addRingEdges(((Polygon) g).getExteriorRing(), edges);
+    }
+    else {
+      Coordinate[] pts = g.getCoordinates();
+      for (int i = 0; i + 1 < pts.length; i++) {
+        edges.add(new LineSegment(pts[i], pts[i + 1]));
+      }
+    }
+    return edges;
+  }
+
+  private static void addRingEdges(LineString ring, List<LineSegment> edges) {
+    int n = ring.getNumPoints();
+    for (int i = 0; i + 1 < n; i++) {
+      edges.add(new LineSegment(ring.getCoordinateN(i),
+          ring.getCoordinateN(i + 1)));
+    }
   }
 
   /**
