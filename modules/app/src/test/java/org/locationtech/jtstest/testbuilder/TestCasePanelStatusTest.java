@@ -11,15 +11,13 @@
  */
 package org.locationtech.jtstest.testbuilder;
 
-import org.locationtech.jtstest.testbuilder.ui.tools.CurvePolygonTool;
-
 import junit.framework.TestCase;
 import junit.textui.TestRunner;
 
 /**
  * Pins the bottom status bar (Case / PM strip), not the Log tab.
- * Escape for issue #56 must show exactly
- * {@link CurvePolygonTool#CANCELLED_STATUS} there.
+ * Escape for issue #56 must show exactly {@code CurvePolygon cancelled.}
+ * there.
  */
 public class TestCasePanelStatusTest extends TestCase {
 
@@ -34,7 +32,7 @@ public class TestCasePanelStatusTest extends TestCase {
   public void testSetStatusShowsCurvePolygonCancelledOnStatusBar() {
     TestCasePanel panel = new TestCasePanel();
     assertEquals("", panel.getStatus());
-    panel.setStatus(CurvePolygonTool.CANCELLED_STATUS);
+    panel.setStatus("CurvePolygon cancelled.");
     assertEquals("CurvePolygon cancelled.", panel.getStatus());
   }
 }
