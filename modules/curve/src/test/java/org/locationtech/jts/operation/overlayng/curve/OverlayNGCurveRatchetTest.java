@@ -55,7 +55,9 @@ import test.jts.GeometryTestCase;
  * that sits strictly inside or outside a certified outer CAP, and
  * a straddling hole whose new edge ⊂ the other shell (a bite), and
  * two holes that cross on the same outer are exact. A four-cut
- * disc vs a band is EEEE.
+ * disc vs a band is EEEE. A clothoid leftover nested in a disc
+ * is EE0E / EEEE; a clothoid that exits the disc is aaaa
+ * (Fresnel miss, not a chord flatten).
  */
 public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
@@ -137,9 +139,15 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
    */
   private void assertRow(String label, String wktA, String wktB, String expected)
       throws Exception {
+    assertRow(label, readCurve(wktA), readCurve(wktB), expected);
+  }
+
+  private void assertRow(String label, Geometry a0, Geometry b0, String expected)
+      throws Exception {
     assertEquals("test bug: need one expectation per op", OPS.length, expected.length());
     for (int i = 0; i < OPS.length; i++) {
-      Geometry a = readCurve(wktA), b = readCurve(wktB);
+      Geometry a = a0.copy();
+      Geometry b = b0.copy();
       OverlayNGCurve op = new OverlayNGCurve(a, b);
       Geometry r = op.getResult(OPS[i]);
       String where = label + " / " + OP_NAMES[i];
@@ -338,6 +346,31 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_holeMeetsDiameterReverse() throws Exception {
     assertRow("hole meets diameter reverse", HALF_RIGHT, HALF_HOLED, "EEEE");
+  }
+
+  public void testMatrix_clothoidIdentity() throws Exception {
+    Geometry leftover = ClothoidOverlayTest.nestLeftover();
+    assertRow("clothoid identity", leftover, leftover, "EE00");
+  }
+
+  public void testMatrix_clothoidDisjoint() throws Exception {
+    assertRow("clothoid disjoint", ClothoidOverlayTest.nestLeftover(),
+        ClothoidOverlayTest.farLeftover(), "0EEE");
+  }
+
+  public void testMatrix_clothoidNest() throws Exception {
+    assertRow("clothoid nest", ClothoidOverlayTest.nestLeftover(),
+        readCurve(CIRCLE_5), "EE0E");
+  }
+
+  public void testMatrix_clothoidNestReverse() throws Exception {
+    assertRow("clothoid nest reverse", readCurve(CIRCLE_5),
+        ClothoidOverlayTest.nestLeftover(), "EEEE");
+  }
+
+  public void testMatrix_clothoidFresnelMiss() throws Exception {
+    assertRow("clothoid Fresnel miss", ClothoidOverlayTest.crossingLeftover(),
+        readCurve(CIRCLE_5), "aaaa");
   }
 
   // -- the disjoint CUP/XOR result, not just its exactness -----------------

@@ -116,7 +116,12 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     is a shared-edge walk: CAP / CUP are the inner / outer
  *     shells, SUB / XOR the bite (not a punch). Mixed labels
  *     or a line-only shell return {@code null} without paying
- *     this path.</li>
+ *     this path. A CompoundCurve member that is a
+ *     {@link org.locationtech.jts.geom.curve.ClothoidSegment} is
+ *     the clothoid kit: identity, envelope-disjoint, or a 0-node
+ *     nest inside a disc, using the analytical clothoid envelope.
+ *     A pair that would need a clothoid–circle or clothoid–line
+ *     node is a named Fresnel miss -- never a chord flatten.</li>
  * <li><b>R-LL</b> -- one operand is a {@link org.locationtech.jts.geom.curve.CircularString}
  *     (or a lineal CompoundCurve of LineString + CircularString) and the
  *     other is a plain LineString. Line–circle nodes are exact. CAP is
@@ -139,7 +144,7 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * R1.5–R1.7 share package-private {@code TwoNodeClip} for the two-node
  * walk (hits, ring / member walk, CAP / CUP / SUB / XOR). Even-n
  * assemble is {@code NSpanClip}. R1.7 dispatch is
- * {@code CompoundCurveShellOverlay} (hole / bite-vs-hole /
+ * {@code CompoundCurveShellOverlay} (clothoid 0-node / hole / bite-vs-hole /
  * two-hole / half-disc / mixed-overlap / two-shell / vs disc or
  * polygon). R-LL and R-AA
  * reuse the same intersection
@@ -248,10 +253,13 @@ public class OverlayNGCurve {
    * hole-inside pair, a different-outer hole composed from a
    * certified outer clip, a straddling hole whose new edge is a
    * subset of the other shell (a bite, not a punch), a collinear
-   * overlap of two hole-free CompoundCurve shells walked as a
-   * shared edge ({@code H-SHELL-N-MIXED}), and an even
-   * 4+ line–circle cut of a disc
-   * by a plain polygon. In
+ * overlap of two hole-free CompoundCurve shells walked as a
+ * shared edge ({@code H-SHELL-N-MIXED}), a clothoid-bearing
+ * shell that is identical, envelope-disjoint, or nested in a
+ * disc ({@code CLOTHOID-ID} / {@code CLOTHOID-DISJOINT} /
+ * {@code CLOTHOID-NEST}), and an even
+ * 4+ line–circle cut of a disc
+ * by a plain polygon. In
    * the R1 case the <em>answer</em> is exact even though the <em>decision</em>
    * to return it was made on densified copies.
    * <p>
