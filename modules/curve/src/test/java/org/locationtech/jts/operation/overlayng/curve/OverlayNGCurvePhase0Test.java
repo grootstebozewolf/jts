@@ -273,15 +273,16 @@ public class OverlayNGCurvePhase0Test extends GeometryTestCase {
 
   /** R2 -- an approximate answer must say so. */
   public void testR2_densifiedAnswersAreFlagged() throws Exception {
-    // Nested SUB is now the exact annulus (R1.5). A three-point
-    // LINESTRING shell is not an arc, so the chord baseline still runs.
-    OverlayNGCurve chords = new OverlayNGCurve(readCurve(
-        "CURVEPOLYGON (COMPOUNDCURVE ((-5 0, 0 5, 5 0), (5 0, -5 0)))"),
-        readCurve(A));
-    Geometry result = chords.getResult(OverlayNGCurve.DIFFERENCE);
-    assertFalse("the chord-shell overlay is not empty", result.isEmpty());
-    assertTrue("R2: a densified chord-shell overlay is approximate and must be flagged",
-        chords.isApproximate());
+    // Nested disc SUB is now the exact annulus (R1.5). A plain square
+    // minus an inner disc has no closed form, so the chord baseline
+    // still runs.
+    OverlayNGCurve op = new OverlayNGCurve(
+        readCurve("POLYGON ((-6 -6, 6 -6, 6 6, -6 6, -6 -6))"),
+        readCurve(B));
+    Geometry result = op.getResult(OverlayNGCurve.DIFFERENCE);
+    assertFalse("the square-minus-disc is not empty", result.isEmpty());
+    assertTrue("R2: a densified square-minus-disc is approximate and must be flagged",
+        op.isApproximate());
   }
 
   // -- F1: fast before fat -------------------------------------------------
