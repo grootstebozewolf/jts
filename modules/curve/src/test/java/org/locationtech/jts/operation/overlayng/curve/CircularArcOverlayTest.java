@@ -422,6 +422,15 @@ public class CircularArcOverlayTest extends GeometryTestCase {
     // form without a noder.
     assertNull("H-SHELL-N-MIXED: collinear overlap stays refused",
         CompoundCurveShellOverlay.overlay(upper, onDiameter, OverlayNG.INTERSECTION));
+    Geometry stadiumNest = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, -2 0, -1 1), (-1 1, 1 1), CIRCULARSTRING (1 1, 2 0, 1 -1), (1 -1, -1 -1)))");
+    Geometry circle5 = readCurve(CIRCLE_5);
+    // Mixed stadium in CIRCLE_5 is not two discs. D4 stays null.
+    // R1.7 punches the 0-node nest (P2.3 cousin, not a noder).
+    assertNull("CC-NEST-ANNULUS: mixed nest is not two discs",
+        CircularDiscOverlay.overlay(circle5, stadiumNest, OverlayNG.DIFFERENCE));
+    assertNotNull("CC-NEST-ANNULUS: R1.7 punches the 0-node mixed nest",
+        CompoundCurveShellOverlay.overlay(circle5, stadiumNest, OverlayNG.DIFFERENCE));
     Geometry oddStadium = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 4, 0 5, 1 4), (1 4, 1 -1), CIRCULARSTRING (1 -1, 0 -2, -1 -1), (-1 -1, -1 4)))");
     OverlayNGCurve oddCap = new OverlayNGCurve(upper, oddStadium);

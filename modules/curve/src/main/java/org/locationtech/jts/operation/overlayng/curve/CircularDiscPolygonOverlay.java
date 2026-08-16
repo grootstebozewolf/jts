@@ -42,7 +42,9 @@ import org.locationtech.jts.geom.curve.CurvePolygon;
  * SUB / XOR the paired caps and ears) -- not a general noder.
  * Anything else -- not this shape pair, holes, 0 / 1 / odd nodes, a
  * non-alternating cut -- returns {@code null} so the caller can take
- * the chord baseline without paying this path first.
+ * the chord baseline without paying this path first. A 0-node
+ * covering square minus a disc ({@code R1.6-honesty}) is that miss:
+ * not a disc-in-square punch, public overlay stays the chordsaw.
  */
 final class CircularDiscPolygonOverlay {
 

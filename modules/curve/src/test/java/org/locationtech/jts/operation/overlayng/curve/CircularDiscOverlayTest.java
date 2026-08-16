@@ -29,7 +29,12 @@ import test.jts.GeometryTestCase;
 /**
  * R1.5: two crossing circular discs become lens / blob / crescents, exact,
  * and JTS-class with the chord overlay. Nested concentric discs become
- * the annulus (the two-disc 7/8 · 6/8 remainder). Disjoint and
+ * the annulus (the two-disc 7/8 · 6/8 remainder), including a
+ * CompoundCurve of two semicircle arcs that certifies as a disc.
+ * An internal tangent nest ({@code H-ANNULUS-TANGENT}) is not
+ * strictly inside and stays {@code null}. A mixed CompoundCurve
+ * nest ({@code CC-NEST-ANNULUS}: stadium in a disc) is not two
+ * discs: D4 stays {@code null}; R1.7 punches it. Disjoint and
  * non-disc pairs stay {@code null} so OverlayNGCurve can take R2
  * without paying this path first.
  */
@@ -44,6 +49,13 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
       "CURVEPOLYGON (CIRCULARSTRING (2 0, 7 5, 12 0, 7 -5, 2 0))";
   private static final String CIRCLE_3 =
       "CURVEPOLYGON (CIRCULARSTRING (-3 0, 0 3, 3 0, 0 -3, -3 0))";
+  /**
+   * Horizontal stadium |x|≤2, |y|≤1, strictly inside CIRCLE_5.
+   * Mixed CompoundCurve (arcs + segments). Not a disc. 0 nodes.
+   * Not H-ANNULUS-TANGENT, not CIRCLE_3.
+   */
+  private static final String STADIUM_NEST =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, -2 0, -1 1), (-1 1, 1 1), CIRCULARSTRING (1 1, 2 0, 1 -1), (1 -1, -1 -1)))";
   private static final String CIRCLE_FAR =
       "CURVEPOLYGON (CIRCULARSTRING (100 0, 105 5, 110 0, 105 -5, 100 0))";
   private static final String PLAIN_SQUARE =
@@ -143,11 +155,66 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
   public void testUxThreePointCircleIsExactDisc() throws Exception {
     Geometry g = readCurve(
         "CURVEPOLYGON (CIRCULARSTRING (210 560, 560 700, 460 410, 210 560))");
-    OverlayNGCurve cap = new OverlayNGCurve(g, g);
-    Geometry self = cap.getResult(OverlayNG.INTERSECTION);
+    OverlayNGCurve uxCap = new OverlayNGCurve(g, g);
+    Geometry self = uxCap.getResult(OverlayNG.INTERSECTION);
     assertFalse("UX 4-control circle must be a disc kit, not chainsaw",
-        cap.isApproximate());
+        uxCap.isApproximate());
     assertEquals(g.getArea(), self.getArea(), EXACT);
+  }
+
+  /**
+   * Mixed CompoundCurve nest (stadium in a CircularString disc) is
+   * not two certified discs. D4 stays null. R1.7 punches it
+   * (P2.3 cousin, not a noder): CAP the stadium, CUP the disc,
+   * SUB / XOR the punched shell. Area is 25π minus the fixture's
+   * own stadium area.
+   */
+  public void testMixedCompoundCurveNestIsPunchNotD4() throws Exception {
+    Geometry outer = readCurve(CIRCLE_5);
+    Geometry stadium = readCurve(STADIUM_NEST);
+    assertNull("inner stadium is not a disc",
+        CircularDiscOverlay.centreRadius(stadium));
+    // D4 punches only certified discs. A stadium hole is not that
+    // closed form; do not invent a CompoundCurve annulus noder.
+    assertNull("CC-NEST-ANNULUS: mixed nest is not two discs; D4 stays null",
+        CircularDiscOverlay.overlay(outer, stadium, OverlayNG.DIFFERENCE));
+    assertNull("CC-NEST-ANNULUS: reverse nest is the same D4 miss",
+        CircularDiscOverlay.overlay(stadium, outer, OverlayNG.DIFFERENCE));
+
+    assertNotNull("CC-NEST-ANNULUS: R1.7 punches the 0-node mixed nest",
+        CompoundCurveShellOverlay.overlay(outer, stadium, OverlayNG.DIFFERENCE));
+    assertNotNull("CC-NEST-ANNULUS: reverse CAP is the inner stadium",
+        CompoundCurveShellOverlay.overlay(stadium, outer, OverlayNG.INTERSECTION));
+
+    double stadiumArea = stadium.getArea();
+    OverlayNGCurve cap = new OverlayNGCurve(outer, stadium);
+    Geometry common = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("mixed nest CAP is exact", cap.isApproximate());
+    assertEquals("CAP is the inner stadium", stadiumArea, common.getArea(), EXACT);
+
+    OverlayNGCurve cup = new OverlayNGCurve(outer, stadium);
+    Geometry cover = cup.getResult(OverlayNG.UNION);
+    assertFalse("mixed nest CUP is exact", cup.isApproximate());
+    assertEquals("CUP is the outer disc", 25.0 * Math.PI, cover.getArea(), EXACT);
+
+    OverlayNGCurve rev = new OverlayNGCurve(stadium, outer);
+    Geometry empty = rev.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("stadium \\ disc is exact", rev.isApproximate());
+    assertTrue(empty.isEmpty());
+
+    OverlayNGCurve sub = new OverlayNGCurve(outer, stadium);
+    Geometry punched = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("CC-NEST-ANNULUS: public SUB is the laser, not a chordsaw",
+        sub.isApproximate());
+    assertEquals("CurvePolygon", punched.getGeometryType());
+    CurvePolygon cp = (CurvePolygon) punched;
+    assertEquals("one hole", 1, cp.getNumInteriorRing());
+    assertTrue("outer stays a CircularString disc ring",
+        cp.getExteriorCurve() instanceof CircularString);
+    assertTrue("hole stays the CompoundCurve stadium, not a densified n-gon",
+        cp.getInteriorCurveN(0) instanceof CompoundCurve);
+    assertEquals("25π minus the fixture stadium area",
+        25.0 * Math.PI - stadiumArea, punched.getArea(), EXACT);
   }
 
   /**

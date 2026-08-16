@@ -39,8 +39,11 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * other.shell is a bite, not a punch),
  * {@link TwoHoleOverlay} (two holes that cross on the same outer),
  * or a two-node walk vs a disc or plain polygon via
- * {@link TwoNodeClip}. A 0-node mixed shell vs a circular disc
- * ({@code CC-NEST-ANNULUS}) is not a punch. A clothoid member is
+ * {@link TwoNodeClip}. A 0-node mixed shell strictly inside a
+ * circular disc is the nest punch ({@code CC-NEST-ANNULUS}:
+ * P2.3 cousin, not a noder, not D4). A 1-node tangent, or a
+ * shell whose arcs are not certified inside the disc, stays
+ * {@code null}. A clothoid member is
  * {@link ClothoidOverlay} (0-node identity / disjoint / nest) or
  * a named Fresnel miss -- never a chord flatten. A miss is
  * {@code null}.
@@ -98,6 +101,10 @@ final class CompoundCurveShellOverlay {
 
     double[] disc = CircularDiscOverlay.centreRadius(other);
     if (disc != null) {
+      Geometry nest = mixedNestPunch(shell, other, disc, shellFirst, opCode, a);
+      if (nest != null) {
+        return nest;
+      }
       return clip(shell, new DiscOther(disc), shellFirst, opCode, a);
     }
     if (TwoNodeClip.isPlainPolygon(other)) {
@@ -144,6 +151,67 @@ final class CompoundCurveShellOverlay {
   }
 
   /**
+   * P2.3 cousin: 0-node mixed nest punch, not a noder. A covers B
+   * and both shells are already representable curve rings, so CAP
+   * is the inner, CUP the outer, SUB / XOR the punched shell.
+   * Not D4 (D4 is two discs). A 1-node tangent is not strictly
+   * inside. An arc whose supporting circle is not nested in the
+   * disc is not certified without densify and stays {@code null}.
+   */
+  private static Geometry mixedNestPunch(CurvePolygon shell, Geometry other,
+      double[] disc, boolean shellFirst, int opCode, Geometry factorySrc) {
+    List<TwoNodeClip.Edge> edges = TwoNodeClip.flatten(shell);
+    if (edges == null) return null;
+    List<TwoNodeClip.Node> nodes = TwoNodeClip.nodesVsDisc(edges, disc[0],
+        disc[1], disc[2]);
+    if (nodes == null || !nodes.isEmpty()) return null;
+    if (!shellInsideDisc(edges, disc[0], disc[1], disc[2])) return null;
+    CurvePolygon discPoly = holeFreeCurvePolygon(other);
+    if (discPoly == null) return null;
+    return HalfDiscOverlay.containedShell(shell, discPoly, shellFirst, opCode,
+        factorySrc, TwoNodeClip.curveFactory(factorySrc));
+  }
+
+  /**
+   * Strictly inside: every vertex is inside the disc, and every
+   * arc's supporting circle is nested ({@code d + r_arc < r}).
+   * The disc is convex, so a segment whose ends are inside is
+   * inside. A supporting circle that is not nested would need a
+   * sweep max -- refuse rather than densify.
+   */
+  private static boolean shellInsideDisc(List<TwoNodeClip.Edge> edges,
+      double cx, double cy, double r) {
+    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * r, 1.0e-12);
+    double lim = r - eps;
+    boolean inside = true;
+    for (int i = 0; i < edges.size() && inside; i++) {
+      TwoNodeClip.Edge e = edges.get(i);
+      if (Math.hypot(e.a.x - cx, e.a.y - cy) > lim
+          || Math.hypot(e.b.x - cx, e.b.y - cy) > lim) {
+        inside = false;
+      }
+      else if (e.isArc) {
+        double d = Math.hypot(e.circle[0] - cx, e.circle[1] - cy);
+        if (d + e.circle[2] > lim) {
+          inside = false;
+        }
+      }
+    }
+    return inside;
+  }
+
+  private static CurvePolygon holeFreeCurvePolygon(Geometry g) {
+    if (g instanceof MultiSurface) {
+      if (g.getNumGeometries() != 1) return null;
+      g = g.getGeometryN(0);
+    }
+    if (!(g instanceof CurvePolygon)) return null;
+    CurvePolygon cp = (CurvePolygon) g;
+    if (cp.isEmpty() || cp.getNumInteriorRing() > 0) return null;
+    return cp;
+  }
+
+  /**
    * One two-node walk. The partner supplies nodes, scale, side-of,
    * and the other-side pieces; the shell walk is always the typed
    * CompoundCurve members.
@@ -153,7 +221,6 @@ final class CompoundCurveShellOverlay {
     List<TwoNodeClip.Edge> edges = TwoNodeClip.flatten(shell);
     if (edges == null) return null;
     List<TwoNodeClip.Node> nodes = other.nodes(edges);
-    // 0-node mixed-vs-disc is CC-NEST-ANNULUS, not a stadium punch.
     if (!TwoNodeClip.properPair(nodes, other.scale())) return null;
 
     TwoNodeClip.Node p = nodes.get(0);

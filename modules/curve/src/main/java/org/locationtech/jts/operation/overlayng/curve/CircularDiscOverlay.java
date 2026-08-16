@@ -36,8 +36,13 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * SUB / XOR the outer with the inner as a hole. Same closed form as
  * {@link HalfDiscOverlay#containedShell}; not a noder. Anything else
  * -- not both discs, 1 intersection, a nest that is not strictly
- * inside -- returns {@code null} so the caller can take the chord
- * baseline without paying this path first.
+ * inside ({@code H-ANNULUS-TANGENT}: internal tangent, 1 node,
+ * d+r = R), or a nest that is not two certified discs
+ * ({@code CC-NEST-ANNULUS}: mixed CompoundCurve stadium / half-disc
+ * in a disc; D4 stays null, R1.7 may punch it) -- returns
+ * {@code null} so the caller can take the chord baseline without
+ * paying this path first. A CompoundCurve of only CircularStrings that
+ * sweep 2π certifies as a disc and stays here.
  */
 final class CircularDiscOverlay {
 

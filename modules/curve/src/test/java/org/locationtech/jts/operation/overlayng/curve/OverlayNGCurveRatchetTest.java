@@ -52,7 +52,10 @@ import test.jts.GeometryTestCase;
  * nested halves, and a 1-node touch are exact. A four-cut two-shell
  * n-span, a same-outer hole-inside pair, and a different-outer hole
  * that sits strictly inside or outside a certified outer CAP are
- * exact. A four-cut disc vs a band is EEEE.
+ * exact. A four-cut disc vs a band is EEEE. A 0-node mixed
+ * stadium nest in a disc ({@code CC-NEST-ANNULUS}) is EEEE / EE0E
+ * (P2.3 cousin punch, not D4). A covering square minus a disc
+ * ({@code R1.6-honesty}) stays approximate.
  */
 public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
@@ -103,6 +106,12 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, 0 -2, 1 -1), (1 -1, 1 6), CIRCULARSTRING (1 6, 0 7, -1 6), (-1 6, -1 -1)))";
   private static final String HALF_HOLED =
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0 1, 1 1, 1 2, 0 2, 0 1))";
+  /** Horizontal stadium |x|≤2, |y|≤1, strictly inside CIRCLE_5. */
+  private static final String STADIUM_NEST =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, -2 0, -1 1), (-1 1, 1 1), CIRCULARSTRING (1 1, 2 0, 1 -1), (1 -1, -1 -1)))";
+  /** Covering square for R1.6-honesty: 0 line–circle nodes on CIRCLE_3. */
+  private static final String PLAIN_SQUARE =
+      "POLYGON ((-6 -6, 6 -6, 6 6, -6 6, -6 -6))";
 
   private static final int[] OPS = { OverlayNGCurve.INTERSECTION, OverlayNGCurve.UNION,
       OverlayNGCurve.DIFFERENCE, OverlayNGCurve.SYMDIFFERENCE };
@@ -300,6 +309,19 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_fourCut() throws Exception {
     assertRow("four-cut disc ∩ band", CIRCLE_5, BAND_FOUR, "EEEE");
+  }
+
+  public void testMatrix_mixedNestPunch() throws Exception {
+    assertRow("mixed nest punch", CIRCLE_5, STADIUM_NEST, "EEEE");
+  }
+
+  public void testMatrix_mixedNestPunchReverse() throws Exception {
+    assertRow("mixed nest punch reverse", STADIUM_NEST, CIRCLE_5, "EE0E");
+  }
+
+  public void testMatrix_r16HonestyCoveringSquare() throws Exception {
+    assertRow("R1.6-honesty covering square \\ disc", PLAIN_SQUARE, CIRCLE_3,
+        "EEaa");
   }
 
   // -- the disjoint CUP/XOR result, not just its exactness -----------------

@@ -272,6 +272,24 @@ public class OverlayNGCurvePhase0Test extends GeometryTestCase {
   }
 
   /**
+   * R1.6-honesty KEEP. Covering square minus CIRCLE_3 has 0
+   * line–circle nodes, so R1.6 misses and public overlay stays
+   * the chordsaw. Do not add a disc-in-square nest punch that
+   * would flip this lock. Two-disc SUB is the D4 annulus (16π)
+   * on {@link #testR2_densifiedAnswersAreFlagged()}, not this cell.
+   */
+  public void testR16Honesty_coveringSquareMinusDiscIsChordPath()
+      throws Exception {
+    Geometry square = readCurve("POLYGON ((-6 -6, 6 -6, 6 6, -6 6, -6 -6))");
+    Geometry inner = readCurve(B);
+    OverlayNGCurve op = new OverlayNGCurve(square, inner);
+    Geometry saw = op.getResult(OverlayNGCurve.DIFFERENCE);
+    assertFalse("the chordsaw still answers", saw.isEmpty());
+    assertTrue("R1.6-honesty: covering square \\ disc stays the chordsaw",
+        op.isApproximate());
+  }
+
+  /**
    * Honesty lock for the two-disc remainder: nested DIFFERENCE is the
    * exact annulus (outer r=5, inner r=3), not a densified R2 flag.
    */
