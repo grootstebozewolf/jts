@@ -81,8 +81,37 @@ public class WKTPanelLoadTest extends TestCase {
   }
 
   public void testIsApplyLoadKey_shiftEnterIsNewline() {
-    assertFalse(WKTPanel.isApplyLoadKey(
-        key(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK)));
+    KeyEvent shiftEnter = key(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK);
+    assertFalse("Shift+Enter must not apply/load",
+        WKTPanel.isApplyLoadKey(shiftEnter));
+    assertTrue("Shift+Enter must be the newline key",
+        WKTPanel.isNewlineKey(shiftEnter));
+  }
+
+  public void testIsNewlineKey_plainEnterIsNotNewline() {
+    assertFalse(WKTPanel.isNewlineKey(key(KeyEvent.VK_ENTER, 0)));
+  }
+
+  public void testIsNewlineKey_ctrlEnterIsNotNewline() {
+    assertFalse(WKTPanel.isNewlineKey(
+        key(KeyEvent.VK_ENTER, InputEvent.CTRL_DOWN_MASK)));
+  }
+
+  public void testInsertNewlineAtCaret_afterPointWkt() {
+    JTextArea ta = new JTextArea("POINT (2 2)");
+    ta.setCaretPosition(ta.getText().length());
+    WKTPanel.insertNewlineAtCaret(ta);
+    assertEquals("POINT (2 2)\n", ta.getText());
+    ta.replaceSelection("x");
+    assertEquals("following char must land on the new line, not 'POINT (2 2)x'",
+        "POINT (2 2)\nx", ta.getText());
+  }
+
+  public void testInsertNewlineAtCaret_replacesSelection() {
+    JTextArea ta = new JTextArea("AB");
+    ta.select(1, 2);
+    WKTPanel.insertNewlineAtCaret(ta);
+    assertEquals("A\n", ta.getText());
   }
 
   public void testIsApplyLoadKey_otherKeyDoesNotApply() {

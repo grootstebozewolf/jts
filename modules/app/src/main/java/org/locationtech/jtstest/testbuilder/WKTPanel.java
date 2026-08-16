@@ -434,12 +434,35 @@ public class WKTPanel extends JPanel
       return !e.isShiftDown();
     }
 
+    /**
+     * Shift+Enter without Ctrl: newline, not apply. JTextArea's default
+     * keymap binds only plain Enter to insert-break, so this chord must
+     * insert {@code \n} itself or the event dies.
+     */
+    static boolean isNewlineKey(KeyEvent e) {
+      return e.getKeyCode() == KeyEvent.VK_ENTER
+          && e.isShiftDown()
+          && !e.isControlDown();
+    }
+
+    /**
+     * Insert a newline at the caret (or replace the selection), matching
+     * insert-break. Used for Shift+Enter so multiline WKT stays typable.
+     */
+    static void insertNewlineAtCaret(JTextArea textArea) {
+      textArea.replaceSelection("\n");
+    }
+
     private void registerLoadKeyListener(JTextArea textArea) {
       textArea.addKeyListener(new KeyAdapter() {
         public void keyPressed(KeyEvent e) {
           if (isApplyLoadKey(e)) {
             e.consume();
             loadButton_actionPerformed(null);
+          }
+          else if (isNewlineKey(e)) {
+            e.consume();
+            insertNewlineAtCaret(textArea);
           }
         }
         public void keyTyped(KeyEvent e) {
