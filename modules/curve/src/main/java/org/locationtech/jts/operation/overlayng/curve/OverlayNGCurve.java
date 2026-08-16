@@ -73,8 +73,10 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * <li><b>R1.5</b> -- both operands are circular discs and they cross at two
  *     proper nodes. The answer is a {@link CurvePolygon} of two circular
  *     arcs (lens, blob, crescent) or a {@link MultiSurface} of two crescents.
- *     Closed form; no densification. 0 or 1 intersection, or a non-disc, falls
- *     through without paying this path.</li>
+ *     Nested discs (0 nodes, one strictly inside the other) are the
+ *     annulus: SUB the outer with the inner as a hole, XOR the same.
+ *     Closed form; no densification. 1 intersection, a tangent nest, or
+ *     a non-disc, falls through without paying this path.</li>
  * <li><b>R1.6</b> -- one operand is a circular disc and the other is a
  *     plain Polygon (no curve rings, no holes), and they meet at two
  *     proper line–circle nodes. The answer is a {@link CurvePolygon}
@@ -218,7 +220,8 @@ public class OverlayNGCurve {
    * False when the answer was exact: an algebraic identity (G1&ndash;G4), an empty
    * operand (G5), envelope-disjoint (R0), an operand returned unchanged (R1), or
    * an operand with no arc in it at all, which is handed to core untouched, or
-   * two crossing circular discs answered as arcs (R1.5), or a disc
+   * two crossing circular discs answered as arcs (R1.5), or two
+   * nested discs answered as the annulus, or a disc
    * clipped by a plain polygon at line–circle nodes (R1.6), or a
    * CompoundCurve-shelled CurvePolygon clipped at two nodes (R1.7), or a
    * CircularString noded against a LineString (R-LL), or two

@@ -28,8 +28,10 @@ import test.jts.GeometryTestCase;
 
 /**
  * R1.5: two crossing circular discs become lens / blob / crescents, exact,
- * and JTS-class with the chord overlay. Anything else is {@code null} so
- * OverlayNGCurve can take R2 without paying this path first.
+ * and JTS-class with the chord overlay. Nested concentric discs become
+ * the annulus (the two-disc 7/8 · 6/8 remainder). Disjoint and
+ * non-disc pairs stay {@code null} so OverlayNGCurve can take R2
+ * without paying this path first.
  */
 public class CircularDiscOverlayTest extends GeometryTestCase {
 
@@ -88,10 +90,36 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
 
   public void testZeroOrOneIntersectionReturnsNull() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
-    assertNull("nested, 0 nodes",
-        CircularDiscOverlay.overlay(a, readCurve(CIRCLE_3), OverlayNG.DIFFERENCE));
     assertNull("disjoint, 0 nodes",
         CircularDiscOverlay.overlay(a, readCurve(CIRCLE_FAR), OverlayNG.UNION));
+  }
+
+  /**
+   * 7/8 remainder: large \\ small of concentric discs is the annulus,
+   * exact, not densified.
+   */
+  public void testNestedConcentricSubIsExactAnnulus() throws Exception {
+    assertAnnulus(OverlayNG.DIFFERENCE, CIRCLE_5, CIRCLE_3,
+        16.0 * Math.PI);
+  }
+
+  /**
+   * 6/8 remainder: XOR of concentric discs is the same annulus.
+   */
+  public void testNestedConcentricXorIsExactAnnulus() throws Exception {
+    assertAnnulus(OverlayNG.SYMDIFFERENCE, CIRCLE_5, CIRCLE_3,
+        16.0 * Math.PI);
+    assertAnnulus(OverlayNG.SYMDIFFERENCE, CIRCLE_3, CIRCLE_5,
+        16.0 * Math.PI);
+  }
+
+  public void testNestedCoveredBySubIsExactEmpty() throws Exception {
+    Geometry a = readCurve(CIRCLE_3);
+    Geometry b = readCurve(CIRCLE_5);
+    OverlayNGCurve op = new OverlayNGCurve(a, b);
+    Geometry sub = op.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("small \\ large is exact", op.isApproximate());
+    assertTrue(sub.isEmpty());
   }
 
   /**
@@ -117,6 +145,34 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
     // equalsTopo is the wrong ask: the laser is the true arcs, the chord
     // overlay is two inscribed rings. Hausdorff stays inside the densify
     // budget, which is the JTS-class claim.
+    double hd = DiscreteHausdorffDistance.distance(
+        CurveOps.linearise(laser), chord);
+    assertTrue("Hausdorff vs chord overlay " + hd + " > " + AREA_TOL,
+        hd <= AREA_TOL);
+  }
+
+  private void assertAnnulus(int opCode, String wktA, String wktB,
+      double exactArea) throws Exception {
+    Geometry a = readCurve(wktA);
+    Geometry b = readCurve(wktB);
+    OverlayNGCurve op = new OverlayNGCurve(a, b);
+    Geometry laser = op.getResult(opCode);
+    assertFalse("nested annulus is exact", op.isApproximate());
+    assertEquals("CurvePolygon", laser.getGeometryType());
+    CurvePolygon cp = (CurvePolygon) laser;
+    assertEquals("one hole", 1, cp.getNumInteriorRing());
+    assertTrue("outer is a CircularString",
+        cp.getExteriorCurve() instanceof CircularString);
+    assertTrue("hole is a CircularString",
+        cp.getInteriorCurveN(0) instanceof CircularString);
+    assertEquals("ten control points, not a densified ring",
+        10, laser.getNumPoints());
+    assertEquals("exact closed-form area", exactArea, laser.getArea(), EXACT);
+
+    Geometry chord = OverlayNGRobust.overlay(
+        CurveOps.linearise(a), CurveOps.linearise(b), opCode);
+    assertEquals("area vs chord overlay", chord.getArea(), laser.getArea(),
+        AREA_TOL);
     double hd = DiscreteHausdorffDistance.distance(
         CurveOps.linearise(laser), chord);
     assertTrue("Hausdorff vs chord overlay " + hd + " > " + AREA_TOL,
