@@ -616,6 +616,24 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
         () -> chordOverlay(a, b, OverlayNGCurve.UNION));
   }
 
+  public void testMixedOverlapCapNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, 0 2, 1 1), (1 1, 1 0), (1 0, -1 0), (-1 0, -1 1)))");
+    assertLaserNotSlower("H-SHELL-N-MIXED CAP",
+        () -> OverlayNGCurve.intersection(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.INTERSECTION));
+  }
+
+  public void testMixedOverlapSubNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, 0 2, 1 1), (1 1, 1 0), (1 0, -1 0), (-1 0, -1 1)))");
+    assertLaserNotSlower("H-SHELL-N-MIXED SUB",
+        () -> OverlayNGCurve.difference(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.DIFFERENCE));
+  }
+
   public void testChordArcVsCircularStringIsChordPath() throws Exception {
     Geometry chords = readCurve(CHORD_ARC);
     Geometry arc = readCurve(ARC_B);

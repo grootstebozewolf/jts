@@ -33,8 +33,9 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * stays {@code null} and {@link #edges} names the interval. A MIXED
  * or pinch pair inside an N-set adds no point. A tangent pinch
  * (TOUCH-ext, H-ANNULUS-TANGENT) is a zero-length edge, not a face.
- * Overlay still goes through the existing kits. Face assemble of
- * the N-set is {@link CurveSegmentFaces}. Densify is never a noder.
+ * Overlay of a MIXED pair is {@link MixedOverlapOverlay} (the
+ * named interval as a shared edge). Face assemble of the N-set
+ * is {@link CurveSegmentFaces}. Densify is never a noder.
  */
 final class CurveSegmentNoder {
 

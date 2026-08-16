@@ -39,9 +39,11 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * same rings {@link TwoShellClip} / {@link NSpanClip} /
  * {@link CircularDiscOverlay} already assemble (CAP + XOR). A
  * 0-node containment or a same-circle special case falls back to
- * those kits. MIXED / pinch / holed Geometry-level stays
- * {@code null} -- hole rings are walked as strings, as in P2.3 /
- * P2.4. A coincident leave-angle at a node (near-tangent) is
+ * those kits. MIXED (collinear overlap) recovers the pair-kit
+ * faces once {@link MixedOverlapOverlay} certifies the shared
+ * edge (CAP + XOR = inner + bite). Pinch / holed Geometry-level
+ * stays {@code null} -- hole rings are walked as strings, as in
+ * P2.3 / P2.4. A coincident leave-angle at a node (near-tangent) is
  * snap-rounding (P2.5.4): {@code faces} returns {@code null} and
  * {@link #missReason()} names {@link #TANGENT_LEAVE_ANGLE}.
  * Ordering those leaves needs HotPixel / ScaledNoder / core
@@ -141,8 +143,10 @@ final class CurveSegmentFaces {
 
   /**
    * Pair-kit CAP + XOR components. Empty CAP is not a miss. A kit
-   * that cannot certify (MIXED, pinch, lineal) is {@code null}.
-   * Does not call {@link OverlayNGCurve} -- that would densify.
+   * that cannot certify (pinch, lineal) is {@code null}. MIXED
+   * collinear overlap is {@link MixedOverlapOverlay} (shared
+   * edge, not a discrete node pair). Does not call
+   * {@link OverlayNGCurve} -- that would densify.
    */
   static Geometry pairKitFaces(Geometry a, Geometry b) {
     Geometry cap = exactOverlay(a, b, OverlayNG.INTERSECTION);

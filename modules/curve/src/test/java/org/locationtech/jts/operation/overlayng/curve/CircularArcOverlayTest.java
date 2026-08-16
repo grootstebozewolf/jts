@@ -398,10 +398,12 @@ public class CircularArcOverlayTest extends GeometryTestCase {
         twoHoles.getArea(), EXACT);
     Geometry onDiameter = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, 0 2, 1 1), (1 1, 1 0), (1 0, -1 0), (-1 0, -1 1)))");
-    // Collinear overlap is not a discrete node set; no cheap closed
-    // form without a noder.
-    assertNull("H-SHELL-N-MIXED: collinear overlap stays refused",
-        CompoundCurveShellOverlay.overlay(upper, onDiameter, OverlayNG.INTERSECTION));
+    OverlayNGCurve mixedCap = new OverlayNGCurve(upper, onDiameter);
+    Geometry mixed = mixedCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-N-MIXED CAP is exact (not the chordsaw)",
+        mixedCap.isApproximate());
+    assertEquals("inner on-diameter", 2.0 + 0.5 * Math.PI, mixed.getArea(),
+        EXACT);
     Geometry stadiumNest = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, -2 0, -1 1), (-1 1, 1 1), CIRCULARSTRING (1 1, 2 0, 1 -1), (1 -1, -1 -1)))");
     Geometry circle5 = readCurve(CIRCLE_5);

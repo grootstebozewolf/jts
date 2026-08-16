@@ -42,9 +42,11 @@ import test.jts.GeometryTestCase;
  * cross but whose ring overlaps the other shell is the same
  * bite. Two holes that cross
  * on the same outer are the two-hole arrangement. A
- * three-point LineString is not an arc. Collinear overlap
- * and mixed labels stay {@code null} so OverlayNGCurve can
- * take R2 without paying this path first.
+ * collinear overlap of two hole-free shells
+ * ({@code H-SHELL-N-MIXED}) is a shared-edge bite, not a
+ * punch. A three-point LineString is not an arc. Mixed
+ * labels stay {@code null} so OverlayNGCurve can take R2
+ * without paying this path first.
  */
 public class CompoundCurveShellOverlayTest extends GeometryTestCase {
 
@@ -235,6 +237,9 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
    */
   private static final String STADIUM_ODD =
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 4, 0 5, 1 4), (1 4, 1 -1), CIRCULARSTRING (1 -1, 0 -2, -1 -1), (-1 -1, -1 4)))";
+  /** H-SHELL-N-MIXED: sits on HALF_DISC's diameter. */
+  private static final String ON_DIAMETER =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, 0 2, 1 1), (1 1, 1 0), (1 0, -1 0), (-1 0, -1 1)))";
   private static final String HALF_HOLED =
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0 1, 1 1, 1 2, 0 2, 0 1))";
   private static final double SMALL_HALF = 4.5 * Math.PI;
@@ -246,6 +251,8 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
   private static final double STADIUM_FOUR_AREA = 14.0 + Math.PI;
   /** Vertical stadium r=1, straight length 5 plus two caps. */
   private static final double STADIUM_ODD_AREA = 10.0 + Math.PI;
+  /** ON_DIAMETER: 2×1 rectangle plus a radius-1 cap. */
+  private static final double MIXED_INNER = 2.0 + 0.5 * Math.PI;
   /** HALF_DISC ∩ STADIUM_ODD: rectangle |x|≤1, 0≤y≤4 plus the top cap. */
   private static final double ODD_CAP = 8.0 + 0.5 * Math.PI;
 
@@ -500,6 +507,65 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
     assertFalse("H-SHELL-N-ODD XOR is exact", xor.isApproximate());
     assertEquals("ears plus the bottom bite",
         HALF + STADIUM_ODD_AREA - 2.0 * ODD_CAP, x.getArea(), EXACT);
+  }
+
+  /**
+   * H-SHELL-N-MIXED: the noder names the diameter overlap as an
+   * edge. Overlay walks that interval (not a node pair). CAP / CUP
+   * are the inner / outer shells; SUB / XOR are a bite on the
+   * diameter, not a punched hole. A chordsaw fallback fails
+   * {@code isApproximate()=false}.
+   */
+  public void testMixedOverlapIsSharedEdgeBite() throws Exception {
+    Geometry half = readCurve(HALF_DISC);
+    Geometry onDiameter = readCurve(ON_DIAMETER);
+    OverlayNGCurve cap = new OverlayNGCurve(half, onDiameter);
+    Geometry inner = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-N-MIXED CAP is exact (not the chordsaw)",
+        cap.isApproximate());
+    assertEquals("inner on-diameter", MIXED_INNER, inner.getArea(), EXACT);
+    assertArcAndLineShell(inner);
+    assertTrue("CAP keeps the original inner, not a densified n-gon",
+        inner.getNumPoints() < 20);
+    assertParity(half, onDiameter, OverlayNG.INTERSECTION, inner);
+
+    OverlayNGCurve cup = new OverlayNGCurve(half, onDiameter);
+    Geometry outer = cup.getResult(OverlayNG.UNION);
+    assertFalse("H-SHELL-N-MIXED CUP is exact", cup.isApproximate());
+    assertEquals("outer half-disc", HALF, outer.getArea(), EXACT);
+    assertArcAndLineShell(outer);
+    assertTrue("CUP keeps the original outer", outer.getNumPoints() < 20);
+
+    OverlayNGCurve sub = new OverlayNGCurve(half, onDiameter);
+    Geometry bite = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("H-SHELL-N-MIXED SUB is exact", sub.isApproximate());
+    assertEquals("half minus the on-diameter bite", HALF - MIXED_INNER,
+        bite.getArea(), EXACT);
+    assertEquals("bite is a shell, not a punch", 0,
+        ((CurvePolygon) bite).getNumInteriorRing());
+    assertArcAndLineShell(bite);
+    assertTrue("SUB is not a densified n-gon", bite.getNumPoints() < 30);
+    assertParity(half, onDiameter, OverlayNG.DIFFERENCE, bite);
+
+    OverlayNGCurve rev = new OverlayNGCurve(onDiameter, half);
+    Geometry empty = rev.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("H-SHELL-N-MIXED reverse SUB is exact", rev.isApproximate());
+    assertTrue("inner \\ outer is empty", empty.isEmpty());
+
+    OverlayNGCurve xor = new OverlayNGCurve(half, onDiameter);
+    Geometry x = xor.getResult(OverlayNG.SYMDIFFERENCE);
+    assertFalse("H-SHELL-N-MIXED XOR is exact", xor.isApproximate());
+    assertEquals("XOR is the bite", HALF - MIXED_INNER, x.getArea(), EXACT);
+    assertEquals("XOR is a shell", 0,
+        ((CurvePolygon) x).getNumInteriorRing());
+    assertParity(half, onDiameter, OverlayNG.SYMDIFFERENCE, x);
+
+    OverlayNGCurve revCap = new OverlayNGCurve(onDiameter, half);
+    Geometry revInner = revCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-N-MIXED reverse CAP is exact",
+        revCap.isApproximate());
+    assertEquals("reverse CAP is the inner", MIXED_INNER, revInner.getArea(),
+        EXACT);
   }
 
   public void testSameOuterHoleIsTheHoledHalf() throws Exception {
@@ -812,10 +878,11 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
         CompoundCurveShellOverlay.overlay(disc, other, OverlayNG.INTERSECTION));
     assertNull("plain vs plain",
         CompoundCurveShellOverlay.overlay(square, square, OverlayNG.UNION));
-    // Collinear overlap is not a discrete node set; no cheap closed
-    // form without a noder.
-    assertNull("H-SHELL-N-MIXED: collinear overlap stays refused",
-        CompoundCurveShellOverlay.overlay(half, onDiameter, OverlayNG.INTERSECTION));
+    Geometry mixedCap = CompoundCurveShellOverlay.overlay(half, onDiameter,
+        OverlayNG.INTERSECTION);
+    assertNotNull("H-SHELL-N-MIXED: shared-edge CAP is this cell", mixedCap);
+    assertEquals("inner on-diameter", 2.0 + 0.5 * Math.PI, mixedCap.getArea(),
+        EXACT);
     assertNull("line-only shell",
         CompoundCurveShellOverlay.overlay(chords, square, OverlayNG.INTERSECTION));
     Geometry stadiumNest = readCurve(
