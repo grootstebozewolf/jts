@@ -14,13 +14,15 @@ package org.locationtech.jtstest.function;
 
 import org.locationtech.jts.JTSVersion;
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.geom.curve.Linearizable;
 import org.locationtech.jts.operation.buffer.BufferOp;
 import org.locationtech.jts.operation.buffer.BufferParameters;
-import org.locationtech.jts.util.GeometricShapeFactory;
 
 public class JTSFunctions 
 {
@@ -39,105 +41,119 @@ public class JTSFunctions
   private static final double T_WIDTH = WIDTH - 2 * S_RADIUS - J_WIDTH;
 
   
+  /**
+   * J + T + S as real curve geometry: J and S are {@link CompoundCurve}s
+   * whose bowls are {@link CircularString} members, T stays straight.
+   * Assembled as a {@link org.locationtech.jts.geom.curve.MultiCurve}
+   * so TestBuilder can paint each member (it already walks collections
+   * and routes arcs through {@code CurveShapeWriter}).
+   * <p>
+   * Do not {@code union} the letters — overlay linearises. Do not build
+   * the compounds with {@code createCompoundCurve(CoordinateSequence)}
+   * — that ctor wraps a polyline member.
+   */
   public static Geometry logoLines(Geometry g)
   {
-    return create_J(g)
-    .union(create_T(g))
-    .union(create_S(g));
+    CurveGeometryFactory gf = curveFactory(g);
+    LineString[] t = create_T(gf);
+    return gf.createMultiCurve(new LineString[] {
+        create_J(gf),
+        t[0],
+        t[1],
+        create_S(gf)
+    });
   }
   
+  /**
+   * Buffers the logo the same way as before ({@link BufferOp} + square
+   * caps). The curve result is linearised first so the buffer sees the
+   * arcs rather than their control-point chords; that densify is not
+   * claimed exact.
+   */
   public static Geometry logoBuffer(Geometry g, double distance)
   {
     Geometry lines = logoLines(g);
+    if (lines instanceof Linearizable) {
+      lines = ((Linearizable) lines).toLinear(0.0);
+    }
     BufferParameters bufParams = new BufferParameters();
     bufParams.setEndCapStyle(BufferParameters.CAP_SQUARE);   
     return BufferOp.bufferOp(lines, distance, bufParams);
   }
   
-  private static Geometry create_J(Geometry g)
+  private static CompoundCurve create_J(CurveGeometryFactory gf)
   {
-    GeometryFactory gf = FunctionsUtil.getFactoryOrDefault(g);
-    
-    Coordinate[] jTop = new Coordinate[] {
-        new Coordinate(0,HEIGHT),
-        new Coordinate(J_WIDTH,HEIGHT),
-        new Coordinate(J_WIDTH,J_RADIUS)
-    };
-    Coordinate[] jBottom = new Coordinate[] {
-        new Coordinate(J_WIDTH - J_RADIUS,0),
-        new Coordinate(0,0)
-    };
-    
-    GeometricShapeFactory gsf = new GeometricShapeFactory(gf);
-    gsf.setBase(new Coordinate(J_WIDTH - 2 * J_RADIUS, 0));
-    gsf.setSize(2 * J_RADIUS);
-    gsf.setNumPoints(10);
-    LineString jArc = gsf.createArc(1.5 * Math.PI, 0.5 * Math.PI);
-    
-    CoordinateList coordList = new CoordinateList();
-    coordList.add(jTop, false);
-    coordList.add(jArc.reverse().getCoordinates(), false, 1, jArc.getNumPoints() - 1);
-    coordList.add(jBottom, false);
-    
-    return gf.createLineString(coordList.toCoordinateArray());
+    LineString stem = gf.createLineString(new Coordinate[] {
+        new Coordinate(0, HEIGHT),
+        new Coordinate(J_WIDTH, HEIGHT),
+        new Coordinate(J_WIDTH, J_RADIUS)
+    });
+    // Quarter-circle hook: centre (J_WIDTH - J_RADIUS, J_RADIUS),
+    // from the stem foot through the south-east mid to the base.
+    double midOff = J_RADIUS / Math.sqrt(2.0);
+    CircularString hook = circularString(gf,
+        new Coordinate(J_WIDTH, J_RADIUS),
+        new Coordinate(J_WIDTH - J_RADIUS + midOff, J_RADIUS - midOff),
+        new Coordinate(J_WIDTH - J_RADIUS, 0));
+    LineString base = gf.createLineString(new Coordinate[] {
+        new Coordinate(J_WIDTH - J_RADIUS, 0),
+        new Coordinate(0, 0)
+    });
+    return gf.createCompoundCurve(new LineString[] { stem, hook, base });
   }
   
-  private static Geometry create_T(Geometry g)
+  private static LineString[] create_T(CurveGeometryFactory gf)
   {
-    GeometryFactory gf = FunctionsUtil.getFactoryOrDefault(g);
-    
-    Coordinate[] tTop = new Coordinate[] {
-        new Coordinate(J_WIDTH,HEIGHT),
+    LineString tTop = gf.createLineString(new Coordinate[] {
+        new Coordinate(J_WIDTH, HEIGHT),
         new Coordinate(WIDTH - S_RADIUS - 5, HEIGHT)
-    };
-    Coordinate[] tBottom = new Coordinate[] {
-        new Coordinate(J_WIDTH + 0.5 * T_WIDTH,HEIGHT),
-        new Coordinate(J_WIDTH + 0.5 * T_WIDTH,0)
-    };
-    LineString[] lines = new LineString[] {
-        gf.createLineString(tTop),
-        gf.createLineString(tBottom)
-    };
-    return gf.createMultiLineString(lines);
+    });
+    LineString tStem = gf.createLineString(new Coordinate[] {
+        new Coordinate(J_WIDTH + 0.5 * T_WIDTH, HEIGHT),
+        new Coordinate(J_WIDTH + 0.5 * T_WIDTH, 0)
+    });
+    return new LineString[] { tTop, tStem };
   }
 
-  private static Geometry create_S(Geometry g)
+  private static CompoundCurve create_S(CurveGeometryFactory gf)
   {
-    GeometryFactory gf = FunctionsUtil.getFactoryOrDefault(g);
-    
     double centreX = WIDTH - S_RADIUS;
     
-    Coordinate[] top = new Coordinate[] {
+    LineString top = gf.createLineString(new Coordinate[] {
         new Coordinate(WIDTH, HEIGHT),
         new Coordinate(centreX, HEIGHT)
-    };
-    Coordinate[] bottom = new Coordinate[] {
+    });
+    CircularString bowlTop = circularString(gf,
+        new Coordinate(centreX, HEIGHT),
+        new Coordinate(centreX - S_RADIUS, HEIGHT - S_RADIUS),
+        new Coordinate(centreX, HEIGHT / 2));
+    CircularString bowlBottom = circularString(gf,
+        new Coordinate(centreX, HEIGHT / 2),
+        new Coordinate(centreX + S_RADIUS, S_RADIUS),
+        new Coordinate(centreX, 0));
+    LineString bottom = gf.createLineString(new Coordinate[] {
         new Coordinate(centreX, 0),
         new Coordinate(WIDTH - 2 * S_RADIUS, 0)
-    };
-    
-    GeometricShapeFactory gsf = new GeometricShapeFactory(gf);
-    gsf.setCentre(new Coordinate(centreX, HEIGHT - S_RADIUS));
-    gsf.setSize(2 * S_RADIUS);
-    gsf.setNumPoints(10);
-    LineString arcTop = gsf.createArc(0.5 * Math.PI, Math.PI);
-    
-    GeometricShapeFactory gsf2 = new GeometricShapeFactory(gf);
-    gsf2.setCentre(new Coordinate(centreX, S_RADIUS));
-    gsf2.setSize(2 * S_RADIUS);
-    gsf2.setNumPoints(10);
-    LineString arcBottom = (LineString) gsf2.createArc(1.5 * Math.PI, Math.PI).reverse();
-    
-    CoordinateList coordList = new CoordinateList();
-    coordList.add(top, false);
-    coordList.add(arcTop.getCoordinates(), false, 1, arcTop.getNumPoints() - 1);
-    coordList.add(new Coordinate(centreX, HEIGHT/2));
-    coordList.add(arcBottom.getCoordinates(), false, 1, arcBottom.getNumPoints() - 1);
-    coordList.add(bottom, false);
-    
-    
-    
-    return gf.createLineString(coordList.toCoordinateArray());
+    });
+    return gf.createCompoundCurve(new LineString[] {
+        top, bowlTop, bowlBottom, bottom
+    });
+  }
+
+  private static CircularString circularString(CurveGeometryFactory gf,
+      Coordinate a, Coordinate b, Coordinate c)
+  {
+    return gf.createCircularString(
+        gf.getCoordinateSequenceFactory().create(new Coordinate[] { a, b, c }));
+  }
+
+  private static CurveGeometryFactory curveFactory(Geometry g)
+  {
+    GeometryFactory gf = FunctionsUtil.getFactoryOrDefault(g);
+    if (gf instanceof CurveGeometryFactory) {
+      return (CurveGeometryFactory) gf;
+    }
+    return new CurveGeometryFactory(gf.getPrecisionModel(), gf.getSRID());
   }
 
 }
