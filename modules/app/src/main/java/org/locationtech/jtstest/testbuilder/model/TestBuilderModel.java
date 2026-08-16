@@ -28,6 +28,7 @@ import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
 import org.locationtech.jts.io.WKTWriter;
 import org.locationtech.jts.io.curve.CurveWKTReader;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 import org.locationtech.jts.math.MathUtil;
 import org.locationtech.jts.util.Assert;
 import org.locationtech.jtstest.test.TestCaseList;
@@ -451,8 +452,11 @@ public class TestBuilderModel
       Testable testable = (Testable) i.next();
       Geometry a = testable.getGeometry(0);
       Geometry b = testable.getGeometry(1);
-      wktABeforePMChange.add(a != null ? a.toText() : null);
-      wktBBeforePMChange.add(b != null ? b.toText() : null);
+      // CurveWKTWriter keeps COMPOUNDCURVE members (SQL/MM ISO/IEC 13249-3).
+      // Core Geometry.toText() / WKTWriter would collapse them.
+      WKTWriter wkt = new CurveWKTWriter();
+      wktABeforePMChange.add(a != null ? wkt.write(a) : null);
+      wktBBeforePMChange.add(b != null ? wkt.write(b) : null);
     }
   }
 

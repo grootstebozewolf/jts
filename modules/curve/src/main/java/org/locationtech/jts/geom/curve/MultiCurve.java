@@ -16,6 +16,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiLineString;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 
 /**
  * A collection of {@link LineString}, {@link CircularString} and
@@ -62,6 +63,14 @@ public class MultiCurve extends MultiLineString implements Linearizable {
   // -- Arc-aware spatial operations ----------------------------------------
   // Same family the single curve types route through CurveOps. A member
   // with no cheaper path is the chord baseline.
+
+  /**
+   * Core {@code WKTWriter} refuses to flatten arc members to untagged lines.
+   */
+  @Override
+  public String toText() {
+    return new CurveWKTWriter().write(this);
+  }
 
   @Override
   public Geometry convexHull() {
