@@ -64,6 +64,7 @@
 % Guide-shot hole (DG-1..4, TS-1..6, UG-1..8): 4:3 at 1600x1200,
 % full TestBuilder window. Slot id only -- no caption on unshot work.
 % MKT-1 is 16:9 1920x1080 canvas-only and is not a manual figure.
+\graphicspath{{figures/}}
 \newlength{\figholewidth}
 \newlength{\figholeheight}
 \newcommand{\fighole}[1]{%
@@ -79,6 +80,29 @@
         \sffamily\footnotesize #1
       \end{minipage}%
     }%
+  \end{center}
+  \par\medskip
+}
+
+% Signed 4:3 1600x1200 full TestBuilder window.
+\newcommand{\figshot}[2]{%
+  \par\medskip
+  \noindent
+  \begin{center}
+    \includegraphics[width=0.92\linewidth]{#1}\\[0.35em]
+    \sffamily\footnotesize #2
+  \end{center}
+  \par\medskip
+}
+
+% Two signed 4:3 shots in one slot (UG-2 A-blue / B-red).
+\newcommand{\figshotpair}[3]{%
+  \par\medskip
+  \noindent
+  \begin{center}
+    \includegraphics[width=0.455\linewidth]{#1}\hfill
+    \includegraphics[width=0.455\linewidth]{#2}\\[0.35em]
+    \sffamily\footnotesize #3
   \end{center}
   \par\medskip
 }

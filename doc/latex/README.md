@@ -22,10 +22,16 @@ JAR is from `cd3d70db`.
 
 Figure-slot frame lock:
 
-- Guide shots (DG-1..4, TS-1..6, UG-1..8): empty 4:3 holes at
-  1600×1200, full TestBuilder window. Slot id only; no caption on
-  unshot work. Do not invent screenshots. UG-8 / TS-6 are the
-  compound-hull holes (area 61.59119, CircularString shell).
+- Guide shots are 4:3 at 1600×1200, full TestBuilder window, from
+  `JTSTestBuilder-pr7.jar` @ `61eb3377`. Rasters live in
+  `doc/latex/figures/`.
+- Filled (batch 1): UG-1 / DG-1 draw CircularString; UG-2 A-blue /
+  B-red icons; UG-3 CompoundCurve; UG-4 CurvePolygon disc; UG-7 /
+  DG-3 / TS-2 disc hull \(25\pi\); TS-3 single-arc hull \(12.5\pi\);
+  UG-8 / TS-6 compound H-CC hull 61.59119 (CurvePolygon with
+  CircularString).
+- Still empty (do not invent): DG-2 / TS-1 WKB; DG-4 / TS-4 /
+  TS-5 / UG-5 / UG-6 D-HF. Slot id only; no caption on unshot work.
 - MKT-1 is 16:9 1920×1080 canvas-only and is **not** a manual
   figure. Do not put it in these guides.
 
