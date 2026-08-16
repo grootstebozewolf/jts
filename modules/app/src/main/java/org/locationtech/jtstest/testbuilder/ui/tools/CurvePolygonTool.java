@@ -35,13 +35,17 @@ import org.locationtech.jtstest.testbuilder.model.GeometryType;
  * {@link org.locationtech.jts.geom.curve.CurvePolygon} with an exterior
  * shell only (no holes this slice).
  *
- * <p>Double-click anywhere, or a click on the start vertex, auto-closes
- * the in-progress shell and commits {@code CURVEPOLYGON (CIRCULARSTRING …)}.
- * This tool builds a CircularString shell only — not a mixed-shell
- * CompoundCurve editor. A close that is already a CompoundCurve shell
- * is left as {@code COMPOUNDCURVE}; it is never linearized to
- * {@code POLYGON} or a chord ring. Escape cancels with
- * {@link #CANCELLED_STATUS} on the bottom status bar.
+ * <p>Double-click anywhere, or a click on the start vertex after at
+ * least three captured points, auto-closes the in-progress shell and
+ * commits {@code CURVEPOLYGON (CIRCULARSTRING …)}. A mid-gesture click
+ * that is not the start vertex only adds a point — it does not commit
+ * and does not cancel, even when two points already close to a valid
+ * ring. Only Escape cancels, and only Escape may write
+ * {@link #CANCELLED_STATUS} on the Case/PM strip. This tool builds a
+ * CircularString shell only — not a mixed-shell CompoundCurve editor.
+ * A close that is already a CompoundCurve shell is left as
+ * {@code COMPOUNDCURVE}; it is never linearized to {@code POLYGON} or
+ * a chord ring.
  */
 public class CurvePolygonTool extends AbstractStreamDrawTool {
 
@@ -51,6 +55,10 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
   private static CurvePolygonTool singleton = null;
 
   private boolean cancelling = false;
+  private boolean pendingDoubleClickFinish = false;
+  private boolean hasLastPress = false;
+  private int lastPressX;
+  private int lastPressY;
 
   public static CurvePolygonTool getInstance() {
     if (singleton == null)
@@ -79,58 +87,83 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
     if (panel() != null) {
       panel().removeKeyListener(this);
     }
+    resetGestureFlags();
     super.deactivate();
   }
 
   @Override
   public void keyPressed(KeyEvent e) {
-    if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+    if (isCancelKey(e.getKeyCode())) {
       cancelInProgress();
     }
   }
 
   /**
-   * The first click on the start vertex auto-closes and commits, same
-   * as a double-click anywhere. A mid-gesture click that is not the
-   * start vertex does not commit, even if the count is now a valid
-   * odd closed ring. Click-start is never cancel: Escape is the only
-   * cancel path. Hit-test uses the visible start vertex (view pixels).
+   * Click-start (first click on the start vertex, after three or more
+   * captured points) auto-closes and commits. A mid-gesture click that
+   * is not the start vertex only adds a point: after Clear A, clicks 1
+   * and 2 stay in-progress and click 3 does not finish. Two captured
+   * points already close to a 3-point ring, so a later click must not
+   * be treated as start-commit. Click-start is never cancel.
    */
   @Override
   public void mousePressed(MouseEvent e) {
     if (panel() != null) {
       panel().requestFocusInWindow();
     }
-    if (e.getClickCount() != 1) {
-      super.mousePressed(e);
+    boolean trueDoubleClick = e.getClickCount() >= 2 && isNearLastPress(e);
+    if (e.getClickCount() == 1
+        && capturedCount() >= 3
+        && isClickOnStartVertex(e)
+        && canCommitCurrent()) {
+      pendingDoubleClickFinish = false;
+      try {
+        finishGesture();
+      } catch (Exception ignored) {
+        // Click-start is a commit. Never emit cancel status here.
+      }
       return;
     }
-    try {
-      if (isClickOnStartVertex(e) && canCommitCurrent()) {
-        finishGesture();
-        return;
-      }
-      super.mousePressed(e);
-    } catch (Exception ex) {
-      super.mousePressed(e);
+    super.mousePressed(e);
+    if (e.getClickCount() >= 2 && !trueDoubleClick) {
+      add(toModelSnapped(e.getPoint()));
     }
+    if (e.getClickCount() == 1 || !trueDoubleClick) {
+      lastPressX = e.getX();
+      lastPressY = e.getY();
+      hasLastPress = true;
+    }
+    pendingDoubleClickFinish = trueDoubleClick;
+  }
+
+  /**
+   * Parent {@link LineBandTool} finishes on any {@code clickCount == 2},
+   * including a third vertex clicked inside the OS multi-click interval.
+   * Only a true same-spot double-click finishes.
+   */
+  @Override
+  protected boolean isFinishingRelease(MouseEvent e) {
+    return pendingDoubleClickFinish && e.getClickCount() >= 2;
   }
 
   @Override
   protected void bandFinished() throws Exception {
-    if (cancelling) {
-      showCancelled();
-      return;
-    }
-    if (panel() != null && panel().getGeomModel() != null) {
-      panel().getGeomModel().setGeometryType(getGeometryType());
-    }
-    List<Coordinate> shell = closeCircularShell(copyCoords());
-    if (shell == null) return;
+    try {
+      if (cancelling) {
+        return;
+      }
+      if (panel() != null && panel().getGeomModel() != null) {
+        panel().getGeomModel().setGeometryType(getGeometryType());
+      }
+      List<Coordinate> shell = closeCircularShell(copyCoords());
+      if (shell == null) return;
 
-    geomModel().addComponent(shell);
-    if (panel() != null) {
-      panel().updateGeom();
+      geomModel().addComponent(shell);
+      if (panel() != null) {
+        panel().updateGeom();
+      }
+    } finally {
+      resetGestureFlags();
     }
   }
 
@@ -213,13 +246,41 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
   }
 
   /**
-   * True when a click on the start vertex should commit on this press
-   * (enough points for {@link #closeCircularShell}). Not a cancel.
+   * True when a click on the start vertex should commit on this press.
+   * Needs three or more captured points so a third click after two
+   * rubber-band points cannot finish just because
+   * {@link #closeCircularShell} already forms a ring. Not a cancel.
    */
   static boolean firstStartClickCommits(List<Coordinate> coords, Coordinate click,
       double tolerance) {
-    return isStartVertexClick(coords, click, tolerance)
+    return coords != null
+        && coords.size() >= 3
+        && isStartVertexClick(coords, click, tolerance)
         && closeCircularShell(coords) != null;
+  }
+
+  /**
+   * Commit is only a true same-spot double-click, or click-start after
+   * three or more points. A mid-gesture click (including click 3 after
+   * Clear A) is neither.
+   */
+  static boolean isFinishClick(int capturedCount, boolean onStartVertex,
+      boolean trueDoubleClick) {
+    if (trueDoubleClick) {
+      return capturedCount >= 2;
+    }
+    return onStartVertex && capturedCount >= 3;
+  }
+
+  /** Only Escape may cancel. */
+  static boolean isCancelKey(int keyCode) {
+    return keyCode == KeyEvent.VK_ESCAPE;
+  }
+
+  static boolean isSameViewClick(int x0, int y0, int x1, int y1, int slopPx) {
+    int dx = x0 - x1;
+    int dy = y0 - y1;
+    return dx * dx + dy * dy <= slopPx * slopPx;
   }
 
   static boolean isStartVertexClick(List<Coordinate> coords, Coordinate click,
@@ -244,7 +305,16 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
   }
 
   private boolean canCommitCurrent() {
-    return closeCircularShell(copyCoords()) != null;
+    return capturedCount() >= 3 && closeCircularShell(copyCoords()) != null;
+  }
+
+  private int capturedCount() {
+    return getCoordinates().size();
+  }
+
+  private boolean isNearLastPress(MouseEvent e) {
+    return hasLastPress && isSameViewClick(
+        lastPressX, lastPressY, e.getX(), e.getY(), AppConstants.TOLERANCE_PIXELS);
   }
 
   private List<Coordinate> copyCoords() {
@@ -255,14 +325,23 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
     return coords;
   }
 
+  /**
+   * Escape is the only caller. Click-start and double-click commit
+   * must never reach this, and must never write cancel to Log.
+   */
   private void cancelInProgress() {
+    if (capturedCount() == 0) {
+      return;
+    }
+    showCancelled();
     cancelling = true;
     try {
       finishGesture();
     } catch (Exception ignored) {
-      showCancelled();
+      // Status already written on Escape. Do not emit it again.
     } finally {
       cancelling = false;
+      resetGestureFlags();
     }
   }
 
@@ -271,6 +350,11 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
       return;
     }
     JTSTestBuilder.controller().setStatus(CANCELLED_STATUS);
+  }
+
+  private void resetGestureFlags() {
+    pendingDoubleClickFinish = false;
+    hasLastPress = false;
   }
 
   @Override

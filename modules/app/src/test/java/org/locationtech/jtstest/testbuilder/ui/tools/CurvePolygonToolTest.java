@@ -11,6 +11,7 @@
  */
 package org.locationtech.jtstest.testbuilder.ui.tools;
 
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -33,11 +34,13 @@ import junit.textui.TestRunner;
 
 /**
  * Pins CurvePolygonTool finish/cancel for issue #56: a double-click
- * anywhere (or click-start) must commit ISO/IEC 13249-3
- * {@code CURVEPOLYGON (CIRCULARSTRING …)}, never a linearized
+ * anywhere (or click-start after three points) must commit ISO/IEC
+ * 13249-3 {@code CURVEPOLYGON (CIRCULARSTRING …)}, never a linearized
  * {@code POLYGON} or a chord ring, and never a silent empty A.
- * Escape status is exactly {@link CurvePolygonTool#CANCELLED_STATUS}
- * on the bottom status bar (not Log-only). No mixed-shell editor.
+ * A third click that is not start only adds a point. Only Escape
+ * cancels. Escape status is exactly
+ * {@link CurvePolygonTool#CANCELLED_STATUS} on the bottom status bar
+ * (not Log-only). No mixed-shell editor.
  */
 public class CurvePolygonToolTest extends TestCase {
 
@@ -59,6 +62,38 @@ public class CurvePolygonToolTest extends TestCase {
 
   public void testCancelledStatusIsExact() {
     assertEquals("CurvePolygon cancelled.", CurvePolygonTool.CANCELLED_STATUS);
+  }
+
+  public void testOnlyEscapeIsCancelKey() {
+    assertTrue(CurvePolygonTool.isCancelKey(KeyEvent.VK_ESCAPE));
+    assertFalse(CurvePolygonTool.isCancelKey(KeyEvent.VK_ENTER));
+    assertFalse(CurvePolygonTool.isCancelKey(KeyEvent.VK_BACK_SPACE));
+    assertFalse(CurvePolygonTool.isCancelKey(KeyEvent.VK_DELETE));
+  }
+
+  public void testThirdClickAfterTwoPointsAddsNotFinish() {
+    List<Coordinate> two = Arrays.asList(A, B);
+    assertNotNull("two points already close to a ring, but that must not finish",
+        CurvePolygonTool.closeCircularShell(two));
+    assertFalse("click 3 on start after only two points must add, not commit",
+        CurvePolygonTool.firstStartClickCommits(two, A, 1e-9));
+    assertFalse("click 3 that is not start must not commit",
+        CurvePolygonTool.firstStartClickCommits(two, C, 1e-9));
+    assertFalse("mid-gesture click 3 is not a finish",
+        CurvePolygonTool.isFinishClick(2, false, false));
+    assertFalse("click-start needs three captured points",
+        CurvePolygonTool.isFinishClick(2, true, false));
+    assertTrue("double-click anywhere after two points still commits",
+        CurvePolygonTool.isFinishClick(2, false, true));
+    assertTrue("click-start after three points commits",
+        CurvePolygonTool.isFinishClick(3, true, false));
+  }
+
+  public void testMovedMultiClickIsNotTrueDoubleClick() {
+    assertFalse("a third vertex inside the OS multi-click interval is not a double-click",
+        CurvePolygonTool.isSameViewClick(10, 10, 80, 90, 5));
+    assertTrue("same-spot double-click still counts as finish",
+        CurvePolygonTool.isSameViewClick(10, 10, 12, 11, 5));
   }
 
   public void testDoubleClickAnywhereAutoClosesToCircleNotChord() {
