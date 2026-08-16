@@ -105,9 +105,11 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     is the holed / unholed / hole polygon. A different-outer hole
  *     whose outers already clip composes: hole strictly inside the
  *     outer CAP is punched, hole strictly outside is ignored on
- *     CAP. Collinear overlap, mixed labels, a hole that meets or
- *     crosses the other outer, or a line-only shell return
- *     {@code null} without paying this path.</li>
+ *     CAP. A hole that meets or crosses the other outer shares
+ *     the clip edge (a bite, not an interior punch). Two holes
+ *     that cross are a noder. Collinear overlap, mixed labels,
+ *     or a line-only shell return {@code null} without paying
+ *     this path.</li>
  * <li><b>R-LL</b> -- one operand is a {@link org.locationtech.jts.geom.curve.CircularString}
  *     (or a lineal CompoundCurve of LineString + CircularString) and the
  *     other is a plain LineString. Line–circle nodes are exact. CAP is
