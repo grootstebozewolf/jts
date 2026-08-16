@@ -71,9 +71,20 @@ public class OverlayNGCircleTest extends GeometryTestCase {
     NodedSegmentString ss = OverlayNGCircleNoder.toCore(arc, "A");
     assertTrue(ss instanceof CircularNodedSegmentString);
     CircularNodedSegmentString circ = (CircularNodedSegmentString) ss;
-    assertTrue(circ.isCircularArc(0));
+    assertEquals(org.locationtech.jts.noding.SegmentKind.ARC,
+        circ.getSegmentKind(0));
+    assertTrue(circ.isExact(0));
+    assertFalse(circ.mayCollapseToChord(0));
     assertEquals(2, circ.size());
     assertTrue(circ.getArcMidpoint(0).equals2D(new Coordinate(0, 5)));
+
+    CurveSegmentString chord = CurveSegmentString.segment(
+        new Coordinate(5, 0), new Coordinate(-5, 0));
+    NodedSegmentString line = OverlayNGCircleNoder.toCore(chord, "L");
+    assertEquals(org.locationtech.jts.noding.SegmentKind.CERTIFIED,
+        line.getSegmentKind(0));
+    assertTrue(line.isExact(0));
+    assertFalse(line.mayCollapseToChord(0));
   }
 
   public void testNoderNamesMixedDiameterOverlap() throws Exception {

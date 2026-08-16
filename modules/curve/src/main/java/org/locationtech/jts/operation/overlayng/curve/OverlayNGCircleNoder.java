@@ -19,13 +19,16 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.noding.CircularNodedSegmentString;
 import org.locationtech.jts.noding.NodedSegmentString;
 import org.locationtech.jts.noding.Noder;
+import org.locationtech.jts.noding.SegmentKind;
 import org.locationtech.jts.noding.SegmentString;
 
 /**
- * OverlayNG noder for {@link CircularNodedSegmentString}. Lives in
- * jts-curve so arc–arc / arc–line closed forms stay
- * {@link CurveSegmentString} atoms -- core does not depend on this
- * module, and the formulas are not copied.
+ * OverlayNG noder for exact {@link CircularNodedSegmentString}s.
+ * Asks the Option B contract ({@link SegmentKind}) rather than
+ * treating ends as a chord. Lives in jts-curve so arc–arc /
+ * arc–line closed forms stay {@link CurveSegmentString} atoms --
+ * core does not depend on this module, and the formulas are not
+ * copied.
  * <p>
  * Implements {@link Noder} so {@code EdgeNodingBuilder} can run it.
  * MIXED (collinear overlap) inserts the overlap ends; a proper
@@ -140,22 +143,19 @@ final class OverlayNGCircleNoder implements Noder {
   static CurveSegmentString piece(SegmentString ss, int segIndex) {
     Coordinate a = ss.getCoordinate(segIndex);
     Coordinate b = ss.getCoordinate(segIndex + 1);
-    if (ss instanceof CircularNodedSegmentString) {
-      CircularNodedSegmentString circ = (CircularNodedSegmentString) ss;
-      if (circ.isCircularArc(segIndex)) {
-        return CurveSegmentString.arc(a, circ.getArcMidpoint(segIndex), b);
-      }
+    if (ss.getSegmentKind(segIndex) == SegmentKind.ARC) {
+      return CurveSegmentString.arc(a, ss.getArcMidpoint(segIndex), b);
     }
     return CurveSegmentString.segment(a, b);
   }
 
   static NodedSegmentString toCore(CurveSegmentString s, Object data) {
     if (s.isArc()) {
-      return new CircularNodedSegmentString(s.getStart(), s.getMid(),
+      return CircularNodedSegmentString.arc(s.getStart(), s.getMid(),
           s.getEnd(), data);
     }
-    return new NodedSegmentString(
-        new Coordinate[] { s.getStart(), s.getEnd() }, data);
+    return CircularNodedSegmentString.certified(s.getStart(), s.getEnd(),
+        data);
   }
 
   @SuppressWarnings("unchecked")

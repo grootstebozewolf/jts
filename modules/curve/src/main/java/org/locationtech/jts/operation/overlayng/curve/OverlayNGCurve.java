@@ -129,16 +129,20 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     angular-interval overlay on that circle. A three-point
  *     LineString, or 3+ nodes on one sweep window of different
  *     circles, return {@code null} without paying this path.</li>
- * <li><b>R-OV</b> -- OverlayNG-for-circles. A leftover pair of mixed
- *     CompoundCurve shells whose only shared run is a collinear
- *     overlap (H-SHELL-N-MIXED) is converted onto core
- *     {@code CircularNodedSegmentString}, noded by OverlayNG's
- *     {@code Noder} entry, and assembled as a named exact area
- *     (operand or holed shell). Closed form; no densification. A
- *     proper crossing, {@code CC-NEST-ANNULUS}, or the P2.5.4
- *     tangent stamp returns {@code null} without paying this
- *     path. R1.5–R1.7 / R-LL / R-AA stay in charge of cells they
- *     already laser.</li>
+ * <li><b>R-OV</b> -- OverlayNG-for-circles (Option B). Core
+ *     {@code SegmentString} names {@code [i, i+1]} as an arc, a
+ *     certified primitive, or an explicit linearized fallback.
+ *     Linearization is the default. OverlayNG's
+ *     {@code EdgeNodingBuilder} is the only consumer of exact
+ *     circular edges. A leftover pair of mixed CompoundCurve
+ *     shells whose only shared run is a collinear overlap
+ *     (H-SHELL-N-MIXED) is converted onto that contract, noded
+ *     by OverlayNG's {@code Noder} entry, and assembled as a
+ *     named exact area. Closed form; no densification. A proper
+ *     crossing, {@code CC-NEST-ANNULUS}, or the P2.5.4 tangent
+ *     stamp returns {@code null}. Buffer, relateng, coverage,
+ *     prep, and snap-round keep linearization. R1.5–R1.7 / R-LL /
+ *     R-AA stay in charge of cells they already laser.</li>
  * <li>Otherwise, densify both at the ops tolerance and delegate to core,
  *     flagging the result approximate (<b>R2</b>). This <em>is</em> the chord
  *     baseline.</li>

@@ -14,27 +14,25 @@ package org.locationtech.jts.noding;
 import org.locationtech.jts.geom.Coordinate;
 
 /**
- * A {@link NodedSegmentString} that can carry a circular arc on
- * {@code [i, i+1]}. OverlayNG already accepts {@code NodedSegmentString};
- * this subtype is the honest form of that acceptance for circles:
- * a segment may be an arc, not a chord pretending to be one.
+ * OverlayNG's exact {@link NodedSegmentString}: {@code [i, i+1]}
+ * names an {@link SegmentKind#ARC}, a {@link SegmentKind#CERTIFIED}
+ * line, or an explicit {@link SegmentKind#LINEARIZED} fallback.
+ * Coordinates stay the segment ends. An arc midpoint is metadata,
+ * not a vertex, so a semicircle whose chord is also an input edge
+ * is not collapsed into that chord.
  * <p>
- * Coordinates stay the segment ends. The midpoint is metadata, not a
- * vertex, so a semicircle whose chord is also an input edge is not
- * collapsed into that chord. Stock {@link IntersectionAdder} must not
- * treat those ends as the arc; OverlayNGCurve supplies the noder that
- * asks {@link #isCircularArc(int)}.
- * <p>
- * Not a rewrite of every noder in this package. Not a public circular
- * noder API.
+ * OverlayNG (via {@code EdgeNodingBuilder}) is the only consumer.
+ * Stock extract still builds linearized {@link NodedSegmentString}.
+ * Not a rewrite of every noder. Not a public circular noder API.
  */
 public class CircularNodedSegmentString extends NodedSegmentString {
 
+  private final SegmentKind[] kinds;
   private final Coordinate[] mids;
 
   /**
-   * One circular arc from {@code start} through {@code mid} to
-   * {@code end}.
+   * One exact circular arc from {@code start} through {@code mid}
+   * to {@code end}.
    *
    * @param start the arc start
    * @param mid a point on the arc between the ends
@@ -43,44 +41,106 @@ public class CircularNodedSegmentString extends NodedSegmentString {
    */
   public CircularNodedSegmentString(Coordinate start, Coordinate mid,
       Coordinate end, Object data) {
-    super(new Coordinate[] { start, end }, data);
-    this.mids = new Coordinate[] { mid };
+    this(new Coordinate[] { start, end },
+        new SegmentKind[] { SegmentKind.ARC },
+        new Coordinate[] { mid }, data);
   }
 
   /**
-   * Chord segments. Same linework as {@link NodedSegmentString}; every
-   * {@link #isCircularArc(int)} is false.
+   * Explicit linearized chords. Same linework as
+   * {@link NodedSegmentString}; every segment is
+   * {@link SegmentKind#LINEARIZED}.
    *
    * @param pts the vertices of the segment string
    * @param data the user-defined data of this segment string (may be null)
    */
   public CircularNodedSegmentString(Coordinate[] pts, Object data) {
+    this(pts, linearizedKinds(pts.length - 1),
+        new Coordinate[pts.length - 1], data);
+  }
+
+  private CircularNodedSegmentString(Coordinate[] pts, SegmentKind[] kinds,
+      Coordinate[] mids, Object data) {
     super(pts, data);
-    this.mids = new Coordinate[pts.length - 1];
+    this.kinds = kinds;
+    this.mids = mids;
   }
 
   /**
-   * True when segment {@code [segIndex, segIndex+1]} is a circular
-   * arc rather than a straight chord.
+   * Exact circular arc. {@link #mayCollapseToChord(int)} is false.
+   *
+   * @param start the arc start
+   * @param mid a point on the arc between the ends
+   * @param end the arc end
+   * @param data the user-defined data (may be null)
+   * @return an exact-arc segment string
+   */
+  public static CircularNodedSegmentString arc(Coordinate start,
+      Coordinate mid, Coordinate end, Object data) {
+    return new CircularNodedSegmentString(start, mid, end, data);
+  }
+
+  /**
+   * Exact certified line. Not a linearized curve.
+   * {@link #mayCollapseToChord(int)} is false.
+   *
+   * @param start the segment start
+   * @param end the segment end
+   * @param data the user-defined data (may be null)
+   * @return a certified line segment string
+   */
+  public static CircularNodedSegmentString certified(Coordinate start,
+      Coordinate end, Object data) {
+    return new CircularNodedSegmentString(
+        new Coordinate[] { start, end },
+        new SegmentKind[] { SegmentKind.CERTIFIED },
+        new Coordinate[] { null }, data);
+  }
+
+  /**
+   * Explicit linearized fallback. A noder may collapse to the chord.
+   *
+   * @param pts the vertices
+   * @param data the user-defined data (may be null)
+   * @return a linearized segment string
+   */
+  public static CircularNodedSegmentString linearized(Coordinate[] pts,
+      Object data) {
+    return new CircularNodedSegmentString(pts, data);
+  }
+
+  @Override
+  public SegmentKind getSegmentKind(int i) {
+    if (i < 0 || i >= kinds.length) {
+      return SegmentKind.LINEARIZED;
+    }
+    return kinds[i];
+  }
+
+  @Override
+  public Coordinate getArcMidpoint(int i) {
+    if (getSegmentKind(i) != SegmentKind.ARC) {
+      return null;
+    }
+    return mids[i];
+  }
+
+  /**
+   * True when segment {@code [segIndex, segIndex+1]} is an
+   * {@link SegmentKind#ARC}.
    *
    * @param segIndex the segment index
    * @return true if that segment is an arc
    */
   public boolean isCircularArc(int segIndex) {
-    return segIndex >= 0 && segIndex < mids.length && mids[segIndex] != null;
+    return getSegmentKind(segIndex) == SegmentKind.ARC;
   }
 
-  /**
-   * The on-arc midpoint of segment {@code segIndex}, or {@code null}
-   * when that segment is a chord.
-   *
-   * @param segIndex the segment index
-   * @return the midpoint, or {@code null}
-   */
-  public Coordinate getArcMidpoint(int segIndex) {
-    if (!isCircularArc(segIndex)) {
-      return null;
+  private static SegmentKind[] linearizedKinds(int n) {
+    SegmentKind[] k = new SegmentKind[Math.max(n, 0)];
+    for (int i = 0; i < k.length; i++) {
+      k[i] = SegmentKind.LINEARIZED;
     }
-    return mids[segIndex];
+    return k;
   }
 }

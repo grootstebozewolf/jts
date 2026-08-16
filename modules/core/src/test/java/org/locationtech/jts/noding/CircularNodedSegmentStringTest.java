@@ -40,6 +40,9 @@ public class CircularNodedSegmentStringTest extends GeometryTestCase {
     assertTrue(ss.getCoordinate(0).equals2D(start));
     assertTrue(ss.getCoordinate(1).equals2D(end));
     assertTrue(ss.isCircularArc(0));
+    assertEquals(SegmentKind.ARC, ss.getSegmentKind(0));
+    assertTrue(ss.isExact(0));
+    assertFalse(ss.mayCollapseToChord(0));
     assertTrue(ss.getArcMidpoint(0).equals2D(mid));
     assertEquals("src", ss.getData());
   }
@@ -51,6 +54,8 @@ public class CircularNodedSegmentStringTest extends GeometryTestCase {
     CircularNodedSegmentString ss = new CircularNodedSegmentString(pts, null);
     assertEquals(2, ss.size());
     assertFalse(ss.isCircularArc(0));
+    assertEquals(SegmentKind.LINEARIZED, ss.getSegmentKind(0));
+    assertTrue(ss.mayCollapseToChord(0));
     assertNull(ss.getArcMidpoint(0));
   }
 

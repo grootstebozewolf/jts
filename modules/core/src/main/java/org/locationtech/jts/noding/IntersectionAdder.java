@@ -121,9 +121,10 @@ public class IntersectionAdder
      )
   {
     if (e0 == e1 && segIndex0 == segIndex1) return;
-    // OverlayNG-for-circles: do not treat an arc's ends as its chord.
-    // Arc–arc / arc–line nodes are OverlayNGCurve's noder.
-    if (isCircularArc(e0, segIndex0) || isCircularArc(e1, segIndex1)) {
+    // Option B: collapse to a chord only when the contract allows it.
+    // Exact arcs / certified primitives are OverlayNGCurve's noder.
+    if (!e0.mayCollapseToChord(segIndex0)
+        || !e1.mayCollapseToChord(segIndex1)) {
       return;
     }
     numTests++;
@@ -166,11 +167,4 @@ public class IntersectionAdder
    * @return false always
    */
   public boolean isDone() { return false; }
-
-  private static boolean isCircularArc(SegmentString ss, int segIndex) {
-    if (!(ss instanceof CircularNodedSegmentString)) {
-      return false;
-    }
-    return ((CircularNodedSegmentString) ss).isCircularArc(segIndex);
-  }
 }

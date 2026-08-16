@@ -16,16 +16,15 @@ import java.util.List;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.noding.CircularNodedSegmentString;
-import org.locationtech.jts.noding.NodedSegmentString;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
 
 /**
- * OverlayNG-for-circles: {@link EdgeNodingBuilder} accepts a
- * {@link CircularNodedSegmentString}. Stock IntersectionAdder must
- * not treat the arc ends as a chord; the builder still nodes and
- * merges the linear partner.
+ * OverlayNG-for-circles surface: {@link EdgeNodingBuilder}.
+ * Stock extract is linearized. Prepared exact arcs are accepted.
+ * IntersectionAdder collapses a segment only when
+ * {@code mayCollapseToChord} is true.
  */
 public class EdgeNodingBuilderCircularTest extends GeometryTestCase {
 
@@ -42,18 +41,27 @@ public class EdgeNodingBuilderCircularTest extends GeometryTestCase {
     EdgeNodingBuilder builder = new EdgeNodingBuilder(pm, null);
     EdgeSourceInfo info0 = new EdgeSourceInfo(0, 1, false);
     EdgeSourceInfo info1 = new EdgeSourceInfo(1, 1, false);
-    CircularNodedSegmentString arc = new CircularNodedSegmentString(
+    CircularNodedSegmentString arc = CircularNodedSegmentString.arc(
         new Coordinate(-5, 0), new Coordinate(0, 5),
         new Coordinate(5, 0), info0);
-    NodedSegmentString diameter = new NodedSegmentString(
-        new Coordinate[] { new Coordinate(5, 0), new Coordinate(-5, 0) },
-        info1);
+    CircularNodedSegmentString diameter = CircularNodedSegmentString.certified(
+        new Coordinate(5, 0), new Coordinate(-5, 0), info1);
     builder.addEdge(arc);
     builder.addEdge(diameter);
+    assertTrue("OverlayNG may consume exact edges", builder.hasExactSegment());
     List<Edge> edges = builder.buildPrepared();
-    assertTrue("noded edges from prepared circular + chord",
+    assertTrue("noded edges from prepared circular + certified",
         edges.size() >= 1);
     assertTrue(builder.hasEdgesFor(0));
     assertTrue(builder.hasEdgesFor(1));
+  }
+
+  public void testStockExtractIsLinearized() {
+    EdgeNodingBuilder builder = new EdgeNodingBuilder(new PrecisionModel(),
+        null);
+    builder.build(
+        read("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))"),
+        read("POLYGON ((2 0, 3 0, 3 1, 2 1, 2 0))"));
+    assertFalse("stock extract stays linearized", builder.hasExactSegment());
   }
 }
