@@ -29,7 +29,9 @@ import org.locationtech.jts.geom.Coordinate;
  * is circle–square / arc–AABB in that scaled space, then restricted
  * to the sweep. It is not the supporting chord, not
  * {@code HotPixel.intersectsScaled}, and not a densified polyline.
- * This rung does not snap leave-angles and does not walk faces.
+ * {@link #exit} is the same pixel test: where the arc leaves the
+ * square. Leave-angle snap is {@link CurveHotPixelSnap} (HP.3).
+ * This class is not a noder and does not walk faces.
  */
 final class CurveHotPixel {
 
@@ -87,6 +89,24 @@ final class CurveHotPixel {
     if (y >= hpy + TOLERANCE) return false;
     if (y < hpy - TOLERANCE) return false;
     return true;
+  }
+
+  /**
+   * First point of {@code s} that leaves this pixel along the
+   * string, or {@code null}. The start must sit in the pixel
+   * (a leave from this node). An arc exit is circle–square /
+   * arc–AABB, not the supporting chord. A miss, a degenerate
+   * pinch, or a string that never leaves is {@code null} --
+   * no invented point.
+   */
+  Coordinate exit(CurveSegmentString s) {
+    if (s == null || !intersects(s)) return null;
+    if (!intersects(s.getStart())) return null;
+    if (s.isDegenerate()) return null;
+    if (s.isArc()) {
+      return exitArc(s);
+    }
+    return exitChord(s.getStart(), s.getEnd());
   }
 
   /**
@@ -148,6 +168,51 @@ final class CurveHotPixel {
       }
     }
     return hit;
+  }
+
+  /**
+   * First circle–square hit on the leave sweep after the start.
+   * Same edge set as {@link #intersectsArc}.
+   */
+  private Coordinate exitArc(CurveSegmentString s) {
+    double[] c = s.asEdge().circle;
+    if (c == null || c[2] <= 0.0) {
+      return exitChord(s.getStart(), s.getEnd());
+    }
+    List<Coordinate> hits = edgeHits(c[0], c[1], c[2]);
+    addClosestOnBox(hits, c[0], c[1], c[2]);
+    List<Coordinate> onLeave = new ArrayList<Coordinate>();
+    for (int i = 0; i < hits.size(); i++) {
+      Coordinate p = hits.get(i);
+      if (onSweep(p, s) && p.distance(s.getStart()) > EPS) {
+        onLeave.add(p);
+      }
+    }
+    if (onLeave.isEmpty()) return null;
+    final TwoNodeClip.Edge e = s.asEdge();
+    Collections.sort(onLeave, new Comparator<Coordinate>() {
+      public int compare(Coordinate p, Coordinate q) {
+        return Double.compare(e.param(p), e.param(q));
+      }
+    });
+    return onLeave.get(0);
+  }
+
+  /**
+   * Closed-box exit of a chord that starts in the pixel, or
+   * {@code null} when the chord stays inside.
+   */
+  private Coordinate exitChord(Coordinate a, Coordinate b) {
+    double ax = a.x * scaleFactor;
+    double ay = a.y * scaleFactor;
+    double dx = (b.x - a.x) * scaleFactor;
+    double dy = (b.y - a.y) * scaleFactor;
+    double[] t = clipClosed(ax, ay, dx, dy);
+    if (t == null || t[1] <= 0.0) return null;
+    Coordinate p = new Coordinate(a.x + t[1] * (b.x - a.x),
+        a.y + t[1] * (b.y - a.y));
+    if (t[1] >= 1.0 && intersects(b)) return null;
+    return p;
   }
 
   /**
