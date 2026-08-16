@@ -75,7 +75,8 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     arcs (lens, blob, crescent) or a {@link MultiSurface} of two crescents.
  *     Nested discs (0 nodes, one strictly inside the other) are the
  *     annulus: SUB the outer with the inner as a hole, XOR the same.
- *     Closed form; no densification. 1 intersection, a tangent nest, or
+ *     Closed form; no densification. 1 intersection, a tangent nest,
+ *     a mixed CompoundCurve nest ({@code CC-NEST-ANNULUS}), or
  *     a non-disc, falls through without paying this path.</li>
  * <li><b>R1.6</b> -- one operand is a circular disc and the other is a
  *     plain Polygon (no curve rings, no holes), and they meet at two
@@ -105,9 +106,17 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     is the holed / unholed / hole polygon. A different-outer hole
  *     whose outers already clip composes: hole strictly inside the
  *     outer CAP is punched, hole strictly outside is ignored on
- *     CAP. Collinear overlap, mixed labels, a hole that meets or
- *     crosses the other outer, or a line-only shell return
- *     {@code null} without paying this path.</li>
+ *     CAP. A hole that crosses the other outer shares the clip
+ *     edge: if that new edge is a subset of the other shell it
+ *     is a bite, not an interior punch. A hole that does not
+ *     cross but whose ring overlaps the other shell (hole-edge
+ *     ⊂ other.shell) is the same bite. Two holes that cross
+ *     assemble the hole faces. A collinear overlap of two
+ *     hole-free CompoundCurve shells ({@code H-SHELL-N-MIXED})
+ *     is a shared-edge walk: CAP / CUP are the inner / outer
+ *     shells, SUB / XOR the bite (not a punch). Mixed labels
+ *     or a line-only shell return {@code null} without paying
+ *     this path.</li>
  * <li><b>R-LL</b> -- one operand is a {@link org.locationtech.jts.geom.curve.CircularString}
  *     (or a lineal CompoundCurve of LineString + CircularString) and the
  *     other is a plain LineString. Line–circle nodes are exact. CAP is
@@ -130,8 +139,10 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * R1.5–R1.7 share package-private {@code TwoNodeClip} for the two-node
  * walk (hits, ring / member walk, CAP / CUP / SUB / XOR). Even-n
  * assemble is {@code NSpanClip}. R1.7 dispatch is
- * {@code CompoundCurveShellOverlay} (hole / half-disc / two-shell /
- * vs disc or polygon). R-LL and R-AA reuse the same intersection
+ * {@code CompoundCurveShellOverlay} (hole / bite-vs-hole /
+ * two-hole / half-disc / mixed-overlap / two-shell / vs disc or
+ * polygon). R-LL and R-AA
+ * reuse the same intersection
  * primitives. Each rung keeps its own shape dispatch.
  * The distinction in R0/R1 is the one that matters: an exact answer chosen by a
  * tolerance-bounded decision is still exact, but the decision can be wrong for
@@ -235,7 +246,11 @@ public class OverlayNGCurve {
    * whose only non-alternation is a tangent (degenerate NSpan),
    * a same-outer
    * hole-inside pair, a different-outer hole composed from a
-   * certified outer clip, and an even 4+ line–circle cut of a disc
+   * certified outer clip, a straddling hole whose new edge is a
+   * subset of the other shell (a bite, not a punch), a collinear
+   * overlap of two hole-free CompoundCurve shells walked as a
+   * shared edge ({@code H-SHELL-N-MIXED}), and an even
+   * 4+ line–circle cut of a disc
    * by a plain polygon. In
    * the R1 case the <em>answer</em> is exact even though the <em>decision</em>
    * to return it was made on densified copies.

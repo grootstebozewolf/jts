@@ -286,8 +286,9 @@ public class CircularArcOverlayTest extends GeometryTestCase {
    * with the touch as a zero-length span. A same-outer hole-inside
    * pair is the holed cell. A different-outer hole composes when
    * it sits strictly inside or outside a certified outer CAP.
-   * Collinear overlap, mixed labels, and a hole that meets or
-   * crosses the other outer stay refused.
+   * Collinear overlap, mixed labels, and a hole that meets the
+   * other diameter stay refused. A hole that straddles the other
+   * shell is a bite when the new edge ⊂ that shell.
    */
   public void testHShellComplementaryHalfDiscsAreTheDisc() throws Exception {
     Geometry upper = readCurve(HALF_UPPER);
@@ -374,18 +375,44 @@ public class CircularArcOverlayTest extends GeometryTestCase {
     assertEquals("small half minus hole", 4.5 * Math.PI - 1.0,
         punched.getArea(), EXACT);
 
-    assertNull("H-SHELL-HOLE-OUTER: hole meets the other diameter",
-        CompoundCurveShellOverlay.overlay(holed, right, OverlayNG.INTERSECTION));
+    OverlayNGCurve diameterCap = new OverlayNGCurve(holed, right);
+    Geometry diameterBite = diameterCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-HOLE-OUTER: hole meets the other diameter",
+        diameterCap.isApproximate());
+    assertEquals("Q1 minus the rectangle", 6.25 * Math.PI - 1.0,
+        diameterBite.getArea(), EXACT);
     Geometry straddle = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (-1 1, 1 1, 1 2, -1 2, -1 1))");
-    assertNull("H-SHELL-HOLE-CROSS: hole straddles the other shell",
-        CompoundCurveShellOverlay.overlay(straddle, right, OverlayNG.INTERSECTION));
+    OverlayNGCurve crossCap = new OverlayNGCurve(straddle, right);
+    Geometry bite = crossCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-HOLE-CROSS: new edge ⊂ other.shell is a bite",
+        crossCap.isApproximate());
+    assertEquals("Q1 minus the right half-rectangle", 6.25 * Math.PI - 1.0,
+        bite.getArea(), EXACT);
+    Geometry holeX = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0.5 0.5, 1.5 0.5, 1.5 1.5, 0.5 1.5, 0.5 0.5))");
+    OverlayNGCurve holeXCap = new OverlayNGCurve(holed, holeX);
+    Geometry twoHoles = holeXCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-HOLE-X CAP is exact", holeXCap.isApproximate());
+    assertEquals("HALF_DISC minus holeA ∪ holeB", HALF - 1.75,
+        twoHoles.getArea(), EXACT);
     Geometry onDiameter = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, 0 2, 1 1), (1 1, 1 0), (1 0, -1 0), (-1 0, -1 1)))");
-    // Collinear overlap is not a discrete node set; no cheap closed
-    // form without a noder.
-    assertNull("H-SHELL-N-MIXED: collinear overlap stays refused",
-        CompoundCurveShellOverlay.overlay(upper, onDiameter, OverlayNG.INTERSECTION));
+    OverlayNGCurve mixedCap = new OverlayNGCurve(upper, onDiameter);
+    Geometry mixed = mixedCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-N-MIXED CAP is exact (not the chordsaw)",
+        mixedCap.isApproximate());
+    assertEquals("inner on-diameter", 2.0 + 0.5 * Math.PI, mixed.getArea(),
+        EXACT);
+    Geometry stadiumNest = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, -2 0, -1 1), (-1 1, 1 1), CIRCULARSTRING (1 1, 2 0, 1 -1), (1 -1, -1 -1)))");
+    Geometry circle5 = readCurve(CIRCLE_5);
+    // Mixed stadium in CIRCLE_5 is not two discs. D4 / R1.7 stay
+    // null; do not punch a non-disc hole.
+    assertNull("CC-NEST-ANNULUS: mixed nest is not two discs",
+        CircularDiscOverlay.overlay(circle5, stadiumNest, OverlayNG.DIFFERENCE));
+    assertNull("CC-NEST-ANNULUS: R1.7 is two-node, not a 0-node punch",
+        CompoundCurveShellOverlay.overlay(circle5, stadiumNest, OverlayNG.DIFFERENCE));
     Geometry oddStadium = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 4, 0 5, 1 4), (1 4, 1 -1), CIRCULARSTRING (1 -1, 0 -2, -1 -1), (-1 -1, -1 4)))");
     OverlayNGCurve oddCap = new OverlayNGCurve(upper, oddStadium);

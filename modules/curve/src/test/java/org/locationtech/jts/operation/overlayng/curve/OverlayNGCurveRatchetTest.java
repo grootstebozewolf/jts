@@ -42,7 +42,8 @@ import test.jts.GeometryTestCase;
  * Exact cells per operation: CAP 8 of 8, CUP 8, SUB 8, XOR 8 on the
  * two-disc matrix. Crossing discs are two-arc CurvePolygons (R1.5).
  * Nested discs are the annulus (R1.5): SUB the outer with the inner
- * as a hole, XOR the same. A disc clipped by a plain rectangle (R1.6)
+ * as a hole, XOR the same, including a two-arc CompoundCurve disc.
+ * A disc clipped by a plain rectangle (R1.6)
  * is EEEE in both operand orders. A half-disc CompoundCurve shell vs
  * a crossing disc or a cutting square (R1.7) is EEEE in both operand
  * orders. Two crossing CircularStrings (R-AA) are EEEE in both operand
@@ -50,9 +51,11 @@ import test.jts.GeometryTestCase;
  * Complementary half-discs are 0EEE. Perpendicular same-circle
  * half-discs, a two-node two-shell clip, collinear same-side halves,
  * nested halves, and a 1-node touch are exact. A four-cut two-shell
- * n-span, a same-outer hole-inside pair, and a different-outer hole
- * that sits strictly inside or outside a certified outer CAP are
- * exact. A four-cut disc vs a band is EEEE.
+ * n-span, a same-outer hole-inside pair, a different-outer hole
+ * that sits strictly inside or outside a certified outer CAP, and
+ * a straddling hole whose new edge ⊂ the other shell (a bite), and
+ * two holes that cross on the same outer are exact. A four-cut
+ * disc vs a band is EEEE.
  */
 public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
@@ -60,6 +63,9 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
       "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0))";
   private static final String CIRCLE_3 =
       "CURVEPOLYGON (CIRCULARSTRING (-3 0, 0 3, 3 0, 0 -3, -3 0))";
+  /** Same disc as CIRCLE_3, two semicircle CircularStrings. */
+  private static final String CIRCLE_3_CC =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-3 0, 0 3, 3 0), CIRCULARSTRING (3 0, 0 -3, -3 0)))";
   private static final String CIRCLE_FAR =
       "CURVEPOLYGON (CIRCULARSTRING (100 0, 105 5, 110 0, 105 -5, 100 0))";
   private static final String CIRCLE_CROSSING =
@@ -103,6 +109,10 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, 0 -2, 1 -1), (1 -1, 1 6), CIRCULARSTRING (1 6, 0 7, -1 6), (-1 6, -1 -1)))";
   private static final String HALF_HOLED =
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0 1, 1 1, 1 2, 0 2, 0 1))";
+  private static final String HOLE_STRADDLE =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (-1 1, 1 1, 1 2, -1 2, -1 1))";
+  private static final String HOLE_X =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0.5 0.5, 1.5 0.5, 1.5 1.5, 0.5 1.5, 0.5 0.5))";
 
   private static final int[] OPS = { OverlayNGCurve.INTERSECTION, OverlayNGCurve.UNION,
       OverlayNGCurve.DIFFERENCE, OverlayNGCurve.SYMDIFFERENCE };
@@ -170,6 +180,10 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_covers() throws Exception {
     assertRow("covers", CIRCLE_5, CIRCLE_3, "EEEE");
+  }
+
+  public void testMatrix_coversCompoundCurveDisc() throws Exception {
+    assertRow("covers two-arc disc", CIRCLE_5, CIRCLE_3_CC, "EEEE");
   }
 
   public void testMatrix_coveredBy() throws Exception {
@@ -300,6 +314,30 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_fourCut() throws Exception {
     assertRow("four-cut disc ∩ band", CIRCLE_5, BAND_FOUR, "EEEE");
+  }
+
+  public void testMatrix_holeStraddleBite() throws Exception {
+    assertRow("hole-straddle bite", HOLE_STRADDLE, HALF_RIGHT, "EEEE");
+  }
+
+  public void testMatrix_holeStraddleBiteReverse() throws Exception {
+    assertRow("hole-straddle bite reverse", HALF_RIGHT, HOLE_STRADDLE, "EEEE");
+  }
+
+  public void testMatrix_twoHolesCross() throws Exception {
+    assertRow("two-hole cross", HALF_HOLED, HOLE_X, "EEEE");
+  }
+
+  public void testMatrix_twoHolesCrossReverse() throws Exception {
+    assertRow("two-hole cross reverse", HOLE_X, HALF_HOLED, "EEEE");
+  }
+
+  public void testMatrix_holeMeetsDiameter() throws Exception {
+    assertRow("hole meets diameter", HALF_HOLED, HALF_RIGHT, "EEEE");
+  }
+
+  public void testMatrix_holeMeetsDiameterReverse() throws Exception {
+    assertRow("hole meets diameter reverse", HALF_RIGHT, HALF_HOLED, "EEEE");
   }
 
   // -- the disjoint CUP/XOR result, not just its exactness -----------------

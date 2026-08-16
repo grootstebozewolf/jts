@@ -29,9 +29,14 @@ import test.jts.GeometryTestCase;
 /**
  * R1.5: two crossing circular discs become lens / blob / crescents, exact,
  * and JTS-class with the chord overlay. Nested concentric discs become
- * the annulus (the two-disc 7/8 · 6/8 remainder). Disjoint and
- * non-disc pairs stay {@code null} so OverlayNGCurve can take R2
- * without paying this path first.
+ * the annulus (the two-disc 7/8 · 6/8 remainder), including a
+ * CompoundCurve of two semicircle arcs that certifies as a disc.
+ * An internal tangent nest ({@code H-ANNULUS-TANGENT}) is not
+ * strictly inside and stays {@code null}. A mixed CompoundCurve
+ * nest ({@code CC-NEST-ANNULUS}: stadium in a disc) is not two
+ * discs and stays {@code null}. Disjoint and non-disc pairs stay
+ * {@code null} so OverlayNGCurve can take R2 without paying this
+ * path first.
  */
 public class CircularDiscOverlayTest extends GeometryTestCase {
 
@@ -41,6 +46,23 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
       "CURVEPOLYGON (CIRCULARSTRING (2 0, 7 5, 12 0, 7 -5, 2 0))";
   private static final String CIRCLE_3 =
       "CURVEPOLYGON (CIRCULARSTRING (-3 0, 0 3, 3 0, 0 -3, -3 0))";
+  /**
+   * Same disc as {@link #CIRCLE_3}, encoded as two semicircle
+   * CircularStrings. {@code circularDisc} certifies it; D4 owns
+   * the nest. Not a re-run of the five-point CIRCLE_3 WKT.
+   */
+  private static final String CIRCLE_3_CC =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-3 0, 0 3, 3 0), CIRCULARSTRING (3 0, 0 -3, -3 0)))";
+  /**
+   * Horizontal stadium |x|≤2, |y|≤1, strictly inside CIRCLE_5.
+   * Mixed CompoundCurve (arcs + segments). Not a disc. 0 nodes.
+   * Not HALF_SMALL, not H-ANNULUS-TANGENT, not CIRCLE_3.
+   */
+  private static final String STADIUM_NEST =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, -2 0, -1 1), (-1 1, 1 1), CIRCULARSTRING (1 1, 2 0, 1 -1), (1 -1, -1 -1)))";
+  /** r=3 at (2,0); internally tangent to CIRCLE_5 at (5,0). */
+  private static final String CIRCLE_INT_TAN =
+      "CURVEPOLYGON (CIRCULARSTRING (-1 0, 2 3, 5 0, 2 -3, -1 0))";
   private static final String CIRCLE_FAR =
       "CURVEPOLYGON (CIRCULARSTRING (100 0, 105 5, 110 0, 105 -5, 100 0))";
   private static final String PLAIN_SQUARE =
@@ -95,6 +117,19 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
   }
 
   /**
+   * Internal tangent is not strictly inside: 1 node, d+r = R.
+   * nestedAnnulus already refuses it. Named miss, not a laser.
+   */
+  public void testInternalTangentNestIsNamedMiss() throws Exception {
+    Geometry outer = readCurve(CIRCLE_5);
+    Geometry inner = readCurve(CIRCLE_INT_TAN);
+    assertNull("H-ANNULUS-TANGENT: not strictly inside; 1 node / d+r = R",
+        CircularDiscOverlay.overlay(outer, inner, OverlayNG.DIFFERENCE));
+    assertNull("H-ANNULUS-TANGENT: reverse nest is the same miss",
+        CircularDiscOverlay.overlay(inner, outer, OverlayNG.DIFFERENCE));
+  }
+
+  /**
    * 7/8 remainder: large \\ small of concentric discs is the annulus,
    * exact, not densified.
    */
@@ -120,6 +155,76 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
     Geometry sub = op.getResult(OverlayNG.DIFFERENCE);
     assertFalse("small \\ large is exact", op.isApproximate());
     assertTrue(sub.isEmpty());
+  }
+
+  /**
+   * Two-arc CompoundCurve disc vs CIRCLE_5: both certify, so this is
+   * D4, not a new noder. Kit-level lock so it cannot silently become R2.
+   */
+  public void testCompoundCurveDiscNestIsExactAnnulus() throws Exception {
+    Geometry outer = readCurve(CIRCLE_5);
+    Geometry inner = readCurve(CIRCLE_3_CC);
+    assertNotNull("two-arc CompoundCurve certifies as a disc",
+        CircularDiscOverlay.centreRadius(inner));
+    assertNotNull("kit-level: CAP cannot silently become R2",
+        CircularDiscOverlay.overlay(outer, inner, OverlayNG.INTERSECTION));
+    assertNotNull("kit-level: CUP cannot silently become R2",
+        CircularDiscOverlay.overlay(outer, inner, OverlayNG.UNION));
+    assertNotNull("kit-level: SUB cannot silently become R2",
+        CircularDiscOverlay.overlay(outer, inner, OverlayNG.DIFFERENCE));
+    assertNotNull("kit-level: XOR cannot silently become R2",
+        CircularDiscOverlay.overlay(outer, inner, OverlayNG.SYMDIFFERENCE));
+
+    OverlayNGCurve cap = new OverlayNGCurve(outer, inner);
+    Geometry common = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("CAP is exact", cap.isApproximate());
+    assertEquals("inner disc", 9.0 * Math.PI, common.getArea(), EXACT);
+
+    OverlayNGCurve cup = new OverlayNGCurve(outer, inner);
+    Geometry cover = cup.getResult(OverlayNG.UNION);
+    assertFalse("CUP is exact", cup.isApproximate());
+    assertEquals("outer disc", 25.0 * Math.PI, cover.getArea(), EXACT);
+
+    OverlayNGCurve rev = new OverlayNGCurve(inner, outer);
+    Geometry empty = rev.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("small \\ large is exact", rev.isApproximate());
+    assertTrue(empty.isEmpty());
+
+    assertAnnulus(OverlayNG.DIFFERENCE, CIRCLE_5, CIRCLE_3_CC, 16.0 * Math.PI);
+    assertAnnulus(OverlayNG.SYMDIFFERENCE, CIRCLE_5, CIRCLE_3_CC,
+        16.0 * Math.PI);
+    assertAnnulus(OverlayNG.SYMDIFFERENCE, CIRCLE_3_CC, CIRCLE_5,
+        16.0 * Math.PI);
+  }
+
+  /**
+   * Mixed CompoundCurve nest (stadium in a CircularString disc) is
+   * not two certified discs. D4 and R1.7 return null. Named miss,
+   * not a laser. Public overlay may chordsaw.
+   */
+  public void testMixedCompoundCurveNestIsNamedMiss() throws Exception {
+    Geometry outer = readCurve(CIRCLE_5);
+    Geometry stadium = readCurve(STADIUM_NEST);
+    assertNull("inner stadium is not a disc",
+        CircularDiscOverlay.centreRadius(stadium));
+    // D4 punches only certified discs. A stadium hole is not that
+    // closed form; do not invent a CompoundCurve annulus noder.
+    assertNull("CC-NEST-ANNULUS: mixed nest is not two discs; D4 stays null",
+        CircularDiscOverlay.overlay(outer, stadium, OverlayNG.DIFFERENCE));
+    assertNull("CC-NEST-ANNULUS: reverse nest is the same miss",
+        CircularDiscOverlay.overlay(stadium, outer, OverlayNG.DIFFERENCE));
+    // R1.7 clip() is two-node only. TwoShellClip never runs: only
+    // one operand is a mixed CompoundCurve shell.
+    assertNull("CC-NEST-ANNULUS: R1.7 is two-node; 0-node mixed-vs-disc is not a punch",
+        CompoundCurveShellOverlay.overlay(outer, stadium, OverlayNG.DIFFERENCE));
+    assertNull("CC-NEST-ANNULUS: reverse R1.7 is the same miss",
+        CompoundCurveShellOverlay.overlay(stadium, outer, OverlayNG.DIFFERENCE));
+
+    OverlayNGCurve sub = new OverlayNGCurve(outer, stadium);
+    Geometry saw = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("the chordsaw still answers", saw.isEmpty());
+    assertTrue("CC-NEST-ANNULUS: public SUB is the chordsaw, not a laser",
+        sub.isApproximate());
   }
 
   /**
@@ -161,10 +266,10 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
     assertEquals("CurvePolygon", laser.getGeometryType());
     CurvePolygon cp = (CurvePolygon) laser;
     assertEquals("one hole", 1, cp.getNumInteriorRing());
-    assertTrue("outer is a CircularString",
-        cp.getExteriorCurve() instanceof CircularString);
-    assertTrue("hole is a CircularString",
-        cp.getInteriorCurveN(0) instanceof CircularString);
+    assertTrue("outer is a circular disc ring",
+        isCircularDiscRing(cp.getExteriorCurve()));
+    assertTrue("hole is a circular disc ring",
+        isCircularDiscRing(cp.getInteriorCurveN(0)));
     assertEquals("ten control points, not a densified ring",
         10, laser.getNumPoints());
     assertEquals("exact closed-form area", exactArea, laser.getArea(), EXACT);
@@ -177,6 +282,30 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
         CurveOps.linearise(laser), chord);
     assertTrue("Hausdorff vs chord overlay " + hd + " > " + AREA_TOL,
         hd <= AREA_TOL);
+  }
+
+  /**
+   * A certified disc ring: a closed CircularString, or a CompoundCurve
+   * of only CircularString members. A mixed stadium is not this.
+   */
+  private static boolean isCircularDiscRing(LineString ring) {
+    if (ring instanceof CircularString) {
+      return true;
+    }
+    if (!(ring instanceof CompoundCurve)) {
+      return false;
+    }
+    CompoundCurve cc = (CompoundCurve) ring;
+    if (cc.getNumMembers() == 0) {
+      return false;
+    }
+    boolean allArcs = true;
+    for (int i = 0; i < cc.getNumMembers() && allArcs; i++) {
+      if (!(cc.getMemberN(i) instanceof CircularString)) {
+        allArcs = false;
+      }
+    }
+    return allArcs;
   }
 
   private static void assertTwoArcShell(Geometry g) {

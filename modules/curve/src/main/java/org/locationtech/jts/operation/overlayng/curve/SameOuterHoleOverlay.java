@@ -24,7 +24,8 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
 /**
  * Same CompoundCurve outer; one operand has a single hole strictly
  * inside the other. CAP is the holed polygon, CUP the unholed,
- * SUB the empty or the hole ring. Not hole-nest noding.
+ * SUB the empty or the hole ring. Two holes that cross
+ * ({@code H-SHELL-HOLE-X}) are {@link TwoHoleOverlay}.
  */
 final class SameOuterHoleOverlay {
 
