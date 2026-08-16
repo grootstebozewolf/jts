@@ -29,9 +29,10 @@ import test.jts.GeometryTestCase;
  * DistanceOp, buffer offsetting chords instead of arcs -- but they share one
  * cause and one fix: linearise first, then delegate.
  * <p>
- * jts-core cannot do this itself; it has no visibility of the curve types
+ * jts-core cannot linearise; it has no visibility of the curve types
  * (jts-curve depends on core, not the reverse). The curve types are where the
  * arc geometry is known, so that is where the override belongs.
+ * {@code Geometry} flips {@code plain.op(curve)} onto that receiver.
  * <p>
  * The 270-degree unit arc below passes the top (0,1) and the left (-1,0), and
  * neither is a control point -- so anything driven off control points misses
@@ -114,20 +115,26 @@ public class CurveOperationsTest extends GeometryTestCase {
   }
 
   /**
-   * Known limitation of the opt-in module design: asking a jts-core geometry
-   * for its distance to a curve still measures to the chords, because
-   * {@code Point.distance()} lives in jts-core and cannot see the curve types.
-   * Curve-aware callers must put the curve on the left, or linearise first.
-   * <p>
-   * Locked deliberately so the asymmetry is a recorded decision rather than a
-   * surprise, and so it fails loudly if the two sides are ever reconciled.
+   * Reverse {@code point.distance(arc)} flips onto the curve, so both
+   * orders measure to the arc top rather than a control-point chord.
    */
-  public void testCoreSideDistanceRemainsChordBased() throws Exception {
+  public void testCoreSideDistanceSeesTheArc() throws Exception {
     Geometry arc = readCurve(ARC_270);
     Geometry p = point(0, 2);
     assertEquals("curve on the left sees the arc", 1.0, arc.distance(p), 1.0e-3);
-    assertTrue("core geometry on the left still sees chords: " + p.distance(arc),
-        p.distance(arc) > 1.4);
+    assertEquals("plain on the left sees the same arc", 1.0, p.distance(arc), 1.0e-3);
+  }
+
+  /**
+   * A MultiSurface of one disc uses the same filled-disc distance as the
+   * disc itself.
+   */
+  public void testMultiSurfaceDiscDistanceIsExact() throws Exception {
+    Geometry multi = readCurve("MULTISURFACE (" + CIRCLE_R2 + ")");
+    assertEquals("gap from (10, 0) to a radius-2 disc at the origin is 8",
+        8.0, multi.distance(point(10, 0)), 1.0e-12);
+    assertEquals("and the reverse order agrees",
+        8.0, point(10, 0).distance(multi), 1.0e-12);
   }
 
   /** Buffering a circular polygon grows its radius, not its inscribed quad. */
@@ -164,5 +171,50 @@ public class CurveOperationsTest extends GeometryTestCase {
   /** Guard: an empty arc has zero-distance semantics unchanged. */
   public void testEmptyArcHull() throws Exception {
     assertTrue(readCurve("CIRCULARSTRING EMPTY").convexHull().isEmpty());
+  }
+
+  /**
+   * Semicircle (0 0, 5 5, 10 0), centre (5,0) r=5. A horizontal line at
+   * y=8 is 3 above the apex (5,5). Endpoint-only candidates reported 8
+   * (the line's height above the x-axis endpoints).
+   */
+  public void testArcToSegmentDistanceUsesApex() throws Exception {
+    Geometry arc = readCurve("CIRCULARSTRING (0 0, 5 5, 10 0)");
+    Geometry line = readCurve("LINESTRING (-100 8, 100 8)");
+    assertEquals("apex (5,5) to (5,8) is 3, not the endpoint height 8",
+        3.0, arc.distance(line), 1.0e-12);
+    Double exact = CurveExact.distance(arc, line);
+    assertNotNull("closed form must answer this pair", exact);
+    assertEquals(3.0, exact.doubleValue(), 1.0e-12);
+  }
+
+  /**
+   * The same semicircle crosses {@code LINESTRING (0 3, 10 3)} twice.
+   * Intersects implies distance 0; endpoint-only candidates reported ~0.83.
+   */
+  public void testArcToSegmentCrossingIsDistanceZero() throws Exception {
+    Geometry arc = readCurve("CIRCULARSTRING (0 0, 5 5, 10 0)");
+    Geometry line = readCurve("LINESTRING (0 3, 10 3)");
+    assertTrue("the line crosses the semicircle twice", arc.intersects(line));
+    assertEquals("intersects implies distance 0", 0.0, arc.distance(line), 1.0e-12);
+    Double exact = CurveExact.distance(arc, line);
+    assertNotNull(exact);
+    assertEquals("closed form must be 0 when the operands intersect",
+        0.0, exact.doubleValue(), 1.0e-12);
+  }
+
+  /**
+   * A straight CompoundCurve member is a colinear triple. Distance to
+   * another arc must use the segment, not the member endpoints alone.
+   */
+  public void testCompoundStraightMemberDistanceUsesSegment() throws Exception {
+    Geometry compound = readCurve(
+        "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
+    Geometry other = readCurve("CIRCULARSTRING (5 3, 5.5 2, 6 3)");
+    assertEquals("closest is the straight member at y=0 to the bulge at y=2",
+        2.0, compound.distance(other), 1.0e-9);
+    Double exact = CurveExact.distance(compound, other);
+    assertNotNull(exact);
+    assertEquals(2.0, exact.doubleValue(), 1.0e-9);
   }
 }

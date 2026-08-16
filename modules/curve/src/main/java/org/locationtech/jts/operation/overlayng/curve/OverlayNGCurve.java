@@ -11,6 +11,7 @@
  */
 package org.locationtech.jts.operation.overlayng.curve;
 
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.LineString;
@@ -18,6 +19,7 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurveOps;
 import org.locationtech.jts.geom.curve.CurvePolygon;
+import org.locationtech.jts.geom.curve.Linearizable;
 import org.locationtech.jts.geom.curve.MultiSurface;
 
 /**
@@ -49,22 +51,88 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * guard.
  * <p>
  * <b>The ratchet.</b> Answers are reached in order of cost, cheapest first, and
- * each stage that can answer exactly does so:
+ * each stage that can answer exactly does so. A stage that would be
+ * <em>slower</em> than the locationtech/jts chord baseline -- linearise at
+ * {@link CurveOps#TOLERANCE_FRACTION}, then {@code OverlayNGRobust} -- is
+ * refused, and the baseline runs instead (<b>PERF-GATE</b>):
  * <ol>
  * <li><b>G5</b> -- an empty operand. Structural, no densification.</li>
  * <li><b>G1&ndash;G4</b> -- the operands are the same geometry. Structural, no
  *     densification (<b>F1</b>: fast before fat).</li>
- * <li><b>R1</b> -- one operand covers the other, or they are disjoint, so the
- *     answer <em>is</em> one of the operands and can be returned untouched. The
- *     predicate is evaluated on densified copies, so this densifies to
- *     <em>decide</em> but never to <em>answer</em>.</li>
- * <li>Otherwise, densify both and delegate to core, flagging the result
- *     approximate (<b>R2</b>).</li>
+ * <li><b>R0</b> -- the true envelopes do not intersect. The geometries are
+ *     disjoint, so the answer is empty, an operand, or both operands as a
+ *     {@link MultiSurface}. No densification. Arc envelopes are the AABB of
+ *     the arc, not of the control points, so this is exact.</li>
+ * <li><b>R1</b> -- only when one envelope covers the other (or both operands
+ *     are plain). One operand covers the other, or they are disjoint inside a
+ *     shared AABB, so the answer <em>is</em> an operand. The predicate runs on
+ *     copies densified at {@link #DECIDE_TOLERANCE_FRACTION}, so this densifies
+ *     to <em>decide</em> but never to <em>answer</em>. Crossing-shaped
+ *     envelopes skip this stage: paying a fine {@code relate} and then falling
+ *     through was measured 11&times; slower than the chord overlay alone.</li>
+ * <li><b>R1.5</b> -- both operands are circular discs and they cross at two
+ *     proper nodes. The answer is a {@link CurvePolygon} of two circular
+ *     arcs (lens, blob, crescent) or a {@link MultiSurface} of two crescents.
+ *     Closed form; no densification. 0 or 1 intersection, or a non-disc, falls
+ *     through without paying this path.</li>
+ * <li><b>R1.6</b> -- one operand is a circular disc and the other is a
+ *     plain Polygon (no curve rings, no holes), and they meet at two
+ *     proper line–circle nodes. The answer is a {@link CurvePolygon}
+ *     (or a {@link MultiSurface} for XOR) that keeps the surviving arcs.
+ *     Closed form; no densification. An even run of 4+ alternating
+ *     line–circle nodes is the same assemble with n spans. Any other
+ *     pair returns {@code null} without paying this path.</li>
+ * <li><b>R1.7</b> -- one operand is a hole-free {@link CurvePolygon} whose
+ *     shell is a mixed {@link org.locationtech.jts.geom.curve.CompoundCurve}
+ *     (LineString + CircularString: a half-disc or stadium) and the other
+ *     is a circular disc or a plain Polygon, meeting at two proper nodes.
+ *     The answer is a {@link CurvePolygon} whose shell is a CompoundCurve
+ *     of the surviving pieces (or a {@link MultiSurface} for XOR). A
+ *     LineString member stays a segment. Closed form; no densification.
+ *     Complementary half-discs of the same circle (shared diameter)
+ *     are CAP empty / CUP the disc / SUB the first half. Same-circle
+ *     half-discs whose diameters are perpendicular assemble as sectors.
+ *     Collinear same-side half-discs are identity, nested, a
+ *     half-lens, or a point-touch. Any other two hole-free
+ *     CompoundCurve shells with exactly two proper nodes walk the
+ *     surviving pieces; 0 / 1 node is containment or a disjoint
+ *     touch. An even 4+ alternating cut of two CompoundCurve shells
+ *     is the H-FOUR n-span assemble. A same-outer hole-inside pair
+ *     is the holed / unholed / hole polygon. A different-outer hole
+ *     whose outers already clip composes: hole strictly inside the
+ *     outer CAP is punched, hole strictly outside is ignored on
+ *     CAP. Odd counts, mixed labels, a hole that meets or crosses
+ *     the other outer, or a line-only shell return {@code null}
+ *     without paying this path.</li>
+ * <li><b>R-LL</b> -- one operand is a {@link org.locationtech.jts.geom.curve.CircularString}
+ *     (or a lineal CompoundCurve of LineString + CircularString) and the
+ *     other is a plain LineString. Line–circle nodes are exact. CAP is
+ *     the node Point / MultiPoint; CUP / SUB / XOR keep CircularString
+ *     pieces. A three-point LineString is not an arc. Two CircularStrings,
+ *     a polygon, or 3+ nodes on one arc window return {@code null}
+ *     without paying this path.</li>
+ * <li><b>R-AA</b> -- both operands are a {@link org.locationtech.jts.geom.curve.CircularString}
+ *     (or a lineal CompoundCurve of LineString + CircularString). Nodes
+ *     are the circle–circle hits that lie on both sweeps, not the
+ *     control-chord crossings. CAP is the node Point / MultiPoint; CUP /
+ *     SUB / XOR keep CircularString pieces. Same-circle overlap is
+ *     angular-interval overlay on that circle. A three-point
+ *     LineString, or 3+ nodes on one sweep window of different
+ *     circles, return {@code null} without paying this path.</li>
+ * <li>Otherwise, densify both at the ops tolerance and delegate to core,
+ *     flagging the result approximate (<b>R2</b>). This <em>is</em> the chord
+ *     baseline.</li>
  * </ol>
- * The distinction in stage 3 is the one that matters: an exact answer chosen by a
+ * R1.5–R1.7 share package-private {@code TwoNodeClip} for the two-node
+ * walk (hits, ring / member walk, CAP / CUP / SUB / XOR). Even-n
+ * assemble is {@code NSpanClip}. R1.7 dispatch is
+ * {@code CompoundCurveShellOverlay} (hole / half-disc / two-shell /
+ * vs disc or polygon). R-LL and R-AA reuse the same intersection
+ * primitives. Each rung keeps its own shape dispatch.
+ * The distinction in R0/R1 is the one that matters: an exact answer chosen by a
  * tolerance-bounded decision is still exact, but the decision can be wrong for
- * operands closer together than {@link CurveOps#TOLERANCE_FRACTION}. That is a
- * narrower exposure than approximating every answer, and it is the same trade the
+ * operands closer together than the decide-tolerance. That is a narrower
+ * exposure than approximating every answer, and it is the same trade the
  * prepared-geometry filters in the app's {@code OverlayNGOptFunctions} make.
  * <p>
  * <b>Known limitation: a polygon whose vertices lie exactly on the arc.</b> The
@@ -100,6 +168,15 @@ public class OverlayNGCurve {
   /** XOR: keep only what isn't shared. */
   public static final int SYMDIFFERENCE =
       org.locationtech.jts.operation.overlayng.OverlayNG.SYMDIFFERENCE;
+
+  /**
+   * Densification fraction used only to <em>decide</em> covers / disjoint in
+   * R1, as a fraction of the geometry's extent. Coarser than
+   * {@link CurveOps#TOLERANCE_FRACTION} (1e-6) so a retention attempt stays
+   * cheaper than noding the fine chords. The answer, when retention fires, is
+   * still the original operand.
+   */
+  static final double DECIDE_TOLERANCE_FRACTION = 1.0e-3;
 
   /** CAP -- only where both stand. */
   public static Geometry intersection(Geometry a, Geometry b) {
@@ -139,10 +216,22 @@ public class OverlayNGCurve {
    * an arc, so the answer is accurate only to {@link CurveOps#TOLERANCE_FRACTION}.
    * <p>
    * False when the answer was exact: an algebraic identity (G1&ndash;G4), an empty
-   * operand (G5), an operand returned unchanged (R1), or an operand with no arc in
-   * it at all, which is handed to core untouched. In the R1 case the
-   * <em>answer</em> is exact even though the <em>decision</em> to return it was
-   * made on densified copies.
+   * operand (G5), envelope-disjoint (R0), an operand returned unchanged (R1), or
+   * an operand with no arc in it at all, which is handed to core untouched, or
+   * two crossing circular discs answered as arcs (R1.5), or a disc
+   * clipped by a plain polygon at line–circle nodes (R1.6), or a
+   * CompoundCurve-shelled CurvePolygon clipped at two nodes (R1.7), or a
+   * CircularString noded against a LineString (R-LL), or two
+   * CircularStrings noded at circle–circle hits on both sweeps (R-AA),
+   * including same-circle angular-interval overlay, complementary
+   * half-discs, perpendicular same-circle half-disc sectors, a
+   * two-node walk of two CompoundCurve shells, an even 4+
+   * alternating cut of two CompoundCurve shells, a same-outer
+   * hole-inside pair, a different-outer hole composed from a
+   * certified outer clip, and an even 4+ line–circle cut of a disc
+   * by a plain polygon. In
+   * the R1 case the <em>answer</em> is exact even though the <em>decision</em>
+   * to return it was made on densified copies.
    * <p>
    * So this is false for every plain-geometry overlay, which is part of V3: routing
    * plain input through this class must be indistinguishable from calling stock
@@ -160,10 +249,31 @@ public class OverlayNGCurve {
 
     if (isSameGeometry(a, b)) return selfOp(opCode); // G1-G4, before any densify
 
-    Geometry retained = retainOperand(opCode);      // R1
-    if (retained != null) return retained;
+    Geometry byEnvelope = disjointByEnvelope(opCode); // R0
+    if (byEnvelope != null) return byEnvelope;
 
-    // R2. Approximate only if something was actually densified: for operands with
+    if (shouldAttemptRetention(opCode)) {
+      Geometry retained = retainOperand(opCode);    // R1, only when it can win
+      if (retained != null) return retained;
+    }
+
+    Geometry discs = CircularDiscOverlay.overlay(a, b, opCode); // R1.5
+    if (discs != null) return discs;
+
+    Geometry discPoly = CircularDiscPolygonOverlay.overlay(a, b, opCode); // R1.6
+    if (discPoly != null) return discPoly;
+
+    Geometry shellClip = CompoundCurveShellOverlay.overlay(a, b, opCode); // R1.7
+    if (shellClip != null) return shellClip;
+
+    Geometry lineClip = CircularLineOverlay.overlay(a, b, opCode); // R-LL
+    if (lineClip != null) return lineClip;
+
+    Geometry arcClip = CircularArcOverlay.overlay(a, b, opCode); // R-AA
+    if (arcClip != null) return arcClip;
+
+    // R2. The chord baseline: densify at the ops tolerance and run core.
+    // Approximate only if something was actually densified: for operands with
     // no arc, linearise returns them unchanged and core's answer is exact, so
     // flagging it would be a false warning -- and a flag that cries wolf on plain
     // input is one callers learn to ignore.
@@ -250,31 +360,69 @@ public class OverlayNGCurve {
     return r1.equalsExact(r2);
   }
 
+  // -- R0: envelope-disjoint, exact, no densify --------------------------
+
+  /**
+   * When the true envelopes do not intersect the geometries cannot. Arc
+   * envelopes cover the arc, so this is not the control-polygon false
+   * disjoint that CRV-REL closed.
+   *
+   * @return the disjoint answer, or {@code null} if the envelopes meet or
+   *         a non-polygonal CUP/XOR needs core to build the combination
+   */
+  private Geometry disjointByEnvelope(int opCode) {
+    Envelope ea = a.getEnvelopeInternal();
+    Envelope eb = b.getEnvelopeInternal();
+    if (ea.intersects(eb)) return null;
+    return disjointAnswer(opCode);
+  }
+
+  /**
+   * True when a retention attempt is allowed to run. Crossing-shaped
+   * envelopes (they meet, neither covers) skip R1: the fine-densify
+   * {@code relate} plus boundary-distance was measured slower than the
+   * chord overlay, and then still fell through to it.
+   * <p>
+   * SUB when A's envelope covers B's (and not the reverse) is an annulus:
+   * R1 cannot return an operand, so trying it is the same wasted relate
+   * the crossing gate already refused. B covering A can still be empty
+   * and is worth the attempt.
+   * <p>
+   * Plain operands always attempt -- their relate is cheap and V3 requires
+   * the same exact short-circuits stock OverlayNG already offers.
+   */
+  private boolean shouldAttemptRetention(int opCode) {
+    if (CurveOps.tolerance(a) <= 0.0 && CurveOps.tolerance(b) <= 0.0) return true;
+    Envelope ea = a.getEnvelopeInternal();
+    Envelope eb = b.getEnvelopeInternal();
+    if (opCode == DIFFERENCE && ea.covers(eb) && !eb.covers(ea)) {
+      return false;
+    }
+    return ea.covers(eb) || eb.covers(ea);
+  }
+
   // -- R1: retention when the answer is an operand -----------------------
 
   /**
    * Returns an operand untouched when the topology makes it the whole answer.
    * <p>
-   * The predicate runs on densified copies, so the <em>decision</em> is bounded by
-   * {@link CurveOps#TOLERANCE_FRACTION} while the <em>answer</em> is exact.
-   * Cases left to core deliberately: a disjoint CUP or XOR, whose answer is both
-   * operands together and so needs a multi-surface result rather than an operand.
+   * The predicate runs on copies densified at {@link #DECIDE_TOLERANCE_FRACTION},
+   * so the <em>decision</em> is bounded by that tolerance while the
+   * <em>answer</em> is exact. Cases left to core deliberately: a disjoint CUP
+   * or XOR of non-polygons, whose answer is both operands together and so
+   * needs a multi-geometry result rather than an operand.
    *
    * @return the answer, or {@code null} to fall through to core
    */
   private Geometry retainOperand(int opCode) {
-    Geometry la = CurveOps.linearise(a);
-    Geometry lb = CurveOps.linearise(b);
+    Geometry la = lineariseToDecide(a);
+    Geometry lb = lineariseToDecide(b);
 
     if (!isDecisive(la, lb)) return null;
 
     IntersectionMatrix im = la.relate(lb);
     if (!im.isIntersects()) {
-      if (opCode == INTERSECTION) return empty(opCode);
-      if (opCode == DIFFERENCE) return a.copy();
-      // Disjoint CUP and XOR are both operands side by side, which a MultiSurface
-      // holds exactly, arcs intact. Null falls through if they are not polygonal.
-      return bothOperands();
+      return disjointAnswer(opCode);
     }
     if (im.isCovers()) {
       if (opCode == INTERSECTION) return b.copy();
@@ -295,13 +443,13 @@ public class OverlayNGCurve {
    * densification cannot have changed the topological verdict.
    * <p>
    * Every retention decision is made on inscribed copies, which lie up to
-   * {@link CurveOps#tolerance(Geometry)} <em>inside</em> the true arcs. So a
+   * {@link #decideTolerance(Geometry)} <em>inside</em> the true arcs. So a
    * verdict can only be wrong within a band of that width: two arcs that truly
    * touch can look disjoint, and a geometry that truly pokes out can look
    * covered. Requiring the boundaries to be separated by more than the summed
-   * tolerance puts the decision outside that band, and anything closer falls
-   * through to core -- which is also approximate, but computes the sliver rather
-   * than dropping it.
+   * decide-tolerance puts the decision outside that band, and anything closer
+   * falls through to core -- which is also approximate, but computes the sliver
+   * rather than dropping it.
    * <p>
    * This matters most for SUB and least for CAP, because the failure modes have
    * opposite polarity. A wrong disjoint verdict makes SUB return {@code a}
@@ -316,9 +464,39 @@ public class OverlayNGCurve {
    * non-curve behaviour is unchanged.
    */
   private boolean isDecisive(Geometry la, Geometry lb) {
-    double margin = CurveOps.tolerance(a) + CurveOps.tolerance(b);
+    double margin = decideTolerance(a) + decideTolerance(b);
     if (margin <= 0.0) return true;
     return la.getBoundary().distance(lb.getBoundary()) > margin;
+  }
+
+  /**
+   * The disjoint answer: empty CAP, A for SUB, both operands for CUP/XOR.
+   *
+   * @return the answer, or {@code null} if CUP/XOR cannot hold both operands
+   */
+  private Geometry disjointAnswer(int opCode) {
+    if (opCode == INTERSECTION) return empty(opCode);
+    if (opCode == DIFFERENCE) return a.copy();
+    // Disjoint CUP and XOR are both operands side by side, which a MultiSurface
+    // holds exactly, arcs intact. Null falls through if they are not polygonal.
+    return bothOperands();
+  }
+
+  /**
+   * The densification tolerance R1 uses to decide, and therefore the maximum
+   * distance by which that decision's copies deviate from the true arc. Zero
+   * for a geometry with no arc.
+   */
+  static double decideTolerance(Geometry g) {
+    if (CurveOps.tolerance(g) <= 0.0) return 0.0;
+    Envelope env = g.getEnvelopeInternal();
+    double extent = Math.max(env.getWidth(), env.getHeight());
+    return (extent > 0.0 ? extent : 1.0) * DECIDE_TOLERANCE_FRACTION;
+  }
+
+  private static Geometry lineariseToDecide(Geometry g) {
+    if (CurveOps.tolerance(g) <= 0.0) return g;
+    return ((Linearizable) g).toLinear(decideTolerance(g));
   }
 
   /**

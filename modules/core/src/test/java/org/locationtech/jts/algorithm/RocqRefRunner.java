@@ -15,13 +15,19 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import org.locationtech.jts.algorithm.construct.LargestEmptyCircle;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Point;
 
 /**
  * A bespoke Java reference runner for the orientation-soundness requirement
@@ -477,5 +483,153 @@ public class RocqRefRunner {
       cases.add(new RefCase(p0x, p0y, p1x, p1y, qx, qy, derived));
     }
     return cases;
+  }
+
+  // ------------------------------------------------------------------
+  // LEC_CIRCLE (NTS.Proofs #466 / lec_chord_hypothesis_refuted)
+  // ------------------------------------------------------------------
+
+  /**
+   * Exact LEC radius of the r=2 circle-over-disk cell: {@code 0x1p+1}.
+   */
+  public static final long LEC_CIRCLE_EXACT_R2_BITS = 0x4000000000000000L;
+
+  /**
+   * Chorded LEC radius of the r=2, n=4 cell: {@code 0x1.6a09e667f3bcdp+0} (√2).
+   */
+  public static final long LEC_CIRCLE_CHORDED_R2_N4_BITS = 0x3ff6a09e667f3bcdL;
+
+  /**
+   * Exact LEC of a circle obstacle over its disk: the disk itself.
+   *
+   * @return {@code {cx, cy, r}}
+   */
+  public static double[] exactLecCircle(double cx, double cy, double r) {
+    requireFinite(cx);
+    requireFinite(cy);
+    requireFinite(r);
+    if (r < 0.0) {
+      throw new IllegalArgumentException("radius is negative: " + r);
+    }
+    return new double[] { cx, cy, r };
+  }
+
+  /**
+   * n-chord densify of a circle obstacle over its disk:
+   * {@code r · cos(π/n)} for {@code n ≥ 2}.
+   *
+   * @return {@code {cx, cy, r * cos(π/n)}}
+   */
+  public static double[] chordedLecCircle(double cx, double cy, double r, int n) {
+    if (n < 2) {
+      throw new IllegalArgumentException("n must be >= 2; got " + n);
+    }
+    double[] exact = exactLecCircle(cx, cy, r);
+    return new double[] { exact[0], exact[1], exact[2] * Math.cos(Math.PI / n) };
+  }
+
+  /**
+   * Compares public {@link LargestEmptyCircle} on a certified cell against
+   * {@link #exactLecCircle(double, double, double)}. A mismatch is a failure.
+   *
+   * @param obstacles the certified circle / disc obstacle
+   * @param boundary the matching disc, or {@code null} (disk implied)
+   * @param cx expected centre x
+   * @param cy expected centre y
+   * @param r expected radius
+   * @param tolerance passed to {@link LargestEmptyCircle} (ignored on the laser)
+   * @return the comparison result
+   */
+  public static Result runLecCircle(Geometry obstacles, Geometry boundary,
+      double cx, double cy, double r, double tolerance) {
+    double[] exact = exactLecCircle(cx, cy, r);
+    Point center = LargestEmptyCircle.getCenter(obstacles, boundary, tolerance);
+    LineString radiusLine = LargestEmptyCircle.getRadiusLine(
+        obstacles, boundary, tolerance);
+    Result res = new Result();
+    res.checked = 1;
+    boolean match = center.getX() == exact[0]
+        && center.getY() == exact[1]
+        && radiusLine.getLength() == exact[2];
+    if (!match) {
+      res.mismatches = 1;
+      res.failures.add("LEC expected " + hx(exact[0]) + " " + hx(exact[1])
+          + " r=" + hx(exact[2]) + " but public class returned "
+          + hx(center.getX()) + " " + hx(center.getY())
+          + " r=" + hx(radiusLine.getLength()));
+    }
+    return res;
+  }
+
+  /**
+   * When {@code ORACLE_BIN} is set, spawn that binary with the
+   * {@code LEC_CIRCLE} protocol and require bit-exact agreement with
+   * {@link #exactLecCircle} and {@link #chordedLecCircle}. Returns
+   * {@code null} when the binary is absent so default CI skips the
+   * cross-check.
+   *
+   * @param cx circle centre x
+   * @param cy circle centre y
+   * @param r circle radius
+   * @param n chord count
+   * @return the comparison result, or {@code null} if {@code ORACLE_BIN} is unset
+   */
+  public static Result runOracleLecCircle(double cx, double cy, double r, int n)
+      throws IOException, InterruptedException {
+    String bin = System.getenv("ORACLE_BIN");
+    if (bin == null || bin.isEmpty()) {
+      return null;
+    }
+    double[] exact = exactLecCircle(cx, cy, r);
+    double[] chorded = chordedLecCircle(cx, cy, r, n);
+    ProcessBuilder pb = new ProcessBuilder(bin);
+    pb.redirectErrorStream(true);
+    Process p = pb.start();
+    try (Writer w = new OutputStreamWriter(p.getOutputStream(), StandardCharsets.UTF_8)) {
+      w.write("LEC_CIRCLE\n");
+      w.write(Double.toHexString(cx) + " " + Double.toHexString(cy) + " "
+          + Double.toHexString(r) + "\n");
+      w.write(Integer.toString(n));
+      w.write('\n');
+      w.flush();
+    }
+    String line;
+    try (BufferedReader br = new BufferedReader(
+        new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
+      line = br.readLine();
+    }
+    int code = p.waitFor();
+    Result res = new Result();
+    res.checked = 1;
+    if (code != 0 || line == null) {
+      res.mismatches = 1;
+      res.failures.add("ORACLE_BIN exited " + code + " with line " + line);
+      return res;
+    }
+    String[] tok = line.trim().split("\\s+");
+    if (tok.length < 7
+        || !"LEC".equals(tok[0])
+        || !"CHORDED".equals(tok[4])) {
+      res.mismatches = 1;
+      res.failures.add("ORACLE_BIN protocol mismatch: " + line);
+      return res;
+    }
+    double ocx = Double.parseDouble(tok[1]);
+    double ocy = Double.parseDouble(tok[2]);
+    double or = Double.parseDouble(tok[3]);
+    int on = Integer.parseInt(tok[5]);
+    double och = Double.parseDouble(tok[6]);
+    if (ocx != exact[0] || ocy != exact[1] || or != exact[2]
+        || on != n || och != chorded[2]) {
+      res.mismatches = 1;
+      res.failures.add("ORACLE_BIN " + line + " disagrees with Java reference "
+          + "LEC " + hx(exact[0]) + " " + hx(exact[1]) + " " + hx(exact[2])
+          + " CHORDED " + n + " " + hx(chorded[2]));
+    }
+    return res;
+  }
+
+  private static String hx(double d) {
+    return d + "[" + Double.toHexString(d) + "]";
   }
 }

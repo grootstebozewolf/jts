@@ -1,0 +1,113 @@
+/*
+ * Copyright (c) 2026 grootstebozewolf
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License 2.0
+ * and Eclipse Distribution License v. 1.0 which accompanies this distribution.
+ * The Eclipse Public License is available at http://www.eclipse.org/legal/epl-v20.html
+ * and the Eclipse Distribution License is available at
+ *
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ */
+package org.locationtech.jts.io.curve;
+
+import java.io.IOException;
+import java.util.EnumSet;
+
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jts.geom.curve.CurvePolygon;
+import org.locationtech.jts.geom.curve.MultiCurve;
+import org.locationtech.jts.geom.curve.MultiSurface;
+import org.locationtech.jts.io.Ordinate;
+import org.locationtech.jts.io.OutStream;
+import org.locationtech.jts.io.WKBConstants;
+import org.locationtech.jts.io.WKBWriter;
+
+/**
+ * A {@link WKBWriter} subclass that emits ISO/OGC SQL/MM type codes
+ * 8–12 for the curve types. Control points are written as the curve's
+ * own coordinates; this path does not call {@code toLinear} /
+ * {@code linearise}. Endian, EWKB Z/M/SRID flags, and ISO type-range
+ * reading stay those of {@link WKBWriter}.
+ */
+public class CurveWKBWriter extends WKBWriter {
+
+  public CurveWKBWriter() {
+    super();
+  }
+
+  public CurveWKBWriter(int outputDimension) {
+    super(outputDimension);
+  }
+
+  public CurveWKBWriter(int outputDimension, boolean includeSRID) {
+    super(outputDimension, includeSRID);
+  }
+
+  public CurveWKBWriter(int outputDimension, int byteOrder) {
+    super(outputDimension, byteOrder);
+  }
+
+  public CurveWKBWriter(int outputDimension, int byteOrder, boolean includeSRID) {
+    super(outputDimension, byteOrder, includeSRID);
+  }
+
+  @Override
+  protected boolean writeOtherGeometry(Geometry geom,
+      EnumSet<Ordinate> outputOrdinates, OutStream os) throws IOException {
+    if (geom instanceof CircularString) {
+      writeCircularString((CircularString) geom, outputOrdinates, os);
+      return true;
+    }
+    if (geom instanceof CompoundCurve) {
+      writeTypedCollection(WKBConstants.wkbCompoundCurve, geom,
+          ((CompoundCurve) geom).getMembers(), outputOrdinates, os);
+      return true;
+    }
+    if (geom instanceof CurvePolygon) {
+      writeTypedCollection(WKBConstants.wkbCurvePolygon, geom,
+          curvePolygonRings((CurvePolygon) geom), outputOrdinates, os);
+      return true;
+    }
+    if (geom instanceof MultiCurve) {
+      writeTypedCollection(WKBConstants.wkbMultiCurve, geom,
+          children(geom), outputOrdinates, os);
+      return true;
+    }
+    if (geom instanceof MultiSurface) {
+      writeTypedCollection(WKBConstants.wkbMultiSurface, geom,
+          children(geom), outputOrdinates, os);
+      return true;
+    }
+    return false;
+  }
+
+  private void writeCircularString(CircularString cs,
+      EnumSet<Ordinate> outputOrdinates, OutStream os) throws IOException {
+    writeByteOrder(os);
+    writeGeometryType(WKBConstants.wkbCircularString, outputOrdinates, cs, os);
+    writeCoordinateSequence(cs.getCoordinateSequence(), outputOrdinates, true, os);
+  }
+
+  private static Geometry[] curvePolygonRings(CurvePolygon cp) {
+    if (cp.isEmpty()) return new Geometry[0];
+    int nHole = cp.getNumInteriorRing();
+    Geometry[] rings = new Geometry[1 + nHole];
+    rings[0] = cp.getExteriorCurve();
+    for (int i = 0; i < nHole; i++) {
+      rings[i + 1] = cp.getInteriorCurveN(i);
+    }
+    return rings;
+  }
+
+  private static Geometry[] children(Geometry g) {
+    int n = g.getNumGeometries();
+    Geometry[] out = new Geometry[n];
+    for (int i = 0; i < n; i++) {
+      out[i] = g.getGeometryN(i);
+    }
+    return out;
+  }
+}

@@ -16,6 +16,7 @@ import java.lang.reflect.InvocationTargetException;
 
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.WKBWriter;
+import org.locationtech.jts.io.curve.CurveWKBWriter;
 import org.locationtech.jts.io.geojson.GeoJsonWriter;
 import org.locationtech.jts.io.gml2.GMLWriter;
 import org.locationtech.jts.io.kml.KMLWriter;
@@ -42,11 +43,9 @@ public class WriterFunctions
    * <b>What survives.</b> Neither GML2 nor KML nor GeoJSON has any
    * representation of a circular arc, so the arc cannot be preserved by any
    * choice made here; the only question is whether the exported shape is right.
-   * WKB is the exception -- SQL/MM defines curve type codes 8 to 12 -- but
-   * reading and writing those is claim 1195-e and unimplemented, so densifying
-   * is strictly better than the wrong type-3 output it replaces. When 1195-e
-   * lands, {@link #writeWKB} and {@link #dumpWKB} should use the curve-aware
-   * writer instead of coming through here.
+   * WKB is the exception -- SQL/MM defines curve type codes 8 to 12 -- and
+   * {@link #writeWKB} / {@link #dumpWKB} now use {@link CurveWKBWriter}
+   * so a disc round-trips as type 10, not a densified type-3 polygon.
    * <p>
    * Non-curve input is returned as the same object, so a plain geometry
    * serialises byte-for-byte as it did before; that is asserted for all four
@@ -97,13 +96,13 @@ public class WriterFunctions
   public static String writeWKB(Geometry g)
   {
     if (g == null) return "";
-    return WKBWriter.toHex((new WKBWriter().write(exportable(g))));
+    return WKBWriter.toHex((new CurveWKBWriter().write(g)));
   }
 
   public static String dumpWKB(Geometry g)
   {
     if (g == null) return "";
-    byte[] wkb = (new WKBWriter().write(exportable(g)));
+    byte[] wkb = (new CurveWKBWriter().write(g));
     return WKBDumper.dump(wkb);
   }
 

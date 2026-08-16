@@ -12,6 +12,8 @@
 package org.locationtech.jts.geom;
 
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Iterator;
 
@@ -455,6 +457,7 @@ public abstract class Geometry
    */
   public double distance(Geometry g)
   {
+    if (delegateToCurve(g)) return g.distance(this);
     return DistanceOp.distance(this, g);
   }
 
@@ -468,6 +471,7 @@ public abstract class Geometry
    */
   public boolean isWithinDistance(Geometry geom, double distance)
   {
+    if (delegateToCurve(geom)) return geom.isWithinDistance(this, distance);
     return DistanceOp.isWithinDistance(this, geom, distance);
   }
 
@@ -713,6 +717,7 @@ public abstract class Geometry
    *      Returns <code>false</code> if both <code>Geometry</code>s are points
    */
   public boolean touches(Geometry g) {
+    if (delegateToCurve(g)) return g.touches(this);
     return GeometryRelate.touches(this, g);
   }
 
@@ -740,6 +745,7 @@ public abstract class Geometry
    * @see Geometry#disjoint
    */
   public boolean intersects(Geometry g) {
+    if (delegateToCurve(g)) return g.intersects(this);
 
     // short-circuit envelope test
     if (! getEnvelopeInternal().intersects(g.getEnvelopeInternal()))
@@ -797,6 +803,7 @@ public abstract class Geometry
    *@return        <code>true</code> if the two <code>Geometry</code>s cross.
    */
   public boolean crosses(Geometry g) {
+    if (delegateToCurve(g)) return g.crosses(this);
     // short-circuit test
     if (! getEnvelopeInternal().intersects(g.getEnvelopeInternal()))
       return false;
@@ -832,6 +839,7 @@ public abstract class Geometry
    * @see Geometry#coveredBy
    */
   public boolean within(Geometry g) {
+    if (delegateToCurve(g)) return g.contains(this);
     return GeometryRelate.within(this, g);
   }
 
@@ -863,6 +871,7 @@ public abstract class Geometry
    * @see Geometry#covers
    */
   public boolean contains(Geometry g) {
+    if (delegateToCurve(g)) return g.within(this);
 
     // optimization for rectangle arguments
     if (isRectangle()) {
@@ -894,6 +903,7 @@ public abstract class Geometry
    *@return        <code>true</code> if the two <code>Geometry</code>s overlap.
    */
   public boolean overlaps(Geometry g) {
+    if (delegateToCurve(g)) return g.overlaps(this);
     return GeometryRelate.overlaps(this, g);
   }
 
@@ -932,6 +942,16 @@ public abstract class Geometry
    * @see Geometry#coveredBy
    */
   public boolean covers(Geometry g) {
+    if (delegateToCurve(g)) {
+      // Envelope miss is exact (curve envelopes cover the arc). A
+      // rectangle whose envelope covers the curve's is also exact --
+      // everything in that AABB is in the rectangle. Either answers
+      // without densify. Only a non-rectangle that might still miss
+      // the bulge has to flip onto the curve and linearise.
+      if (!getEnvelopeInternal().covers(g.getEnvelopeInternal())) return false;
+      if (isRectangle()) return true;
+      return g.coveredBy(this);
+    }
     return GeometryRelate.covers(this, g);
   }
 
@@ -965,6 +985,7 @@ public abstract class Geometry
    * @see Geometry#covers
    */
   public boolean coveredBy(Geometry g) {
+    if (delegateToCurve(g)) return g.covers(this);
     return GeometryRelate.coveredBy(this, g);
   }
 
@@ -992,6 +1013,7 @@ public abstract class Geometry
    * @see IntersectionMatrix
    */
   public boolean relate(Geometry g, String intersectionPattern) {
+    if (delegateToCurve(g)) return g.relate(this).transpose().matches(intersectionPattern);
     return GeometryRelate.relate(this, g, intersectionPattern);
   }
 
@@ -1003,6 +1025,7 @@ public abstract class Geometry
    *      boundaries and exteriors of the two <code>Geometry</code>s
    */
   public IntersectionMatrix relate(Geometry g) {
+    if (delegateToCurve(g)) return g.relate(this).transpose();
     return GeometryRelate.relate(this, g);
   }
 
@@ -1054,6 +1077,7 @@ public abstract class Geometry
    */
   public boolean equalsTopo(Geometry g)
   {
+    if (delegateToCurve(g)) return g.equalsTopo(this);
     return GeometryRelate.equalsTopo(this, g);
   }
 
@@ -1295,6 +1319,7 @@ public abstract class Geometry
    */
   public Geometry intersection(Geometry other)
   {
+    if (delegateToCurve(other)) return other.intersection(this);
     return GeometryOverlay.intersection(this, other);
   }
 
@@ -1334,6 +1359,7 @@ public abstract class Geometry
    */
   public Geometry union(Geometry other)
   {
+    if (delegateToCurve(other)) return other.union(this);
     return GeometryOverlay.union(this, other);
   }
 
@@ -1356,6 +1382,14 @@ public abstract class Geometry
    */
   public Geometry difference(Geometry other)
   {
+    // SUB is not symmetric, so delegateToCurve cannot flip onto
+    // other.difference(this). Route through OverlayNGCurve so the
+    // ratchet sees (this, other) in that order. Core cannot compile
+    // against jts-curve; the method is resolved once and cached.
+    if (isCurveType(other)) {
+      Geometry routed = overlayNGCurveDifference(this, other);
+      if (routed != null) return routed;
+    }
     return GeometryOverlay.difference(this, other);
   }
 
@@ -1379,6 +1413,7 @@ public abstract class Geometry
    */
   public Geometry symDifference(Geometry other)
   {
+    if (delegateToCurve(other)) return other.symDifference(this);
     return GeometryOverlay.symDifference(this, other);
   }
 
@@ -1824,6 +1859,57 @@ public abstract class Geometry
   }
 
   abstract protected int getTypeCode();
+
+  /**
+   * Reverse-direction dispatch: when the receiver is a plain geometry and
+   * the argument is a curve type that overrides these methods, flip the
+   * call onto the curve so CurveOps / OverlayNGCurve run. Core otherwise
+   * judges the curve by its control points. Difference is not flipped
+   * (it is not symmetric); see {@link #difference(Geometry)}.
+   */
+  private boolean delegateToCurve(Geometry g) {
+    return isCurveType(g) && !isCurveType(this);
+  }
+
+  private static boolean isCurveType(Geometry g) {
+    if (g == null) return false;
+    String t = g.getGeometryType();
+    return "CircularString".equals(t)
+        || "CompoundCurve".equals(t)
+        || "CurvePolygon".equals(t)
+        || "MultiCurve".equals(t)
+        || "MultiSurface".equals(t);
+  }
+
+  private static volatile Method curveDifferenceMethod;
+
+  /**
+   * {@code OverlayNGCurve.difference(a, b)} without a compile dependency
+   * on jts-curve. Null if the curve module is not on the classpath.
+   */
+  private static Geometry overlayNGCurveDifference(Geometry a, Geometry b) {
+    Method m = curveDifferenceMethod;
+    if (m == null) {
+      try {
+        m = Class.forName(
+            "org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve")
+            .getMethod("difference", Geometry.class, Geometry.class);
+        curveDifferenceMethod = m;
+      } catch (ReflectiveOperationException ex) {
+        return null;
+      }
+    }
+    try {
+      return (Geometry) m.invoke(null, a, b);
+    } catch (InvocationTargetException ex) {
+      Throwable c = ex.getCause();
+      if (c instanceof RuntimeException) throw (RuntimeException) c;
+      if (c instanceof Error) throw (Error) c;
+      throw new RuntimeException(c);
+    } catch (ReflectiveOperationException ex) {
+      return null;
+    }
+  }
 
   private Point createPointFromInternalCoord(Coordinate coord, Geometry exemplar)
   {

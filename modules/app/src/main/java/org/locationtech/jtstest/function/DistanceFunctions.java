@@ -39,6 +39,12 @@ public class DistanceFunctions {
    * distance and isWithinDistance are deliberately not routed through this:
    * they delegate to instance methods the curve types already override
    * (CRV-OPS). Non-curve input is returned as the same object.
+   * <p>
+   * <b>PERF-GATE.</b> Hausdorff and nearest-points take a closed form when
+   * both operands are circular discs, or one is a single arc and the other
+   * a point or a single segment. Otherwise the chord path runs alone -- a
+   * failed analytical attempt is not paid in front of it. Fréchet stays on
+   * the sampled path; no cheaper coupling was measured.
    */
   private static Geometry arc(Geometry g) {
     return CurveFunctions.linearizeForOps(g);
@@ -53,6 +59,10 @@ public class DistanceFunctions {
   }
 
   public static Geometry nearestPoints(Geometry a, Geometry b) {
+    Coordinate[] exact = CurveExactFns.nearestPoints(a, b);
+    if (exact != null) {
+      return a.getFactory().createLineString(exact);
+    }
     Coordinate[] pts = DistanceOp.nearestPoints(arc(a), arc(b));
     return a.getFactory().createLineString(pts);
   }
@@ -70,6 +80,9 @@ public class DistanceFunctions {
   @Metadata(description="Discrete Fréchet after arc linearise (monotone coupling; free ends lower-bound the leash — often the realizing pair)")
   public static double frechetDistance(Geometry a, Geometry b)  
   {   
+    if (DiscreteFrechetDistance.hasCertifiedClosedForm(a, b)) {
+      return DiscreteFrechetDistance.distance(a, b);
+    }
     // Quadratic DP: coarser sampling, or a curve pair runs for 20 seconds.
     // Error bound and rationale on CurveFunctions.linearizeForQuadratic.
     return DiscreteFrechetDistance.distance(
@@ -84,6 +97,10 @@ public class DistanceFunctions {
   @Metadata(description="Discrete Fréchet realizing leash segment (free ends often dominate — not path-only mid-course gap)")
   public static Geometry frechetDistanceLine(Geometry a, Geometry b)  
   {   
+    if (DiscreteFrechetDistance.hasCertifiedClosedForm(a, b)) {
+      DiscreteFrechetDistance dist = new DiscreteFrechetDistance(a, b);
+      return a.getFactory().createLineString(dist.getCoordinates());
+    }
     DiscreteFrechetDistance dist = new DiscreteFrechetDistance(
         CurveFunctions.linearizeForQuadratic(a), CurveFunctions.linearizeForQuadratic(b));
     return a.getFactory().createLineString(dist.getCoordinates());
@@ -92,6 +109,8 @@ public class DistanceFunctions {
   @Metadata(description="Oriented discrete Hausdorff distance from A to B")
 	public static double orientedDiscreteHausdorffDistance(Geometry a, Geometry b)	
 	{		
+    Double exact = CurveExactFns.orientedHausdorff(a, b);
+    if (exact != null) return exact.doubleValue();
     return DiscreteHausdorffDistance.orientedDistance(arc(a), arc(b));
 	}
 	
@@ -108,6 +127,9 @@ public class DistanceFunctions {
           "Densify fraction must be in (0, 1] -- it subdivides each segment to "
           + "that FRACTION of its length (e.g. 0.05), it is not a distance; got "
           + frac);
+    }
+    if (CurveExactFns.hasOrientedHausdorffLaser(a, b)) {
+      return DiscreteHausdorffDistance.orientedDistanceLine(a, b);
     }
     return DiscreteHausdorffDistance.orientedDistanceLine(arc(a), arc(b), frac);
   }
@@ -199,6 +221,9 @@ public class DistanceFunctions {
   //--------------------------------------------
   
   public static double distanceIndexed(Geometry a, Geometry b) {
+    // Facet distance is boundary-to-boundary. Do not reuse the areal
+    // disc-to-disc laser (overlap/nest is 0 for filled discs; nested
+    // boundaries still have a positive gap).
     return IndexedFacetDistance.distance(arc(a), arc(b));
   }
   
@@ -207,7 +232,7 @@ public class DistanceFunctions {
   }
   
   public static Geometry nearestPointsIndexed(Geometry a, Geometry b) {
-    Coordinate[] pts =  IndexedFacetDistance.nearestPoints(arc(a), arc(b));
+    Coordinate[] pts = IndexedFacetDistance.nearestPoints(arc(a), arc(b));
     return a.getFactory().createLineString(pts);
   }
   

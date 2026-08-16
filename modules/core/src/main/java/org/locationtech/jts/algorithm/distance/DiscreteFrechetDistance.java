@@ -35,6 +35,17 @@ import org.locationtech.jts.geom.Geometry;
  * It is possible that two curves have a small Hausdorff but a large
  * Fréchet distance.
  * <p/>
+ * Two certified curve pairs use a closed form instead of the control-point
+ * matrix: the continuous Fréchet of two circular-disc boundaries equals their
+ * Hausdorff (answered by {@link DiscreteHausdorffDistance#distance(Geometry, Geometry)}),
+ * and an endpoint-aligned minor {@code CircularString} over its chord has
+ * continuous Fréchet equal to that same Hausdorff (the D-HF apex, not the
+ * mid-control coupling). Detection reuses the Hausdorff helpers
+ * ({@link Geometry#getGeometryType()}, disc unwrap via {@link Geometry#getBoundary()})
+ * so this class does not import jts-curve. Any other pair, including a plain
+ * {@code LineString} of the same three control points, keeps the coordinate
+ * matrix.
+ * <p/>
  * This implementation is base on the following optimized Fréchet distance algorithm:
  * <pre>Thomas Devogele, Maxence Esnault, Laurent Etienne. Distance discrète de Fréchet optimisée. Spatial
  * Analysis and Geomatics (SAGEO), Nov 2016, Nice, France. hal-02110055</pre>
@@ -66,6 +77,31 @@ public class DiscreteFrechetDistance {
     return dist.distance();
   }
 
+  /**
+   * True when {@link #distance(Geometry, Geometry)} uses a certified
+   * continuous closed form (two circular discs, or an endpoint-aligned
+   * minor circular arc over its chord) instead of the control-point matrix.
+   *
+   * @param g0 the 1st geometry
+   * @param g1 the 2nd geometry
+   * @return {@code true} if the pair is answered by the closed form
+   */
+  public static boolean hasCertifiedClosedForm(Geometry g0, Geometry g1) {
+    if (g0 == null || g1 == null) {
+      return false;
+    }
+    String t0 = g0.getGeometryType();
+    String t1 = g1.getGeometryType();
+    if (isArcSegmentTypePair(t0, t1)) {
+      return fillAlignedMinorArcOverChord(g0, g1, null);
+    }
+    if (isDiscType(t0) && isDiscType(t1)) {
+      return DiscreteHausdorffDistance.circularDisc(g0) != null
+          && DiscreteHausdorffDistance.circularDisc(g1) != null;
+    }
+    return false;
+  }
+
   private final Geometry g0;
   private final Geometry g1;
   private PointPairDistance ptDist;
@@ -87,6 +123,9 @@ public class DiscreteFrechetDistance {
    * @return the Discrete Fréchet Distance
    */
   private double distance() {
+    if (applyCertifiedClosedForm()) {
+      return ptDist.getDistance();
+    }
     Coordinate[] coords0 = g0.getCoordinates();
     Coordinate[] coords1 = g1.getCoordinates();
 
@@ -127,6 +166,130 @@ public class DiscreteFrechetDistance {
       distance();
 
     return ptDist.getCoordinates();
+  }
+
+  /**
+   * Continuous Fréchet equals Hausdorff on the two certified pairs.
+   * Two discs reuse {@link DiscreteHausdorffDistance#circleToCircle}.
+   * The aligned minor arc uses the sagitta of that same Hausdorff.
+   */
+  private boolean applyCertifiedClosedForm() {
+    if (g0 == null || g1 == null) {
+      return false;
+    }
+    String t0 = g0.getGeometryType();
+    String t1 = g1.getGeometryType();
+    if (isArcSegmentTypePair(t0, t1)) {
+      ptDist = new PointPairDistance();
+      if (fillAlignedMinorArcOverChord(g0, g1, ptDist)) {
+        return true;
+      }
+      ptDist = null;
+      return false;
+    }
+    if (isDiscType(t0) && isDiscType(t1)) {
+      double[] da = DiscreteHausdorffDistance.circularDisc(g0);
+      double[] db = DiscreteHausdorffDistance.circularDisc(g1);
+      if (da == null || db == null) {
+        return false;
+      }
+      ptDist = new PointPairDistance();
+      DiscreteHausdorffDistance.circleToCircle(
+          da[0], da[1], da[2], db[0], db[1], db[2], ptDist);
+      DiscreteHausdorffDistance.circleToCircle(
+          db[0], db[1], db[2], da[0], da[1], da[2], ptDist);
+      return true;
+    }
+    return false;
+  }
+
+  private static boolean isArcSegmentTypePair(String t0, String t1) {
+    return ("CircularString".equals(t0) && "LineString".equals(t1))
+        || ("LineString".equals(t0) && "CircularString".equals(t1));
+  }
+
+  private static boolean isDiscType(String type) {
+    return "CurvePolygon".equals(type) || "MultiSurface".equals(type);
+  }
+
+  /**
+   * Endpoint-aligned minor (convex) circular arc over its chord. The arc
+   * is a function of the segment, starts and ends coincide, and continuous
+   * Fréchet equals Hausdorff equals the sagitta (the D-HF apex). A reversed
+   * segment is not this pair — Fréchet forbids backtracking. A major arc
+   * (mid and centre on the same side of the chord) is not this pair.
+   * <p>
+   * The sagitta is the same apex
+   * {@link DiscreteHausdorffDistance#directedHausdorffArcToSegment}
+   * returns on this pair; evaluating it directly avoids the general
+   * arc-to-segment candidate search, which is slower than the 3-by-2
+   * control-point matrix.
+   *
+   * @param dest filled with the apex / foot pair when non-null
+   * @return {@code true} when the pair is certified
+   */
+  private static boolean fillAlignedMinorArcOverChord(Geometry a, Geometry b,
+      PointPairDistance dest) {
+    Geometry arc;
+    Geometry seg;
+    if ("CircularString".equals(a.getGeometryType())
+        && DiscreteHausdorffDistance.isSingleSegment(b)) {
+      arc = a;
+      seg = b;
+    } else if (DiscreteHausdorffDistance.isSingleSegment(a)
+        && "CircularString".equals(b.getGeometryType())) {
+      arc = b;
+      seg = a;
+    } else {
+      return false;
+    }
+    if (arc.isEmpty() || arc.getNumPoints() != 3) {
+      return false;
+    }
+    Coordinate[] ac = arc.getCoordinates();
+    Coordinate[] sc = seg.getCoordinates();
+    if (!ac[0].equals2D(sc[0], 1.0e-9) || !ac[2].equals2D(sc[1], 1.0e-9)) {
+      return false;
+    }
+    double[] c = DiscreteHausdorffDistance.circumcircle(ac[0], ac[1], ac[2]);
+    if (c == null) {
+      return false;
+    }
+    double sx = sc[1].x - sc[0].x;
+    double sy = sc[1].y - sc[0].y;
+    double slen2 = sx * sx + sy * sy;
+    if (slen2 == 0.0) {
+      return false;
+    }
+    double sideMid = sx * (ac[1].y - sc[0].y) - sy * (ac[1].x - sc[0].x);
+    double sideCen = sx * (c[1] - sc[0].y) - sy * (c[0] - sc[0].x);
+    if (sideMid * sideCen > 0.0) {
+      return false;
+    }
+    if (dest == null) {
+      return true;
+    }
+    double slen = Math.sqrt(slen2);
+    double dist = Math.abs(sideCen) / slen;
+    double t = ((c[0] - sc[0].x) * sx + (c[1] - sc[0].y) * sy) / slen2;
+    Coordinate foot = new Coordinate(sc[0].x + t * sx, sc[0].y + t * sy);
+    Coordinate apexPt;
+    if (dist == 0.0) {
+      double inv = 1.0 / slen;
+      double nx = -sy * inv;
+      double ny = sx * inv;
+      if (sideMid < 0.0) {
+        nx = -nx;
+        ny = -ny;
+      }
+      apexPt = new Coordinate(c[0] + c[2] * nx, c[1] + c[2] * ny);
+    } else {
+      double scale = c[2] / dist;
+      apexPt = new Coordinate(c[0] + scale * (foot.x - c[0]),
+          c[1] + scale * (foot.y - c[1]));
+    }
+    dest.initialize(apexPt, foot, c[2] - dist);
+    return true;
   }
 
   /**

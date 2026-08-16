@@ -28,7 +28,7 @@ import test.jts.GeometryTestCase;
 
 /**
  * Spec / red-test suite for the SFA Curve Awareness epic
- * (see {@code EPIC_SFA_CURVE_AWARENESS.md} at the repo root).
+ * (see {@code EPIC_SFA_CURVE_AWARENESS.md} at the repo root, Draft v4).
  *
  * <p>Each {@code test_TAG_*} method captures the desired
  * post-curve-awareness behaviour of one operation as a single
@@ -38,9 +38,13 @@ import test.jts.GeometryTestCase;
  *
  * <p>The class is intentionally red — running
  * {@code mvn -pl modules/curve test -Dtest=CurveAwarenessSpecTest}
- * prints a list of every operation that still needs work. When a
- * sub-issue closes, <strong>delete its method</strong> (do not edit
- * it green); the remaining method count stays a live progress meter.
+ * prints a list of every <em>full</em> TAG that still needs work.
+ * All 49 {@code fail()} methods remain. That count is the full-TAG
+ * red list, not the live scoreboard: closed-form lasers on #8
+ * (OverlayNGCurve Phase 0, disc DE-9IM, WKB 8–12, …) keep these
+ * methods. Delete a method only when the full TAG ships; do not
+ * edit it green. Live progress is the green tests next to
+ * production code on #8 and the epic §4.1 table.
  *
  * <p>Tests do not have to be precise — the goal is coverage of
  * pre-existing gaps, not exact threshold checks. A green

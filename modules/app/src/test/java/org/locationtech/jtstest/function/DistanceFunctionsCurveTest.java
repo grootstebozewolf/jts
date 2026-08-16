@@ -190,6 +190,20 @@ public class DistanceFunctionsCurveTest extends TestCase {
         DistanceFunctions.isWithinDistance(read(ARC), read(APEX_POINT), 2.5));
   }
 
+  /**
+   * Overlapping filled discs (centres (0,0) and (7,0), r=5) have
+   * distance 0. The unclamped boundary pair was (5,0) and (2,0).
+   */
+  public void testOverlappingDiscNearestPointsAreZero() throws Exception {
+    Geometry a = read(
+        "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0))");
+    Geometry b = read(
+        "CURVEPOLYGON (CIRCULARSTRING (2 0, 7 5, 12 0, 7 -5, 2 0))");
+    assertEquals("filled overlapping discs have no gap",
+        0.0, DistanceFunctions.nearestPoints(a, b).getLength(), 1.0e-12);
+    assertEquals("instance distance agrees", 0.0, a.distance(b), 1.0e-12);
+  }
+
   /** Guard: plain geometries answer bit-for-bit as before. */
   public void testPlainGeometriesUnchanged() throws Exception {
     Geometry p = read("LINESTRING (0 0, 2 3, 10 0)");

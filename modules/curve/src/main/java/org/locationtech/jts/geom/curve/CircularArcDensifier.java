@@ -16,7 +16,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.locationtech.jts.algorithm.LineIntersector;
 import org.locationtech.jts.algorithm.Orientation;
+import org.locationtech.jts.algorithm.RobustLineIntersector;
+import org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 
@@ -351,6 +354,316 @@ public final class CircularArcDensifier {
       env.expandToInclude(mid);
       return;
     }
+    addAxisExtrema(c, start, mid, end, env, null);
+  }
+
+  /**
+   * Circumcircle of three points as {@code {cx, cy, r}}, or {@code null} if
+   * the triple is colinear or coincident.
+   */
+  public static double[] circumcircle(Coordinate a, Coordinate b, Coordinate c) {
+    Circle circle = Circle.fromThreePoints(a, b, c);
+    if (circle == null) return null;
+    return new double[] { circle.cx, circle.cy, circle.r };
+  }
+
+  /**
+   * Appends the arc's endpoints and the axis extrema the sweep actually
+   * passes through. Degenerate triples contribute the three control points.
+   */
+  public static void addArcExtrema(Coordinate start, Coordinate mid, Coordinate end,
+      List<Coordinate> dest) {
+    dest.add(new Coordinate(start));
+    Circle c = Circle.fromThreePoints(start, mid, end);
+    if (c == null) {
+      dest.add(new Coordinate(mid));
+      dest.add(new Coordinate(end));
+      return;
+    }
+    addAxisExtrema(c, start, mid, end, null, dest);
+    dest.add(new Coordinate(end));
+  }
+
+  /**
+   * Distance from {@code p} to the circular arc through
+   * {@code start, mid, end}. Degenerate triples degrade to the chord.
+   */
+  public static double distancePointToArc(Coordinate p, Coordinate start,
+      Coordinate mid, Coordinate end) {
+    return p.distance(nearestPointOnArc(p, start, mid, end));
+  }
+
+  /**
+   * Closest point on the arc (or its chord, if the triple is colinear) to
+   * {@code p}.
+   */
+  public static Coordinate nearestPointOnArc(Coordinate p, Coordinate start,
+      Coordinate mid, Coordinate end) {
+    Circle c = Circle.fromThreePoints(start, mid, end);
+    if (c == null) {
+      return nearestPointOnSegment(p, start, end);
+    }
+    double dx = p.x - c.cx;
+    double dy = p.y - c.cy;
+    double dist = Math.hypot(dx, dy);
+    Coordinate onCircle;
+    if (dist == 0.0) {
+      onCircle = new Coordinate(start);
+    } else {
+      onCircle = new Coordinate(c.cx + c.r * dx / dist, c.cy + c.r * dy / dist);
+    }
+    if (isOnSweep(onCircle, c, start, mid, end)) {
+      return onCircle;
+    }
+    return p.distance(start) <= p.distance(end)
+        ? new Coordinate(start) : new Coordinate(end);
+  }
+
+  /**
+   * Directed Hausdorff distance from the arc to the segment: the maximum
+   * distance from a point on the arc to the segment.
+   * Delegates to {@link DiscreteHausdorffDistance} so the public class
+   * owns the formula.
+   */
+  public static double directedHausdorffArcToSegment(
+      Coordinate start, Coordinate mid, Coordinate end,
+      Coordinate seg0, Coordinate seg1) {
+    return DiscreteHausdorffDistance.directedHausdorffArcToSegment(
+        start, mid, end, seg0, seg1);
+  }
+
+  /**
+   * Directed Hausdorff distance from circle 1 to circle 2 (the boundaries).
+   * Delegates to {@link DiscreteHausdorffDistance} so the public class
+   * owns the formula.
+   */
+  public static double directedHausdorffCircleToCircle(
+      double c1x, double c1y, double r1, double c2x, double c2y, double r2) {
+    return DiscreteHausdorffDistance.directedHausdorffCircleToCircle(
+        c1x, c1y, r1, c2x, c2y, r2);
+  }
+
+  /**
+   * Minimum distance from the circular arc through {@code a0, a1, a2} to
+   * the segment {@code s0, s1}. A colinear triple degrades to the chord.
+   * Candidates are the four endpoints, the two circle points whose radius
+   * is parallel to the segment normal (same extrema
+   * {@link #directedHausdorffArcToSegment} uses), and any proper
+   * segment-arc crossing (distance 0).
+   */
+  static double distanceArcToSegment(Coordinate a0, Coordinate a1, Coordinate a2,
+      Coordinate s0, Coordinate s1) {
+    Circle c = Circle.fromThreePoints(a0, a1, a2);
+    if (c == null) {
+      return distanceSegmentToSegment(a0, a2, s0, s1);
+    }
+    if (segmentIntersectsArc(c, a0, a1, a2, s0, s1)) {
+      return 0.0;
+    }
+    double min = distancePointToSegment(a0, s0, s1);
+    min = Math.min(min, distancePointToSegment(a2, s0, s1));
+    min = Math.min(min, distancePointToArc(s0, a0, a1, a2));
+    min = Math.min(min, distancePointToArc(s1, a0, a1, a2));
+    double sx = s1.x - s0.x;
+    double sy = s1.y - s0.y;
+    double slen = Math.hypot(sx, sy);
+    if (slen > 0.0) {
+      double nx = -sy / slen;
+      double ny = sx / slen;
+      for (int sign = -1; sign <= 1; sign += 2) {
+        Coordinate q = new Coordinate(c.cx + sign * c.r * nx, c.cy + sign * c.r * ny);
+        if (isOnSweep(q, c, a0, a1, a2) && projectionOnSegment(q, s0, s1)) {
+          min = Math.min(min, distancePointToSegment(q, s0, s1));
+        }
+      }
+    }
+    return min;
+  }
+
+  static double distanceSegmentToSegment(Coordinate a0, Coordinate a1,
+      Coordinate b0, Coordinate b1) {
+    LineIntersector li = new RobustLineIntersector();
+    li.computeIntersection(a0, a1, b0, b1);
+    if (li.hasIntersection()) return 0.0;
+    double min = distancePointToSegment(a0, b0, b1);
+    min = Math.min(min, distancePointToSegment(a1, b0, b1));
+    min = Math.min(min, distancePointToSegment(b0, a0, a1));
+    return Math.min(min, distancePointToSegment(b1, a0, a1));
+  }
+
+  private static boolean segmentIntersectsArc(Circle c, Coordinate a0,
+      Coordinate a1, Coordinate a2, Coordinate s0, Coordinate s1) {
+    Coordinate[] hits = intersectSegmentCircle(c, s0, s1);
+    for (int i = 0; i < hits.length; i++) {
+      if (isOnSweep(hits[i], c, a0, a1, a2)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Line–circle intersections that also lie on the segment
+   * ({@code t ∈ [0, 1]}). Package-private -- not a new public API.
+   * <p>
+   * Twin of the N-AL {@code ARC_SEGMENT_XY} oracle: the same quadratic
+   * {@link #segmentIntersectsArc} used to throw away. Callers that need
+   * the full circle (a disc) keep every hit; callers that need an arc
+   * also ask {@link #isOnSweep}.
+   */
+  static Coordinate[] intersectSegmentCircle(Circle c, Coordinate s0,
+      Coordinate s1) {
+    if (c == null) return new Coordinate[0];
+    return intersectSegmentCircle(c.cx, c.cy, c.r, s0, s1);
+  }
+
+  static Coordinate[] intersectSegmentCircle(double cx, double cy, double r,
+      Coordinate s0, Coordinate s1) {
+    double dx = s1.x - s0.x;
+    double dy = s1.y - s0.y;
+    double fx = s0.x - cx;
+    double fy = s0.y - cy;
+    double A = dx * dx + dy * dy;
+    if (A == 0.0) {
+      if (Math.abs(Math.hypot(fx, fy) - r) <= 1.0e-12) {
+        return new Coordinate[] { new Coordinate(s0) };
+      }
+      return new Coordinate[0];
+    }
+    double B = 2.0 * (fx * dx + fy * dy);
+    double C = fx * fx + fy * fy - r * r;
+    double disc = B * B - 4.0 * A * C;
+    if (disc < 0.0) return new Coordinate[0];
+    double sqrt = Math.sqrt(disc);
+    Coordinate p0 = null;
+    Coordinate p1 = null;
+    int n = 0;
+    for (int sign = -1; sign <= 1; sign += 2) {
+      double t = (-B + sign * sqrt) / (2.0 * A);
+      if (t < -1.0e-12 || t > 1.0 + 1.0e-12) continue;
+      Coordinate p = new Coordinate(s0.x + t * dx, s0.y + t * dy);
+      if (n == 0) {
+        p0 = p;
+        n = 1;
+      } else if (p0.distance(p) > 1.0e-12) {
+        p1 = p;
+        n = 2;
+      }
+    }
+    if (n == 0) return new Coordinate[0];
+    if (n == 1) return new Coordinate[] { p0 };
+    return new Coordinate[] { p0, p1 };
+  }
+
+  static double distanceArcToArc(Coordinate a0, Coordinate a1, Coordinate a2,
+      Coordinate b0, Coordinate b1, Coordinate b2) {
+    Circle ca = Circle.fromThreePoints(a0, a1, a2);
+    Circle cb = Circle.fromThreePoints(b0, b1, b2);
+    if (ca == null && cb == null) {
+      return distanceSegmentToSegment(a0, a2, b0, b2);
+    }
+    if (ca == null) {
+      return distanceArcToSegment(b0, b1, b2, a0, a2);
+    }
+    if (cb == null) {
+      return distanceArcToSegment(a0, a1, a2, b0, b2);
+    }
+    double min = distancePointToArc(a0, b0, b1, b2);
+    min = Math.min(min, distancePointToArc(a2, b0, b1, b2));
+    min = Math.min(min, distancePointToArc(b0, a0, a1, a2));
+    min = Math.min(min, distancePointToArc(b2, a0, a1, a2));
+    double dx = cb.cx - ca.cx;
+    double dy = cb.cy - ca.cy;
+    double d = Math.hypot(dx, dy);
+    if (d == 0.0) {
+      return Math.min(min, Math.abs(ca.r - cb.r));
+    }
+    double ux = dx / d;
+    double uy = dy / d;
+    for (int sa = -1; sa <= 1; sa += 2) {
+      Coordinate pa = new Coordinate(ca.cx + sa * ca.r * ux, ca.cy + sa * ca.r * uy);
+      if (!isOnSweep(pa, ca, a0, a1, a2)) continue;
+      for (int sb = -1; sb <= 1; sb += 2) {
+        Coordinate pb = new Coordinate(cb.cx + sb * cb.r * ux, cb.cy + sb * cb.r * uy);
+        if (!isOnSweep(pb, cb, b0, b1, b2)) continue;
+        min = Math.min(min, pa.distance(pb));
+      }
+    }
+    if (circlesIntersectOnBothSweeps(ca, cb, a0, a1, a2, b0, b1, b2)) {
+      return 0.0;
+    }
+    return min;
+  }
+
+  /**
+   * Intersection points of two supporting circles. Empty when the circles
+   * are disjoint, nested without touching, or coincident ({@code d == 0}).
+   * A tangent pair returns one point; a proper crossing returns two.
+   * <p>
+   * Package-private -- not a new public API. The radical-axis formula lived
+   * in {@link #circlesIntersectOnBothSweeps} and threw the points away.
+   */
+  static Coordinate[] intersectCircles(Circle ca, Circle cb) {
+    if (ca == null || cb == null) return new Coordinate[0];
+    double dx = cb.cx - ca.cx;
+    double dy = cb.cy - ca.cy;
+    double d = Math.hypot(dx, dy);
+    if (d > ca.r + cb.r || d < Math.abs(ca.r - cb.r) || d == 0.0) {
+      return new Coordinate[0];
+    }
+    double a = (ca.r * ca.r - cb.r * cb.r + d * d) / (2.0 * d);
+    double h2 = ca.r * ca.r - a * a;
+    if (h2 < 0.0) return new Coordinate[0];
+    double ux = dx / d;
+    double uy = dy / d;
+    double mx = ca.cx + a * ux;
+    double my = ca.cy + a * uy;
+    if (h2 == 0.0) {
+      return new Coordinate[] { new Coordinate(mx, my) };
+    }
+    double h = Math.sqrt(h2);
+    return new Coordinate[] {
+        new Coordinate(mx + h * -uy, my + h * ux),
+        new Coordinate(mx - h * -uy, my - h * ux)
+    };
+  }
+
+  /**
+   * Circle-circle intersections that also lie on both circular-arc sweeps.
+   * Empty when the supporting circles miss, coincide, or the radical-axis
+   * points fall outside either sweep.
+   */
+  static Coordinate[] intersectArcs(Coordinate a0, Coordinate a1, Coordinate a2,
+      Coordinate b0, Coordinate b1, Coordinate b2) {
+    Circle ca = Circle.fromThreePoints(a0, a1, a2);
+    Circle cb = Circle.fromThreePoints(b0, b1, b2);
+    if (ca == null || cb == null) return new Coordinate[0];
+    Coordinate[] raw = intersectCircles(ca, cb);
+    int keep = 0;
+    Coordinate[] on = new Coordinate[raw.length];
+    for (int i = 0; i < raw.length; i++) {
+      if (isOnSweep(raw[i], ca, a0, a1, a2) && isOnSweep(raw[i], cb, b0, b1, b2)) {
+        on[keep++] = raw[i];
+      }
+    }
+    if (keep == raw.length) return raw;
+    Coordinate[] clipped = new Coordinate[keep];
+    System.arraycopy(on, 0, clipped, 0, keep);
+    return clipped;
+  }
+
+  private static boolean circlesIntersectOnBothSweeps(Circle ca, Circle cb,
+      Coordinate a0, Coordinate a1, Coordinate a2,
+      Coordinate b0, Coordinate b1, Coordinate b2) {
+    Coordinate[] pts = intersectCircles(ca, cb);
+    for (int i = 0; i < pts.length; i++) {
+      if (isOnSweep(pts[i], ca, a0, a1, a2) && isOnSweep(pts[i], cb, b0, b1, b2)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static void addAxisExtrema(Circle c, Coordinate start, Coordinate mid,
+      Coordinate end, Envelope env, List<Coordinate> dest) {
     double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
     double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
     double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
@@ -358,21 +671,61 @@ public final class CircularArcDensifier {
     double sweep = signedSweep(a0, a1, ccw);
     for (int q = 0; q < 4; q++) {
       double axis = q * Math.PI / 2.0;
-      // Distance travelled from a0 to this axis angle, in the sweep direction.
       double travelled = ccw
           ? normalizePositive(axis - a0)
           : normalizePositive(a0 - axis);
       if (travelled <= sweep) {
-        env.expandToInclude(c.cx + c.r * Math.cos(axis), c.cy + c.r * Math.sin(axis));
+        double x = c.cx + c.r * Math.cos(axis);
+        double y = c.cy + c.r * Math.sin(axis);
+        if (env != null) env.expandToInclude(x, y);
+        if (dest != null) dest.add(new Coordinate(x, y));
       }
     }
   }
 
+  static boolean isOnSweep(Coordinate p, Circle c, Coordinate start,
+      Coordinate mid, Coordinate end) {
+    double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
+    double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
+    double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
+    boolean ccw = isMidInCcwSweep(a0, aMid, a1);
+    double sweep = signedSweep(a0, a1, ccw);
+    double angle = Math.atan2(p.y - c.cy, p.x - c.cx);
+    double travelled = ccw
+        ? normalizePositive(angle - a0)
+        : normalizePositive(a0 - angle);
+    return travelled <= sweep + 1.0e-12;
+  }
+
+  static Coordinate nearestPointOnSegment(Coordinate p, Coordinate a, Coordinate b) {
+    double vx = b.x - a.x;
+    double vy = b.y - a.y;
+    double len2 = vx * vx + vy * vy;
+    if (len2 == 0.0) return new Coordinate(a);
+    double t = ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2;
+    if (t <= 0.0) return new Coordinate(a);
+    if (t >= 1.0) return new Coordinate(b);
+    return new Coordinate(a.x + t * vx, a.y + t * vy);
+  }
+
+  static double distancePointToSegment(Coordinate p, Coordinate a, Coordinate b) {
+    return p.distance(nearestPointOnSegment(p, a, b));
+  }
+
+  private static boolean projectionOnSegment(Coordinate p, Coordinate a, Coordinate b) {
+    double vx = b.x - a.x;
+    double vy = b.y - a.y;
+    double len2 = vx * vx + vy * vy;
+    if (len2 == 0.0) return false;
+    double t = ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2;
+    return t >= 0.0 && t <= 1.0;
+  }
+
   /** Circumcircle of three points, or {@code null} if colinear. */
-  private static final class Circle {
+  static final class Circle {
     final double cx, cy, r;
 
-    private Circle(double cx, double cy, double r) {
+    Circle(double cx, double cy, double r) {
       this.cx = cx;
       this.cy = cy;
       this.r = r;

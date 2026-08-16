@@ -25,4 +25,11 @@ public interface WKBConstants {
   int wkbMultiLineString = 5;
   int wkbMultiPolygon = 6;
   int wkbGeometryCollection = 7;
+
+  /** ISO/OGC SFA type codes for SQL/MM curve types. */
+  int wkbCircularString = 8;
+  int wkbCompoundCurve = 9;
+  int wkbCurvePolygon = 10;
+  int wkbMultiCurve = 11;
+  int wkbMultiSurface = 12;
 }

@@ -15,6 +15,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.io.WKBReader;
+import org.locationtech.jts.io.curve.CurveWKBReader;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jts.io.geojson.GeoJsonReader;
 import org.locationtech.jts.io.gml2.GMLReader;
@@ -53,9 +54,8 @@ import junit.textui.TestRunner;
  * representation of a circular arc, so the arc cannot survive the export and the
  * only question is whether what does survive is the right shape. WKB is the
  * exception -- SQL/MM defines curve type codes 8 to 12 -- but reading and writing
- * those is claim 1195-e and unimplemented, so densifying is strictly better than
- * today's wrong type-3 output. When 1195-e lands, {@code writeWKB} and
- * {@code dumpWKB} should switch to the curve-aware writer rather than densify.
+ * those is first-class: {@code writeWKB} uses {@code CurveWKBWriter} so a
+ * disc round-trips as type 10. GML / KML / GeoJSON still densify.
  * <p>
  * Tolerances here are derived, not chosen: {@code linearizeForOps} densifies at
  * {@code 1e-6} of the extent, and the sagitta bound {@code r(1 - cos(theta/2))}
@@ -100,7 +100,8 @@ public class WriterFunctionsCurveTest extends TestCase {
   }
 
   private static Geometry viaWKB(Geometry g) throws Exception {
-    return new WKBReader().read(WKBReader.hexToBytes(WriterFunctions.writeWKB(g)));
+    return new CurveWKBReader(g.getFactory())
+        .read(WKBReader.hexToBytes(WriterFunctions.writeWKB(g)));
   }
 
   private static Geometry viaGeoJSON(Geometry g) throws Exception {
@@ -121,7 +122,7 @@ public class WriterFunctionsCurveTest extends TestCase {
         TRUE_LENGTH, viaGML(read(CIRCLE)).getLength(), TRUE_LENGTH * 1.0e-4);
   }
 
-  /** WKB has the same gap: it wrote type 3 with the five control points. */
+  /** WKB now keeps the disc: type 10, rings are curves, area is 4π. */
   public void testWKBRoundTripKeepsTheArea() throws Exception {
     assertEquals("WKB round trip should give the circle's area",
         TRUE_AREA, viaWKB(read(CIRCLE)).getArea(), AREA_TOL);

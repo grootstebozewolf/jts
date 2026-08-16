@@ -622,6 +622,96 @@ public class GeometryFactory
   }
 
   /**
+   * Creates a CircularString from control points.
+   * The default factory cannot construct curve types; a curve-capable
+   * factory (CurveGeometryFactory in jts-curve) overrides this.
+   * Do not implement by calling {@link #createLineString} — that would
+   * linearise.
+   *
+   * @param points the CircularString control points
+   * @return a CircularString (as a LineString)
+   */
+  public LineString createCircularString(CoordinateSequence points) {
+    throw unsupportedCurve();
+  }
+
+  /**
+   * Creates a CompoundCurve from SimpleCurve members.
+   * The default factory cannot construct curve types; a curve-capable
+   * factory (CurveGeometryFactory in jts-curve) overrides this.
+   * Do not implement by calling {@link #createLineString} — that would
+   * linearise.
+   *
+   * @param members the CompoundCurve members (CircularString or LineString)
+   * @return a CompoundCurve (as a LineString)
+   */
+  public LineString createCompoundCurve(LineString[] members) {
+    throw unsupportedCurve();
+  }
+
+  /**
+   * Creates an empty CurvePolygon.
+   * The default factory cannot construct curve types; a curve-capable
+   * factory (CurveGeometryFactory in jts-curve) overrides this.
+   * Do not implement by calling {@link #createPolygon} — that would
+   * linearise.
+   *
+   * @return an empty CurvePolygon (as a Polygon)
+   */
+  public Polygon createCurvePolygon() {
+    throw unsupportedCurve();
+  }
+
+  /**
+   * Creates a CurvePolygon whose rings are LineStrings (CircularString,
+   * CompoundCurve, or LinearRing). GEOS uses this shape for WKB.
+   * The default factory cannot construct curve types; a curve-capable
+   * factory (CurveGeometryFactory in jts-curve) overrides this.
+   * Do not implement by calling {@link #createPolygon} — that would
+   * linearise.
+   *
+   * @param shell the exterior ring
+   * @param holes the interior rings, or {@code null}
+   * @return a CurvePolygon (as a Polygon)
+   */
+  public Polygon createCurvePolygon(LineString shell, LineString[] holes) {
+    throw unsupportedCurve();
+  }
+
+  /**
+   * Creates a MultiCurve from lineal members.
+   * The default factory cannot construct curve types; a curve-capable
+   * factory (CurveGeometryFactory in jts-curve) overrides this.
+   * Do not implement by calling {@link #createMultiLineString} — that
+   * would linearise.
+   *
+   * @param members the MultiCurve members
+   * @return a MultiCurve (as a MultiLineString)
+   */
+  public MultiLineString createMultiCurve(LineString[] members) {
+    throw unsupportedCurve();
+  }
+
+  /**
+   * Creates a MultiSurface from polygonal members.
+   * The default factory cannot construct curve types; a curve-capable
+   * factory (CurveGeometryFactory in jts-curve) overrides this.
+   * Do not implement by calling {@link #createMultiPolygon} — that
+   * would linearise.
+   *
+   * @param members the MultiSurface members
+   * @return a MultiSurface (as a MultiPolygon)
+   */
+  public MultiPolygon createMultiSurface(Polygon[] members) {
+    throw unsupportedCurve();
+  }
+
+  private static UnsupportedOperationException unsupportedCurve() {
+    return new UnsupportedOperationException(
+        "requires a GeometryFactory that can construct curve types (CurveGeometryFactory).");
+  }
+
+  /**
    * Creates an empty atomic geometry of the given dimension.
    * If passed a dimension of -1 will create an empty {@link GeometryCollection}.
    * 

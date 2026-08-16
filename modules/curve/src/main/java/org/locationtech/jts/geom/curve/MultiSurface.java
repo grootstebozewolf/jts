@@ -13,6 +13,7 @@ package org.locationtech.jts.geom.curve;
 
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
 
@@ -53,5 +54,114 @@ public class MultiSurface extends MultiPolygon implements Linearizable {
       }
     }
     return f.createMultiPolygon(linearMembers);
+  }
+
+  // -- Arc-aware spatial operations ----------------------------------------
+  // Same family the single curve types route through CurveOps. A member
+  // with no cheaper path is the chord baseline.
+
+  @Override
+  public Geometry convexHull() {
+    return CurveOps.convexHull(this);
+  }
+
+  @Override
+  public double distance(Geometry g) {
+    return CurveOps.distance(this, g);
+  }
+
+  @Override
+  public boolean isWithinDistance(Geometry g, double distance) {
+    return CurveOps.isWithinDistance(this, g, distance);
+  }
+
+  @Override
+  public Geometry buffer(double distance) {
+    return CurveOps.buffer(this, distance);
+  }
+
+  @Override
+  public Geometry buffer(double distance, int quadrantSegments) {
+    return CurveOps.buffer(this, distance, quadrantSegments);
+  }
+
+  @Override
+  public Geometry buffer(double distance, int quadrantSegments, int endCapStyle) {
+    return CurveOps.buffer(this, distance, quadrantSegments, endCapStyle);
+  }
+
+  @Override
+  public Geometry intersection(Geometry other) {
+    return CurveOps.intersection(this, other);
+  }
+
+  @Override
+  public Geometry union(Geometry other) {
+    return CurveOps.union(this, other);
+  }
+
+  @Override
+  public Geometry difference(Geometry other) {
+    return CurveOps.difference(this, other);
+  }
+
+  @Override
+  public Geometry symDifference(Geometry other) {
+    return CurveOps.symDifference(this, other);
+  }
+
+  @Override
+  public IntersectionMatrix relate(Geometry g) {
+    return CurveOps.relate(this, g);
+  }
+
+  @Override
+  public boolean relate(Geometry g, String intersectionPattern) {
+    return CurveOps.relate(this, g, intersectionPattern);
+  }
+
+  @Override
+  public boolean intersects(Geometry g) {
+    return CurveOps.intersects(this, g);
+  }
+
+  @Override
+  public boolean touches(Geometry g) {
+    return CurveOps.touches(this, g);
+  }
+
+  @Override
+  public boolean crosses(Geometry g) {
+    return CurveOps.crosses(this, g);
+  }
+
+  @Override
+  public boolean within(Geometry g) {
+    return CurveOps.within(this, g);
+  }
+
+  @Override
+  public boolean contains(Geometry g) {
+    return CurveOps.contains(this, g);
+  }
+
+  @Override
+  public boolean overlaps(Geometry g) {
+    return CurveOps.overlaps(this, g);
+  }
+
+  @Override
+  public boolean covers(Geometry g) {
+    return CurveOps.covers(this, g);
+  }
+
+  @Override
+  public boolean coveredBy(Geometry g) {
+    return CurveOps.coveredBy(this, g);
+  }
+
+  @Override
+  public boolean equalsTopo(Geometry g) {
+    return CurveOps.equalsTopo(this, g);
   }
 }
