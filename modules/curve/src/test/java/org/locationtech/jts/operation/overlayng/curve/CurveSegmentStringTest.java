@@ -33,6 +33,8 @@ import test.jts.GeometryTestCase;
  * ring that overlaps the other shell (no crossing nodes) is
  * the same P2.3 bite. P2.5.2 is N strings: the unique union of
  * each unordered pair. P2.5.3 walks the faces of that node set.
+ * P2.5.4 classifies a coincident leave-angle by signed curvature
+ * or stamps {@link CurveSegmentFaces#TANGENT_LEAVE_ANGLE}.
  * Not N-SS, not a core {@code Noder}.
  */
 public class CurveSegmentStringTest extends GeometryTestCase {
@@ -505,12 +507,20 @@ public class CurveSegmentStringTest extends GeometryTestCase {
     assertNull("H-SHELL-N-MIXED: no face walk",
         CurveSegmentFaces.faces(new Geometry[] {
             readCurve(HALF_DISC), readCurve(ON_DIAMETER) }));
+    assertEquals("H-SHELL-N-MIXED: named stamp",
+        CurveSegmentFaces.MIXED_OVERLAP, CurveSegmentFaces.missReason());
     assertNull("H-ANNULUS-TANGENT: pinch is not a face",
         CurveSegmentFaces.faces(new Geometry[] {
             readCurve(CIRCLE_5), readCurve(CIRCLE_INT_TAN) }));
+    assertEquals("H-ANNULUS-TANGENT: tangent stamp",
+        CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
+        CurveSegmentFaces.missReason());
     assertNull("TOUCH-ext: kiss is not a face",
         CurveSegmentFaces.faces(new Geometry[] {
             readCurve(UNIT_DISC), readCurve(UNIT_DISC_TOUCH) }));
+    assertEquals("TOUCH-ext: tangent stamp",
+        CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
+        CurveSegmentFaces.missReason());
     assertNull("H-SHELL-HOLE-X: Geometry-level holed stays null",
         CurveSegmentFaces.faces(new Geometry[] {
             readCurve(HALF_HOLED), readCurve(HOLE_X) }));
@@ -552,14 +562,35 @@ public class CurveSegmentStringTest extends GeometryTestCase {
   }
 
   /**
-   * A tangent in an N≥3 set is coincident leave-angles. Ordering
-   * them is snap-rounding (P2.5.4). Stamp null; do not densify.
+   * HALF_DISC × HALF_HANGING × STADIUM_ODD: coincident leave-angles
+   * at the top-cap pinch. Closed-form curvature order walks them,
+   * or the miss is the named P2.5.4 stamp. Never a bare null.
    */
-  public void testN3TangentStampsNull() throws Exception {
-    Geometry faces = CurveSegmentFaces.faces(new Geometry[] {
-        readCurve(HALF_DISC), readCurve(HALF_HANGING),
-        readCurve(STADIUM_ODD) });
-    assertNull("N≥3 tangent is P2.5.4, not a face walk", faces);
+  public void testN3TangentLeaveAngleIsNamed() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(HALF_HANGING);
+    Geometry c = readCurve(STADIUM_ODD);
+    Geometry faces = CurveSegmentFaces.faces(new Geometry[] { a, b, c });
+    if (faces == null) {
+      assertEquals("N≥3 tangent is the named stamp",
+          CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
+          CurveSegmentFaces.missReason());
+      assertNull("permutation is the same stamp",
+          CurveSegmentFaces.faces(new Geometry[] { c, a, b }));
+      assertEquals("permutation stamp",
+          CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
+          CurveSegmentFaces.missReason());
+    }
+    else {
+      assertNull("laser has no stamp", CurveSegmentFaces.missReason());
+      assertSameArea("N=3 STADIUM_ODD permutation", faces,
+          CurveSegmentFaces.faces(new Geometry[] { c, a, b }));
+      List<List<CurveSegmentString>> groups = Arrays.asList(
+          CurveSegmentString.of(a), CurveSegmentString.of(b),
+          CurveSegmentString.of(c));
+      Geometry viaStrings = CurveSegmentFaces.faces(groups, 16.0);
+      assertSameArea("N=3 STADIUM_ODD string groups", faces, viaStrings);
+    }
   }
 
   public void testNoderDoesNotAssembleFaces() throws Exception {
@@ -751,6 +782,8 @@ public class CurveSegmentStringTest extends GeometryTestCase {
           EXACT);
       assertEquals("N=2 face count " + wa, kit.getNumGeometries(),
           faces.getNumGeometries());
+      assertNull("N=2 laser has no stamp " + wa,
+          CurveSegmentFaces.missReason());
     }
   }
 

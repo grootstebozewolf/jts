@@ -39,7 +39,8 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * interval, or a collinear segment). {@link #intersect} stays a
  * discrete node set: collinear overlap is still {@code null} there
  * (MIXED is not a pair of endpoints). A pinch / kiss that is not an
- * interval is a zero-length degenerate edge, or {@code null}.
+ * interval is a zero-length degenerate edge; the face walk stamps
+ * it {@link CurveSegmentFaces#TANGENT_LEAVE_ANGLE}.
  */
 final class CurveSegmentString {
 

@@ -42,21 +42,46 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * those kits. MIXED / pinch / holed Geometry-level stays
  * {@code null} -- hole rings are walked as strings, as in P2.3 /
  * P2.4. A coincident leave-angle at a node (tangent pinch) is
- * snap-rounding (P2.5.4), not this rung: {@code faces} returns
- * {@code null}. Densify is never a noder. Not P2.5.5.
+ * ordered by signed curvature when the pieces differ (closed
+ * form in this package). Locally identical leaves (same angle
+ * and same curvature) still need snap-rounding: {@code faces}
+ * returns {@code null} and {@link #missReason()} names
+ * {@link #TANGENT_LEAVE_ANGLE}. A pair-kit miss that is a
+ * zero-length kiss is that stamp; a MIXED overlap is
+ * {@link #MIXED_OVERLAP}. Neither invents a crossing. Densify
+ * is never a noder. Not P2.5.5.
  */
 final class CurveSegmentFaces {
 
+  /** Named stamp: tangent pinch / coincident leave-angle. */
+  static final String TANGENT_LEAVE_ANGLE = "P2.5.4 tangent leave-angle";
+  /** Named stamp: collinear overlap is an interval, not a face. */
+  static final String MIXED_OVERLAP = "H-SHELL-N-MIXED";
+
   private static final double ANGLE_EPS = 1.0e-8;
+  private static final double CURV_EPS = 1.0e-8;
+
+  private static String missReason;
 
   private CurveSegmentFaces() { }
 
   /**
+   * Why the last {@link #faces(Geometry[])} / string-group call
+   * returned {@code null}, or {@code null} when faces were
+   * produced. Package-private -- not a public API.
+   */
+  static String missReason() {
+    return missReason;
+  }
+
+  /**
    * Bounded faces of N hole-free circular / compound shells, or
    * {@code null}. N=2 is the pair-kit rings. N≥3 is the walk, or
-   * {@code null} when the walk would need snap-rounding.
+   * {@code null} when the walk would need snap-rounding
+   * ({@link #missReason()} names the stamp).
    */
   static Geometry faces(Geometry[] geoms) {
+    missReason = null;
     if (geoms == null || geoms.length < 2) return null;
     List<List<CurveSegmentString>> groups =
         new ArrayList<List<CurveSegmentString>>(geoms.length);
@@ -97,17 +122,31 @@ final class CurveSegmentFaces {
 
   private static Geometry faces(List<List<CurveSegmentString>> groups,
       double scale, GeometryFactory f, Geometry[] geoms) {
+    missReason = null;
     if (groups == null || groups.size() < 2) return null;
     Coordinate[] nodes = CurveSegmentNoder.nodes(groups, scale);
     if (nodes == null) {
-      return geoms != null && geoms.length == 2
-          ? pairKitFaces(geoms[0], geoms[1])
-          : null;
+      if (geoms != null && geoms.length == 2) {
+        Geometry kit = pairKitFaces(geoms[0], geoms[1]);
+        if (kit != null) return kit;
+        missReason = pairMissReason(geoms[0], geoms[1]);
+      }
+      return null;
     }
     Geometry walked = walk(groups, nodes, scale, f);
-    if (walked != null) return walked;
+    if (walked != null) {
+      missReason = null;
+      return walked;
+    }
     if (geoms != null && geoms.length == 2) {
-      return pairKitFaces(geoms[0], geoms[1]);
+      Geometry kit = pairKitFaces(geoms[0], geoms[1]);
+      if (kit != null) {
+        missReason = null;
+        return kit;
+      }
+      if (missReason == null) {
+        missReason = pairMissReason(geoms[0], geoms[1]);
+      }
     }
     return null;
   }
@@ -142,7 +181,10 @@ final class CurveSegmentFaces {
 
     List<Vertex> verts = indexByStart(halves, pool, eps);
     if (verts == null) return null;
-    if (hasCoincidentLeave(verts)) return null;
+    if (hasUnclassifiableLeave(verts)) {
+      missReason = TANGENT_LEAVE_ANGLE;
+      return null;
+    }
 
     List<Polygon> faces = new ArrayList<Polygon>();
     boolean miss = false;
@@ -164,9 +206,19 @@ final class CurveSegmentFaces {
         }
       }
     }
-    if (miss || faces.isEmpty()) return null;
+    if (miss || faces.isEmpty()) {
+      if (hasCoincidentLeave(verts)) {
+        missReason = TANGENT_LEAVE_ANGLE;
+      }
+      return null;
+    }
     dropUnion(faces, eps);
-    if (faces.isEmpty()) return null;
+    if (faces.isEmpty()) {
+      if (hasCoincidentLeave(verts)) {
+        missReason = TANGENT_LEAVE_ANGLE;
+      }
+      return null;
+    }
     return toGeometry(faces, f);
   }
 
@@ -378,8 +430,25 @@ final class CurveSegmentFaces {
 
   /**
    * Two different pieces leaving at the same angle are a tangent.
-   * Ordering them is snap-rounding (P2.5.4). Stamp and stop.
+   * Different signed curvature is a closed-form order (this rung).
+   * The same curvature is snap-rounding -- stamp and stop.
    */
+  private static boolean hasUnclassifiableLeave(List<Vertex> verts) {
+    boolean hit = false;
+    for (int i = 0; i < verts.size() && !hit; i++) {
+      List<Half> out = verts.get(i).out;
+      for (int j = 0; j < out.size() && !hit; j++) {
+        Half a = out.get(j);
+        Half b = out.get((j + 1) % out.size());
+        if (a != b && angleDiff(a.leaveAngle, b.leaveAngle) < ANGLE_EPS
+            && Math.abs(a.curvature - b.curvature) < CURV_EPS) {
+          hit = true;
+        }
+      }
+    }
+    return hit;
+  }
+
   private static boolean hasCoincidentLeave(List<Vertex> verts) {
     boolean hit = false;
     for (int i = 0; i < verts.size() && !hit; i++) {
@@ -393,6 +462,28 @@ final class CurveSegmentFaces {
       }
     }
     return hit;
+  }
+
+  /**
+   * Pair-kit miss: a degenerate edge is the tangent stamp; a
+   * positive-length shared run is MIXED. Not a crossing.
+   */
+  private static String pairMissReason(Geometry a, Geometry b) {
+    List<CurveSegmentString> edges = CurveSegmentNoder.edges(a, b);
+    if (edges == null) return null;
+    boolean pinch = false;
+    boolean mixed = false;
+    for (int i = 0; i < edges.size(); i++) {
+      if (edges.get(i).isDegenerate()) {
+        pinch = true;
+      }
+      else {
+        mixed = true;
+      }
+    }
+    if (pinch) return TANGENT_LEAVE_ANGLE;
+    if (mixed) return MIXED_OVERLAP;
+    return null;
   }
 
   private static List<LineString> walkRing(Half start, double eps,
@@ -582,16 +673,48 @@ final class CurveSegmentFaces {
   private static double leaveAngle(CurveSegmentString s) {
     Coordinate from = s.getStart();
     if (!s.isArc()) {
-      return Math.atan2(s.getEnd().y - from.y, s.getEnd().x - from.x);
+      return normAngle(Math.atan2(s.getEnd().y - from.y,
+          s.getEnd().x - from.x));
     }
     TwoNodeClip.Edge e = s.asEdge();
     double rx = from.x - e.circle[0];
     double ry = from.y - e.circle[1];
+    boolean ccw = sweepCcw(e);
+    double raw = ccw ? Math.atan2(rx, -ry) : Math.atan2(-rx, ry);
+    return normAngle(raw);
+  }
+
+  /**
+   * Signed curvature at the start: +1/r for a CCW sweep (left),
+   * −1/r for CW, 0 for a chord. Tie-breaks a coincident leave.
+   */
+  private static double signedCurvature(CurveSegmentString s) {
+    if (!s.isArc()) return 0.0;
+    TwoNodeClip.Edge e = s.asEdge();
+    if (e.circle[2] <= 0.0) return 0.0;
+    double k = 1.0 / e.circle[2];
+    return sweepCcw(e) ? k : -k;
+  }
+
+  private static boolean sweepCcw(TwoNodeClip.Edge e) {
     double a0 = Math.atan2(e.a.y - e.circle[1], e.a.x - e.circle[0]);
     double aM = Math.atan2(e.mid.y - e.circle[1], e.mid.x - e.circle[0]);
     double a1 = Math.atan2(e.b.y - e.circle[1], e.b.x - e.circle[0]);
-    boolean ccw = TwoNodeClip.normPos(aM - a0) < TwoNodeClip.normPos(a1 - a0);
-    return ccw ? Math.atan2(rx, -ry) : Math.atan2(-rx, ry);
+    return TwoNodeClip.normPos(aM - a0) < TwoNodeClip.normPos(a1 - a0);
+  }
+
+  private static double normAngle(double a) {
+    double n = a;
+    if (n < 0.0) {
+      n += TwoNodeClip.TWO_PI;
+    }
+    if (n >= TwoNodeClip.TWO_PI) {
+      n -= TwoNodeClip.TWO_PI;
+    }
+    if (n < ANGLE_EPS || TwoNodeClip.TWO_PI - n < ANGLE_EPS) {
+      return 0.0;
+    }
+    return n;
   }
 
   private static double angleDiff(double a, double b) {
@@ -655,13 +778,16 @@ final class CurveSegmentFaces {
   private static final class Half {
     static final Comparator<Half> BY_ANGLE = new Comparator<Half>() {
       public int compare(Half a, Half b) {
-        return Double.compare(a.leaveAngle, b.leaveAngle);
+        int byAngle = Double.compare(a.leaveAngle, b.leaveAngle);
+        if (byAngle != 0) return byAngle;
+        return Double.compare(a.curvature, b.curvature);
       }
     };
     final Coordinate from;
     final Coordinate to;
     final CurveSegmentString piece;
     final double leaveAngle;
+    final double curvature;
     Half rev;
     List<Half> originOut;
     boolean used;
@@ -670,6 +796,7 @@ final class CurveSegmentFaces {
       this.to = to;
       this.piece = piece;
       this.leaveAngle = leaveAngle(piece);
+      this.curvature = signedCurvature(piece);
     }
   }
 
