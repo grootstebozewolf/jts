@@ -47,7 +47,6 @@ public class JTSFunctionsLogoBufferTest extends TestCase {
   private static final double SAGITTA = Math.max(0.001, Math.abs(DISTANCE) / 100.0);
 
   private static final double HEIGHT = 70.0;
-  private static final double J_WIDTH = 30.0;
   private static final double S_RADIUS = HEIGHT / 4.0;
   private static final double WIDTH = 150.0;
 
@@ -101,21 +100,9 @@ public class JTSFunctionsLogoBufferTest extends TestCase {
 
     Geometry roundRound = namedBufferOp(BufferParameters.CAP_ROUND, BufferParameters.JOIN_ROUND);
     assertFalse("CAP_SQUARE (box) must land", halo.equalsExact(roundRound));
-  }
-
-  /**
-   * J stem corner (30, 70) is a 90° vertex. Mitre reaches the (4,4)
-   * offset; a round join is a r=4 fillet and misses that tip.
-   */
-  public void testMitreTipIsCoveredRoundJoinIsNot() {
-    Geometry halo = JTSFunctions.logoBuffer(null, DISTANCE);
-    Point mitreTip = point(J_WIDTH + DISTANCE, HEIGHT + DISTANCE);
-    assertTrue("JOIN_MITRE tip (34, 74) must land in the halo",
-        halo.covers(mitreTip) || halo.intersects(mitreTip));
-
-    Geometry squareRound = namedBufferOp(BufferParameters.CAP_SQUARE, BufferParameters.JOIN_ROUND);
-    assertFalse("round join must not cover the mitre tip — otherwise the witness is dead",
-        squareRound.covers(mitreTip) || squareRound.intersects(mitreTip));
+    // The J 90° mitre tip (34, 74) lies on the T-bar's north offset, so
+    // a point-in-halo witness cannot separate JOIN_MITRE from JOIN_ROUND.
+    // equalsExact against the named BufferOp is the lock that mitre landed.
   }
 
   /**
@@ -149,11 +136,13 @@ public class JTSFunctionsLogoBufferTest extends TestCase {
     assertTrue("named densify must add vertices the 3-point chords cannot",
         halo.getNumPoints() > chainsaw.getNumPoints());
 
-    // S upper bowl: centre (132.5, 52.5), r=17.5, left semicircle.
-    // Mid-arc between north and west control points, then +4 outward.
+    // S lower bowl (ISO/IEC 13249-3 CircularString): centre (132.5, 17.5),
+    // r=17.5, right semicircle. Mid-arc between north and east control
+    // points, then +4 outward. The T-bar strip (y≈66–74) does not reach
+    // here, so this is not a dead witness under another letter.
     double cx = WIDTH - S_RADIUS;
-    double cy = HEIGHT - S_RADIUS;
-    double ang = 0.75 * Math.PI;
+    double cy = S_RADIUS;
+    double ang = 0.25 * Math.PI;
     Point bulge = point(
         cx + (S_RADIUS + DISTANCE) * Math.cos(ang),
         cy + (S_RADIUS + DISTANCE) * Math.sin(ang));
