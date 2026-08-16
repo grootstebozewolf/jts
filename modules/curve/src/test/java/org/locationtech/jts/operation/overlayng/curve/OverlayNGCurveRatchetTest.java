@@ -42,7 +42,8 @@ import test.jts.GeometryTestCase;
  * Exact cells per operation: CAP 8 of 8, CUP 8, SUB 8, XOR 8 on the
  * two-disc matrix. Crossing discs are two-arc CurvePolygons (R1.5).
  * Nested discs are the annulus (R1.5): SUB the outer with the inner
- * as a hole, XOR the same. A disc clipped by a plain rectangle (R1.6)
+ * as a hole, XOR the same, including a two-arc CompoundCurve disc.
+ * A disc clipped by a plain rectangle (R1.6)
  * is EEEE in both operand orders. A half-disc CompoundCurve shell vs
  * a crossing disc or a cutting square (R1.7) is EEEE in both operand
  * orders. Two crossing CircularStrings (R-AA) are EEEE in both operand
@@ -60,6 +61,9 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
       "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0))";
   private static final String CIRCLE_3 =
       "CURVEPOLYGON (CIRCULARSTRING (-3 0, 0 3, 3 0, 0 -3, -3 0))";
+  /** Same disc as CIRCLE_3, two semicircle CircularStrings. */
+  private static final String CIRCLE_3_CC =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-3 0, 0 3, 3 0), CIRCULARSTRING (3 0, 0 -3, -3 0)))";
   private static final String CIRCLE_FAR =
       "CURVEPOLYGON (CIRCULARSTRING (100 0, 105 5, 110 0, 105 -5, 100 0))";
   private static final String CIRCLE_CROSSING =
@@ -170,6 +174,10 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_covers() throws Exception {
     assertRow("covers", CIRCLE_5, CIRCLE_3, "EEEE");
+  }
+
+  public void testMatrix_coversCompoundCurveDisc() throws Exception {
+    assertRow("covers two-arc disc", CIRCLE_5, CIRCLE_3_CC, "EEEE");
   }
 
   public void testMatrix_coveredBy() throws Exception {

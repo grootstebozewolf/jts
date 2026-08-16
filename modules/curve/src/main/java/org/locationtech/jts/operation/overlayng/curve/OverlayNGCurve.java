@@ -75,7 +75,8 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     arcs (lens, blob, crescent) or a {@link MultiSurface} of two crescents.
  *     Nested discs (0 nodes, one strictly inside the other) are the
  *     annulus: SUB the outer with the inner as a hole, XOR the same.
- *     Closed form; no densification. 1 intersection, a tangent nest, or
+ *     Closed form; no densification. 1 intersection, a tangent nest,
+ *     a mixed CompoundCurve nest ({@code CC-NEST-ANNULUS}), or
  *     a non-disc, falls through without paying this path.</li>
  * <li><b>R1.6</b> -- one operand is a circular disc and the other is a
  *     plain Polygon (no curve rings, no holes), and they meet at two
