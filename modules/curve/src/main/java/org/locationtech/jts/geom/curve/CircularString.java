@@ -52,6 +52,18 @@ public class CircularString extends LineString implements Linearizable {
   }
 
   /**
+   * §3.7 — type identity is required. The inherited
+   * {@code LineString.isEquivalentClass} accepts any LineString subclass,
+   * which would let a plain LineString with the same 3-point coord seq
+   * compare equal to a CircularString. The 3 points denote different
+   * geometries (a polyline vs a circular arc through them).
+   */
+  @Override
+  protected boolean isEquivalentClass(Geometry other) {
+    return other instanceof CircularString;
+  }
+
+  /**
    * The envelope of the arc itself, not just its control points.
    * <p>
    * The inherited {@code LineString.computeEnvelopeInternal()} expands over the

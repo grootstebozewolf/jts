@@ -14,6 +14,7 @@ package org.locationtech.jtstest.testbuilder.ui;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
@@ -22,6 +23,9 @@ import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
+import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jtstest.testbuilder.geom.GeometryElementLocater;
 import org.locationtech.jtstest.testbuilder.geom.FacetLocater;
 import org.locationtech.jtstest.testbuilder.geom.GeometryLocation;
@@ -214,20 +218,97 @@ public class GeometryLocationsWriter
   }
 
   private String componentType(GeometryLocation loc) {
-    String compType = "";
-    if (loc.getElement() instanceof LinearRing) {
-      boolean isCCW = Orientation.isCCW(loc.getElement().getCoordinates());
-      compType = "Ring" 
-        + (isCCW ? "-CCW" : "-CW ")
-          + " ";
+    Geometry el = loc.getElement();
+    if (el instanceof LinearRing) {
+      boolean isCCW = Orientation.isCCW(el.getCoordinates());
+      return "Ring" + (isCCW ? "-CCW" : "-CW ") + " ";
     }
-    else if (loc.getElement() instanceof LineString) { 
-      compType = "Line  ";
+    // Curve subtypes -- check before generic LineString since they extend it.
+    if (el instanceof ClothoidSegment) {
+      return clothoidLabel((ClothoidSegment) el);
     }
-    else if (loc.getElement() instanceof Point) { 
-      compType = "Point ";
+    if (el instanceof CircularString) {
+      return arcLabel((CircularString) el);
     }
-    return compType;
+    if (el instanceof CompoundCurve && !loc.isVertex()) {
+      // A flat segment of a CompoundCurve falls inside one specific member.
+      // Look up that member and use its type-specific label so the user
+      // sees the κ / θ / R / L of the actual curve member, not a chord
+      // approximation.
+      LineString member = findMemberForSegment((CompoundCurve) el, loc.getIndex());
+      if (member instanceof ClothoidSegment) return clothoidLabel((ClothoidSegment) member);
+      if (member instanceof CircularString)  return arcLabel((CircularString) member);
+      return "Line  ";
+    }
+    if (el instanceof LineString) {
+      return "Line  ";
+    }
+    if (el instanceof Point) {
+      return "Point ";
+    }
+    return "";
+  }
+
+  /** Clothoid label: {@code "Clothoid κ:κ₀→κ₁ L=… θ₀=…° "}. Compact but
+   *  carries the four parameters that uniquely identify the segment. */
+  private static String clothoidLabel(ClothoidSegment cs) {
+    return String.format(Locale.ROOT, "Clothoid κ:%s→%s L=%s θ₀=%.2f° ",
+        fmtKappa(cs.getStartKappa()),
+        fmtKappa(cs.getEndKappa()),
+        fmtLen(cs.getLength()),
+        Math.toDegrees(cs.getStartTangent()));
+  }
+
+  /** Arc label: {@code "Arc R=… "} — estimate from the circumcircle of
+   *  the first sub-arc when readily available, otherwise just the type. */
+  private static String arcLabel(CircularString cs) {
+    if (cs.getNumPoints() >= 3) {
+      double r = circumcircleRadius(cs.getCoordinateN(0), cs.getCoordinateN(1), cs.getCoordinateN(2));
+      if (!Double.isNaN(r) && Double.isFinite(r)) {
+        return String.format(Locale.ROOT, "Arc R=%s ", fmtLen(r));
+      }
+    }
+    return "Arc   ";
+  }
+
+  /** Find the CompoundCurve member that owns the flat-coord-sequence
+   *  segment {@code [segIdx, segIdx+1]}. Returns null if not found
+   *  (shouldn't happen for valid input, but defensive). */
+  private static LineString findMemberForSegment(CompoundCurve cc, int segIdx) {
+    int cursor = 0;
+    for (int i = 0; i < cc.getNumMembers(); i++) {
+      LineString m = cc.getMemberN(i);
+      int n = m.getNumPoints();
+      if (n < 2) continue;
+      int memSegs = n - 1;
+      if (segIdx >= cursor && segIdx < cursor + memSegs) {
+        return m;
+      }
+      cursor += memSegs;
+    }
+    return null;
+  }
+
+  private static double circumcircleRadius(Coordinate a, Coordinate b, Coordinate c) {
+    double ax = a.x - c.x, ay = a.y - c.y;
+    double bx = b.x - c.x, by = b.y - c.y;
+    double d = 2.0 * (ax * by - ay * bx);
+    if (Math.abs(d) < 1e-12) return Double.POSITIVE_INFINITY;
+    double ux = ((ax * ax + ay * ay) * by - (bx * bx + by * by) * ay) / d;
+    double uy = ((bx * bx + by * by) * ax - (ax * ax + ay * ay) * bx) / d;
+    return Math.hypot(ux, uy);
+  }
+
+  private static String fmtKappa(double k) {
+    if (k == 0.0) return "0";
+    double abs = Math.abs(k);
+    if (abs >= 0.001 && abs < 1) return String.format(Locale.ROOT, "%.4f", k);
+    return String.format(Locale.ROOT, "%.3e", k);
+  }
+
+  private static String fmtLen(double len) {
+    if (len >= 1.0 && len < 1e6) return String.format(Locale.ROOT, "%.3f", len);
+    return String.format(Locale.ROOT, "%.3e", len);
   }
 
   public String OLDwriteLocation(Geometry geom, Coordinate p, double tolerance)

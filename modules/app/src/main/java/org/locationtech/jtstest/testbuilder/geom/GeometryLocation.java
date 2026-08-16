@@ -98,6 +98,11 @@ public class GeometryLocation
   public Coordinate getCoordinate() { return pt; }
   
   public boolean isVertex() { return isVertex; }
+
+  /** Vertex or segment index in the containing component. For a segment
+   *  this is the start coordinate's index (segment connects {@code index}
+   *  to {@code index + 1}). */
+  public int getIndex() { return index; }
   
   public Geometry insert()
   {

@@ -76,6 +76,25 @@ public class CompoundCurve extends LineString implements Linearizable {
     return members.clone();
   }
 
+  /**
+   * Returns a new CompoundCurve with member {@code index} replaced by
+   * {@code replacement}. Other members are reused (immutable). Used by
+   * editors that mutate a single segment without rebuilding the whole
+   * compound curve from scratch.
+   */
+  public CompoundCurve withMemberReplaced(int index, LineString replacement) {
+    if (index < 0 || index >= members.length) {
+      throw new IndexOutOfBoundsException("index=" + index + " size=" + members.length);
+    }
+    LineString[] copy = members.clone();
+    copy[index] = replacement;
+    GeometryFactory f = getFactory();
+    if (f instanceof CurveGeometryFactory) {
+      return ((CurveGeometryFactory) f).createCompoundCurve(copy);
+    }
+    return new CompoundCurve(copy, f);
+  }
+
   @Override
   public String getGeometryType() {
     return "CompoundCurve";
@@ -91,6 +110,35 @@ public class CompoundCurve extends LineString implements Linearizable {
       copies[i] = (LineString) members[i].copy();
     }
     return new CompoundCurve(copies, getFactory());
+  }
+
+  /**
+   * §3.7 — type identity is required. Without this override a CompoundCurve
+   * would compare equal to a plain LineString that happens to have the
+   * same flat coord sequence, hiding member-structure differences.
+   */
+  @Override
+  protected boolean isEquivalentClass(Geometry other) {
+    return other instanceof CompoundCurve;
+  }
+
+  /**
+   * §3.7 — compare member-by-member, delegating to each member's own
+   * {@code equalsExact}. Two CompoundCurves with the same flat coord
+   * sequence but different member structure (e.g. one CircularString
+   * member vs three LineString chunks at the same coords) are different
+   * geometries.
+   */
+  @Override
+  public boolean equalsExact(Geometry other, double tolerance) {
+    if (this == other) return true;
+    if (!isEquivalentClass(other)) return false;
+    CompoundCurve o = (CompoundCurve) other;
+    if (members.length != o.members.length) return false;
+    for (int i = 0; i < members.length; i++) {
+      if (!members[i].equalsExact(o.members[i], tolerance)) return false;
+    }
+    return true;
   }
 
   /**
