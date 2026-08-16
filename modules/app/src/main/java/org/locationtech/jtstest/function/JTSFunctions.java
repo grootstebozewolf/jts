@@ -65,19 +65,44 @@ public class JTSFunctions
   }
   
   /**
-   * Buffers the logo the same way as before ({@link BufferOp} + square
-   * caps). The curve result is linearised first so the buffer sees the
-   * arcs rather than their control-point chords; that densify is not
-   * claimed exact.
+   * Hero halo: {@link #logoLines} then one {@link BufferOp} at the
+   * given distance with {@link BufferParameters#JOIN_MITRE} (mitre
+   * limit {@link BufferParameters#DEFAULT_MITRE_LIMIT}, not 0) and
+   * {@link BufferParameters#CAP_SQUARE} (box caps).
+   * <p>
+   * Densify is {@link Linearizable#toLinear(double) toLinear(0.0)} —
+   * CircularArcDensifier default sagitta, 1% of radius (J R=25 →
+   * ε=0.25; S R=17.5 → ε=0.175). Named linear fallback / CHORD-PATH /
+   * NAMED-APPROX. Not a laser. Not clothoid. Never claimed exact.
+   * Ignores A; rebuilds the wordmark.
+   * <p>
+   * One BufferOp on the whole ISO/IEC 13249-3 MultiCurve already
+   * unions overlapping offsets (T–S gap is 5; at d=4, 4+4&gt;5). Do
+   * not weld J/T/S into one LineString. Do not union letters in
+   * {@link #logoLines} — overlay linearises. “Not one halo” is a
+   * thick 4-stroke wordmark, not BufferOp forgetting to union.
+   * <p>
+   * Quiet defaults elsewhere, written not flattened:
+   * {@code Buffer.buffer} after logo in A is CurveOps.buffer →
+   * {@code Geometry.buffer(d)} with no BufferParameters (CAP_ROUND +
+   * JOIN_ROUND). {@code Buffer.bufferWithParams} reaches BufferOp
+   * with the UI ints but does not linearize (control-point chords);
+   * empty Quadrant Segs → 0 and empty Mitre Limit → 0.0 (JOIN_MITRE
+   * bevels). Real disconnect paths are {@code Buffer.bufferEach} and
+   * empty-A {@code Buffer.buffer} NPE — not this function.
    */
   public static Geometry logoBuffer(Geometry g, double distance)
   {
     Geometry lines = logoLines(g);
+    // NAMED-APPROX / CHORD-PATH: 0.0 is CircularArcDensifier 1% of
+    // radius, not "no densify".
     if (lines instanceof Linearizable) {
       lines = ((Linearizable) lines).toLinear(0.0);
     }
     BufferParameters bufParams = new BufferParameters();
-    bufParams.setEndCapStyle(BufferParameters.CAP_SQUARE);   
+    bufParams.setEndCapStyle(BufferParameters.CAP_SQUARE);
+    bufParams.setJoinStyle(BufferParameters.JOIN_MITRE);
+    bufParams.setMitreLimit(BufferParameters.DEFAULT_MITRE_LIMIT);
     return BufferOp.bufferOp(lines, distance, bufParams);
   }
   
