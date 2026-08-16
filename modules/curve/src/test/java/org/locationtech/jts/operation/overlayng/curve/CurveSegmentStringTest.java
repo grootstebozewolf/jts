@@ -35,6 +35,10 @@ import test.jts.GeometryTestCase;
  * each unordered pair. P2.5.3 walks the faces of that node set.
  * P2.5.4 is near-tangent robustness: a coincident leave-angle
  * stamps {@link CurveSegmentFaces#TANGENT_LEAVE_ANGLE}.
+ * P2.5.7 is the package-private curve DCEL
+ * ({@link CurveSegmentDcel}): half-edges, twins, next/prev, face
+ * pointers on {@link CurveSegmentString} members. Face Geometry
+ * assemble stays {@link CurveSegmentFaces}.
  * MIXED overlay walks the named diameter as a shared edge
  * ({@link MixedOverlapOverlay}). Not N-SS, not a core {@code Noder}.
  */
@@ -565,9 +569,10 @@ public class CurveSegmentStringTest extends GeometryTestCase {
 
   /**
    * HALF_DISC × HALF_HANGING × STADIUM_ODD: crossings (±1, 0) plus
-   * the tangent at (0, 5). Two pieces leave at the same angle
-   * ({@code ANGLE_EPS = 1e-8}). Ordering them is snap-rounding
-   * (P2.5.4). Named stamp, not a HotPixel, not a bare null.
+   * the tangent at (0, 5). Two pieces leave in the same direction
+   * (endpoint quadrant + orientation, not atan2 of deltas).
+   * Ordering them is snap-rounding (P2.5.4). Named stamp, not a
+   * HotPixel, not a bare null.
    */
   public void testN3TangentStampsNull() throws Exception {
     Geometry faces = CurveSegmentFaces.faces(new Geometry[] {
