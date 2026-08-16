@@ -65,28 +65,50 @@ import org.locationtech.jts.geom.PrecisionModel;
  * which aligns with the ISO 19125 standard.
  * This format is used by Spatialite and Geopackage.
  * <p>
- * The difference between PostGIS EWKB format and the new ISO/OGC specification is
+ * The difference between PostGIS EWKB format and ISO/IEC 13249-3 is
  * that Z and M coordinates are detected with a bit mask on the higher byte in
- * the former case (0x80 for Z and 0x40 for M) while new OGC specification use
+ * the former case (0x80 for Z and 0x40 for M) while ISO uses
  * specific int ranges for 2D geometries, Z geometries (2D code+1000), M geometries
  * (2D code+2000) and ZM geometries (2D code+3000).
+ * Flavour is detected on read; there is no {@code wkbCurve} / {@code wkbSurface}.
  * <p>
- * Note that the {@link WKBWriter} is not changed and still writes the PostGIS EWKB
- * geometry format.
+ * The {@link WKBWriter} default flavour remains Extended (EWKB).
+ * ISO type words are emitted only when {@link WKBWriter#setFlavor(int)}
+ * is {@link WKBConstants#wkbIso}.
  * <p>
- * ISO/OGC SQL/MM type codes 8–12 (CircularString, CompoundCurve,
+ * ISO/IEC 13249-3 SQL/MM type codes 8–12 (CircularString, CompoundCurve,
  * CurvePolygon, MultiCurve, MultiSurface) are recognised. Construction
  * is delegated to the {@link GeometryFactory}; the default factory
  * throws {@link UnsupportedOperationException}, which this reader
- * wraps as {@link ParseException}. Subclasses may override
+ * wraps as {@link ParseException}. Codes 15–17 (Triangle /
+ * PolyhedralSurface / TIN) are not recognised here — GEO-TIN waits
+ * Architect SIGN. Unknown types throw. Subclasses may override
  * {@link #readOtherGeometry} for types the core reader does not
- * recognise (codes 13+). Helpers used to read nested geometries,
+ * recognise. Helpers used to read nested geometries,
  * coordinate sequences, and field counts are {@code protected}.
  * 
  * @see WKBWriter for a formal format specification
  */
 public class WKBReader
 {
+  /**
+   * Detects the WKB flavour encoded in a type word, matching GEOS
+   * {@code WKBReader} (ISO type range vs SFSQL high bits).
+   * A plain 2-D type (no +1000 range, no EWKB bits) is reported as
+   * {@link WKBConstants#wkbExtended} because both flavours share those
+   * bytes.
+   *
+   * @param typeInt the WKB type integer as stored after the endian byte
+   * @return {@link WKBConstants#wkbIso} or {@link WKBConstants#wkbExtended}
+   */
+  public static int detectFlavor(int typeInt) {
+    int isoTypeRange = (typeInt & 0xffff) / 1000;
+    if (isoTypeRange == 1 || isoTypeRange == 2 || isoTypeRange == 3) {
+      return WKBConstants.wkbIso;
+    }
+    return WKBConstants.wkbExtended;
+  }
+
   /**
    * Converts a hexadecimal string to a byte array.
    * The hexadecimal digit symbols are case-insensitive.
@@ -248,19 +270,20 @@ public class WKBReader
     int typeInt = dis.readInt();
     
     /**
-     * To get geometry type mask out EWKB flag bits, 
-     * and use only low 3 digits of type word.
-     * This supports both EWKB and ISO/OGC.
+     * Flavour detection matches GEOS {@code WKBReader.cpp}:
+     * {@code geometryType = (typeInt & 0xffff) % 1000},
+     * {@code isoTypeRange = (typeInt & 0xffff) / 1000}
+     * (1=Z, 2=M, 3=ZM), plus SFSQL bits
+     * {@code 0x80000000} Z / {@code 0x40000000} M / {@code 0x20000000} SRID.
      */
     int geometryType = (typeInt & 0xffff) % 1000;
-
-    // handle 3D and 4D WKB geometries
-    // geometries with Z coordinates have the 0x80 flag (postgis EWKB)
-    // or are in the 1000 range (Z) or in the 3000 range (ZM) of geometry type (ISO/OGC 06-103r4)
-    boolean hasZ = ((typeInt & 0x80000000) != 0 || (typeInt & 0xffff)/1000 == 1 || (typeInt & 0xffff)/1000 == 3);
-    // geometries with M coordinates have the 0x40 flag (postgis EWKB)
-    // or are in the 1000 range (M) or in the 3000 range (ZM) of geometry type (ISO/OGC 06-103r4)
-    boolean hasM = ((typeInt & 0x40000000) != 0 || (typeInt & 0xffff)/1000 == 2 || (typeInt & 0xffff)/1000 == 3);
+    int isoTypeRange = (typeInt & 0xffff) / 1000;
+    boolean isoHasZ = isoTypeRange == 1 || isoTypeRange == 3;
+    boolean isoHasM = isoTypeRange == 2 || isoTypeRange == 3;
+    boolean sfsqlHasZ = (typeInt & 0x80000000) != 0;
+    boolean sfsqlHasM = (typeInt & 0x40000000) != 0;
+    boolean hasZ = sfsqlHasZ || isoHasZ;
+    boolean hasM = sfsqlHasM || isoHasM;
     //System.out.println(typeInt + " - " + geometryType + " - hasZ:" + hasZ);
     inputDimension = 2 + (hasZ ? 1 : 0) + (hasM ? 1 : 0);
     

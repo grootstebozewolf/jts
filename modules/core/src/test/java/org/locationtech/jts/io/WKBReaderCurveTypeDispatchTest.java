@@ -90,4 +90,24 @@ public class WKBReaderCurveTypeDispatchTest extends GeometryTestCase {
       assertTrue(e.getMessage().indexOf("Unknown WKB type 99") >= 0);
     }
   }
+
+  /**
+   * GEO-TIN WKB 15–17 (Triangle / PolyhedralSurface / TIN) waits
+   * Architect SIGN. Unknown type throws.
+   */
+  public void testType15_16_17StillUnknown() {
+    assertUnknownType("010F000000", 15);
+    assertUnknownType("0110000000", 16);
+    assertUnknownType("0111000000", 17);
+  }
+
+  private static void assertUnknownType(String hex, int typeCode) {
+    try {
+      new WKBReader().read(WKBReader.hexToBytes(hex));
+      fail("Expected ParseException for unknown type " + typeCode);
+    } catch (Throwable e) {
+      assertTrue("Expected ParseException, got: " + e, e instanceof ParseException);
+      assertTrue(e.getMessage().indexOf("Unknown WKB type " + typeCode) >= 0);
+    }
+  }
 }
