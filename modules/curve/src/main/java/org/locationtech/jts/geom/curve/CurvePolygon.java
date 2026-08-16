@@ -20,6 +20,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 
 /**
  * A polygon whose rings may be straight, circular, or compound curves.
@@ -386,6 +387,15 @@ public class CurvePolygon extends Polygon implements Linearizable {
   // The jts-core implementations walk getCoordinates(), which for a curve is
   // only the control points. Route them through a densified copy instead; see
   // CurveOps for the tolerance rationale and its limits.
+
+  /**
+   * Core {@code WKTWriter} refuses to flatten curve rings.
+   * SQL/MM ISO/IEC 13249-3 CurvePolygon keeps tagged rings.
+   */
+  @Override
+  public String toText() {
+    return new CurveWKTWriter().write(this);
+  }
 
   @Override
   public Geometry convexHull() {

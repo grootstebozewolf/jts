@@ -20,6 +20,7 @@ import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jts.io.WKTWriter;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 import org.locationtech.jts.util.Assert;
 
 
@@ -28,7 +29,7 @@ import org.locationtech.jts.util.Assert;
  */
 public class TestCase implements Testable {
   private PrecisionModel pm = new PrecisionModel();
-  private WKTWriter wktWriter = new WKTWriter();
+  private WKTWriter wktWriter = new CurveWKTWriter();
   protected String name, description, expectedIM;
   protected boolean isRun = false;
   protected boolean failed = false;

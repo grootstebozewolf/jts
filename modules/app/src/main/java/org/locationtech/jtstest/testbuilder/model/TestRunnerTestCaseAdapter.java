@@ -19,6 +19,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTWriter;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 import org.locationtech.jts.util.Assert;
 import org.locationtech.jtstest.geomop.GeometryMethodOperation;
 import org.locationtech.jtstest.test.Testable;
@@ -37,7 +38,7 @@ public class TestRunnerTestCaseAdapter
      implements Testable {
   private TestCase testCase;
   private boolean ranAtLeastOnce = false;
-  private WKTWriter wktWriter = new WKTWriter();
+  private WKTWriter wktWriter = new CurveWKTWriter();
 
   public TestRunnerTestCaseAdapter(org.locationtech.jtstest.testrunner.TestCase testCase) {
     this.testCase = testCase;
