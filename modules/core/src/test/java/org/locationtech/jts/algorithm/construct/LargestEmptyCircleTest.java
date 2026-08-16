@@ -129,7 +129,8 @@ public class LargestEmptyCircleTest extends GeometryTestCase {
   }
 
   /**
-   * Proofs #474 / {@code LECCandidateVertex.v} Family I: sites
+   * NTS.Proofs ({@code grootstebozewolf/NetTopologySuite.Proofs#474})
+   * / {@code LECCandidateVertex.v} Family I: sites
    * (0,0), (4,0), (2,3) on their hull. Unique maximiser is the
    * Voronoi vertex (2, 5/6) at radius 13/6
    * ({@code lec_three_points}). The walk must include

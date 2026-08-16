@@ -72,8 +72,9 @@ import org.locationtech.jts.triangulate.quadedge.QuadEdgeSubdivision;
  * When obstacles flatten to point sites only and the boundary is a
  * 2-D polygonal domain (or the convex hull, when that hull is
  * polygonal), the centre is taken from the three candidate classes
- * proven exhaustive by NetTopologySuite.Proofs #474
- * ({@code lec_candidate_completeness_interior},
+ * proven exhaustive by NTS.Proofs
+ * ({@code grootstebozewolf/NetTopologySuite.Proofs#474};
+ * {@code lec_candidate_completeness_interior},
  * {@code lec_candidate_completeness_boundary_edge}): Voronoi
  * vertices, Voronoi-edge × domain-boundary crossings, and domain
  * vertices. Clearance is the existing Euclidean
@@ -451,7 +452,8 @@ public class LargestEmptyCircle {
   }
 
   /**
-   * Exact point-site centre from the three Proofs #474 classes.
+   * Exact point-site centre from the three NTS.Proofs
+   * ({@code grootstebozewolf/NetTopologySuite.Proofs#474}) classes.
    * Radius point is the nearest site via {@link ObstacleDistance}.
    */
   private void applyPointSiteCenter(Coordinate c) {
@@ -499,7 +501,8 @@ public class LargestEmptyCircle {
   private static final double ON_EDGE_TOL = 1.0e-8;
 
   /**
-   * Proofs #474 three-class walk for point sites in a 2-D polygonal
+   * NTS.Proofs ({@code grootstebozewolf/NetTopologySuite.Proofs#474})
+   * three-class walk for point sites in a 2-D polygonal
    * domain. Returns {@code null} to fall through to the grid.
    * Does not filter “not ≥ 3 nearest” — F8 empty-interior maximisers
    * are two-nearest bisector × edge crossings
