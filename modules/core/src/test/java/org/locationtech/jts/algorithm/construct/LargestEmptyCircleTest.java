@@ -192,8 +192,8 @@ public class LargestEmptyCircleTest extends GeometryTestCase {
     Geometry thin = read(
         "POLYGON ((-0.1 -0.1, 2.1 -0.1, 2.1 0.1, -0.1 0.1, -0.1 -0.1))");
     LargestEmptyCircle lec = new LargestEmptyCircle(sites, thin, 0.01);
-    assertTrue(lec.usedPointSiteCandidates());
     Coordinate c = lec.getCenter().getCoordinate();
+    assertTrue(lec.usedPointSiteCandidates());
     assertEquals(1.0, c.x, 1.0e-12);
     assertEquals(0.1, Math.abs(c.y), 1.0e-12);
     assertEquals(Math.sqrt(1.01), lec.getRadiusLine().getLength(), 1.0e-12);
@@ -206,8 +206,8 @@ public class LargestEmptyCircleTest extends GeometryTestCase {
   public void testTwoSitesHullIsNotAPolygon() {
     Geometry sites = read("MULTIPOINT ((0 0), (2 0))");
     LargestEmptyCircle lec = new LargestEmptyCircle(sites, null, 0.01);
-    assertTrue(!lec.usedPointSiteCandidates());
     assertEquals(0.0, lec.getRadiusLine().getLength(), 0.01);
+    assertTrue(!lec.usedPointSiteCandidates());
   }
 
   /**
@@ -266,8 +266,8 @@ public class LargestEmptyCircleTest extends GeometryTestCase {
     Geometry sites = read("MULTIPOINT ((0 0), (1 0), (2 0))");
     Geometry domain = read("POLYGON ((-1 -2, 3 -2, 3 2, -1 2, -1 -2))");
     LargestEmptyCircle lec = new LargestEmptyCircle(sites, domain, 0.01);
-    assertTrue(lec.usedPointSiteCandidates());
     assertEquals(Math.sqrt(5.0), lec.getRadiusLine().getLength(), 1.0e-9);
+    assertTrue(lec.usedPointSiteCandidates());
   }
 
   /**
