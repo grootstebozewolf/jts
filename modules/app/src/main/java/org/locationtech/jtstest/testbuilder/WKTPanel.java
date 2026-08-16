@@ -21,6 +21,7 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import javax.swing.BorderFactory;
@@ -69,7 +70,7 @@ public class WKTPanel extends JPanel
     JPanel aPanel = new JPanel();
     JButton aCopyButton = new JButton();
     JButton aPasteButton = new JButton();
-    JButton aCutButton = new JButton();
+    JButton aClearButton = new JButton();
 //    JPanel aButtonPanel = new JPanel();
     Box aLabelPanel = Box.createVerticalBox();
     Box aButtonPanel = Box.createVerticalBox();
@@ -80,7 +81,7 @@ public class WKTPanel extends JPanel
     JPanel bPanel = new JPanel();
     JButton bCopyButton = new JButton();
     JButton bPasteButton = new JButton();
-    JButton bCutButton = new JButton();
+    JButton bClearButton = new JButton();
 //    JPanel bButtonPanel = new JPanel();
     Box bLabelPanel = Box.createVerticalBox();
     Box bButtonPanel = Box.createVerticalBox();
@@ -172,6 +173,7 @@ public class WKTPanel extends JPanel
             setFocusGeometry(0);
           }
         });
+        registerLoadKeyListener(aTextArea);
 
         bScrollPane.setBorder(BorderFactory.createLoweredBevelBorder());
         bTextArea.setWrapStyleWord(true);
@@ -185,6 +187,7 @@ public class WKTPanel extends JPanel
             setFocusGeometry(1);
           }
         });
+        registerLoadKeyListener(bTextArea);
         
         aCopyButton.setToolTipText(AppStrings.TIP_COPY_DATA);
         aCopyButton.setIcon(AppIcons.COPY);
@@ -194,16 +197,16 @@ public class WKTPanel extends JPanel
         aPasteButton.setIcon(AppIcons.PASTE);
         aPasteButton.setMargin(new Insets(0, 0, 0, 0));
 
-        aCutButton.setToolTipText("Clear");
-        aCutButton.setIcon(AppIcons.CUT);
-        aCutButton.setMargin(new Insets(0, 0, 0, 0));
+        aClearButton.setText(AppStrings.LABEL_CLEAR_A);
+        aClearButton.setToolTipText(AppStrings.LABEL_CLEAR_A);
+        aClearButton.setMargin(new Insets(0, 2, 0, 2));
 
         aButtonPanelLayout.setVgap(1);
         aButtonPanelLayout.setHgap(1);
 //        aButtonPanel.setLayout(aButtonPanelLayout);
         aButtonPanel.add(aPasteButton);
         aButtonPanel.add(aCopyButton);
-        aButtonPanel.add(aCutButton);
+        aButtonPanel.add(aClearButton);
         
         aLabel.setAlignmentX(LEFT_ALIGNMENT);
         aRB.setAlignmentX(LEFT_ALIGNMENT);
@@ -230,16 +233,16 @@ public class WKTPanel extends JPanel
         bPasteButton.setIcon(AppIcons.PASTE);
         bPasteButton.setMargin(new Insets(0, 0, 0, 0));
 
-        bCutButton.setToolTipText("Clear");
-        bCutButton.setIcon(AppIcons.CUT);
-        bCutButton.setMargin(new Insets(0, 0, 0, 0));
+        bClearButton.setText(AppStrings.LABEL_CLEAR_B);
+        bClearButton.setToolTipText(AppStrings.LABEL_CLEAR_B);
+        bClearButton.setMargin(new Insets(0, 2, 0, 2));
 
         bButtonPanelLayout.setVgap(1);
         bButtonPanelLayout.setHgap(1);
 //        bButtonPanel.setLayout(bButtonPanelLayout);
         bButtonPanel.add(bPasteButton);
         bButtonPanel.add(bCopyButton);
-        bButtonPanel.add(bCutButton);
+        bButtonPanel.add(bClearButton);
 
         bLabel.setAlignmentX(LEFT_ALIGNMENT);
         //bLabelPanel.add(bRB);
@@ -331,10 +334,10 @@ public class WKTPanel extends JPanel
               	aPasteButton_actionPerformed(e);
               }
             });
-        aCutButton.addActionListener(
+        aClearButton.addActionListener(
             new ActionListener() {
               public void actionPerformed(ActionEvent e) {
-              	aCutButton_actionPerformed(e);
+              	aClearButton_actionPerformed(e);
               }
             });
         bCopyButton.addActionListener(
@@ -349,10 +352,10 @@ public class WKTPanel extends JPanel
               	bPasteButton_actionPerformed(e);
               }
             });
-        bCutButton.addActionListener(
+        bClearButton.addActionListener(
             new ActionListener() {
               public void actionPerformed(ActionEvent e) {
-              	bCutButton_actionPerformed(e);
+              	bClearButton_actionPerformed(e);
               }
             });
         editMode.add(aRB);
@@ -398,25 +401,51 @@ public class WKTPanel extends JPanel
     
     public String getGeometryTextClean(int geomIndex)
     {
-    	String text = getGeometryText(geomIndex);
-    	String textTrim = text.trim();
-    	if (textTrim.length() == 0) return textTrim;
-    	String textClean = textTrim;
-    	switch (MultiFormatReader.format(textTrim))
-    	{
-    	case MultiFormatReader.FORMAT_WKT:
-    		textClean = GeometryTextCleaner.cleanWKT(textTrim);
-    		break;
-    	}
-    	return textClean;
-    }
-    
-    void aTextArea_keyTyped(KeyEvent e) {
-        loadButton.setEnabled(true);
+    	return geometryTextClean(getGeometryText(geomIndex));
     }
 
-    void bTextArea_keyTyped(KeyEvent e) {
-        loadButton.setEnabled(true);
+    /**
+     * Strip comments / illegal WKT characters. Does not empty a valid source
+     * string — used by Load so apply cannot wipe typed WKT.
+     */
+    static String geometryTextClean(String text) {
+      String textTrim = text.trim();
+      if (textTrim.length() == 0) return textTrim;
+      String textClean = textTrim;
+      switch (MultiFormatReader.format(textTrim))
+      {
+      case MultiFormatReader.FORMAT_WKT:
+        textClean = GeometryTextCleaner.cleanWKT(textTrim);
+        break;
+      }
+      return textClean;
+    }
+
+    /**
+     * Enter or Ctrl+Enter applies A+B. Shift+Enter (without Ctrl) inserts a newline.
+     */
+    static boolean isApplyLoadKey(KeyEvent e) {
+      if (e.getKeyCode() != KeyEvent.VK_ENTER) {
+        return false;
+      }
+      if (e.isControlDown()) {
+        return true;
+      }
+      return !e.isShiftDown();
+    }
+
+    private void registerLoadKeyListener(JTextArea textArea) {
+      textArea.addKeyListener(new KeyAdapter() {
+        public void keyPressed(KeyEvent e) {
+          if (isApplyLoadKey(e)) {
+            e.consume();
+            loadButton_actionPerformed(null);
+          }
+        }
+        public void keyTyped(KeyEvent e) {
+          loadButton.setEnabled(true);
+        }
+      });
     }
 
     void loadButton_actionPerformed(ActionEvent e) {
@@ -471,13 +500,15 @@ public class WKTPanel extends JPanel
       }
     }
     
-    void aCutButton_actionPerformed(ActionEvent e) {
+    void aClearButton_actionPerformed(ActionEvent e) {
       aTextArea.setText("");
       tbModel.getGeometryEditModel().clear(0);
+      JTSTestBuilder.controller().displayInfo("Cleared A", false);
     }
-    void bCutButton_actionPerformed(ActionEvent e) {
+    void bClearButton_actionPerformed(ActionEvent e) {
     	bTextArea.setText("");
       tbModel.getGeometryEditModel().clear(1);
+      JTSTestBuilder.controller().displayInfo("Cleared B", false);
     }
 
     private void initFileDrop(Component comp, int index) 
