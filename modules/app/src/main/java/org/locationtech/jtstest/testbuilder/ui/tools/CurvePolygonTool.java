@@ -12,6 +12,8 @@
 package org.locationtech.jtstest.testbuilder.ui.tools;
 
 import java.awt.Shape;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -20,20 +22,31 @@ import java.util.List;
 import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.awt.curve.CircularArcRenderer;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jtstest.testbuilder.GeometryEditPanel;
+import org.locationtech.jtstest.testbuilder.JTSTestBuilder;
+import org.locationtech.jtstest.testbuilder.JTSTestBuilderFrame;
 import org.locationtech.jtstest.testbuilder.model.GeometryType;
 
 /**
- * Stream-style mouse-draw tool for an OGC SFA
+ * Stream-style mouse-draw tool for an ISO/IEC 13249-3 SQL/MM
  * {@link org.locationtech.jts.geom.curve.CurvePolygon} with an exterior
  * shell only (no holes this slice).
  *
- * <p>A closed odd-count CircularString becomes a CurvePolygon via
- * {@code createCurvePolygon(shell, null)}. Unclosed or even leftover
- * input aborts — the tool does not emit a linearized Polygon.
+ * <p>A non-closing double-click, or a click on the start vertex, auto-closes
+ * the in-progress shell and commits {@code CURVEPOLYGON (CIRCULARSTRING …)}.
+ * An even leftover after close gets a chord-midpoint control so the
+ * CircularString count stays odd — the tool never emits a linearized
+ * {@code POLYGON} and never drops the in-progress geom with no message.
+ * Escape cancels with {@link #CANCELLED_STATUS}.
  */
 public class CurvePolygonTool extends AbstractStreamDrawTool {
 
+  /** Visible status on Escape. Exact text, including the period. */
+  static final String CANCELLED_STATUS = "CurvePolygon cancelled.";
+
   private static CurvePolygonTool singleton = null;
+
+  private boolean cancelling = false;
 
   public static CurvePolygonTool getInstance() {
     if (singleton == null)
@@ -50,7 +63,57 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
   }
 
   @Override
+  public void activate(GeometryEditPanel panel) {
+    super.activate(panel);
+    panel.setFocusable(true);
+    panel.addKeyListener(this);
+    panel.requestFocusInWindow();
+  }
+
+  @Override
+  public void deactivate() {
+    if (panel() != null) {
+      panel().removeKeyListener(this);
+    }
+    super.deactivate();
+  }
+
+  @Override
+  public void keyPressed(KeyEvent e) {
+    if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+      cancelInProgress();
+    }
+  }
+
+  /**
+   * Click on the start vertex auto-closes and commits, same as a
+   * non-closing double-click. The start point is not added again;
+   * {@link #closeCircularShell} appends it.
+   */
+  @Override
+  public void mousePressed(MouseEvent e) {
+    if (panel() != null) {
+      panel().requestFocusInWindow();
+    }
+    if (e.getClickCount() == 1) {
+      try {
+        if (isClickOnStart(toModelSnapped(e.getPoint()))) {
+          finishGesture();
+          return;
+        }
+      } catch (Exception ignored) {
+        return;
+      }
+    }
+    super.mousePressed(e);
+  }
+
+  @Override
   protected void bandFinished() throws Exception {
+    if (cancelling) {
+      showCancelled();
+      return;
+    }
     if (panel().getModel() == null) return;
     panel().getGeomModel().setGeometryType(getGeometryType());
 
@@ -58,14 +121,69 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
     for (Object o : getCoordinates()) {
       coords.add((Coordinate) o);
     }
-    if (coords.size() < 3) return;
-    if (!coords.get(0).equals2D(coords.get(coords.size() - 1))) {
-      coords.add(new Coordinate(coords.get(0)));
-    }
-    if (coords.size() < 3 || coords.size() % 2 == 0) return;
+    List<Coordinate> shell = closeCircularShell(coords);
+    if (shell == null) return;
 
-    geomModel().addComponent(coords);
+    geomModel().addComponent(shell);
     panel().updateGeom();
+  }
+
+  /**
+   * Auto-close an in-progress shell so it is a valid ISO/IEC 13249-3
+   * CircularString ring: closed, odd count ≥ 3. A non-closing finish
+   * appends the start vertex. An even leftover after that inserts a
+   * chord-midpoint control (straight closing arc, matching the preview
+   * close line) so the count stays odd. Returns {@code null} when there
+   * is no shell to commit.
+   */
+  static List<Coordinate> closeCircularShell(List<Coordinate> input) {
+    if (input == null || input.size() < 2) {
+      return null;
+    }
+    List<Coordinate> coords = new ArrayList<Coordinate>(input);
+    Coordinate start = coords.get(0);
+    if (!start.equals2D(coords.get(coords.size() - 1))) {
+      coords.add(new Coordinate(start));
+    }
+    if (coords.size() < 3) {
+      return null;
+    }
+    if (coords.size() % 2 == 0) {
+      Coordinate prev = coords.get(coords.size() - 2);
+      Coordinate last = coords.get(coords.size() - 1);
+      Coordinate mid = new Coordinate(
+          (prev.x + last.x) / 2.0,
+          (prev.y + last.y) / 2.0);
+      coords.add(coords.size() - 1, mid);
+    }
+    return coords;
+  }
+
+  private boolean isClickOnStart(Coordinate click) {
+    List coords = getCoordinates();
+    if (coords.size() < 2 || click == null) {
+      return false;
+    }
+    Coordinate start = (Coordinate) coords.get(0);
+    return start.distance(click) <= getModelSnapTolerance();
+  }
+
+  private void cancelInProgress() {
+    cancelling = true;
+    try {
+      finishGesture();
+    } catch (Exception ignored) {
+      showCancelled();
+    } finally {
+      cancelling = false;
+    }
+  }
+
+  private void showCancelled() {
+    if (!JTSTestBuilderFrame.isRunning()) {
+      return;
+    }
+    JTSTestBuilder.controller().displayInfo(CANCELLED_STATUS, true);
   }
 
   @Override
