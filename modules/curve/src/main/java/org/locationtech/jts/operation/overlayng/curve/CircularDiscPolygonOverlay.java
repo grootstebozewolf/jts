@@ -24,8 +24,6 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CurvePolygon;
-import org.locationtech.jts.geom.curve.MultiSurface;
-import org.locationtech.jts.operation.overlayng.OverlayNG;
 
 /**
  * Closed-form overlay of one circular disc and one plain Polygon.
@@ -40,8 +38,8 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * is the surviving circular arc plus the polygon walk between the nodes
  * (CAP the clip, CUP the blob, SUB a bite or a cap, XOR both), assembled
  * by {@link TwoNodeClip}. An even run of 4+ nodes that alternate
- * in/out around the circle is the same kit with n spans (CAP / CUP one
- * ring, SUB / XOR the paired caps and ears) -- not a general noder.
+ * in/out around the circle is {@link NSpanClip} (CAP / CUP one ring,
+ * SUB / XOR the paired caps and ears) -- not a general noder.
  * Anything else -- not this shape pair, holes, 0 / 1 / odd nodes, a
  * non-alternating cut -- returns {@code null} so the caller can take
  * the chord baseline without paying this path first.
@@ -129,8 +127,8 @@ final class CircularDiscPolygonOverlay {
   }
 
   /**
-   * Even n≥4 line–circle nodes that alternate in/out. CAP / CUP are
-   * one stitched ring; SUB / XOR are the paired caps and ears.
+   * Even n≥4 line–circle nodes that alternate in/out. Assemble is
+   * {@link NSpanClip}.
    */
   private static Geometry nNodeOverlay(double cx, double cy, double r,
       Polygon poly, boolean discFirst, int opCode, Geometry factorySrc) {
@@ -155,34 +153,10 @@ final class CircularDiscPolygonOverlay {
     if (!alternates(arcs)) return null;
 
     GeometryFactory f = TwoNodeClip.curveFactory(factorySrc);
-    List<LineString> inArcs = pieces(arcs, true, f);
-    List<LineString> outArcs = pieces(arcs, false, f);
-    List<LineString> inWalks = pieces(walks, true, f);
-    List<LineString> outWalks = pieces(walks, false, f);
-    if (inArcs.size() != inWalks.size() || outArcs.size() != outWalks.size()) {
-      return null;
-    }
-    if (inArcs.isEmpty() || outArcs.isEmpty()) return null;
-
-    double scale = r;
-    if (opCode == OverlayNG.INTERSECTION) {
-      return stitchRing(inArcs, inWalks, f, scale);
-    }
-    if (opCode == OverlayNG.UNION) {
-      return stitchRing(outArcs, outWalks, f, scale);
-    }
-    if (opCode == OverlayNG.DIFFERENCE) {
-      return discFirst
-          ? multi(pairFaces(outArcs, inWalks, f, scale), f)
-          : multi(pairFaces(outWalks, inArcs, f, scale), f);
-    }
-    if (opCode == OverlayNG.SYMDIFFERENCE) {
-      List<Polygon> faces = new ArrayList<Polygon>();
-      addAll(faces, pairFaces(outArcs, inWalks, f, scale));
-      addAll(faces, pairFaces(outWalks, inArcs, f, scale));
-      return multi(faces, f);
-    }
-    return null;
+    return NSpanClip.overlayLines(opCode, discFirst,
+        pieces(arcs, true, f), pieces(arcs, false, f),
+        pieces(walks, true, f), pieces(walks, false, f),
+        f, r);
   }
 
   private static List<Span> circleSpans(List<TwoNodeClip.Node> nodes,
@@ -208,7 +182,7 @@ final class CircularDiscPolygonOverlay {
   private static List<Span> ringSpans(List<TwoNodeClip.Node> nodes,
       Coordinate[] ring, double cx, double cy, double r) {
     List<TwoNodeClip.Node> ord = new ArrayList<TwoNodeClip.Node>(nodes);
-    Collections.sort(ord, RING_T);
+    Collections.sort(ord, NSpanClip.RING_T);
     List<Span> out = new ArrayList<Span>();
     for (int i = 0; i < ord.size(); i++) {
       TwoNodeClip.Node a = ord.get(i);
@@ -223,13 +197,11 @@ final class CircularDiscPolygonOverlay {
   }
 
   private static boolean alternates(List<Span> spans) {
-    if (spans.size() < 2) return false;
+    boolean[] in = new boolean[spans.size()];
     for (int i = 0; i < spans.size(); i++) {
-      if (spans.get(i).in == spans.get((i + 1) % spans.size()).in) {
-        return false;
-      }
+      in[i] = spans.get(i).in;
     }
-    return true;
+    return NSpanClip.alternates(in);
   }
 
   private static List<LineString> pieces(List<Span> spans, boolean wantIn,
@@ -237,126 +209,16 @@ final class CircularDiscPolygonOverlay {
     List<LineString> out = new ArrayList<LineString>();
     for (int i = 0; i < spans.size(); i++) {
       Span s = spans.get(i);
-      if (s.in != wantIn) continue;
-      if (s.arc) {
-        out.add(TwoNodeClip.arc(s.a, s.mid, s.b, f));
-      }
-      else {
-        out.add(s.asLine(f));
-      }
-    }
-    return out;
-  }
-
-  private static Polygon stitchRing(List<LineString> arcs,
-      List<LineString> walks, GeometryFactory f, double scale) {
-    List<LineString> members = stitch(arcs, walks, scale);
-    if (members == null) return null;
-    return TwoNodeClip.closeRing(members, f,
-        Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12));
-  }
-
-  private static List<Polygon> pairFaces(List<LineString> a,
-      List<LineString> b, GeometryFactory f, double scale) {
-    List<Polygon> faces = new ArrayList<Polygon>();
-    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12);
-    boolean[] used = new boolean[b.size()];
-    for (int i = 0; i < a.size(); i++) {
-      LineString p = a.get(i);
-      int match = indexStartingAt(b, used, end(p), start(p), eps);
-      if (match < 0) return null;
-      used[match] = true;
-      List<LineString> members = new ArrayList<LineString>();
-      members.add(p);
-      members.add(oriented(b.get(match), end(p), eps, f));
-      Polygon face = TwoNodeClip.closeRing(members, f, eps);
-      if (face == null) return null;
-      faces.add(face);
-    }
-    return faces;
-  }
-
-  private static List<LineString> stitch(List<LineString> arcs,
-      List<LineString> walks, double scale) {
-    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12);
-    List<LineString> out = new ArrayList<LineString>();
-    boolean[] usedA = new boolean[arcs.size()];
-    boolean[] usedW = new boolean[walks.size()];
-    Coordinate cur = start(walks.get(0));
-    Coordinate origin = cur;
-    boolean wantArc = false;
-    int steps = arcs.size() + walks.size();
-    for (int k = 0; k < steps; k++) {
-      if (wantArc) {
-        int i = indexStartingAt(arcs, usedA, cur, null, eps);
-        if (i < 0) return null;
-        usedA[i] = true;
-        LineString piece = oriented(arcs.get(i), cur, eps, null);
-        out.add(piece);
-        cur = end(piece);
-      }
-      else {
-        int i = indexStartingAt(walks, usedW, cur, null, eps);
-        if (i < 0) return null;
-        usedW[i] = true;
-        LineString piece = oriented(walks.get(i), cur, eps, null);
-        out.add(piece);
-        cur = end(piece);
-      }
-      wantArc = !wantArc;
-    }
-    if (cur.distance(origin) > eps) return null;
-    return out;
-  }
-
-  private static int indexStartingAt(List<LineString> pieces, boolean[] used,
-      Coordinate at, Coordinate avoidOther, double eps) {
-    int found = -1;
-    for (int i = 0; i < pieces.size(); i++) {
-      if (!used[i] && found < 0) {
-        LineString g = pieces.get(i);
-        boolean startAt = start(g).distance(at) <= eps;
-        boolean endAt = end(g).distance(at) <= eps;
-        if (startAt || endAt) {
-          boolean ok = true;
-          if (avoidOther != null) {
-            Coordinate other = startAt ? end(g) : start(g);
-            ok = other.distance(avoidOther) <= eps;
-          }
-          if (ok) {
-            found = i;
-          }
+      if (s.in == wantIn) {
+        if (s.arc) {
+          out.add(TwoNodeClip.arc(s.a, s.mid, s.b, f));
+        }
+        else {
+          out.add(s.asLine(f));
         }
       }
     }
-    return found;
-  }
-
-  private static LineString oriented(LineString g, Coordinate from,
-      double eps, GeometryFactory f) {
-    if (start(g).distance(from) <= eps) return g;
-    return (LineString) g.reverse();
-  }
-
-  private static Coordinate start(LineString g) {
-    return g.getCoordinateN(0);
-  }
-
-  private static Coordinate end(LineString g) {
-    return g.getCoordinateN(g.getNumPoints() - 1);
-  }
-
-  private static Geometry multi(List<Polygon> faces, GeometryFactory f) {
-    if (faces == null || faces.isEmpty()) return null;
-    if (faces.size() == 1) return faces.get(0);
-    return new MultiSurface(faces.toArray(new Polygon[0]), f);
-  }
-
-  private static void addAll(List<Polygon> dest, List<Polygon> src) {
-    if (src == null) return;
-    for (int i = 0; i < src.size(); i++) {
-      dest.add(src.get(i));
-    }
+    return out;
   }
 
   private static Comparator<TwoNodeClip.Node> angleOrder(final double cx,
@@ -369,14 +231,6 @@ final class CircularDiscPolygonOverlay {
       }
     };
   }
-
-  private static final Comparator<TwoNodeClip.Node> RING_T =
-      new Comparator<TwoNodeClip.Node>() {
-        public int compare(TwoNodeClip.Node a, TwoNodeClip.Node b) {
-          if (a.edge != b.edge) return a.edge < b.edge ? -1 : 1;
-          return Double.compare(a.t, b.t);
-        }
-      };
 
   private static final class Span {
     final Coordinate a;

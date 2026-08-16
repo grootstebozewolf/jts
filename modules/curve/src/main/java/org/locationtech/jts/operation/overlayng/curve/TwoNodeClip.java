@@ -40,10 +40,11 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * CAP / CUP / SUB / XOR of a {@link CurvePolygon} whose shell is a
  * {@link CompoundCurve} of the surviving pieces.
  * <p>
- * Not a noder. 0 / 1 / 3+ nodes are the caller's miss. R1.5, R1.6,
- * and R1.7 call this; they keep their own shape dispatch. R-LL
- * reuses the intersection primitives and {@link #midOnSweep}; it
- * does not change this class's areal assemble.
+ * Not a noder. 0 / 1 / 3+ nodes are the caller's miss. Even-n
+ * assemble is {@link NSpanClip}. R1.5, R1.6, and R1.7 call this;
+ * they keep their own shape dispatch. R-LL reuses the intersection
+ * primitives and {@link #midOnSweep}; it does not change this
+ * class's areal assemble.
  */
 final class TwoNodeClip {
 
