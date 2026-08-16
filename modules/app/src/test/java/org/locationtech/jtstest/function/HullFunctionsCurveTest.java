@@ -145,9 +145,18 @@ public class HullFunctionsCurveTest extends TestCase {
         guess < 3.9);
   }
 
-  /** Guard: convexHull was already arc-aware via CRV-OPS and must stay so. */
+  /**
+   * Guard: convexHull is the H-CV laser -- a CurvePolygon that keeps the
+   * exposed arc, not the area-50 control-point polygon. ConcaveHull
+   * remains a different product (static, no virtual dispatch).
+   */
   public void testConvexHullStillArcAware() throws Exception {
-    double area = HullFunctions.convexHull(read(COMPOUND)).getArea();
+    Geometry hull = HullFunctions.convexHull(read(COMPOUND));
+    assertTrue("H-CC convex hull is a CurvePolygon, not a densified POLYGON",
+        hull instanceof org.locationtech.jts.geom.curve.CurvePolygon);
+    double area = hull.getArea();
+    assertEquals("exact H-CC area is 50 + 12.5 acos(0.6)",
+        50.0 + 12.5 * Math.acos(0.6), area, 1.0e-9);
     assertTrue("convex hull should exceed the control-point hull, got " + area,
         area > CONTROL_POINT_AREA + 10.0);
   }

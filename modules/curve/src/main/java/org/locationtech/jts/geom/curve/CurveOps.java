@@ -25,8 +25,8 @@ import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
  * curve envelopes cover the arc -- and cheaper than densifying. Distance,
  * buffer, convex hull, disc-vs-point PIP, and disc-vs-point / line /
  * polygon DE-9IM take a closed form when a cheap shape check can
- * answer (circular disc, single arc, point-vs-arc, disc-vs-line,
- * disc-vs-polygon); see {@code CurveExact}.
+ * answer (circular disc, single arc, circular-plus-straight hull,
+ * point-vs-arc, disc-vs-line, disc-vs-polygon); see {@code CurveExact}.
  * Anything else falls through to the locationtech/jts chord baseline:
  * {@link #linearise(Geometry)}, then the core algorithm. Overlay is not
  * routed here; it goes to {@link OverlayNGCurve}, whose ratchet has the same

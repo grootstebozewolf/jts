@@ -29,9 +29,9 @@ import test.jts.GeometryTestCase;
  * The overlay ratchet is not a prescription. These ops live on
  * {@link CurveOps} -- the instance-method hub -- and are gated independently.
  * A closed form is taken only when a cheap shape check says it can answer
- * (circular disc, single arc, point-vs-arc). Anything else goes straight to
- * the chords; trying and falling through would be the overlay-retention
- * mistake again.
+ * (circular disc, single arc, circular-plus-straight hull, point-vs-arc).
+ * Anything else goes straight to the chords; trying and falling through
+ * would be the overlay-retention mistake again.
  * <p>
  * Measured on this branch before the lasers (OpenJDK 21, median of 31 after
  * 15 warmups). Every row <em>was</em> the chord path:
@@ -47,8 +47,9 @@ import test.jts.GeometryTestCase;
  * After the lasers (same harness): far discs 0.009 / 4.797 (0.002),
  * arc-point 0.001 / 0.097 (0.015), disc hull 0.003 / 1.141 (0.003),
  * half-arc hull 0.002 / 0.533 (0.004), disc buffer 0.001 / 0.807 (0.002).
- * Open-arc buffer and CompoundCurve hull stay on the chords -- no closed
- * form beat densify-then-core. Hausdorff / MIC live in the app module.
+ * CompoundCurve hull is now a closed form (exposed arcs + supporting
+ * tangents). Open-arc buffer stays on the chords. Hausdorff / MIC live
+ * in the app module.
  * <p>
  * Each row asserts {@code median(laser) <= median(chainsaw)}. A 15% slack
  * covers timer noise.
@@ -145,6 +146,13 @@ public class CurveOpsDistConPerfGateTest extends GeometryTestCase {
         () -> CurveOps.linearise(a).convexHull());
   }
 
+  public void testConvexHullCompoundNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(COMPOUND);
+    assertLaserNotSlower("convexHull compound",
+        () -> a.convexHull(),
+        () -> CurveOps.linearise(a).convexHull());
+  }
+
   public void testBufferDiscNotSlowerThanChord() throws Exception {
     Geometry a = readCurve(DISC_5);
     assertLaserNotSlower("buffer disc +1",
@@ -192,9 +200,13 @@ public class CurveOpsDistConPerfGateTest extends GeometryTestCase {
     Geometry bulge = getGeometryFactory().createPoint(new Coordinate(
         5.0 + 5.0 * Math.cos(Math.toRadians(135.0)),
         5.0 * Math.sin(Math.toRadians(135.0))));
-    assertTrue("hull area " + hull.getArea() + " must exceed the control-point 50",
-        hull.getArea() > 60.0);
-    assertTrue("hull must reach the 135-degree bulge, gap was " + hull.distance(bulge),
-        hull.distance(bulge) < 2.0e-5);
+    assertTrue("H-CC hull is a CurvePolygon, not a densified POLYGON",
+        hull instanceof CurvePolygon);
+    assertEquals("exact H-CC area is 50 + 12.5 acos(0.6)",
+        50.0 + 12.5 * Math.acos(0.6), hull.getArea(), 1.0e-9);
+    assertEquals("bulge sits on the laser arc",
+        0.0, hull.distance(bulge), 1.0e-9);
+    assertNotNull("closed form must answer; densify is not flagged exact",
+        CurveExact.convexHull(readCurve(COMPOUND)));
   }
 }
