@@ -135,7 +135,7 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * walk (hits, ring / member walk, CAP / CUP / SUB / XOR). Even-n
  * assemble is {@code NSpanClip}. R1.7 dispatch is
  * {@code CompoundCurveShellOverlay} (hole / bite-vs-hole /
- * half-disc / two-shell / vs disc or polygon). R-LL and R-AA
+ * two-hole / half-disc / two-shell / vs disc or polygon). R-LL and R-AA
  * reuse the same intersection
  * primitives. Each rung keeps its own shape dispatch.
  * The distinction in R0/R1 is the one that matters: an exact answer chosen by a

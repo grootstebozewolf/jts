@@ -33,8 +33,8 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * holed side). A hole that meets or crosses the CAP shares the
  * clip edge: subtracting hole ∩ other is a bite, not an interior
  * punch ({@code H-SHELL-HOLE-CROSS}). That pair is
- * {@link BiteVsHole}. Two holes that cross
- * ({@code H-SHELL-HOLE-X}) stay {@code null}.
+ * {@link BiteVsHole}. Two holes on the same outer that cross
+ * ({@code H-SHELL-HOLE-X}) are {@link TwoHoleOverlay}.
  */
 final class DifferentOuterHoleOverlay {
 

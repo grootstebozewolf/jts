@@ -27,7 +27,8 @@ import test.jts.GeometryTestCase;
  * P2.1 nodes plus P2.2 overlap-as-edge. {@link CurveSegmentString}
  * is the unit; {@link CurveSegmentNoder} emits the discrete node
  * set or a shared run as an edge (interval). P2.3 walks a hole
- * ring as strings into one face decision (bite vs hole). Not N-SS.
+ * ring as strings into one face decision (bite vs hole). P2.4
+ * walks two crossing hole rings into the hole faces. Not N-SS.
  */
 public class CurveSegmentStringTest extends GeometryTestCase {
 
@@ -413,12 +414,35 @@ public class CurveSegmentStringTest extends GeometryTestCase {
 
     Geometry holed = readCurve(HALF_HOLED);
     Geometry holeX = readCurve(HOLE_X);
-    assertNull("H-SHELL-HOLE-X: two holes are P2.4",
+    assertNull("H-SHELL-HOLE-X: Geometry pair still has holes",
         CurveSegmentNoder.nodes(holed, holeX));
-    assertNull("H-SHELL-HOLE-X: edges stay null",
+    assertNull("H-SHELL-HOLE-X: Geometry edges stay on the outers",
         CurveSegmentNoder.edges(holed, holeX));
-    assertEquals("H-SHELL-HOLE-X: walk does not invent a face",
+    assertEquals("H-SHELL-HOLE-X: bite walk stays a miss",
         BiteVsHole.MISS, BiteVsHole.decide(holed, holeX));
+
+    CurvePolygon ha = (CurvePolygon) holed;
+    CurvePolygon hb = (CurvePolygon) holeX;
+    List<CurveSegmentString> holeA = CurveSegmentString.of(
+        ha.getInteriorCurveN(0));
+    List<CurveSegmentString> holeB = CurveSegmentString.of(
+        hb.getInteriorCurveN(0));
+    Coordinate[] holeNodes = CurveSegmentNoder.nodes(holeA, holeB, 10.0);
+    assertEquals("H-SHELL-HOLE-X: two hole–hole nodes", 2, holeNodes.length);
+    assertHas(holeNodes, 0.5, 1.0);
+    assertHas(holeNodes, 1.0, 1.5);
+    List<CurveSegmentString> holeEdges = CurveSegmentNoder.edges(
+        holeA, holeB, 10.0);
+    assertNotNull(holeEdges);
+    assertEquals("H-SHELL-HOLE-X: cross is nodes, not a shared run",
+        0, holeEdges.size());
+    assertEquals("two hole rings that cross", TwoHoleOverlay.CROSS,
+        TwoHoleOverlay.decide(holed, holeX));
+    Coordinate[] clip = TwoHoleOverlay.clipNodes(holed, holeX);
+    assertNotNull(clip);
+    assertEquals(2, clip.length);
+    assertHas(clip, 0.5, 1.0);
+    assertHas(clip, 1.0, 1.5);
   }
 
   public void testNoderDoesNotAssembleFaces() throws Exception {

@@ -34,10 +34,10 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * {@link HalfDiscOverlay} (complementary / sectors / collinear),
  * {@link TwoShellClip} (0 / 1 / 2 / even-n / odd-n with a tangent
  * as a degenerate NSpan), {@link BiteVsHole} (straddling hole:
- * new edge ⊂ other.shell is a bite, not a punch), or a two-node
- * walk vs a disc or plain polygon via {@link TwoNodeClip}. Two
- * holes that cross stay {@code null} ({@code H-SHELL-HOLE-X}).
- * A 0-node mixed shell vs a circular disc
+ * new edge ⊂ other.shell is a bite, not a punch),
+ * {@link TwoHoleOverlay} (two holes that cross on the same outer),
+ * or a two-node walk vs a disc or plain polygon via
+ * {@link TwoNodeClip}. A 0-node mixed shell vs a circular disc
  * ({@code CC-NEST-ANNULUS}) is not a punch. A miss is {@code null}.
  */
 final class CompoundCurveShellOverlay {
@@ -61,6 +61,10 @@ final class CompoundCurveShellOverlay {
     Geometry bite = BiteVsHole.overlay(a, b, opCode);
     if (bite != null) {
       return bite;
+    }
+    Geometry twoHole = TwoHoleOverlay.overlay(a, b, opCode);
+    if (twoHole != null) {
+      return twoHole;
     }
     CurvePolygon shellA = compoundCurveShell(a);
     CurvePolygon shellB = compoundCurveShell(b);
