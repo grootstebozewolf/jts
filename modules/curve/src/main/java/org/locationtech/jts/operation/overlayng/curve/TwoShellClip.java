@@ -27,7 +27,8 @@ import org.locationtech.jts.geom.curve.CurvePolygon;
  * alternating cut is {@link NSpanClip}. A tangent is a zero-length
  * NSpan, so two crossings plus a touch assemble like even-n.
  * Pair hits go through {@link CurveSegmentString}; collinear overlap
- * stays {@code null}. Face assemble is not a noder.
+ * stays {@code null} from {@code intersect} (the noder names that
+ * interval as an edge). Face assemble is not a noder.
  */
 final class TwoShellClip {
 

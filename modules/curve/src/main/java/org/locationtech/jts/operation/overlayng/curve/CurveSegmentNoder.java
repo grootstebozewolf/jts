@@ -21,14 +21,16 @@ import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.MultiSurface;
 
 /**
- * Nodes only. Intersects {@link CurveSegmentString}s and returns the
- * discrete node set the kits already compute, or {@code null}.
- * Package-private -- not a core {@code Noder}, not N-SS, not a public
- * API, not a face walker.
+ * Nodes and shared edges. Intersects {@link CurveSegmentString}s
+ * and returns the discrete node set the kits already compute, or
+ * {@code null}. A shared run is an {@linkplain #edges edge}
+ * (interval), not a pair of endpoints. Package-private -- not a
+ * core {@code Noder}, not N-SS, not a public API, not a face walker.
  * <p>
- * MIXED (collinear overlap) is the first miss. 0 / 1 hit is not a
- * discrete set for this rung (containment, pinch). Overlay still
- * goes through the existing kits. Densify is never a noder.
+ * MIXED (collinear overlap) is not a discrete node set; {@link #nodes}
+ * stays {@code null} and {@link #edges} names the interval.
+ * A tangent pinch is a zero-length edge. Overlay still goes through
+ * the existing kits. Densify is never a noder.
  */
 final class CurveSegmentNoder {
 
@@ -36,8 +38,8 @@ final class CurveSegmentNoder {
 
   /**
    * Discrete nodes of a circular pair, or {@code null}. Holes,
-   * overlap-as-edge, pinch, and pairs the strings cannot name
-   * stay {@code null}.
+   * collinear overlap, pinch, and pairs the strings cannot name
+   * stay {@code null}. The shared run lives on {@link #edges}.
    */
   static Coordinate[] nodes(Geometry a, Geometry b) {
     if (hasHole(a) || hasHole(b)) return null;
@@ -81,6 +83,40 @@ final class CurveSegmentNoder {
     return hits.toArray(new Coordinate[0]);
   }
 
+  /**
+   * Shared runs of a circular pair. Empty is no interval and no
+   * pinch. {@code null} is a hole (P2.3 / P2.4) or a pair the
+   * strings cannot name. Does not assemble a face.
+   */
+  static List<CurveSegmentString> edges(Geometry a, Geometry b) {
+    if (hasHole(a) || hasHole(b)) return null;
+    List<CurveSegmentString> sa = CurveSegmentString.of(a);
+    List<CurveSegmentString> sb = CurveSegmentString.of(b);
+    if (sa == null || sb == null) return null;
+    return edges(sa, sb, scaleOf(a, b));
+  }
+
+  /**
+   * Shared runs of two string collections. Empty is no shared edge.
+   */
+  static List<CurveSegmentString> edges(List<CurveSegmentString> a,
+      List<CurveSegmentString> b, double scale) {
+    List<CurveSegmentString> out = new ArrayList<CurveSegmentString>();
+    if (a == null || b == null || a.isEmpty() || b.isEmpty()) {
+      return out;
+    }
+    for (int i = 0; i < a.size(); i++) {
+      for (int j = 0; j < b.size(); j++) {
+        List<CurveSegmentString> shared = CurveSegmentString.shared(
+            a.get(i), b.get(j), scale);
+        for (int k = 0; k < shared.size(); k++) {
+          addUniqueEdge(out, shared.get(k), scale);
+        }
+      }
+    }
+    return out;
+  }
+
   private static void addUnique(List<Coordinate> hits, Coordinate[] xs,
       double scale) {
     double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12);
@@ -95,6 +131,32 @@ final class CurveSegmentNoder {
         hits.add(xs[k]);
       }
     }
+  }
+
+  private static void addUniqueEdge(List<CurveSegmentString> out,
+      CurveSegmentString e, double scale) {
+    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12);
+    boolean seen = false;
+    for (int i = 0; i < out.size() && !seen; i++) {
+      if (sameEdge(out.get(i), e, eps, scale)) {
+        seen = true;
+      }
+    }
+    if (!seen) {
+      out.add(e);
+    }
+  }
+
+  private static boolean sameEdge(CurveSegmentString p, CurveSegmentString q,
+      double eps, double scale) {
+    if (p.isArc() != q.isArc()) return false;
+    boolean ends = (p.getStart().distance(q.getStart()) <= eps
+            && p.getEnd().distance(q.getEnd()) <= eps)
+        || (p.getStart().distance(q.getEnd()) <= eps
+            && p.getEnd().distance(q.getStart()) <= eps);
+    if (!ends) return false;
+    if (!p.isArc()) return true;
+    return CurveSegmentString.sameCircle(p, q, scale);
   }
 
   private static boolean hasHole(Geometry g) {
