@@ -29,9 +29,10 @@ import test.jts.GeometryTestCase;
 /**
  * R1.5: two crossing circular discs become lens / blob / crescents, exact,
  * and JTS-class with the chord overlay. Nested concentric discs become
- * the annulus (the two-disc 7/8 · 6/8 remainder). Disjoint and
- * non-disc pairs stay {@code null} so OverlayNGCurve can take R2
- * without paying this path first.
+ * the annulus (the two-disc 7/8 · 6/8 remainder). An internal tangent
+ * nest ({@code H-ANNULUS-TANGENT}) is not strictly inside and stays
+ * {@code null}. Disjoint and non-disc pairs stay {@code null} so
+ * OverlayNGCurve can take R2 without paying this path first.
  */
 public class CircularDiscOverlayTest extends GeometryTestCase {
 
@@ -41,6 +42,9 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
       "CURVEPOLYGON (CIRCULARSTRING (2 0, 7 5, 12 0, 7 -5, 2 0))";
   private static final String CIRCLE_3 =
       "CURVEPOLYGON (CIRCULARSTRING (-3 0, 0 3, 3 0, 0 -3, -3 0))";
+  /** r=3 at (2,0); internally tangent to CIRCLE_5 at (5,0). */
+  private static final String CIRCLE_INT_TAN =
+      "CURVEPOLYGON (CIRCULARSTRING (-1 0, 2 3, 5 0, 2 -3, -1 0))";
   private static final String CIRCLE_FAR =
       "CURVEPOLYGON (CIRCULARSTRING (100 0, 105 5, 110 0, 105 -5, 100 0))";
   private static final String PLAIN_SQUARE =
@@ -92,6 +96,19 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
     Geometry a = readCurve(CIRCLE_5);
     assertNull("disjoint, 0 nodes",
         CircularDiscOverlay.overlay(a, readCurve(CIRCLE_FAR), OverlayNG.UNION));
+  }
+
+  /**
+   * Internal tangent is not strictly inside: 1 node, d+r = R.
+   * nestedAnnulus already refuses it. Named miss, not a laser.
+   */
+  public void testInternalTangentNestIsNamedMiss() throws Exception {
+    Geometry outer = readCurve(CIRCLE_5);
+    Geometry inner = readCurve(CIRCLE_INT_TAN);
+    assertNull("H-ANNULUS-TANGENT: not strictly inside; 1 node / d+r = R",
+        CircularDiscOverlay.overlay(outer, inner, OverlayNG.DIFFERENCE));
+    assertNull("H-ANNULUS-TANGENT: reverse nest is the same miss",
+        CircularDiscOverlay.overlay(inner, outer, OverlayNG.DIFFERENCE));
   }
 
   /**
