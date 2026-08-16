@@ -87,8 +87,9 @@ final class CurveSegmentNoder {
   /**
    * Shared runs of a circular pair. Empty is no interval and no
    * pinch. {@code null} is a holed pair (the hole ring is walked
-   * as strings by {@link BiteVsHole}, not here) or a pair the
-   * strings cannot name. Does not assemble a face.
+   * as strings by {@link BiteVsHole} / {@link TwoHoleOverlay},
+   * not here) or a pair the strings cannot name. Does not
+   * assemble a face.
    */
   static List<CurveSegmentString> edges(Geometry a, Geometry b) {
     if (hasHole(a) || hasHole(b)) return null;

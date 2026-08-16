@@ -35,8 +35,9 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * The noder already names the two hole–shell nodes. This rung walks
  * those into the clip edge on the other shell. Overlay then splices
  * the bite (SUB / XOR face) or punches the leftover hole. Two holes
- * ({@code H-SHELL-HOLE-X}) stay {@code null}. A pair this walk
- * cannot certify keeps the named miss. Not a noder, not N-SS.
+ * that cross ({@code H-SHELL-HOLE-X}) are {@link TwoHoleOverlay}.
+ * A pair this walk cannot certify keeps the named miss. Not a
+ * noder, not N-SS.
  */
 final class BiteVsHole {
 

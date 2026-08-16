@@ -53,8 +53,9 @@ import test.jts.GeometryTestCase;
  * nested halves, and a 1-node touch are exact. A four-cut two-shell
  * n-span, a same-outer hole-inside pair, a different-outer hole
  * that sits strictly inside or outside a certified outer CAP, and
- * a straddling hole whose new edge ⊂ the other shell (a bite) are
- * exact. A four-cut disc vs a band is EEEE.
+ * a straddling hole whose new edge ⊂ the other shell (a bite), and
+ * two holes that cross on the same outer are exact. A four-cut
+ * disc vs a band is EEEE.
  */
 public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
@@ -110,6 +111,8 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0 1, 1 1, 1 2, 0 2, 0 1))";
   private static final String HOLE_STRADDLE =
       "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (-1 1, 1 1, 1 2, -1 2, -1 1))";
+  private static final String HOLE_X =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0.5 0.5, 1.5 0.5, 1.5 1.5, 0.5 1.5, 0.5 0.5))";
 
   private static final int[] OPS = { OverlayNGCurve.INTERSECTION, OverlayNGCurve.UNION,
       OverlayNGCurve.DIFFERENCE, OverlayNGCurve.SYMDIFFERENCE };
@@ -319,6 +322,14 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
   public void testMatrix_holeStraddleBiteReverse() throws Exception {
     assertRow("hole-straddle bite reverse", HALF_RIGHT, HOLE_STRADDLE, "EEEE");
+  }
+
+  public void testMatrix_twoHolesCross() throws Exception {
+    assertRow("two-hole cross", HALF_HOLED, HOLE_X, "EEEE");
+  }
+
+  public void testMatrix_twoHolesCrossReverse() throws Exception {
+    assertRow("two-hole cross reverse", HOLE_X, HALF_HOLED, "EEEE");
   }
 
   // -- the disjoint CUP/XOR result, not just its exactness -----------------

@@ -39,10 +39,10 @@ import test.jts.GeometryTestCase;
  * outer CAP. A hole that straddles the other shell shares the
  * clip edge: if that new edge is a subset of the other shell
  * it is a bite, not an interior punch. Two holes that cross
- * are a noder. A three-point LineString is not an arc.
- * Collinear overlap, mixed labels, and the two-hole miss stay
- * {@code null} so OverlayNGCurve can take R2 without paying
- * this path first.
+ * on the same outer are the two-hole arrangement. A
+ * three-point LineString is not an arc. Collinear overlap
+ * and mixed labels stay {@code null} so OverlayNGCurve can
+ * take R2 without paying this path first.
  */
 public class CompoundCurveShellOverlayTest extends GeometryTestCase {
 
@@ -667,6 +667,66 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
     assertEquals("both bites", 12.5 * Math.PI, x.getArea(), EXACT);
   }
 
+  /**
+   * H-SHELL-HOLE-X: same HALF_DISC outer, two axis-aligned unit
+   * squares that overlap in [0.5,1] × [1,1.5]. The noder names
+   * the two hole–hole nodes; the walk assembles the hole faces.
+   * A = HALF_DISC \ holeA, B = HALF_DISC \ holeB.
+   */
+  public void testTwoHolesThatCrossAreAnArrangement() throws Exception {
+    Geometry holed = readCurve(HALF_HOLED);
+    Geometry holeX = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0.5 0.5, 1.5 0.5, 1.5 1.5, 0.5 1.5, 0.5 0.5))");
+    assertEquals("two hole rings that cross", TwoHoleOverlay.CROSS,
+        TwoHoleOverlay.decide(holed, holeX));
+    Coordinate[] nodes = TwoHoleOverlay.clipNodes(holed, holeX);
+    assertNotNull("clip pair is the two hole–hole nodes", nodes);
+    assertEquals(2, nodes.length);
+    assertTrue("node (0.5 1)",
+        nodes[0].distance(new Coordinate(0.5, 1)) <= EXACT
+            || nodes[1].distance(new Coordinate(0.5, 1)) <= EXACT);
+    assertTrue("node (1 1.5)",
+        nodes[0].distance(new Coordinate(1, 1.5)) <= EXACT
+            || nodes[1].distance(new Coordinate(1, 1.5)) <= EXACT);
+
+    OverlayNGCurve cap = new OverlayNGCurve(holed, holeX);
+    Geometry bothHoles = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-HOLE-X CAP is exact", cap.isApproximate());
+    assertEquals("HALF_DISC minus holeA ∪ holeB", HALF - 1.75,
+        bothHoles.getArea(), EXACT);
+    assertEquals("union of the holes is one punch", 1,
+        ((CurvePolygon) bothHoles).getNumInteriorRing());
+    assertArcAndLineShell(bothHoles);
+    assertParity(holed, holeX, OverlayNG.INTERSECTION, bothHoles);
+
+    OverlayNGCurve cup = new OverlayNGCurve(holed, holeX);
+    Geometry overlapHole = cup.getResult(OverlayNG.UNION);
+    assertFalse("H-SHELL-HOLE-X CUP is exact", cup.isApproximate());
+    assertEquals("HALF_DISC minus holeA ∩ holeB", HALF - 0.25,
+        overlapHole.getArea(), EXACT);
+    assertEquals("overlap rectangle is the leftover hole", 1,
+        ((CurvePolygon) overlapHole).getNumInteriorRing());
+    assertParity(holed, holeX, OverlayNG.UNION, overlapHole);
+
+    OverlayNGCurve sub = new OverlayNGCurve(holed, holeX);
+    Geometry onlyB = sub.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("H-SHELL-HOLE-X SUB is exact", sub.isApproximate());
+    assertEquals("holeB \\ holeA", 0.75, onlyB.getArea(), EXACT);
+    assertParity(holed, holeX, OverlayNG.DIFFERENCE, onlyB);
+
+    OverlayNGCurve rev = new OverlayNGCurve(holeX, holed);
+    Geometry onlyA = rev.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("H-SHELL-HOLE-X reverse SUB is exact", rev.isApproximate());
+    assertEquals("holeA \\ holeB", 0.75, onlyA.getArea(), EXACT);
+
+    OverlayNGCurve xor = new OverlayNGCurve(holed, holeX);
+    Geometry x = xor.getResult(OverlayNG.SYMDIFFERENCE);
+    assertFalse("H-SHELL-HOLE-X XOR is exact", xor.isApproximate());
+    assertEquals("holeA △ holeB", 1.5, x.getArea(), EXACT);
+    assertEquals("two hole-difference faces", 2, x.getNumGeometries());
+    assertParity(holed, holeX, OverlayNG.SYMDIFFERENCE, x);
+  }
+
   public void testNotThisCellReturnsNull() throws Exception {
     Geometry half = readCurve(HALF_DISC);
     Geometry disc = readCurve(CIRCLE_5);
@@ -683,11 +743,6 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
         CompoundCurveShellOverlay.overlay(square, square, OverlayNG.UNION));
     assertNull("H-SHELL-HOLE-OUTER: hole meets the other diameter",
         CompoundCurveShellOverlay.overlay(holed, right, OverlayNG.INTERSECTION));
-    Geometry holeX = readCurve(
-        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0.5 0.5, 1.5 0.5, 1.5 1.5, 0.5 1.5, 0.5 0.5))");
-    // Two holes that cross each other is a noder, not a kit.
-    assertNull("H-SHELL-HOLE-X: two holes that cross",
-        CompoundCurveShellOverlay.overlay(holed, holeX, OverlayNG.INTERSECTION));
     // Collinear overlap is not a discrete node set; no cheap closed
     // form without a noder.
     assertNull("H-SHELL-N-MIXED: collinear overlap stays refused",
