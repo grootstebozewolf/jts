@@ -30,13 +30,13 @@ Distributions for older JTS versions can be obtained at the
 ### SQL-MM / SFA Curves
 
 * Add `CircularString`, `CompoundCurve`, and `CurvePolygon`
-* Read ISO WKB types 8–12 in core `WKBReader`; write via `CurveWKBWriter` (bare `WKBWriter` still emits types 2/3); default/export paths use `CurveWKBWriter`
+* Read ISO WKB types 8–12 in core `WKBReader`; write via `CurveWKBWriter` (bare `WKBWriter` still emits types 2/3); default/export paths use `CurveWKBWriter` (#44)
 * Closed-form convex hull for discs and single arcs
-* Laser convex hull of circular-plus-straight members (H-CC)
+* Laser convex hull of circular-plus-straight members (H-CC) (#41 via #42)
 * `DiscreteHausdorffDistance` closed-form for two pairs only: single-arc `CircularString` vs single-segment `LineString` (apex √949/6 − 7/6); two circular discs (a single-member `MultiSurface` of one disc is the same pair). Public DHD still sees chords. Exact path skips densify. Densify 0.05 is not the laser.
-* Point-site `LargestEmptyCircle` candidate completeness
-* Stadium `MaximumInscribedCircle` certified cell
-* Clothoid playground extras (editor/inspect/WKT; not a laser)
+* Point-site `LargestEmptyCircle` candidate completeness (#22)
+* Stadium `MaximumInscribedCircle` certified cell (#31)
+* Clothoid playground extras (editor/inspect/WKT; not a laser) (#39)
 
 ### Functionality Improvements
 
@@ -90,9 +90,9 @@ Distributions for older JTS versions can be obtained at the
 * Add Layer style presets
 * Add Layer List Zoom to Geometry button
 * Add Layer List Copy Geometry button
-* TB-IN: Enter loads A/B WKT; labeled Clear does not wipe on apply
-* JTS logoLines as curves, not densified polylines
-* A/B draw-tool colors and honest `CircularString`
+* TB-IN: Enter loads A/B WKT; labeled Clear does not wipe on apply (#35)
+* JTS logoLines as curves, not densified polylines (#42)
+* A/B draw-tool colors and honest `CircularString` (#43)
 
 ### Bug Fixes
 
