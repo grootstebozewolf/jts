@@ -61,15 +61,20 @@
 \newcommand{\docshorttitle}{Guide}
 \newcommand{\setshorttitle}[1]{\renewcommand{\docshorttitle}{#1}}
 
-% Named empty figure hole. 4:3 box (target raster 1600x1200, full TestBuilder
-% window). Slot id only -- no caption that claims an unshot figure.
+% Guide-shot hole (DG-1..4, TS-1..5, UG-1..7): 4:3 at 1600x1200,
+% full TestBuilder window. Slot id only -- no caption on unshot work.
+% MKT-1 is 16:9 1920x1080 canvas-only and is not a manual figure.
+\newlength{\figholewidth}
+\newlength{\figholeheight}
 \newcommand{\fighole}[1]{%
   \par\medskip
   \noindent
   \begin{center}
+    \setlength{\figholewidth}{0.92\linewidth}%
+    \setlength{\figholeheight}{0.75\figholewidth}% 3/4 of width = 4:3
     \setlength{\fboxsep}{0pt}%
     \fbox{%
-      \begin{minipage}[c][0.69\linewidth][c]{0.92\linewidth}
+      \begin{minipage}[c][\figholeheight][c]{\figholewidth}
         \centering
         \sffamily\footnotesize #1
       \end{minipage}%
