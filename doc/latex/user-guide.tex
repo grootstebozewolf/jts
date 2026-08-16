@@ -147,8 +147,9 @@ A test that calls \texttt{Geometry.intersection} on a curve is not
 \texttt{OverlayNGCurve}. Name the OverlayNGCurve function if that is
 what you mean to assert.
 
-A \texttt{DiscreteHausdorffDistance} assertion is the public API: two
-certified pairs are closed-form; everything else is chords.
+A \texttt{DiscreteHausdorffDistance} assertion is the public API
+(commit \texttt{0ca71b}): two certified pairs are closed-form
+(APEX $3.967640600249787$; discs $10.0$); everything else is chords.
 \texttt{fail()} stays on the general case.
 \end{amendment}
 
@@ -286,12 +287,13 @@ noder. Closed-form overlay answers are limited to certified discs.
 Public \texttt{DiscreteHausdorffDistance} (commit \texttt{0ca71b})
 has a closed form for two pairs only: (1)~a single-arc
 \texttt{CircularString} toward a single-segment \texttt{LineString},
-apex $\sqrt{949}/6 - 7/6 \approx 3.967641$ for
+apex $\sqrt{949}/6 - 7/6 = 3.967640600249787$ for
 \texttt{CIRCULARSTRING (0 0, 2 3, 10 0)} vs
-\texttt{LINESTRING (0 0, 10 0)}; (2)~two circular discs. A
-\texttt{MultiSurface} unwrap of one disc is the same pair. The exact
-path skips densify; densify is not the laser. For every other pair
-the public API still sees vertices / chords. Fr\'echet remains open.
+\texttt{LINESTRING (0 0, 10 0)}; (2)~two circular discs (10.0). A
+\texttt{MultiSurface} unwrap of one disc is the same pair, not a
+third. The exact path skips densify; densify is not the laser. For
+every other pair the public API still sees vertices / chords.
+Fr\'echet remains open.
 
 \fighole{UG-5 APEX}
 \fighole{UG-6 two discs}
@@ -322,14 +324,14 @@ an operation and its expected result.
     <a>CIRCULARSTRING (0 0, 2 3, 10 0)</a>
     <b>LINESTRING (0 0, 10 0)</b>
     <test>
-       <op name="orientedDistance" arg1="a" arg2="b">3.967641</op>
+       <op name="orientedDistance" arg1="a" arg2="b">3.967640600249787</op>
     </test>
   </case>
 </run>
 \end{lstlisting}
 
 The second case is the D-HF closed-form witness on this tree (apex
-$\sqrt{949}/6 - 7/6$). A case that is not one of the two certified
+$\sqrt{949}/6 - 7/6 = 3.967640600249787$). A case that is not one of the two certified
 pairs must not be written as if
 \texttt{DiscreteHausdorffDistance} were arc-length Hausdorff. The
 first case is the 2005 example, unchanged.

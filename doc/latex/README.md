@@ -13,8 +13,12 @@ That writes:
 - `doc/JTS TestBuilder & TestRunner User Guide.pdf`
 - `doc/JTS Technical Specs.pdf`
 
-Chapter plans follow the 2003–2005 Amyuni conversions. Curve, I/O,
-overlay, and Hausdorff claims match the code on this tree.
+Chapter plans follow the 2003–2005 Amyuni conversions. Prose SoT
+for D-HF is `cd3d70db` (#7 HEAD): public DHD two-pair lock via
+`0ca71b` (APEX 3.967640600249787; discs 10.0). Guide JAR pin stays
+`61eb3377` (the four later commits `03076dcf`, `91404d94`,
+`097c9f44`, `cd3d70db` are docs-only). Do not claim the TestBuilder
+JAR is from `cd3d70db`.
 
 Figure-slot frame lock:
 

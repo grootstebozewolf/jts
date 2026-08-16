@@ -419,11 +419,12 @@ Public \texttt{DiscreteHausdorffDistance} (commit \texttt{0ca71b})
 has a closed form for two pairs only:
 \begin{enumerate}
   \item A single-arc CircularString toward a single-segment
-        LineString, apex $\sqrt{949}/6 - 7/6 \approx 3.967641$ for
+        LineString, apex $\sqrt{949}/6 - 7/6 = 3.967640600249787$ for
         \texttt{CIRCULARSTRING (0 0, 2 3, 10 0)} vs
         \texttt{LINESTRING (0 0, 10 0)}.
-  \item Two circular discs (full-circle CurvePolygon). A
-        MultiSurface unwrap of one disc is the same disc pair.
+  \item Two circular discs (10.0). A
+        MultiSurface unwrap of one disc is the same disc pair, not a
+        third.
 \end{enumerate}
 The exact path skips densify; densify is not the laser. For every
 other pair the public API still sees vertices / chords. Tests keep
