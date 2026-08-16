@@ -32,7 +32,8 @@ import test.jts.GeometryTestCase;
  * walks two crossing hole rings into the hole faces. A hole
  * ring that overlaps the other shell (no crossing nodes) is
  * the same P2.3 bite. P2.5.2 is N strings: the unique union of
- * each unordered pair. Not N-SS, not a face walker.
+ * each unordered pair. P2.5.3 walks the faces of that node set.
+ * Not N-SS, not a core {@code Noder}.
  */
 public class CurveSegmentStringTest extends GeometryTestCase {
 
@@ -97,6 +98,19 @@ public class CurveSegmentStringTest extends GeometryTestCase {
   private static final double EXACT = 1.0e-12;
   private static final double SQRT_12_75 = Math.sqrt(12.75);
   private static final double SQRT_24 = Math.sqrt(24.0);
+  private static final double HALF = 12.5 * Math.PI;
+  private static final double LENS = 50.0 * Math.acos(0.8) - 24.0;
+  private static final double FOUR_CAP = 25.0 * Math.asin(0.2) + 2.0 * Math.sqrt(6.0);
+  /** HALF_DISC ∩ HALF_HANGING ∩ STADIUM_FOUR. */
+  private static final double N3_TRIPLE = 2.0 * FOUR_CAP - 16.0;
+  private static final double N3_LENS_SIDE = 0.5 * (LENS - N3_TRIPLE);
+  private static final double N3_AC_NOT_B = 16.0 - FOUR_CAP;
+  private static final double N3_BC_NOT_A = 12.0 + 0.5 * Math.PI - FOUR_CAP;
+  private static final double N3_C_BOTTOM = 2.0 + 0.5 * Math.PI;
+  private static final double N3_A_EAR = 0.5 * (HALF - LENS - N3_AC_NOT_B);
+  private static final double N3_B_REST = HALF - LENS - N3_BC_NOT_A;
+  /** area(A ∪ B ∪ C) = 25.5π − LENS + 2. */
+  private static final double N3_UNION = 25.5 * Math.PI - LENS + 2.0;
 
   public static void main(String[] args) {
     TestRunner.run(CurveSegmentStringTest.class);
@@ -471,6 +485,83 @@ public class CurveSegmentStringTest extends GeometryTestCase {
     assertHas(holeClip, 1.0, 1.5);
   }
 
+  /**
+   * N=2 faces recover the pair-kit rings (CAP + XOR). Crossing
+   * pairs walk; 0-node containment falls back to the kits. MIXED
+   * / pinch stay null -- those kits refuse, and this rung does
+   * not densify.
+   */
+  public void testN2FacesRecoverPairKits() throws Exception {
+    assertN2Faces(CIRCLE_5, CIRCLE_CROSSING);
+    assertN2Faces(CIRCLE_5, SQUARE_RIGHT);
+    assertN2Faces(HALF_DISC, HALF_HANGING);
+    assertN2Faces(CIRCLE_5, BAND_FOUR);
+    assertN2Faces(HALF_DISC, STADIUM_FOUR);
+    assertN2Faces(HALF_DISC, STADIUM_ODD);
+    assertN2Faces(HALF_DISC, HALF_RIGHT);
+  }
+
+  public void testN2MixedPinchHoledFacesStayNull() throws Exception {
+    assertNull("H-SHELL-N-MIXED: no face walk",
+        CurveSegmentFaces.faces(new Geometry[] {
+            readCurve(HALF_DISC), readCurve(ON_DIAMETER) }));
+    assertNull("H-ANNULUS-TANGENT: pinch is not a face",
+        CurveSegmentFaces.faces(new Geometry[] {
+            readCurve(CIRCLE_5), readCurve(CIRCLE_INT_TAN) }));
+    assertNull("TOUCH-ext: kiss is not a face",
+        CurveSegmentFaces.faces(new Geometry[] {
+            readCurve(UNIT_DISC), readCurve(UNIT_DISC_TOUCH) }));
+    assertNull("H-SHELL-HOLE-X: Geometry-level holed stays null",
+        CurveSegmentFaces.faces(new Geometry[] {
+            readCurve(HALF_HOLED), readCurve(HOLE_X) }));
+  }
+
+  /**
+   * HALF_DISC × HALF_HANGING × STADIUM_FOUR. The N-set is the
+   * union of the three pair node sets (P2.5.2). This rung names
+   * the nine bounded faces of that arrangement.
+   */
+  public void testN3HalfHangingStadiumFaces() throws Exception {
+    Geometry a = readCurve(HALF_DISC);
+    Geometry b = readCurve(HALF_HANGING);
+    Geometry c = readCurve(STADIUM_FOUR);
+    Geometry faces = CurveSegmentFaces.faces(new Geometry[] { a, b, c });
+    assertNotNull("N=3 walk", faces);
+    assertEquals("nine bounded faces", 9, faces.getNumGeometries());
+    assertEquals("union of the three shells", N3_UNION, faces.getArea(),
+        EXACT);
+    assertHasArea("triple A∩B∩C", faces, N3_TRIPLE);
+    assertHasArea("left lens A∩B\\C", faces, N3_LENS_SIDE);
+    assertHasArea("right lens A∩B\\C", faces, N3_LENS_SIDE);
+    assertHasArea("stadium in A below hanging", faces, N3_AC_NOT_B);
+    assertHasArea("stadium in B above half-arc", faces, N3_BC_NOT_A);
+    assertHasArea("stadium below the diameter", faces, N3_C_BOTTOM);
+    assertHasArea("left half-disc ear", faces, N3_A_EAR);
+    assertHasArea("right half-disc ear", faces, N3_A_EAR);
+    assertHasArea("hanging remainder", faces, N3_B_REST);
+    assertSameArea("N=3 permutation", faces,
+        CurveSegmentFaces.faces(new Geometry[] { c, a, b }));
+
+    List<List<CurveSegmentString>> groups = Arrays.asList(
+        CurveSegmentString.of(a), CurveSegmentString.of(b),
+        CurveSegmentString.of(c));
+    Geometry viaStrings = CurveSegmentFaces.faces(groups, 16.0);
+    assertNotNull("N=3 string groups", viaStrings);
+    assertEquals("string-group face count", 9, viaStrings.getNumGeometries());
+    assertEquals("string-group union", N3_UNION, viaStrings.getArea(), EXACT);
+  }
+
+  /**
+   * A tangent in an N≥3 set is coincident leave-angles. Ordering
+   * them is snap-rounding (P2.5.4). Stamp null; do not densify.
+   */
+  public void testN3TangentStampsNull() throws Exception {
+    Geometry faces = CurveSegmentFaces.faces(new Geometry[] {
+        readCurve(HALF_DISC), readCurve(HALF_HANGING),
+        readCurve(STADIUM_ODD) });
+    assertNull("N≥3 tangent is P2.5.4, not a face walk", faces);
+  }
+
   public void testNoderDoesNotAssembleFaces() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
     Geometry b = readCurve(CIRCLE_CROSSING);
@@ -644,6 +735,41 @@ public class CurveSegmentStringTest extends GeometryTestCase {
       }
     }
     return found;
+  }
+
+  private void assertN2Faces(String wa, String wb) throws Exception {
+    Geometry a = readCurve(wa);
+    Geometry b = readCurve(wb);
+    Geometry faces = CurveSegmentFaces.faces(new Geometry[] { a, b });
+    Geometry kit = CurveSegmentFaces.pairKitFaces(a, b);
+    if (kit == null) {
+      assertNull("N=2 miss " + wa, faces);
+    }
+    else {
+      assertNotNull("N=2 faces " + wa, faces);
+      assertEquals("N=2 face area " + wa, kit.getArea(), faces.getArea(),
+          EXACT);
+      assertEquals("N=2 face count " + wa, kit.getNumGeometries(),
+          faces.getNumGeometries());
+    }
+  }
+
+  private static void assertHasArea(String label, Geometry faces, double area) {
+    assertNotNull(label + " missing faces", faces);
+    boolean found = false;
+    for (int i = 0; i < faces.getNumGeometries() && !found; i++) {
+      if (Math.abs(faces.getGeometryN(i).getArea() - area) <= EXACT) {
+        found = true;
+      }
+    }
+    assertTrue(label + " area " + area, found);
+  }
+
+  private static void assertSameArea(String label, Geometry a, Geometry b) {
+    assertNotNull(label + " a", a);
+    assertNotNull(label + " b", b);
+    assertEquals(label + " count", a.getNumGeometries(), b.getNumGeometries());
+    assertEquals(label + " area", a.getArea(), b.getArea(), EXACT);
   }
 
   private void assertN2Same(String wa, String wb) throws Exception {
