@@ -15,8 +15,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.locationtech.jts.algorithm.LineIntersector;
-import org.locationtech.jts.algorithm.RobustLineIntersector;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -28,7 +26,8 @@ import org.locationtech.jts.geom.curve.CurvePolygon;
  * touch, two proper nodes walk via {@link TwoNodeClip}, an even 4+
  * alternating cut is {@link NSpanClip}. A tangent is a zero-length
  * NSpan, so two crossings plus a touch assemble like even-n.
- * Collinear overlap stays {@code null}. Not a noder.
+ * Pair hits go through {@link CurveSegmentString}; collinear overlap
+ * stays {@code null}. Face assemble is not a noder.
  */
 final class TwoShellClip {
 
@@ -232,71 +231,25 @@ final class TwoShellClip {
   private static boolean collectTwoShellHits(List<TwoNodeClip.Edge> edgesA,
       List<TwoNodeClip.Edge> edgesB, List<TwoNodeClip.Node> nodesA,
       double scale) {
-    LineIntersector li = new RobustLineIntersector();
     boolean miss = false;
     for (int i = 0; i < edgesA.size() && !miss; i++) {
       TwoNodeClip.Edge ea = edgesA.get(i);
       for (int j = 0; j < edgesB.size() && !miss; j++) {
-        TwoNodeClip.Edge eb = edgesB.get(j);
-        if (!addEdgePairHits(ea, eb, i, nodesA, li, scale)) {
+        Coordinate[] xs = CurveSegmentString.intersect(
+            CurveSegmentString.of(ea), CurveSegmentString.of(edgesB.get(j)),
+            scale);
+        if (xs == null) {
           miss = true;
+        }
+        else {
+          for (int k = 0; k < xs.length; k++) {
+            TwoNodeClip.addUnique(nodesA,
+                new TwoNodeClip.Node(i, ea.param(xs[k]), xs[k]), scale);
+          }
         }
       }
     }
     return !miss;
-  }
-
-  private static boolean addEdgePairHits(TwoNodeClip.Edge ea,
-      TwoNodeClip.Edge eb, int iA, List<TwoNodeClip.Node> nodesA,
-      LineIntersector li, double scale) {
-    if (ea.isArc && eb.isArc) {
-      if (sameCircle(ea, eb, scale)) {
-        return true;
-      }
-      Coordinate[] xs = TwoNodeClip.intersectCircles(
-          ea.circle[0], ea.circle[1], ea.circle[2],
-          eb.circle[0], eb.circle[1], eb.circle[2]);
-      for (int k = 0; k < xs.length; k++) {
-        if (TwoNodeClip.isOnSweep(xs[k], ea.circle, ea.a, ea.mid, ea.b)
-            && TwoNodeClip.isOnSweep(xs[k], eb.circle, eb.a, eb.mid, eb.b)) {
-          TwoNodeClip.addUnique(nodesA,
-              new TwoNodeClip.Node(iA, ea.param(xs[k]), xs[k]), scale);
-        }
-      }
-      return true;
-    }
-    if (ea.isArc) {
-      addSegCircleHits(eb.a, eb.b, ea, ea, iA, nodesA, scale);
-      return true;
-    }
-    if (eb.isArc) {
-      addSegCircleHits(ea.a, ea.b, eb, ea, iA, nodesA, scale);
-      return true;
-    }
-    li.computeIntersection(ea.a, ea.b, eb.a, eb.b);
-    if (li.getIntersectionNum() == LineIntersector.COLLINEAR_INTERSECTION) {
-      return false;
-    }
-    if (li.getIntersectionNum() == 1) {
-      Coordinate p = li.getIntersection(0);
-      TwoNodeClip.addUnique(nodesA,
-          new TwoNodeClip.Node(iA, ea.param(p), p), scale);
-    }
-    return true;
-  }
-
-  private static void addSegCircleHits(Coordinate s0, Coordinate s1,
-      TwoNodeClip.Edge sweep, TwoNodeClip.Edge onA, int iA,
-      List<TwoNodeClip.Node> nodesA, double scale) {
-    Coordinate[] xs = TwoNodeClip.intersectSegmentCircle(
-        sweep.circle[0], sweep.circle[1], sweep.circle[2], s0, s1);
-    for (int k = 0; k < xs.length; k++) {
-      if (TwoNodeClip.isOnSweep(xs[k], sweep.circle, sweep.a, sweep.mid,
-          sweep.b)) {
-        TwoNodeClip.addUnique(nodesA,
-            new TwoNodeClip.Node(iA, onA.param(xs[k]), xs[k]), scale);
-      }
-    }
   }
 
   private static TwoNodeClip.Node nodeOn(List<TwoNodeClip.Edge> edges,
@@ -331,15 +284,6 @@ final class TwoShellClip {
     Coordinate sample = TwoNodeClip.sample(walk);
     if (sample == null) return TwoNodeClip.MIXED;
     return TwoNodeClip.locateInShell(sample, other);
-  }
-
-  private static boolean sameCircle(TwoNodeClip.Edge a, TwoNodeClip.Edge b,
-      double scale) {
-    if (!a.isArc || !b.isArc) return false;
-    double eps = Math.max(TwoNodeClip.PROPER_CROSS_FRAC * scale, 1.0e-12);
-    Coordinate ca = new Coordinate(a.circle[0], a.circle[1]);
-    Coordinate cb = new Coordinate(b.circle[0], b.circle[1]);
-    return ca.distance(cb) <= eps && Math.abs(a.circle[2] - b.circle[2]) <= eps;
   }
 
   private static final class ShellSpan {
