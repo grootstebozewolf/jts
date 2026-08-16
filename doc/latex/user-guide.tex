@@ -149,8 +149,8 @@ what you mean to assert.
 
 A \texttt{DiscreteHausdorffDistance} assertion is the public API
 (commit \texttt{0ca71b}): two certified pairs are closed-form
-(APEX $3.967640600249787$; discs $10.0$); everything else is chords.
-\texttt{fail()} stays on the general case.
+(APEX $3.967640600249787$; two circular discs); everything else is
+chords. \texttt{fail()} stays on the general case.
 \end{amendment}
 
 \section{Using the TestBuilder}
@@ -259,8 +259,9 @@ TestBuilder can draw \texttt{logoLines} as curves.
 \subsection{Saving}
 File / Save As XML writes the current cases. Default / export WKB
 paths route through \texttt{CurveWKBWriter}, so a saved curve keeps
-ISO codes 8--12. A bare \texttt{WKBWriter.write} call still emits
-type 2 or 3.
+ISO codes 8--12. Read those codes with \texttt{CurveWKBReader} (or
+\texttt{WKBReader} plus a curve-capable factory). A bare
+\texttt{WKBWriter.write} call still emits type 2 or 3.
 
 \section{Curves in TestBuilder}
 TestBuilder can draw \texttt{CircularString}, \texttt{CompoundCurve},
@@ -281,6 +282,8 @@ other SQL/MM keywords. Read them with \texttt{CurveWKTReader}. Write
 structured members with \texttt{CurveWKTWriter}.
 
 WKB type codes 8--12 are first-class in core \texttt{WKBReader}.
+Construction still requires a curve-capable factory; otherwise the
+reader throws. \texttt{CurveWKBReader} succeeds.
 \texttt{CurveWKBWriter} emits codes 8--12. A bare \texttt{WKBWriter}
 still emits type 2 (CircularString / CompoundCurve) or 3
 (CurvePolygon).
@@ -293,7 +296,7 @@ has a closed form for two pairs only: (1)~a single-arc
 \texttt{CircularString} toward a single-segment \texttt{LineString},
 apex $\sqrt{949}/6 - 7/6 = 3.967640600249787$ for
 \texttt{CIRCULARSTRING (0 0, 2 3, 10 0)} vs
-\texttt{LINESTRING (0 0, 10 0)}; (2)~two circular discs (10.0). A
+\texttt{LINESTRING (0 0, 10 0)}; (2)~two circular discs. A
 \texttt{MultiSurface} unwrap of one disc is the same pair, not a
 third. The exact path skips densify; densify is not the laser. For
 every other pair the public API still sees vertices / chords.
