@@ -3,13 +3,14 @@ JTS Topology Suite
 
 The JTS Topology Suite is a Java library for creating and manipulating vector geometry.  It also provides a comprehensive set of geometry test cases, and the TestBuilder GUI application for working with and visualizing geometry and JTS functions.
 
-![JTS logo](jts_logo.png)
+![JTS wordmark as curves plus a buffer halo](jts_logo.png)
 
-<!-- HERO PLACEHOLDER: UX will replace the 2017 mark with a clothoid-halo
-     wordmark. Keep jts_logo.png until that asset arrives. Do not commit
-     mkt1_1920x1080.png (circular logoBuffer). Do not caption any halo as
-     a closed-form buffer laser. Clothoid / uncertified mix is a named
-     linear fallback. This tree has no clothoid geometry type. -->
+JTS wordmark as curves plus a buffer halo (`logoLines` + `logoBuffer`: `toLinear` + `BufferOp`). Named linear fallback / CHORD-PATH. Not a laser.
+
+<!-- HERO: 2017 jts_logo.png is the door image. It is logoLines +
+     logoBuffer (toLinear + BufferOp): named linear fallback / CHORD-PATH,
+     not a laser. Do not caption a clothoid halo. #55 clothoidHalo is not
+     this door. Do not commit mkt1_1920x1080.png as a clothoid. -->
 
 This fork treats SQL/MM ISO/IEC 13249-3 curve types 8–12 (`CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON`, `MULTICURVE`, `MULTISURFACE`) as first-class geometry. WKB/WKT ISO and EXTENDED Z/M/ZM landed in [#51](https://github.com/grootstebozewolf/jts/pull/51) (`CircularStringZ=1008`, …). Types 15–17 still unknown and throw. Core `WKBWriter` refuses to flatten 8–12. TestBuilder lives in `modules/app`.
 
