@@ -41,21 +41,17 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * 0-node containment or a same-circle special case falls back to
  * those kits. MIXED / pinch / holed Geometry-level stays
  * {@code null} -- hole rings are walked as strings, as in P2.3 /
- * P2.4. A coincident leave-angle at a node (tangent pinch) is
- * snap-rounding: a local curvature order walks the wrong rings
- * (H-SHELL-N-ODD pair-kit area is not recovered). {@code faces}
- * returns {@code null} and {@link #missReason()} names
- * {@link #TANGENT_LEAVE_ANGLE}. A pair-kit miss that is a
- * zero-length kiss is that stamp; a MIXED overlap is
- * {@link #MIXED_OVERLAP}. Neither invents a crossing. Densify
- * is never a noder. Not P2.5.5.
+ * P2.4. A coincident leave-angle at a node (near-tangent) is
+ * snap-rounding (P2.5.4): {@code faces} returns {@code null} and
+ * {@link #missReason()} names {@link #TANGENT_LEAVE_ANGLE}.
+ * Ordering those leaves needs HotPixel / ScaledNoder / core
+ * {@code SegmentString} -- stamp and stop. Densify is never a
+ * noder. Not P2.5.5.
  */
 final class CurveSegmentFaces {
 
-  /** Named stamp: tangent pinch / coincident leave-angle. */
+  /** Named stamp: coincident leave-angle. Snap-rounding, not a walk. */
   static final String TANGENT_LEAVE_ANGLE = "P2.5.4 tangent leave-angle";
-  /** Named stamp: collinear overlap is an interval, not a face. */
-  static final String MIXED_OVERLAP = "H-SHELL-N-MIXED";
 
   private static final double ANGLE_EPS = 1.0e-8;
 
@@ -124,12 +120,9 @@ final class CurveSegmentFaces {
     if (groups == null || groups.size() < 2) return null;
     Coordinate[] nodes = CurveSegmentNoder.nodes(groups, scale);
     if (nodes == null) {
-      if (geoms != null && geoms.length == 2) {
-        Geometry kit = pairKitFaces(geoms[0], geoms[1]);
-        if (kit != null) return kit;
-        missReason = pairMissReason(geoms[0], geoms[1]);
-      }
-      return null;
+      return geoms != null && geoms.length == 2
+          ? pairKitFaces(geoms[0], geoms[1])
+          : null;
     }
     Geometry walked = walk(groups, nodes, scale, f);
     if (walked != null) {
@@ -140,11 +133,8 @@ final class CurveSegmentFaces {
       Geometry kit = pairKitFaces(geoms[0], geoms[1]);
       if (kit != null) {
         missReason = null;
-        return kit;
       }
-      if (missReason == null) {
-        missReason = pairMissReason(geoms[0], geoms[1]);
-      }
+      return kit;
     }
     return null;
   }
@@ -418,8 +408,7 @@ final class CurveSegmentFaces {
 
   /**
    * Two different pieces leaving at the same angle are a tangent.
-   * Ordering them by curvature walks the wrong rings (the
-   * H-SHELL-N-ODD pair-kit is not recovered). Stamp and stop.
+   * Ordering them is snap-rounding (P2.5.4). Stamp and stop.
    */
   private static boolean hasCoincidentLeave(List<Vertex> verts) {
     boolean hit = false;
@@ -434,28 +423,6 @@ final class CurveSegmentFaces {
       }
     }
     return hit;
-  }
-
-  /**
-   * Pair-kit miss: a degenerate edge is the tangent stamp; a
-   * positive-length shared run is MIXED. Not a crossing.
-   */
-  private static String pairMissReason(Geometry a, Geometry b) {
-    List<CurveSegmentString> edges = CurveSegmentNoder.edges(a, b);
-    if (edges == null) return null;
-    boolean pinch = false;
-    boolean mixed = false;
-    for (int i = 0; i < edges.size(); i++) {
-      if (edges.get(i).isDegenerate()) {
-        pinch = true;
-      }
-      else {
-        mixed = true;
-      }
-    }
-    if (pinch) return TANGENT_LEAVE_ANGLE;
-    if (mixed) return MIXED_OVERLAP;
-    return null;
   }
 
   private static List<LineString> walkRing(Half start, double eps,

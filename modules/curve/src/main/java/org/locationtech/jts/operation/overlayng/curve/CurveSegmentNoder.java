@@ -32,8 +32,7 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * MIXED (collinear overlap) is not a discrete node set; {@link #nodes}
  * stays {@code null} and {@link #edges} names the interval. A MIXED
  * or pinch pair inside an N-set adds no point. A tangent pinch
- * (TOUCH-ext, H-ANNULUS-TANGENT) is a zero-length edge; the face
- * walk names it {@link CurveSegmentFaces#TANGENT_LEAVE_ANGLE}.
+ * (TOUCH-ext, H-ANNULUS-TANGENT) is a zero-length edge, not a face.
  * Overlay still goes through the existing kits. Face assemble of
  * the N-set is {@link CurveSegmentFaces}. Densify is never a noder.
  */
