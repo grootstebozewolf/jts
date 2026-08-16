@@ -22,6 +22,7 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.io.WKBWriter;
+import org.locationtech.jts.io.curve.CurveWKBWriter;
 import org.locationtech.jts.io.geojson.GeoJsonWriter;
 import org.locationtech.jts.io.gml2.GMLWriter;
 import org.locationtech.jtstest.testbuilder.io.SVGTestWriter;
@@ -68,10 +69,10 @@ public class GeometryOutput {
   private String writeWKB(Geometry geom, int srid) {
     WKBWriter writer;
     if (JTSOpRunner.isCustomSRID(srid)) {
-      writer = new WKBWriter(2, true);
+      writer = new CurveWKBWriter(2, true);
     }
     else {
-      writer = new WKBWriter();
+      writer = new CurveWKBWriter();
     }
     return WKBWriter.toHex(writer.write(geom));
   }
