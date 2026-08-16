@@ -31,9 +31,13 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * Two proper crossings become a {@link CurvePolygon} whose shell is two
  * {@link CircularString}s (the intersection points plus a mid-arc control
  * on the line of centres). CAP is the lens, CUP the outer blob, SUB a
- * crescent, XOR both crescents. Anything else -- not both discs, 0 or 1
- * intersection, coincident centres -- returns {@code null} so the caller
- * can take the chord baseline without paying this path first.
+ * crescent, XOR both crescents. Nested discs (0 nodes, one strictly
+ * inside the other) are the annulus: CAP the inner, CUP the outer,
+ * SUB / XOR the outer with the inner as a hole. Same closed form as
+ * {@link HalfDiscOverlay#containedShell}; not a noder. Anything else
+ * -- not both discs, 1 intersection, a tangent nest (hole would meet
+ * the shell) -- returns {@code null} so the caller can take the chord
+ * baseline without paying this path first.
  */
 final class CircularDiscOverlay {
 
@@ -89,7 +93,9 @@ final class CircularDiscOverlay {
     if (db == null) return null;
 
     Coordinate[] nodes = intersectCircles(da, db);
-    if (nodes.length != 2) return null;
+    if (nodes.length != 2) {
+      return nestedAnnulus(a, b, da, db, opCode);
+    }
     double minR = Math.min(da.r, db.r);
     if (nodes[0].distance(nodes[1]) < PROPER_CROSS_FRAC * minR) return null;
 
@@ -121,6 +127,48 @@ final class CircularDiscOverlay {
       return new MultiSurface(new Polygon[] { ab, ba }, f);
     }
     return null;
+  }
+
+  /**
+   * 0-node nested discs. CAP the inner, CUP the outer, SUB / XOR the
+   * annulus. A tangent nest is {@code null} -- punching a hole that
+   * meets the shell is a noder.
+   */
+  private static Geometry nestedAnnulus(Geometry a, Geometry b, Disc da,
+      Disc db, int opCode) {
+    CurvePolygon ca = asCurvePolygon(a);
+    CurvePolygon cb = asCurvePolygon(b);
+    if (ca == null || cb == null) return null;
+    double scale = Math.max(Math.max(da.r, db.r), 1.0);
+    double eps = Math.max(PROPER_CROSS_FRAC * scale, 1.0e-12);
+    double d = Math.hypot(da.cx - db.cx, da.cy - db.cy);
+    boolean sameCircle = d <= eps && Math.abs(da.r - db.r) <= eps;
+    if (sameCircle) {
+      return HalfDiscOverlay.identityShell(opCode, a,
+          TwoNodeClip.curveFactory(a));
+    }
+    boolean aInB = d + da.r <= db.r - eps;
+    boolean bInA = d + db.r <= da.r - eps;
+    if (aInB && !bInA) {
+      return HalfDiscOverlay.containedShell(ca, cb, true, opCode, a,
+          TwoNodeClip.curveFactory(a));
+    }
+    if (bInA && !aInB) {
+      return HalfDiscOverlay.containedShell(cb, ca, false, opCode, a,
+          TwoNodeClip.curveFactory(a));
+    }
+    return null;
+  }
+
+  private static CurvePolygon asCurvePolygon(Geometry g) {
+    if (g instanceof MultiSurface) {
+      if (g.getNumGeometries() != 1) return null;
+      g = g.getGeometryN(0);
+    }
+    if (!(g instanceof CurvePolygon)) return null;
+    CurvePolygon cp = (CurvePolygon) g;
+    if (cp.isEmpty() || cp.getNumInteriorRing() > 0) return null;
+    return cp;
   }
 
   /**

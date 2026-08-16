@@ -273,13 +273,15 @@ public class OverlayNGCurvePhase0Test extends GeometryTestCase {
 
   /** R2 -- an approximate answer must say so. */
   public void testR2_densifiedAnswersAreFlagged() throws Exception {
-    // Nested SUB is an annulus: R1 cannot return an operand, R1.5 sees
-    // 0 circle-circle nodes, so the chord baseline still runs.
-    OverlayNGCurve annulus = new OverlayNGCurve(readCurve(A), readCurve(B));
-    Geometry result = annulus.getResult(OverlayNGCurve.DIFFERENCE);
-    assertFalse("the annulus is not empty", result.isEmpty());
-    assertTrue("R2: a densified annulus is approximate and must be flagged",
-        annulus.isApproximate());
+    // Nested SUB is now the exact annulus (R1.5). A three-point
+    // LINESTRING shell is not an arc, so the chord baseline still runs.
+    OverlayNGCurve chords = new OverlayNGCurve(readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE ((-5 0, 0 5, 5 0), (5 0, -5 0)))"),
+        readCurve(A));
+    Geometry result = chords.getResult(OverlayNGCurve.DIFFERENCE);
+    assertFalse("the chord-shell overlay is not empty", result.isEmpty());
+    assertTrue("R2: a densified chord-shell overlay is approximate and must be flagged",
+        chords.isApproximate());
   }
 
   // -- F1: fast before fat -------------------------------------------------

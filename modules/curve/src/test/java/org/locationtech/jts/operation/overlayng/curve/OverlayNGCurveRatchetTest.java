@@ -34,27 +34,25 @@ import test.jts.GeometryTestCase;
  * <tr><td>self</td>       <td>exact</td><td>exact</td><td>exact 0</td><td>exact 0</td></tr>
  * <tr><td>empty partner</td><td>exact 0</td><td>exact</td><td>exact</td><td>exact</td></tr>
  * <tr><td>disjoint</td>   <td>exact 0</td><td>exact</td><td>exact</td><td>exact</td></tr>
- * <tr><td>covers</td>     <td>exact</td><td>exact</td><td>approx</td><td>approx</td></tr>
- * <tr><td>coveredBy</td>  <td>exact</td><td>exact</td><td>exact 0</td><td>approx</td></tr>
+ * <tr><td>covers</td>     <td>exact</td><td>exact</td><td>exact</td><td>exact</td></tr>
+ * <tr><td>coveredBy</td>  <td>exact</td><td>exact</td><td>exact 0</td><td>exact</td></tr>
  * <tr><td>crossing</td>   <td>exact</td><td>exact</td><td>exact</td><td>exact</td></tr>
  * </table>
  * <p>
- * Exact cells per operation: CAP 8 of 8, CUP 8, SUB 7, XOR 6 on the
+ * Exact cells per operation: CAP 8 of 8, CUP 8, SUB 8, XOR 8 on the
  * two-disc matrix. Crossing discs are two-arc CurvePolygons (R1.5).
- * A disc clipped by a plain rectangle (R1.6) is EEEE in both operand
- * orders. A half-disc CompoundCurve shell vs a crossing disc or a
- * cutting square (R1.7) is EEEE in both operand orders. Two crossing
- * CircularStrings (R-AA) are EEEE in both operand orders. Same-circle
- * overlapping arcs are EEEE (interval overlay). Complementary half-discs
- * are 0EEE. Perpendicular same-circle half-discs, a two-node two-shell
- * clip, collinear same-side halves, nested halves, and a 1-node touch
- * are exact. A four-cut two-shell n-span, a same-outer hole-inside
- * pair, and a different-outer hole that sits strictly inside or
- * outside a certified outer CAP are exact. A four-cut disc vs a
- * band is EEEE. The cells that
- * stay approximate are the ones whose answer is a <em>new</em> non-disc
- * geometry -- SUB and XOR of a nested pair are an annulus, which this
- * stage does not build (0 intersections).
+ * Nested discs are the annulus (R1.5): SUB the outer with the inner
+ * as a hole, XOR the same. A disc clipped by a plain rectangle (R1.6)
+ * is EEEE in both operand orders. A half-disc CompoundCurve shell vs
+ * a crossing disc or a cutting square (R1.7) is EEEE in both operand
+ * orders. Two crossing CircularStrings (R-AA) are EEEE in both operand
+ * orders. Same-circle overlapping arcs are EEEE (interval overlay).
+ * Complementary half-discs are 0EEE. Perpendicular same-circle
+ * half-discs, a two-node two-shell clip, collinear same-side halves,
+ * nested halves, and a 1-node touch are exact. A four-cut two-shell
+ * n-span, a same-outer hole-inside pair, and a different-outer hole
+ * that sits strictly inside or outside a certified outer CAP are
+ * exact. A four-cut disc vs a band is EEEE.
  */
 public class OverlayNGCurveRatchetTest extends GeometryTestCase {
 
@@ -171,11 +169,11 @@ public class OverlayNGCurveRatchetTest extends GeometryTestCase {
   }
 
   public void testMatrix_covers() throws Exception {
-    assertRow("covers", CIRCLE_5, CIRCLE_3, "EEaa");
+    assertRow("covers", CIRCLE_5, CIRCLE_3, "EEEE");
   }
 
   public void testMatrix_coveredBy() throws Exception {
-    assertRow("coveredBy", CIRCLE_3, CIRCLE_5, "EE0a");
+    assertRow("coveredBy", CIRCLE_3, CIRCLE_5, "EE0E");
   }
 
   public void testMatrix_crossing() throws Exception {

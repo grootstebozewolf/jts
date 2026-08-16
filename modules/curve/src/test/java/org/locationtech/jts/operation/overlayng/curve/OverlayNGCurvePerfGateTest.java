@@ -215,6 +215,22 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
         () -> chordOverlay(a, b, OverlayNGCurve.UNION));
   }
 
+  public void testOverlayNestedSubNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry b = readCurve(CIRCLE_3);
+    assertLaserNotSlower("nested SUB",
+        () -> OverlayNGCurve.difference(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.DIFFERENCE));
+  }
+
+  public void testOverlayNestedXorNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry b = readCurve(CIRCLE_3);
+    assertLaserNotSlower("nested XOR",
+        () -> OverlayNGCurve.symDifference(a, b),
+        () -> chordOverlay(a, b, OverlayNGCurve.SYMDIFFERENCE));
+  }
+
   public void testOverlayCrossingCapNotSlowerThanChord() throws Exception {
     Geometry a = readCurve(CIRCLE_5);
     Geometry cross = readCurve(CIRCLE_CROSSING);
