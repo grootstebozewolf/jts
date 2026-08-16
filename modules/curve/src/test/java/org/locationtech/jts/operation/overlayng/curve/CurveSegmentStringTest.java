@@ -35,6 +35,10 @@ import test.jts.GeometryTestCase;
  * each unordered pair. P2.5.3 walks the faces of that node set.
  * P2.5.4 is near-tangent robustness: a coincident leave-angle
  * stamps {@link CurveSegmentFaces#TANGENT_LEAVE_ANGLE}.
+ * P2.5.7 is the package-private curve DCEL
+ * ({@link CurveSegmentDcel}): half-edges, twins, next/prev, face
+ * pointers on {@link CurveSegmentString} members. Face Geometry
+ * assemble stays {@link CurveSegmentFaces}.
  * MIXED overlay walks the named diameter as a shared edge
  * ({@link MixedOverlapOverlay}). Not N-SS, not a core {@code Noder}.
  */
