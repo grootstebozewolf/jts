@@ -20,6 +20,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.MultiCurve;
@@ -97,7 +98,8 @@ public class CurveWKTWriter extends WKTWriter {
   private static boolean hasCurveMember(MultiCurve mc) {
     for (int i = 0; i < mc.getNumGeometries(); i++) {
       Geometry m = mc.getGeometryN(i);
-      if (m instanceof CircularString || m instanceof CompoundCurve) return true;
+      if (m instanceof CircularString || m instanceof CompoundCurve
+          || m instanceof ClothoidSegment) return true;
     }
     return false;
   }
@@ -247,13 +249,30 @@ public class CurveWKTWriter extends WKTWriter {
     for (int i = 0; i < n; i++) {
       if (i > 0) writer.write(", ");
       LineString m = cc.getMemberN(i);
-      if (m instanceof CircularString) {
-        writer.write(WKTConstants.CIRCULARSTRING);
-        writer.write(" ");
+      if (m instanceof ClothoidSegment) {
+        appendClothoidMemberText((ClothoidSegment) m, formatter, writer);
       }
-      appendSequenceText(m.getCoordinateSequence(), outputOrdinates, useFormatting,
-          level, false, writer, formatter);
+      else {
+        if (m instanceof CircularString) {
+          writer.write(WKTConstants.CIRCULARSTRING);
+          writer.write(" ");
+        }
+        appendSequenceText(m.getCoordinateSequence(), outputOrdinates, useFormatting,
+            level, false, writer, formatter);
+      }
     }
+    writer.write(")");
+  }
+
+  /** grammars-v4 member form: {@code CLOTHOID (k0, k1, L)}. Never top-level. */
+  private void appendClothoidMemberText(ClothoidSegment cs,
+      OrdinateFormat formatter, Writer writer) throws IOException {
+    writer.write("CLOTHOID (");
+    writer.write(formatter.format(cs.getStartKappa()));
+    writer.write(", ");
+    writer.write(formatter.format(cs.getEndKappa()));
+    writer.write(", ");
+    writer.write(formatter.format(cs.getLength()));
     writer.write(")");
   }
 }

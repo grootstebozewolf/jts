@@ -26,6 +26,7 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.MultiCurve;
@@ -63,6 +64,15 @@ import org.locationtech.jts.io.WKTReader;
 public class CurveWKTReader extends WKTReader {
 
   private static final String L_PAREN = "(";
+  private static final String R_PAREN = ")";
+  private static final String COMMA = ",";
+
+  /**
+   * grammars-v4 WKT extension (#4847 / #4848). Opt-in: only this reader
+   * recognises {@code CLOTHOID}, and only as a non-leading COMPOUNDCURVE
+   * member. Core {@link WKTReader} still fails on the keyword.
+   */
+  private static final String CLOTHOID = "CLOTHOID";
 
   public CurveWKTReader() {
     super();
@@ -163,10 +173,63 @@ public class CurveWKTReader extends WKTReader {
     }
     List<LineString> mems = new ArrayList<LineString>();
     do {
-      mems.add(readCurveMember(tokenizer, ordinateFlags));
+      String peek = lookAheadWord(tokenizer);
+      if (peek.equalsIgnoreCase(CLOTHOID)) {
+        if (mems.isEmpty()) {
+          throw parseErrorWithLine(tokenizer,
+              "CLOTHOID may not be the first member of a COMPOUNDCURVE; "
+              + "needs a preceding LineString or CircularString for start state");
+        }
+        getNextWord(tokenizer);
+        LineString prev = mems.get(mems.size() - 1);
+        mems.add(readClothoidSegmentText(tokenizer, prev));
+      }
+      else {
+        mems.add(readCurveMember(tokenizer, ordinateFlags));
+      }
       tok = getNextCloserOrComma(tokenizer);
     } while (tok.equals(","));
     return new CompoundCurve(mems.toArray(new LineString[0]), geometryFactory);
+  }
+
+  /** Reads {@code (k0, k1, L)} and inherits start state from {@code prev}. */
+  private ClothoidSegment readClothoidSegmentText(StreamTokenizer tokenizer,
+      LineString prev) throws IOException, ParseException {
+    String tok = getNextWord(tokenizer);
+    if (!tok.equals(L_PAREN)) {
+      throw parseErrorWithLine(tokenizer, "Expected '(' after CLOTHOID, got " + tok);
+    }
+    double k0 = readClothoidScalar(tokenizer);
+    expectClothoidComma(tokenizer);
+    double k1 = readClothoidScalar(tokenizer);
+    expectClothoidComma(tokenizer);
+    double len = readClothoidScalar(tokenizer);
+    String close = getNextWord(tokenizer);
+    if (!close.equals(R_PAREN)) {
+      throw parseErrorWithLine(tokenizer, "Expected ')' to close CLOTHOID, got " + close);
+    }
+    Coordinate start = ClothoidSegment.endPointOf(prev);
+    double tangent = ClothoidSegment.endTangentOf(prev);
+    return new ClothoidSegment(start, tangent, k0, k1, len, geometryFactory);
+  }
+
+  private double readClothoidScalar(StreamTokenizer tokenizer)
+      throws IOException, ParseException {
+    String s = getNextWord(tokenizer);
+    try {
+      return Double.parseDouble(s);
+    }
+    catch (NumberFormatException e) {
+      throw parseErrorWithLine(tokenizer, "Invalid CLOTHOID scalar: " + s);
+    }
+  }
+
+  private void expectClothoidComma(StreamTokenizer tokenizer)
+      throws IOException, ParseException {
+    String c = getNextWord(tokenizer);
+    if (!c.equals(COMMA)) {
+      throw parseErrorWithLine(tokenizer, "Expected ',' inside CLOTHOID body, got " + c);
+    }
   }
 
   private CurvePolygon readCurvePolygonText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
@@ -226,6 +289,11 @@ public class CurveWKTReader extends WKTReader {
       return geometryFactory.createLineString(createCoordinateSequenceEmpty(ordinateFlags));
     }
     String type = getNextWord(tokenizer).toUpperCase(Locale.ROOT);
+    if (type.equals(CLOTHOID)) {
+      throw parseErrorWithLine(tokenizer,
+          "CLOTHOID is not a top-level geometry and cannot stand alone as a "
+          + "curve member; it is a non-leading COMPOUNDCURVE member only");
+    }
     Geometry g = readGeometryTaggedText(tokenizer, type, ordinateFlags);
     if (g instanceof LineString) return (LineString) g;
     throw parseErrorWithLine(tokenizer, "Expected curve member but got " + type);
@@ -244,6 +312,7 @@ public class CurveWKTReader extends WKTReader {
 
   private static boolean isCurveMemberTag(String w) {
     return w.equalsIgnoreCase(WKTConstants.CIRCULARSTRING)
-        || w.equalsIgnoreCase(WKTConstants.COMPOUNDCURVE);
+        || w.equalsIgnoreCase(WKTConstants.COMPOUNDCURVE)
+        || w.equalsIgnoreCase(CLOTHOID);
   }
 }

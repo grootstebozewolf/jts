@@ -27,7 +27,10 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
+import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.Tin;
 import org.locationtech.jts.geom.curve.Triangle;
 
@@ -74,6 +77,142 @@ public class GeometryCombiner
         : new CurveGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
     CircularString line = cgf.createCircularString(geomFactory.getCoordinateSequenceFactory().create(pts));
     return combine(orig, line);
+  }
+
+  /**
+   * Builds a one-member {@link CompoundCurve} whose member is a
+   * {@link CircularString} through {@code pts}.
+   * <p>
+   * Do not call {@code CurveGeometryFactory.createCompoundCurve(CoordinateSequence)}
+   * here: on this branch that constructor is legacy and wraps the points as a
+   * single plain {@link LineString}. WKT would still say {@code COMPOUNDCURVE}
+   * but the member would be a control-point polyline, not an arc.
+   * Honest construction is {@code createCircularString} then
+   * {@code createCompoundCurve(new LineString[] { arc })}.
+   * Even leftover (even count) or fewer than 3 points abort without adding.
+   */
+  public Geometry addCompoundCurve(Geometry orig, Coordinate[] pts)
+  {
+    if (!isValidCircularControl(pts)) {
+      return orig;
+    }
+    return addCompoundCurve(orig, new Coordinate[][] { pts });
+  }
+
+  /**
+   * Builds a {@link CompoundCurve} from joining {@link CircularString} pieces.
+   * Each piece must have an odd count &ge; 3; adjacent pieces must share the
+   * join point. Aborts (returns {@code orig} unchanged) on even leftover,
+   * a short piece, or a disconnected join.
+   */
+  public Geometry addCompoundCurve(Geometry orig, Coordinate[][] pieces)
+  {
+    LineString[] members = circularStringMembers(pieces);
+    if (members == null) {
+      return orig;
+    }
+    CompoundCurve cc = curveFactory().createCompoundCurve(members);
+    return combine(orig, cc);
+  }
+
+  /**
+   * Builds a hole-free {@link CurvePolygon} whose shell is a closed
+   * {@link CircularString} through {@code pts}. Unclosed or even leftover
+   * input aborts; this does not emit a linearized {@link Polygon}.
+   * Uses {@code createCurvePolygon(shell, null)}, not a CircularString-only
+   * factory overload.
+   */
+  public Geometry addCurvePolygon(Geometry orig, Coordinate[] pts)
+  {
+    if (!isValidCircularControl(pts) || !isClosedRing(pts)) {
+      return orig;
+    }
+    CircularString shell = circularString(pts);
+    CurvePolygon poly = curveFactory().createCurvePolygon(shell, null);
+    return combine(orig, poly);
+  }
+
+  /**
+   * Builds a hole-free {@link CurvePolygon} from joining closed pieces.
+   * One valid closed piece becomes a {@link CircularString} shell;
+   * two or more become a {@link CompoundCurve} shell. Unclosed or
+   * degenerate input aborts.
+   */
+  public Geometry addCurvePolygon(Geometry orig, Coordinate[][] pieces)
+  {
+    LineString[] members = circularStringMembers(pieces);
+    if (members == null) {
+      return orig;
+    }
+    LineString shell;
+    if (members.length == 1) {
+      shell = members[0];
+    }
+    else {
+      shell = curveFactory().createCompoundCurve(members);
+    }
+    if (!isClosedShell(shell)) {
+      return orig;
+    }
+    CurvePolygon poly = curveFactory().createCurvePolygon(shell, null);
+    return combine(orig, poly);
+  }
+
+  /**
+   * Appends a 2-point (or longer) LineString as a CompoundCurve member.
+   * Used for the OGC first piece of a highway-entry clothoid.
+   */
+  public Geometry addCompoundCurveLine(Geometry orig, Coordinate[] pts)
+  {
+    if (pts == null || pts.length < 2) {
+      return orig;
+    }
+    LineString line = geomFactory.createLineString(pts);
+    return appendMembers(orig, new LineString[] { line });
+  }
+
+  /**
+   * Appends a non-leading {@link ClothoidSegment} to an existing lineal
+   * geometry. Start point, tangent and {@code k0} are inherited from the
+   * previous member (0 after a line, 1/R after an arc). Leading clothoid
+   * (no previous member) and {@code k0 == k1} abort.
+   */
+  public Geometry addClothoid(Geometry orig, double endKappa, double length)
+  {
+    LineString[] prev = asMembers(orig);
+    if (prev == null || prev.length == 0) {
+      return orig;
+    }
+    LineString last = prev[prev.length - 1];
+    double k0 = ClothoidSegment.endKappaOf(last);
+    if (Math.abs(endKappa - k0) < 1e-15 || length <= 0) {
+      return orig;
+    }
+    ClothoidSegment cl = new ClothoidSegment(
+        ClothoidSegment.endPointOf(last),
+        ClothoidSegment.endTangentOf(last),
+        k0, endKappa, length, curveFactory());
+    return appendMembers(orig, new LineString[] { cl });
+  }
+
+  /**
+   * Splits an odd-length CircularString control stream into consecutive
+   * 3-point arc pieces (shared join). Returns {@code null} when the
+   * stream is not a valid CircularString control sequence.
+   */
+  public static Coordinate[][] circularStringPieces(Coordinate[] pts)
+  {
+    if (!isValidCircularControl(pts)) {
+      return null;
+    }
+    int n = (pts.length - 1) / 2;
+    Coordinate[][] pieces = new Coordinate[n][];
+    for (int i = 0; i < n; i++) {
+      pieces[i] = new Coordinate[] {
+          pts[2 * i], pts[2 * i + 1], pts[2 * i + 2]
+      };
+    }
+    return pieces;
   }
 
   /**
@@ -136,6 +275,89 @@ public class GeometryCombiner
   {
     Point point = geomFactory.createPoint(pt);
     return combine(orig, point);
+  }
+
+  private CurveGeometryFactory curveFactory()
+  {
+    if (geomFactory instanceof CurveGeometryFactory) {
+      return (CurveGeometryFactory) geomFactory;
+    }
+    return new CurveGeometryFactory(geomFactory.getPrecisionModel(), geomFactory.getSRID());
+  }
+
+  private CircularString circularString(Coordinate[] pts)
+  {
+    return curveFactory().createCircularString(
+        geomFactory.getCoordinateSequenceFactory().create(pts));
+  }
+
+  /**
+   * Returns CircularString members for {@code pieces}, or {@code null} when
+   * any piece is even/short or adjacent pieces do not join.
+   */
+  private LineString[] circularStringMembers(Coordinate[][] pieces)
+  {
+    if (pieces == null || pieces.length == 0) {
+      return null;
+    }
+    LineString[] members = new LineString[pieces.length];
+    for (int i = 0; i < pieces.length; i++) {
+      if (!isValidCircularControl(pieces[i])) {
+        return null;
+      }
+      if (i > 0 && !joins(pieces[i - 1], pieces[i])) {
+        return null;
+      }
+      members[i] = circularString(pieces[i]);
+    }
+    return members;
+  }
+
+  private static boolean isValidCircularControl(Coordinate[] pts)
+  {
+    return pts != null && pts.length >= 3 && pts.length % 2 == 1;
+  }
+
+  private static boolean isClosedRing(Coordinate[] pts)
+  {
+    return pts[0].equals2D(pts[pts.length - 1]);
+  }
+
+  private static boolean isClosedShell(LineString shell)
+  {
+    Coordinate[] pts = shell.getCoordinates();
+    return pts.length >= 2 && pts[0].equals2D(pts[pts.length - 1]);
+  }
+
+  private static boolean joins(Coordinate[] prev, Coordinate[] next)
+  {
+    return prev[prev.length - 1].equals2D(next[0]);
+  }
+
+  private Geometry appendMembers(Geometry orig, LineString[] extra)
+  {
+    LineString[] prev = asMembers(orig);
+    if (prev == null) {
+      return orig;
+    }
+    LineString[] all = new LineString[prev.length + extra.length];
+    System.arraycopy(prev, 0, all, 0, prev.length);
+    System.arraycopy(extra, 0, all, prev.length, extra.length);
+    return curveFactory().createCompoundCurve(all);
+  }
+
+  private static LineString[] asMembers(Geometry orig)
+  {
+    if (orig == null || orig.isEmpty()) {
+      return new LineString[0];
+    }
+    if (orig instanceof CompoundCurve) {
+      return ((CompoundCurve) orig).getMembers();
+    }
+    if (orig instanceof LineString) {
+      return new LineString[] { (LineString) orig };
+    }
+    return null;
   }
   
   private static Polygon findPolygonContaining(Geometry geom, Coordinate pt)
