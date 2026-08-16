@@ -378,8 +378,15 @@ public class CircularArcOverlayTest extends GeometryTestCase {
         CompoundCurveShellOverlay.overlay(holed, right, OverlayNG.INTERSECTION));
     Geometry straddle = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (-1 1, 1 1, 1 2, -1 2, -1 1))");
+    // The hole crosses the other outer, not the other hole. hole ∩
+    // other shares the clip edge, so a punch would guess a bite.
     assertNull("H-SHELL-HOLE-CROSS: hole straddles the other shell",
         CompoundCurveShellOverlay.overlay(straddle, right, OverlayNG.INTERSECTION));
+    Geometry holeX = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0.5 0.5, 1.5 0.5, 1.5 1.5, 0.5 1.5, 0.5 0.5))");
+    // Two holes that cross each other is a noder, not a kit.
+    assertNull("H-SHELL-HOLE-X: two holes that cross",
+        CompoundCurveShellOverlay.overlay(holed, holeX, OverlayNG.INTERSECTION));
     Geometry onDiameter = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, 0 2, 1 1), (1 1, 1 0), (1 0, -1 0), (-1 0, -1 1)))");
     // Collinear overlap is not a discrete node set; no cheap closed

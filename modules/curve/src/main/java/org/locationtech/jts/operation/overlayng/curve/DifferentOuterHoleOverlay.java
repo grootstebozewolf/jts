@@ -30,8 +30,10 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * is different and already has a certified clip. Compose: clip the
  * outers, then if the hole is strictly inside that CAP punch it,
  * and if it is strictly outside ignore it for CAP (keep it on the
- * holed side). A hole that meets or crosses the CAP is
- * {@code null} -- not a noder.
+ * holed side). A hole that meets or crosses the CAP shares the
+ * clip edge: subtracting hole ∩ other is a bite, not an interior
+ * punch ({@code H-SHELL-HOLE-CROSS}). Two holes that cross
+ * ({@code H-SHELL-HOLE-X}) are a noder. Both stay {@code null}.
  */
 final class DifferentOuterHoleOverlay {
 
@@ -170,6 +172,8 @@ final class DifferentOuterHoleOverlay {
         sawOut = true;
       }
     }
+    // Both sides of the CAP: the hole crosses the other shell.
+    // hole ∩ CAP shares the clip edge (H-SHELL-HOLE-CROSS).
     if (mixed || (sawIn && sawOut)) return TwoNodeClip.MIXED;
     if (sawIn) return TwoNodeClip.IN;
     if (sawOut) return TwoNodeClip.OUT;

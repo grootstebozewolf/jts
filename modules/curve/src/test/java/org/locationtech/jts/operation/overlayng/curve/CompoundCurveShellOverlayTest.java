@@ -35,10 +35,12 @@ import test.jts.GeometryTestCase;
  * n-span with the touch as a zero-length span. A same-outer
  * hole-inside pair is the holed cell. A different-outer hole
  * composes when it sits strictly inside or outside a certified
- * outer CAP. A three-point LineString is not an arc. Collinear
- * overlap, mixed labels, a hole that meets or crosses the other
- * outer stay {@code null} so OverlayNGCurve can take R2 without
- * paying this path first.
+ * outer CAP. A hole that straddles the other shell shares the
+ * clip edge, so subtracting hole ∩ other is a bite, not an
+ * interior punch. Two holes that cross are a noder. A
+ * three-point LineString is not an arc. Collinear overlap,
+ * mixed labels, and those named hole misses stay {@code null}
+ * so OverlayNGCurve can take R2 without paying this path first.
  */
 public class CompoundCurveShellOverlayTest extends GeometryTestCase {
 
@@ -618,8 +620,16 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
         CompoundCurveShellOverlay.overlay(square, square, OverlayNG.UNION));
     assertNull("H-SHELL-HOLE-OUTER: hole meets the other diameter",
         CompoundCurveShellOverlay.overlay(holed, right, OverlayNG.INTERSECTION));
+    // The hole crosses the other outer (the vertical diameter), not
+    // the other hole. hole ∩ other shares that clip edge, so a punch
+    // would guess a bite versus a hole.
     assertNull("H-SHELL-HOLE-CROSS: hole straddles the other shell",
         CompoundCurveShellOverlay.overlay(straddle, right, OverlayNG.INTERSECTION));
+    Geometry holeX = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0.5 0.5, 1.5 0.5, 1.5 1.5, 0.5 1.5, 0.5 0.5))");
+    // Two holes that cross each other is a noder, not a kit.
+    assertNull("H-SHELL-HOLE-X: two holes that cross",
+        CompoundCurveShellOverlay.overlay(holed, holeX, OverlayNG.INTERSECTION));
     // Collinear overlap is not a discrete node set; no cheap closed
     // form without a noder.
     assertNull("H-SHELL-N-MIXED: collinear overlap stays refused",
