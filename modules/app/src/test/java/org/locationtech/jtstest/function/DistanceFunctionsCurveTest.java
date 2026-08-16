@@ -21,39 +21,15 @@ import junit.framework.TestSuite;
 import junit.textui.TestRunner;
 
 /**
- * D-HF: the Hausdorff / Frechet / nearest-point family must sample the arc.
- * <p>
- * These entry points call core statics ({@code DiscreteHausdorffDistance},
- * {@code DirectedHausdorffDistance}, {@code DiscreteFrechetDistance},
- * {@code DistanceOp}, {@code IndexedFacetDistance}) that read coordinates, so a
- * curve is measured by its control polyline. The epic spec's witness
- * ({@code CurveAwarenessSpecTest.test_D_HF_hausdorffFrechetCurveAware}) makes the
- * failure exact:
- * <pre>
- *   A = CIRCULARSTRING (0 0, 2 3, 10 0)
- *   B = LINESTRING (0 0, 10 0)
- * </pre>
- * The circle through A's control points has centre {@code (5, -7/6)} and radius
- * {@code sqrt(949)/6 = 5.13431}, so the arc's apex is at
- * {@code y = 3.96764} -- the continuous directed Hausdorff distance to the
- * baseline. The control-point reading attains only the mid control's height,
- * <b>3</b>. And the spec's sharpest observation: the chord-fraction densify knob
- * on {@code orientedDistanceLine} cannot close the gap, because it densifies the
- * straight control chords, which lie <em>inside</em> the arc and never reach the
- * apex. Densifying harder walks the wrong geometry more finely.
- * <p>
- * <b>Second witness, for the nearest-point family.</b> The concentric-circle
- * inputs from the earlier sweep cannot reveal this defect -- their control points
- * lie exactly at the true nearest points. Against {@code POINT (5 6)}, above the
- * apex: true distance {@code 6 - 3.96764 = 2.03236}; the chord reading finds its
- * nearest point on the chord {@code (2 3)-(10 0)} at distance <b>3.860</b>. An
- * 90% overestimate, from the family whose one job is measuring distance.
- * <p>
- * Remedy is the established caller-side shim: linearise both operands at the
- * entry point ({@code linearizeForOps}, 1e-5 here for the 10-unit extent), so the
- * discrete algorithms sample points ON the arc. {@code distance} and
- * {@code isWithinDistance} delegate to instance methods that CRV-OPS already
- * fixed, asserted as guards.
+ * Public {@code DiscreteHausdorffDistance} on #7 via {@code 0ca71b} is
+ * closed-form for two pairs only: (1) single-arc {@code CircularString} vs
+ * single-segment {@code LineString}, apex {@code √949/6 − 7/6} =
+ * 3.967640600249787; (2) two circular discs (a single-member
+ * {@code MultiSurface} unwrap is the same pair). Exact path skips densify.
+ * Densify 0.05 is not the laser. Public DHD still sees chords in general.
+ * Do not present Fréchet / {@code DirectedHausdorffDistance} / “sample the
+ * arc” as the shipped D-HF story. This TestBuilder {@code DistanceFunctions}
+ * class is not a third public pair.
  */
 public class DistanceFunctionsCurveTest extends TestCase {
 
