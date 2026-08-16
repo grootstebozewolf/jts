@@ -288,10 +288,9 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
   public void testReverseNestedSubNotSlowerThanChord() throws Exception {
     Geometry square = readCurve(PLAIN_SQUARE);
     Geometry inner = readCurve(CIRCLE_3);
-    // R1.6-honesty KEEP. Covering square \\ CIRCLE_3 has 0
-    // line–circle nodes, so R1.6 misses and public overlay stays
-    // the chordsaw. Do not punch a disc-in-square nest here.
-    assertChordPath("R1.6-honesty covering square \\ disc",
+    // R1 skips a covering SUB (annulus); R1.5/R1.6 miss; R2 is the answer.
+    // R1.6-honesty KEEP -- named stamp lives on CircularDiscPolygonOverlayTest.
+    assertChordPath("rev nested SUB",
         () -> square.difference(inner),
         () -> chordOverlay(square, inner, OverlayNGCurve.DIFFERENCE));
   }

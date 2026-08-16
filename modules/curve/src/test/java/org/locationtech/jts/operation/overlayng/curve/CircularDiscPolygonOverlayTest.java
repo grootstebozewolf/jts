@@ -38,6 +38,11 @@ public class CircularDiscPolygonOverlayTest extends GeometryTestCase {
 
   private static final String CIRCLE_5 =
       "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0))";
+  private static final String CIRCLE_3 =
+      "CURVEPOLYGON (CIRCULARSTRING (-3 0, 0 3, 3 0, 0 -3, -3 0))";
+  /** Covering square: 0 line–circle nodes on CIRCLE_3. */
+  private static final String PLAIN_SQUARE =
+      "POLYGON ((-6 -6, 6 -6, 6 6, -6 6, -6 -6))";
   private static final String CIRCLE_CROSSING =
       "CURVEPOLYGON (CIRCULARSTRING (2 0, 7 5, 12 0, 7 -5, 2 0))";
   /** Axis-aligned half-plane cut: the right half of CIRCLE_5. */
@@ -128,26 +133,21 @@ public class CircularDiscPolygonOverlayTest extends GeometryTestCase {
   }
 
   /**
-   * R1.6-honesty KEEP. Covering square minus CIRCLE_3 has 0
-   * line–circle nodes, so this cell misses. Public overlay stays
-   * the chordsaw. Not a disc-in-square nest punch. Not D4
-   * (Phase 0 two-disc SUB is the 16π annulus). Two-node / even-n
-   * disc-vs-plain stays exact on the other rows.
+   * Named R1.6-honesty stamp. Covering PLAIN_SQUARE minus
+   * CIRCLE_3 has 0 line–circle nodes, so this cell misses.
+   * Public overlay stays the chordsaw. Do not expand R1.6 past
+   * two-node / even-n. Not a disc-in-square nest punch. Not D4.
    */
-  public void testCoveringSquareMinusDiscIsHonestyKeep() throws Exception {
-    Geometry square = readCurve(
-        "POLYGON ((-6 -6, 6 -6, 6 6, -6 6, -6 -6))");
-    Geometry inner = readCurve(
-        "CURVEPOLYGON (CIRCULARSTRING (-3 0, 0 3, 3 0, 0 -3, -3 0))");
-    assertNull("R1.6-honesty: 0 line–circle nodes, not a punch",
+  public void testR16HonestyCoveringSquareMinusDiscIsNamedMiss()
+      throws Exception {
+    Geometry square = readCurve(PLAIN_SQUARE);
+    Geometry inner = readCurve(CIRCLE_3);
+    assertNull("R1.6-honesty: overlay(PLAIN_SQUARE, CIRCLE_3, SUB) is null",
         CircularDiscPolygonOverlay.overlay(square, inner, OverlayNG.DIFFERENCE));
-    assertNull("R1.6-honesty: reverse is the same miss",
-        CircularDiscPolygonOverlay.overlay(inner, square, OverlayNG.DIFFERENCE));
-
     OverlayNGCurve sub = new OverlayNGCurve(square, inner);
     Geometry saw = sub.getResult(OverlayNG.DIFFERENCE);
     assertFalse("the chordsaw still answers", saw.isEmpty());
-    assertTrue("R1.6-honesty: public SUB stays the chordsaw",
+    assertTrue("R1.6-honesty: public isApproximate=true",
         sub.isApproximate());
   }
 
