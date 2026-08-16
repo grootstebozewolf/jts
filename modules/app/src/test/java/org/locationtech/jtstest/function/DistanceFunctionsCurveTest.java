@@ -21,15 +21,16 @@ import junit.framework.TestSuite;
 import junit.textui.TestRunner;
 
 /**
- * Public {@code DiscreteHausdorffDistance} on #7 via {@code 0ca71b} is
- * closed-form for two pairs only: (1) single-arc {@code CircularString} vs
- * single-segment {@code LineString}, apex {@code √949/6 − 7/6} =
- * 3.967640600249787; (2) two circular discs (a single-member
- * {@code MultiSurface} unwrap is the same pair). Exact path skips densify.
- * Densify 0.05 is not the laser. Public DHD still sees chords in general.
- * Do not present Fréchet / {@code DirectedHausdorffDistance} / “sample the
- * arc” as the shipped D-HF story. This TestBuilder {@code DistanceFunctions}
- * class is not a third public pair.
+ * Public DHD two-pair lock. {@code DiscreteHausdorffDistance} on #7 via
+ * {@code 0ca71b} is closed-form for two pairs only: (1) single-arc
+ * {@code CircularString} vs single-segment {@code LineString}, apex
+ * {@code √949/6 − 7/6} = 3.967640600249787; (2) two circular discs (a
+ * single-member {@code MultiSurface} unwrap is the same pair). Exact path
+ * skips densify. Densify 0.05 is not the laser. Public DHD still sees
+ * chords in general. Do not present Fréchet /
+ * {@code DirectedHausdorffDistance} / “sample the arc” as the shipped
+ * D-HF story. This TestBuilder {@code DistanceFunctions} class is not a
+ * third public pair.
  */
 public class DistanceFunctionsCurveTest extends TestCase {
 
