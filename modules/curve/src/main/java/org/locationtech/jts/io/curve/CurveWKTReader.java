@@ -14,6 +14,7 @@ package org.locationtech.jts.io.curve;
 import java.io.IOException;
 import java.io.StreamTokenizer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
@@ -73,6 +74,32 @@ public class CurveWKTReader extends WKTReader {
    * member. Core {@link WKTReader} still fails on the keyword.
    */
   private static final String CLOTHOID = "CLOTHOID";
+
+  /**
+   * Per §3.3 of the proposal: the typed coordinate is authoritative when
+   * a CLOTHOID's analytical end disagrees with the next member's typed
+   * start, but a warning is emitted if the drift exceeds {@code 1e-9}
+   * (relative to chord length, with an absolute floor of {@code 1e-9} m).
+   * Warnings accumulate here per-reader-instance; expose for callers
+   * who want to surface them in tooling output.
+   */
+  private final List<String> warnings = new ArrayList<String>();
+
+  /** Junction drift threshold relative to chord length (§3.3). */
+  private static final double JUNCTION_DRIFT_REL = 1e-9;
+  private static final double JUNCTION_DRIFT_ABS = 1e-9;
+
+  /** Returns warnings accumulated across this reader's parses (junction
+   *  drift, etc.). Read-only and additive across multiple read() calls. */
+  public List<String> getWarnings() {
+    return Collections.unmodifiableList(warnings);
+  }
+
+  /** Clears accumulated warnings. Call before a new parse if you want
+   *  per-call warning isolation. */
+  public void clearWarnings() {
+    warnings.clear();
+  }
 
   public CurveWKTReader() {
     super();
@@ -185,7 +212,22 @@ public class CurveWKTReader extends WKTReader {
         mems.add(readClothoidSegmentText(tokenizer, prev));
       }
       else {
-        mems.add(readCurveMember(tokenizer, ordinateFlags));
+        LineString m = readCurveMember(tokenizer, ordinateFlags);
+        // §3.3 — if the previous member was a CLOTHOID, its analytical
+        // end is the cursor. The typed first coordinate of this member
+        // should match it; the typed coord wins, but drift beyond the
+        // threshold emits a warning.
+        if (!mems.isEmpty()) {
+          LineString prevMem = mems.get(mems.size() - 1);
+          if (prevMem instanceof ClothoidSegment) {
+            Coordinate[] cc = m.getCoordinates();
+            if (cc.length >= 1) {
+              checkJunctionDrift(((ClothoidSegment) prevMem).getEndCoordinate(),
+                  cc, mems.size());
+            }
+          }
+        }
+        mems.add(m);
       }
       tok = getNextCloserOrComma(tokenizer);
     } while (tok.equals(","));
@@ -230,6 +272,38 @@ public class CurveWKTReader extends WKTReader {
     if (!c.equals(COMMA)) {
       throw parseErrorWithLine(tokenizer, "Expected ',' inside CLOTHOID body, got " + c);
     }
+  }
+
+  /**
+   * §3.3 — drift check. Compares the typed first coordinate of
+   * {@code memberCoords} against {@code analyticalEnd} (the previous
+   * CLOTHOID's analytical end). Drift beyond {@code 1e-9} relative to
+   * the new member's chord length (with an absolute floor of
+   * {@code 1e-9} m) emits a warning. The typed coordinate is still
+   * authoritative for the constructed geometry.
+   */
+  private void checkJunctionDrift(Coordinate analyticalEnd, Coordinate[] memberCoords,
+                                  int newMemberIndex) {
+    Coordinate typedStart = memberCoords[0];
+    double dx = typedStart.x - analyticalEnd.x;
+    double dy = typedStart.y - analyticalEnd.y;
+    double drift = Math.hypot(dx, dy);
+    double chord = chordLength(memberCoords);
+    double threshold = Math.max(JUNCTION_DRIFT_REL * chord, JUNCTION_DRIFT_ABS);
+    if (drift > threshold) {
+      warnings.add(String.format(Locale.ROOT,
+          "junction drift %.6e m at COMPOUNDCURVE member index %d "
+          + "(typed start %s, analytical end of preceding CLOTHOID %s); "
+          + "typed coordinate is authoritative per proposal §3.3",
+          drift, newMemberIndex, typedStart, analyticalEnd));
+    }
+  }
+
+  private static double chordLength(Coordinate[] coords) {
+    if (coords.length < 2) return 0.0;
+    Coordinate s = coords[0];
+    Coordinate e = coords[coords.length - 1];
+    return Math.hypot(e.x - s.x, e.y - s.y);
   }
 
   private CurvePolygon readCurvePolygonText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)

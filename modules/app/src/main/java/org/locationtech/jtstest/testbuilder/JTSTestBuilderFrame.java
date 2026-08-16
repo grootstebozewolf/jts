@@ -86,6 +86,7 @@ public class JTSTestBuilderFrame extends JFrame
   ResultWKTPanel resultWKTPanel = new ResultWKTPanel();
   ResultValuePanel resultValuePanel = new ResultValuePanel();
   StatsPanel statsPanel = new StatsPanel();
+  ClothoidPanel clothoidPanel = new ClothoidPanel();
   InfoPanel logPanel = new InfoPanel();
 
   private JFileChooser fileChooser = new JFileChooser();
@@ -193,6 +194,7 @@ public class JTSTestBuilderFrame extends JFrame
     resultWKTPanel.setModel(model);
     resultValuePanel.setModel(model);
     statsPanel.setModel(model);
+    clothoidPanel.setModel(model);
     
     model.getGeometryEditModel().addGeometryListener(
         new org.locationtech.jtstest.testbuilder.model.GeometryListener() {
@@ -436,6 +438,7 @@ public class JTSTestBuilderFrame extends JFrame
     inputTabbedPane.add(resultValuePanel, AppStrings.TAB_LABEL_VALUE);
     inputTabbedPane.add(inspectPanel,  AppStrings.TAB_LABEL_INSPECT);
     inputTabbedPane.add(statsPanel, AppStrings.TAB_LABEL_STATS);
+    inputTabbedPane.add(clothoidPanel, "Clothoid");
     inputTabbedPane.add(logPanel, AppStrings.TAB_LABEL_LOG);
     inputTabbedPane.add(commandPanel,  AppStrings.TAB_LABEL_COMMAND);
     inputTabbedPane.setSelectedIndex(1);
@@ -473,8 +476,10 @@ public class JTSTestBuilderFrame extends JFrame
     int index = inputTabbedPane.getSelectedIndex();
     if (index < 0) return;
     if (inputTabbedPane.getComponent(index) == statsPanel) {
-      statsPanel.refresh();         
-    }   
+      statsPanel.refresh();
+    } else if (inputTabbedPane.getComponent(index) == clothoidPanel) {
+      clothoidPanel.refresh();
+    } 
   }
   
   public void geometryChanged() {

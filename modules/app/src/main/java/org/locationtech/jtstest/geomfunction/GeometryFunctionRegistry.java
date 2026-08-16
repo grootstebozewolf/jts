@@ -32,6 +32,7 @@ import org.locationtech.jtstest.function.CoverageFunctions;
 import org.locationtech.jtstest.function.CreateFractalShapeFunctions;
 import org.locationtech.jtstest.function.CreateRandomShapeFunctions;
 import org.locationtech.jtstest.function.CreateShapeFunctions;
+import org.locationtech.jtstest.function.CurveExampleFunctions;
 import org.locationtech.jtstest.function.CurveFunctions;
 import org.locationtech.jtstest.function.OverlayNGCurveFunctions;
 import org.locationtech.jtstest.function.DiffFunctions;
@@ -120,6 +121,7 @@ public class GeometryFunctionRegistry
     funcRegistry.add(CreateShapeFunctions.class);
     funcRegistry.add(CreateFractalShapeFunctions.class);
     funcRegistry.add(CreateRandomShapeFunctions.class);
+    funcRegistry.add(CurveExampleFunctions.class);
     funcRegistry.add(SpatialIndexFunctions.class);
     funcRegistry.add(SpatialPredicateFunctions.class);
     funcRegistry.add(SpatialPredicateNGFunctions.class);
