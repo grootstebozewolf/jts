@@ -36,7 +36,8 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * as a degenerate NSpan), or a two-node walk vs a disc or plain
  * polygon via {@link TwoNodeClip}. A hole that straddles the
  * other shell, or two holes that cross, stay {@code null} (bite
- * / noder, not a kit). A miss is {@code null}.
+ * / noder, not a kit). A 0-node mixed shell vs a circular disc
+ * ({@code CC-NEST-ANNULUS}) is not a punch. A miss is {@code null}.
  */
 final class CompoundCurveShellOverlay {
 
@@ -132,6 +133,7 @@ final class CompoundCurveShellOverlay {
     List<TwoNodeClip.Edge> edges = TwoNodeClip.flatten(shell);
     if (edges == null) return null;
     List<TwoNodeClip.Node> nodes = other.nodes(edges);
+    // 0-node mixed-vs-disc is CC-NEST-ANNULUS, not a stadium punch.
     if (!TwoNodeClip.properPair(nodes, other.scale())) return null;
 
     TwoNodeClip.Node p = nodes.get(0);

@@ -636,6 +636,12 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
         CompoundCurveShellOverlay.overlay(half, onDiameter, OverlayNG.INTERSECTION));
     assertNull("line-only shell",
         CompoundCurveShellOverlay.overlay(chords, square, OverlayNG.INTERSECTION));
+    Geometry stadiumNest = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, -2 0, -1 1), (-1 1, 1 1), CIRCULARSTRING (1 1, 2 0, 1 -1), (1 -1, -1 -1)))");
+    // Mixed stadium strictly inside CIRCLE_5: not two discs, and
+    // clip() is two-node only. TwoShellClip never runs. Named miss.
+    assertNull("CC-NEST-ANNULUS: 0-node mixed-vs-disc is not a punch",
+        CompoundCurveShellOverlay.overlay(disc, stadiumNest, OverlayNG.DIFFERENCE));
   }
 
   private static void assertParity(Geometry a, Geometry b, int opCode,
