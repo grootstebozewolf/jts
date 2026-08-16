@@ -274,7 +274,11 @@ final class CurveSegmentDcel {
       }
       for (int j = 0; j < out.size(); j++) {
         Half back = out.get(j);
-        Half nxt = out.get((j + 1) % out.size());
+        // atan2-sorted outgoing is CCW. The outgoing after `back`
+        // in that list is a right turn; the one before is a left
+        // turn (interior on the left, CCW face).
+        int left = (j - 1 + out.size()) % out.size();
+        Half nxt = out.get(left);
         back.twin.next = nxt;
       }
     }
