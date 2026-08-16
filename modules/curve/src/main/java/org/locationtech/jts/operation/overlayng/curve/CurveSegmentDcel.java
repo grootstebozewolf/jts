@@ -436,18 +436,31 @@ final class CurveSegmentDcel {
     return CurveSegmentString.arc(from, mid, to);
   }
 
-  private static boolean onString(CurveSegmentString s, Coordinate p,
+  /**
+   * True when {@code p} lies on this string. The residual stays in
+   * R²: compare {@code dx²+dy²} to {@code R²} (arc) or to the
+   * projected chord point (chord) with tolerance {@code eps²}.
+   * Not {@code hypot}, not a length {@code eps} on {@code d²},
+   * not a sagitta quotient. Package-private so the extreme-sagitta
+   * pin can call it; not a public API.
+   */
+  static boolean onString(CurveSegmentString s, Coordinate p,
       double eps) {
     TwoNodeClip.Edge e = s.asEdge();
+    double eps2 = eps * eps;
     if (s.isArc()) {
-      double d = Math.hypot(p.x - e.circle[0], p.y - e.circle[1]);
-      if (Math.abs(d - e.circle[2]) > eps) return false;
+      double dx = p.x - e.circle[0];
+      double dy = p.y - e.circle[1];
+      double r = e.circle[2];
+      if (Math.abs(dx * dx + dy * dy - r * r) > eps2) {
+        return false;
+      }
       return TwoNodeClip.isOnSweep(p, e.circle, e.a, e.mid, e.b);
     }
     double t = TwoNodeClip.parameter(e.a, e.b, p);
-    Coordinate q = new Coordinate(e.a.x + t * (e.b.x - e.a.x),
-        e.a.y + t * (e.b.y - e.a.y));
-    return p.distance(q) <= eps;
+    double dx = p.x - (e.a.x + t * (e.b.x - e.a.x));
+    double dy = p.y - (e.a.y + t * (e.b.y - e.a.y));
+    return dx * dx + dy * dy <= eps2;
   }
 
   private static List<CurveSegmentString> mergeCoincident(

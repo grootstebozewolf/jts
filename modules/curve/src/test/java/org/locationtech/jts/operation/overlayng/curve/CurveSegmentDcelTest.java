@@ -289,6 +289,52 @@ public class CurveSegmentDcelTest extends GeometryTestCase {
   }
 
   /**
+   * onString stays in R². A flat (colinear) triple is a chord
+   * whose sagitta residual is 0. A high-sagitta arc accepts an
+   * on-circle point by {@code |dx²+dy² − R²| ≤ eps²}, not
+   * {@code hypot(d) − R} and not a sagitta quotient.
+   * leaveAngle / compareLeave are untouched.
+   */
+  public void testOnStringExtremeSagittasStayInR2() {
+    double eps = 1.0e-9;
+    double eps2 = eps * eps;
+
+    CurveSegmentString flat = CurveSegmentString.arc(
+        new Coordinate(0, 0), new Coordinate(1, 0), new Coordinate(2, 0));
+    assertFalse("flat sagitta is a chord", flat.isArc());
+    Coordinate flatMid = new Coordinate(1, 0);
+    assertTrue("flat sagitta → 0: midpoint is on the chord",
+        CurveSegmentDcel.onString(flat, flatMid, eps));
+    double flatDx = flatMid.x - 1.0;
+    double flatDy = flatMid.y - 0.0;
+    assertEquals("flat sagitta residual is 0 in R²",
+        0.0, flatDx * flatDx + flatDy * flatDy, 0.0);
+    assertTrue("on-chord within eps²",
+        CurveSegmentDcel.onString(flat, new Coordinate(1, 0.5 * eps), eps));
+    assertFalse("off-chord by more than eps",
+        CurveSegmentDcel.onString(flat, new Coordinate(1, 2.0 * eps), eps));
+
+    CurveSegmentString high = CurveSegmentString.arc(
+        new Coordinate(1, 0), new Coordinate(-1, 0),
+        new Coordinate(0.6, 0.8));
+    assertTrue("high-sagitta stays an arc", high.isArc());
+    TwoNodeClip.Edge e = high.asEdge();
+    double r2 = e.circle[2] * e.circle[2];
+    Coordinate apex = high.getMid();
+    double dx = apex.x - e.circle[0];
+    double dy = apex.y - e.circle[1];
+    assertTrue("high-sagitta mid residual is in eps² of R²",
+        Math.abs(dx * dx + dy * dy - r2) <= eps2);
+    assertTrue("high-sagitta mid is onString",
+        CurveSegmentDcel.onString(high, apex, eps));
+    assertTrue("high-sagitta end is onString",
+        CurveSegmentDcel.onString(high, high.getEnd(), eps));
+    assertFalse("centre is not on the high-sagitta arc",
+        CurveSegmentDcel.onString(high,
+            new Coordinate(e.circle[0], e.circle[1]), eps));
+  }
+
+  /**
    * Pinch / kiss / holed Geometry-level stay null. Not a face,
    * not a DCEL. No invented noder.
    */
