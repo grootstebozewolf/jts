@@ -26,8 +26,9 @@ import org.locationtech.jts.geom.curve.CurvePolygon;
 /**
  * Two hole-free CompoundCurve shells: 0 / 1 node is containment or a
  * touch, two proper nodes walk via {@link TwoNodeClip}, an even 4+
- * alternating cut is {@link NSpanClip}. Collinear overlap and odd
- * counts are {@code null}. Not a noder.
+ * alternating cut is {@link NSpanClip}. A tangent is a zero-length
+ * NSpan, so two crossings plus a touch assemble like even-n.
+ * Collinear overlap stays {@code null}. Not a noder.
  */
 final class TwoShellClip {
 
@@ -48,7 +49,7 @@ final class TwoShellClip {
     if (nodesA.size() <= 1) {
       return fewNodeOverlay(a, b, opCode, first);
     }
-    if (nodesA.size() >= 4 && (nodesA.size() & 1) == 0) {
+    if (nodesA.size() >= 3) {
       return nShellClip(a, b, edgesA, edgesB, nodesA, opCode, first, scale);
     }
     if (!TwoNodeClip.properPair(nodesA, scale)) return null;
@@ -111,8 +112,11 @@ final class TwoShellClip {
   }
 
   /**
-   * Even n≥4 nodes that alternate in/out on both shells. Assemble
-   * is {@link NSpanClip}.
+   * n≥3 nodes classified in/out on both shells. Even-n that
+   * already alternates is {@link NSpanClip} as before. Odd-n
+   * inserts a zero-length span at each same-label joint (a
+   * tangent) so the walk alternates; a leftover that still
+   * cannot pair is {@code null}.
    */
   private static Geometry nShellClip(CurvePolygon a, CurvePolygon b,
       List<TwoNodeClip.Edge> edgesA, List<TwoNodeClip.Edge> edgesB,
@@ -137,6 +141,12 @@ final class TwoShellClip {
     List<ShellSpan> spansA = edgeSpans(edgesA, nodesA, b, f);
     List<ShellSpan> spansB = edgeSpans(edgesB, nodesB, a, f);
     if (spansA == null || spansB == null) return null;
+    if ((spansA.size() & 1) == 1) {
+      spansA = padTangents(spansA, f);
+    }
+    if ((spansB.size() & 1) == 1) {
+      spansB = padTangents(spansB, f);
+    }
     if (!alternates(spansA) || !alternates(spansB)) return null;
 
     return NSpanClip.overlay(opCode, true,
@@ -167,6 +177,37 @@ final class TwoShellClip {
       }
     }
     return miss ? null : out;
+  }
+
+  /**
+   * Same-label adjacent spans meet at a tangent. Insert a
+   * zero-length opposite-label span there so the cycle
+   * alternates. Even-n that already alternates is not padded.
+   */
+  private static List<ShellSpan> padTangents(List<ShellSpan> spans,
+      GeometryFactory f) {
+    List<ShellSpan> out = new ArrayList<ShellSpan>();
+    for (int i = 0; i < spans.size(); i++) {
+      ShellSpan cur = spans.get(i);
+      out.add(cur);
+      ShellSpan next = spans.get((i + 1) % spans.size());
+      if (cur.in == next.in) {
+        out.add(new ShellSpan(TwoNodeClip.listOf(pointEdge(endOf(cur.members),
+            f)), !cur.in));
+      }
+    }
+    return out;
+  }
+
+  private static LineString pointEdge(Coordinate at, GeometryFactory f) {
+    return f.createLineString(new Coordinate[] {
+        new Coordinate(at), new Coordinate(at)
+    });
+  }
+
+  private static Coordinate endOf(List<LineString> parts) {
+    LineString last = parts.get(parts.size() - 1);
+    return last.getCoordinateN(last.getNumPoints() - 1);
   }
 
   private static boolean alternates(List<ShellSpan> spans) {

@@ -282,10 +282,12 @@ public class CircularArcOverlayTest extends GeometryTestCase {
    * halves assemble as sectors. Two hole-free shells with exactly two
    * proper nodes walk the surviving arcs. Collinear same-side halves
    * are the half-lens. An even 4+ alternating cut is the n-span
-   * assemble. A same-outer hole-inside pair is the holed cell.
-   * A different-outer hole composes when it sits strictly inside
-   * or outside a certified outer CAP. Odd counts, mixed labels,
-   * and a hole that meets or crosses the other outer stay refused.
+   * assemble. Two crossings plus a tangent is the same assemble
+   * with the touch as a zero-length span. A same-outer hole-inside
+   * pair is the holed cell. A different-outer hole composes when
+   * it sits strictly inside or outside a certified outer CAP.
+   * Collinear overlap, mixed labels, and a hole that meets or
+   * crosses the other outer stay refused.
    */
   public void testHShellComplementaryHalfDiscsAreTheDisc() throws Exception {
     Geometry upper = readCurve(HALF_UPPER);
@@ -380,12 +382,18 @@ public class CircularArcOverlayTest extends GeometryTestCase {
         CompoundCurveShellOverlay.overlay(straddle, right, OverlayNG.INTERSECTION));
     Geometry onDiameter = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, 0 2, 1 1), (1 1, 1 0), (1 0, -1 0), (-1 0, -1 1)))");
+    // Collinear overlap is not a discrete node set; no cheap closed
+    // form without a noder.
     assertNull("H-SHELL-N-MIXED: collinear overlap stays refused",
         CompoundCurveShellOverlay.overlay(upper, onDiameter, OverlayNG.INTERSECTION));
     Geometry oddStadium = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 4, 0 5, 1 4), (1 4, 1 -1), CIRCULARSTRING (1 -1, 0 -2, -1 -1), (-1 -1, -1 4)))");
-    assertNull("H-SHELL-N-ODD: two crossings plus a tangent stay refused",
-        CompoundCurveShellOverlay.overlay(upper, oddStadium, OverlayNG.INTERSECTION));
+    OverlayNGCurve oddCap = new OverlayNGCurve(upper, oddStadium);
+    Geometry oddClip = oddCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-N-ODD CAP is exact", oddCap.isApproximate());
+    assertEquals("stadium above the diameter", 8.0 + 0.5 * Math.PI,
+        oddClip.getArea(), EXACT);
+    assertTrue("odd-n CAP keeps an arc", hasCircularString(oddClip));
   }
 
   public void testRllStillRefusesTwoArcs() throws Exception {
