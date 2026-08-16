@@ -33,6 +33,8 @@ import test.jts.GeometryTestCase;
  * ring that overlaps the other shell (no crossing nodes) is
  * the same P2.3 bite. P2.5.2 is N strings: the unique union of
  * each unordered pair. P2.5.3 walks the faces of that node set.
+ * P2.5.4 is near-tangent robustness: a coincident leave-angle
+ * stamps {@link CurveSegmentFaces#TANGENT_LEAVE_ANGLE}.
  * Not N-SS, not a core {@code Noder}.
  */
 public class CurveSegmentStringTest extends GeometryTestCase {
@@ -552,14 +554,19 @@ public class CurveSegmentStringTest extends GeometryTestCase {
   }
 
   /**
-   * A tangent in an N≥3 set is coincident leave-angles. Ordering
-   * them is snap-rounding (P2.5.4). Stamp null; do not densify.
+   * HALF_DISC × HALF_HANGING × STADIUM_ODD: crossings (±1, 0) plus
+   * the tangent at (0, 5). Two pieces leave at the same angle
+   * ({@code ANGLE_EPS = 1e-8}). Ordering them is snap-rounding
+   * (P2.5.4). Named stamp, not a HotPixel, not a bare null.
    */
   public void testN3TangentStampsNull() throws Exception {
     Geometry faces = CurveSegmentFaces.faces(new Geometry[] {
         readCurve(HALF_DISC), readCurve(HALF_HANGING),
         readCurve(STADIUM_ODD) });
-    assertNull("N≥3 tangent is P2.5.4, not a face walk", faces);
+    assertNull("N≥3 near-tangent is P2.5.4, not a face walk", faces);
+    assertEquals("snap-rounding: coincident leave-angle",
+        CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
+        CurveSegmentFaces.missReason());
   }
 
   public void testNoderDoesNotAssembleFaces() throws Exception {

@@ -41,22 +41,41 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * 0-node containment or a same-circle special case falls back to
  * those kits. MIXED / pinch / holed Geometry-level stays
  * {@code null} -- hole rings are walked as strings, as in P2.3 /
- * P2.4. A coincident leave-angle at a node (tangent pinch) is
- * snap-rounding (P2.5.4), not this rung: {@code faces} returns
- * {@code null}. Densify is never a noder. Not P2.5.5.
+ * P2.4. A coincident leave-angle at a node (near-tangent) is
+ * snap-rounding (P2.5.4): {@code faces} returns {@code null} and
+ * {@link #missReason()} names {@link #TANGENT_LEAVE_ANGLE}.
+ * Ordering those leaves needs HotPixel / ScaledNoder / core
+ * {@code SegmentString} -- stamp and stop. Densify is never a
+ * noder. Not P2.5.5.
  */
 final class CurveSegmentFaces {
 
+  /** Named stamp: coincident leave-angle. Snap-rounding, not a walk. */
+  static final String TANGENT_LEAVE_ANGLE = "P2.5.4 tangent leave-angle";
+
   private static final double ANGLE_EPS = 1.0e-8;
+
+  private static String missReason;
 
   private CurveSegmentFaces() { }
 
   /**
+   * Why the last {@link #faces(Geometry[])} / string-group call
+   * returned {@code null}, or {@code null} when faces were
+   * produced. Package-private -- not a public API.
+   */
+  static String missReason() {
+    return missReason;
+  }
+
+  /**
    * Bounded faces of N hole-free circular / compound shells, or
    * {@code null}. N=2 is the pair-kit rings. N≥3 is the walk, or
-   * {@code null} when the walk would need snap-rounding.
+   * {@code null} when the walk would need snap-rounding
+   * ({@link #missReason()} names the stamp).
    */
   static Geometry faces(Geometry[] geoms) {
+    missReason = null;
     if (geoms == null || geoms.length < 2) return null;
     List<List<CurveSegmentString>> groups =
         new ArrayList<List<CurveSegmentString>>(geoms.length);
@@ -97,6 +116,7 @@ final class CurveSegmentFaces {
 
   private static Geometry faces(List<List<CurveSegmentString>> groups,
       double scale, GeometryFactory f, Geometry[] geoms) {
+    missReason = null;
     if (groups == null || groups.size() < 2) return null;
     Coordinate[] nodes = CurveSegmentNoder.nodes(groups, scale);
     if (nodes == null) {
@@ -105,9 +125,16 @@ final class CurveSegmentFaces {
           : null;
     }
     Geometry walked = walk(groups, nodes, scale, f);
-    if (walked != null) return walked;
+    if (walked != null) {
+      missReason = null;
+      return walked;
+    }
     if (geoms != null && geoms.length == 2) {
-      return pairKitFaces(geoms[0], geoms[1]);
+      Geometry kit = pairKitFaces(geoms[0], geoms[1]);
+      if (kit != null) {
+        missReason = null;
+      }
+      return kit;
     }
     return null;
   }
@@ -142,7 +169,10 @@ final class CurveSegmentFaces {
 
     List<Vertex> verts = indexByStart(halves, pool, eps);
     if (verts == null) return null;
-    if (hasCoincidentLeave(verts)) return null;
+    if (hasCoincidentLeave(verts)) {
+      missReason = TANGENT_LEAVE_ANGLE;
+      return null;
+    }
 
     List<Polygon> faces = new ArrayList<Polygon>();
     boolean miss = false;
