@@ -28,7 +28,8 @@ import org.locationtech.jts.geom.curve.CurvePolygon;
  * NSpan, so two crossings plus a touch assemble like even-n.
  * Pair hits go through {@link CurveSegmentString}; collinear overlap
  * stays {@code null} from {@code intersect} (the noder names that
- * interval as an edge). Face assemble is not a noder.
+ * interval as an edge; {@link MixedOverlapOverlay} walks it).
+ * Face assemble is not a noder.
  */
 final class TwoShellClip {
 

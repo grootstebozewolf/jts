@@ -35,7 +35,8 @@ import test.jts.GeometryTestCase;
  * each unordered pair. P2.5.3 walks the faces of that node set.
  * P2.5.4 is near-tangent robustness: a coincident leave-angle
  * stamps {@link CurveSegmentFaces#TANGENT_LEAVE_ANGLE}.
- * Not N-SS, not a core {@code Noder}.
+ * MIXED overlay walks the named diameter as a shared edge
+ * ({@link MixedOverlapOverlay}). Not N-SS, not a core {@code Noder}.
  */
 public class CurveSegmentStringTest extends GeometryTestCase {
 
@@ -254,14 +255,16 @@ public class CurveSegmentStringTest extends GeometryTestCase {
 
   /**
    * MIXED: collinear overlap is an edge, not a discrete node set.
-   * Overlay still refuses -- this rung does not walk faces.
+   * Overlay walks that interval as a shared edge.
    */
   public void testMixedOverlapIsTheDiameterEdge() throws Exception {
     Geometry half = readCurve(HALF_DISC);
     Geometry onDiameter = readCurve(ON_DIAMETER);
-    assertNull("H-SHELL-N-MIXED: overlay stays refused (no face walk)",
-        CompoundCurveShellOverlay.overlay(half, onDiameter,
-            org.locationtech.jts.operation.overlayng.OverlayNG.INTERSECTION));
+    Geometry cap = CompoundCurveShellOverlay.overlay(half, onDiameter,
+        org.locationtech.jts.operation.overlayng.OverlayNG.INTERSECTION);
+    assertNotNull("H-SHELL-N-MIXED: shared-edge CAP", cap);
+    assertEquals("inner on-diameter", 2.0 + 0.5 * Math.PI, cap.getArea(),
+        EXACT);
     assertNull("H-SHELL-N-MIXED: nodes stay null (interval, not points)",
         CurveSegmentNoder.nodes(half, onDiameter));
 
@@ -490,8 +493,9 @@ public class CurveSegmentStringTest extends GeometryTestCase {
   /**
    * N=2 faces recover the pair-kit rings (CAP + XOR). Crossing
    * pairs walk; 0-node containment falls back to the kits. MIXED
-   * / pinch stay null -- those kits refuse, and this rung does
-   * not densify.
+   * recovers the pair-kit faces (inner + bite) once the shared-edge
+   * overlay certifies. Pinch stays null -- that kit refuses, and
+   * this rung does not densify.
    */
   public void testN2FacesRecoverPairKits() throws Exception {
     assertN2Faces(CIRCLE_5, CIRCLE_CROSSING);
@@ -504,9 +508,15 @@ public class CurveSegmentStringTest extends GeometryTestCase {
   }
 
   public void testN2MixedPinchHoledFacesStayNull() throws Exception {
-    assertNull("H-SHELL-N-MIXED: no face walk",
-        CurveSegmentFaces.faces(new Geometry[] {
-            readCurve(HALF_DISC), readCurve(ON_DIAMETER) }));
+    Geometry mixedFaces = CurveSegmentFaces.faces(new Geometry[] {
+        readCurve(HALF_DISC), readCurve(ON_DIAMETER) });
+    assertNotNull("H-SHELL-N-MIXED: pair-kit faces from the shared edge",
+        mixedFaces);
+    assertEquals("inner + bite", 2, mixedFaces.getNumGeometries());
+    assertEquals("union of the two shells", HALF, mixedFaces.getArea(),
+        EXACT);
+    assertHasArea("on-diameter inner", mixedFaces, 2.0 + 0.5 * Math.PI);
+    assertHasArea("half-disc bite", mixedFaces, HALF - 2.0 - 0.5 * Math.PI);
     assertNull("H-ANNULUS-TANGENT: pinch is not a face",
         CurveSegmentFaces.faces(new Geometry[] {
             readCurve(CIRCLE_5), readCurve(CIRCLE_INT_TAN) }));

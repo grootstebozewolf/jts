@@ -37,6 +37,8 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * or a hole whose ring overlaps the other shell: new edge ⊂
  * other.shell is a bite, not a punch),
  * {@link TwoHoleOverlay} (two holes that cross on the same outer),
+ * {@link MixedOverlapOverlay} (collinear overlap as a shared edge:
+ * {@code H-SHELL-N-MIXED} is a bite, not a punch),
  * or a two-node walk vs a disc or plain polygon via
  * {@link TwoNodeClip}. A 0-node mixed shell vs a circular disc
  * ({@code CC-NEST-ANNULUS}) is not a punch. A miss is {@code null}.
@@ -73,6 +75,10 @@ final class CompoundCurveShellOverlay {
       Geometry halves = HalfDiscOverlay.overlay(shellA, shellB, opCode, a);
       if (halves != null) {
         return halves;
+      }
+      Geometry mixed = MixedOverlapOverlay.overlay(shellA, shellB, opCode, a);
+      if (mixed != null) {
+        return mixed;
       }
       return TwoShellClip.overlay(shellA, shellB, opCode, a);
     }
