@@ -3,7 +3,30 @@ JTS Topology Suite
 
 The JTS Topology Suite is a Java library for creating and manipulating vector geometry.  It also provides a comprehensive set of geometry test cases, and the TestBuilder GUI application for working with and visualizing geometry and JTS functions.
 
-![JTS logo](jts_logo.png)
+![JTS wordmark as curves plus a buffer halo](jts_logo.png)
+
+JTS wordmark as curves plus a buffer halo (`logoLines` + `logoBuffer`: `toLinear` + `BufferOp`). Named linear fallback / CHORD-PATH. Not a laser.
+
+<!-- HERO: 2017 jts_logo.png is the door image. It is logoLines +
+     logoBuffer (toLinear + BufferOp): named linear fallback / CHORD-PATH,
+     not a laser. Do not caption a clothoid halo. #55 clothoidHalo is not
+     this door. Do not commit mkt1_1920x1080.png as a clothoid. -->
+
+This fork treats SQL/MM ISO/IEC 13249-3 curve types 8–12 (`CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON`, `MULTICURVE`, `MULTISURFACE`) as first-class geometry. WKB/WKT ISO and EXTENDED Z/M/ZM landed in [#51](https://github.com/grootstebozewolf/jts/pull/51) (`CircularStringZ=1008`, …). Types 15–17 still unknown and throw. Core `WKBWriter` refuses to flatten 8–12. TestBuilder lives in `modules/app`.
+
+### User path
+
+Build this tree and run TestBuilder. Load a `CIRCULARSTRING` — it must stay a `CIRCULARSTRING` (smooth arc), not a flattened `LINESTRING`. There is no Maven Central curve artifact for this work.
+
+* [User Guide](USING.md)
+* [JTS TestBuilder](doc/JTSTestBuilder.md)
+
+### Developer path
+
+Working branch / source of truth: [`feature/sfa-curve-rgr`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-rgr). `mvn clean install` from the [Developing Guide](DEVELOPING.md). Curve work lives in the curve module. Do not silently flatten. Named linear fallback only if named.
+
+* [Developing Guide](DEVELOPING.md)
+* [Contributing Guide](CONTRIBUTING.md)
 
 [![GitHub Action Status](https://github.com/locationtech/jts/workflows/GitHub%20CI/badge.svg)](https://github.com/locationtech/jts/actions) 
 
@@ -20,8 +43,9 @@ Currently JTS targets Java 8 and above.
 ## Resources
 
 ### Code
-* [GitHub Repo](https://github.com/locationtech/jts)
-* [Maven Central group](https://mvnrepository.com/artifact/org.locationtech.jts)
+* [This fork](https://github.com/grootstebozewolf/jts) — working branch [`feature/sfa-curve-rgr`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-rgr)
+* [Upstream LocationTech](https://github.com/locationtech/jts)
+* [Maven Central group](https://mvnrepository.com/artifact/org.locationtech.jts) (upstream releases; this fork has no curve artifact there)
 
 ### Websites
 * [LocationTech Home](https://locationtech.org/projects/technology.jts)
