@@ -29,11 +29,12 @@ import org.locationtech.jts.geom.Polygon;
 
 /**
  * Closed-form answers for the shapes a cheap check can recognise: a circular
- * disc, a single circular arc, a point against an arc, a disc against a
- * Point or MultiPoint (PIP and DE-9IM), a disc against a LineString
- * (DE-9IM from line–circle nodes), a disc against a plain Polygon
- * (DE-9IM from vertices, edge nodes, and mid-arc PIP), or two circular
- * discs (DE-9IM from radical-axis nodes and {@link #locatePoint}).
+ * disc, a certified stadium (two equal-radius semicircular caps and two
+ * parallel sides), a single circular arc, a point against an arc, a disc
+ * against a Point or MultiPoint (PIP and DE-9IM), a disc against a
+ * LineString (DE-9IM from line–circle nodes), a disc against a plain
+ * Polygon (DE-9IM from vertices, edge nodes, and mid-arc PIP), or two
+ * circular discs (DE-9IM from radical-axis nodes and {@link #locatePoint}).
  * Package-private -- not a new public API.
  * {@link CurveOps} takes these only when they can answer; anything else
  * goes straight to the chord baseline. Trying and falling through would
@@ -623,6 +624,26 @@ final class CurveExact {
     return g instanceof MultiSurface || g instanceof MultiCurve;
   }
 
+  /**
+   * MIC of a circular disc or a certified stadium, or {@code null}.
+   * Disc is tried first so {@code CIRCLE_5} stays on the ML.0 path.
+   * A stadium miss is a named miss -- the caller stays on chords.
+   */
+  static CircularArcDensifier.Circle mic(Geometry g) {
+    CircularArcDensifier.Circle disc = circularDisc(g);
+    if (disc != null) return disc;
+    return stadiumMic(g);
+  }
+
+  /**
+   * MIC of a certified stadium: radius is the cap radius, centre is
+   * the midpoint of the two cap centres. {@code null} if {@code g} is
+   * not a hole-free four-member stadium (including {@code HALF_DISC}).
+   */
+  static CircularArcDensifier.Circle stadiumMic(Geometry g) {
+    return StadiumMic.compute(g);
+  }
+
   static CircularArcDensifier.Circle circularDisc(Geometry g) {
     if (g instanceof MultiSurface) {
       if (g.getNumGeometries() != 1) return null;
@@ -666,7 +687,7 @@ final class CurveExact {
     return c;
   }
 
-  private static CircularArcDensifier.Circle sameCircle(CircularString cs,
+  static CircularArcDensifier.Circle sameCircle(CircularString cs,
       CircularArcDensifier.Circle expected) {
     CoordinateSequence seq = cs.getCoordinateSequence();
     int n = seq.size();
@@ -686,7 +707,7 @@ final class CurveExact {
     return found;
   }
 
-  private static double totalSweep(CircularString cs) {
+  static double totalSweep(CircularString cs) {
     CoordinateSequence seq = cs.getCoordinateSequence();
     int n = seq.size();
     double total = 0.0;
