@@ -448,9 +448,16 @@ public class WKTPanel extends JPanel
     /**
      * Insert a newline at the caret (or replace the selection), matching
      * insert-break. Used for Shift+Enter so multiline WKT stays typable.
+     * Caret is placed after the inserted {@code \n} so the next character
+     * lands on the new line (JTextArea replaceSelection may not advance
+     * the caret when no UI is attached).
      */
     static void insertNewlineAtCaret(JTextArea textArea) {
-      textArea.replaceSelection("\n");
+      int start = textArea.getSelectionStart();
+      int end = textArea.getSelectionEnd();
+      String text = textArea.getText();
+      textArea.setText(text.substring(0, start) + "\n" + text.substring(end));
+      textArea.setCaretPosition(start + 1);
     }
 
     private void registerLoadKeyListener(JTextArea textArea) {
