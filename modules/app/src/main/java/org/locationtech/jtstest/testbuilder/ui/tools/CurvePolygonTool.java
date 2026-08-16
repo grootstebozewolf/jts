@@ -19,9 +19,11 @@ import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.awt.curve.CircularArcRenderer;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Triangle;
 import org.locationtech.jtstest.testbuilder.GeometryEditPanel;
 import org.locationtech.jtstest.testbuilder.JTSTestBuilder;
 import org.locationtech.jtstest.testbuilder.JTSTestBuilderFrame;
@@ -32,12 +34,13 @@ import org.locationtech.jtstest.testbuilder.model.GeometryType;
  * {@link org.locationtech.jts.geom.curve.CurvePolygon} with an exterior
  * shell only (no holes this slice).
  *
- * <p>A non-closing double-click, or a click on the start vertex, auto-closes
+ * <p>Double-click anywhere, or a click on the start vertex, auto-closes
  * the in-progress shell and commits {@code CURVEPOLYGON (CIRCULARSTRING …)}.
- * An even leftover after close gets a chord-midpoint control so the
- * CircularString count stays odd — the tool never emits a linearized
- * {@code POLYGON} and never drops the in-progress geom with no message.
- * Escape cancels with {@link #CANCELLED_STATUS}.
+ * This tool builds a CircularString shell only — not a mixed-shell
+ * CompoundCurve editor. A close that is already a CompoundCurve shell
+ * is left as {@code COMPOUNDCURVE}; it is never linearized to
+ * {@code POLYGON} or a chord ring. Escape cancels with
+ * {@link #CANCELLED_STATUS}.
  */
 public class CurvePolygonTool extends AbstractStreamDrawTool {
 
@@ -87,7 +90,7 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
 
   /**
    * Click on the start vertex auto-closes and commits, same as a
-   * non-closing double-click. The start point is not added again;
+   * double-click anywhere. The start point is not added again;
    * {@link #closeCircularShell} appends it.
    */
   @Override
@@ -130,11 +133,11 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
 
   /**
    * Auto-close an in-progress shell so it is a valid ISO/IEC 13249-3
-   * CircularString ring: closed, odd count ≥ 3. A non-closing finish
-   * appends the start vertex. An even leftover after that inserts a
-   * chord-midpoint control (straight closing arc, matching the preview
-   * close line) so the count stays odd. Returns {@code null} when there
-   * is no shell to commit.
+   * CircularString ring: closed, odd count ≥ 3. Any finish (double-click
+   * anywhere or click-start) appends the start vertex when needed. An
+   * even leftover after that gets the complementary-arc control on the
+   * last drawn circumcircle — a real closing arc, not a chord ring.
+   * Returns {@code null} when there is no shell to commit.
    */
   static List<Coordinate> closeCircularShell(List<Coordinate> input) {
     if (input == null || input.size() < 2) {
@@ -149,14 +152,61 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
       return null;
     }
     if (coords.size() % 2 == 0) {
-      Coordinate prev = coords.get(coords.size() - 2);
-      Coordinate last = coords.get(coords.size() - 1);
-      Coordinate mid = new Coordinate(
-          (prev.x + last.x) / 2.0,
-          (prev.y + last.y) / 2.0);
+      Coordinate mid = circularCloseControl(coords);
+      if (mid == null) {
+        return null;
+      }
       coords.add(coords.size() - 1, mid);
     }
     return coords;
+  }
+
+  /**
+   * Closing CircularString control: opposite the last interior point
+   * on its circumcircle with the open end. Not the chord midpoint.
+   */
+  static Coordinate circularCloseControl(List<Coordinate> closedEven) {
+    int n = closedEven.size();
+    Coordinate from = closedEven.get(n - 2);
+    Coordinate to = closedEven.get(n - 1);
+    for (int i = n - 3; i >= 0; i--) {
+      Coordinate mid = complementaryArcMid(from, closedEven.get(i), to);
+      if (mid != null) {
+        return mid;
+      }
+    }
+    return diameterSemicircleMid(from, to);
+  }
+
+  private static Coordinate complementaryArcMid(Coordinate from, Coordinate hint,
+      Coordinate to) {
+    if (Orientation.index(from, hint, to) == Orientation.COLLINEAR) {
+      return null;
+    }
+    Coordinate center = Triangle.circumcentre(from, hint, to);
+    if (center == null
+        || !Double.isFinite(center.x)
+        || !Double.isFinite(center.y)) {
+      return null;
+    }
+    Coordinate mid = new Coordinate(
+        2.0 * center.x - hint.x,
+        2.0 * center.y - hint.y);
+    if (!Double.isFinite(mid.x) || !Double.isFinite(mid.y)
+        || mid.equals2D(from) || mid.equals2D(to)) {
+      return null;
+    }
+    return mid;
+  }
+
+  /** Thales semicircle on {@code from..to} when every hint is colinear. */
+  private static Coordinate diameterSemicircleMid(Coordinate from, Coordinate to) {
+    double dx = to.x - from.x;
+    double dy = to.y - from.y;
+    if (dx == 0.0 && dy == 0.0) {
+      return null;
+    }
+    return new Coordinate((from.x + to.x - dy) / 2.0, (from.y + to.y + dx) / 2.0);
   }
 
   private boolean isClickOnStart(Coordinate click) {

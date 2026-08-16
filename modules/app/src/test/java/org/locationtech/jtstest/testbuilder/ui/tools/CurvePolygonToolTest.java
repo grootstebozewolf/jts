@@ -19,6 +19,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.io.curve.CurveWKTWriter;
@@ -31,11 +32,12 @@ import junit.framework.TestCase;
 import junit.textui.TestRunner;
 
 /**
- * Pins CurvePolygonTool finish/cancel for issue #56: a non-closing
- * double-click (or click-start) must commit ISO/IEC 13249-3
+ * Pins CurvePolygonTool finish/cancel for issue #56: a double-click
+ * anywhere (or click-start) must commit ISO/IEC 13249-3
  * {@code CURVEPOLYGON (CIRCULARSTRING …)}, never a linearized
- * {@code POLYGON}, and never a silent empty A. Escape status is
- * exactly {@link CurvePolygonTool#CANCELLED_STATUS}. No Swing.
+ * {@code POLYGON} or a chord ring, and never a silent empty A.
+ * Escape status is exactly {@link CurvePolygonTool#CANCELLED_STATUS}.
+ * No Swing. No mixed-shell editor.
  */
 public class CurvePolygonToolTest extends TestCase {
 
@@ -43,6 +45,9 @@ public class CurvePolygonToolTest extends TestCase {
   private static final Coordinate B = new Coordinate(0, 5);
   private static final Coordinate C = new Coordinate(5, 0);
   private static final Coordinate D = new Coordinate(0, -5);
+
+  private static final double RADIUS = 5.0;
+  private static final double ARC_EPS = 1e-8;
 
   public CurvePolygonToolTest(String name) {
     super(name);
@@ -56,17 +61,20 @@ public class CurvePolygonToolTest extends TestCase {
     assertEquals("CurvePolygon cancelled.", CurvePolygonTool.CANCELLED_STATUS);
   }
 
-  public void testNonClosingTripleAutoClosesToCurvePolygon() {
+  public void testDoubleClickAnywhereAutoClosesToCircleNotChord() {
     List<Coordinate> drawn = Arrays.asList(A, B, C);
     List<Coordinate> shell = CurvePolygonTool.closeCircularShell(drawn);
-    assertNotNull("three-point non-closing finish must auto-close, not drop",
-        shell);
+    assertNotNull("double-click finish must auto-close, not drop", shell);
     assertTrue(shell.get(0).equals2D(shell.get(shell.size() - 1)));
     assertEquals(5, shell.size());
-    assertEquals(1, shell.size() % 2);
+    assertTrue("closing control must be the complementary arc mid, not the chord",
+        shell.get(3).equals2D(D));
+    assertFalse("must not insert the chord midpoint",
+        shell.get(3).equals2D(new Coordinate(0, 0)));
 
     Geometry g = commit(shell);
     assertCurvePolygonCircularString(g);
+    assertEquals(2.0 * Math.PI * RADIUS, g.getLength(), ARC_EPS);
   }
 
   public void testClickStartOnClosedCircleCommitsUnchanged() {
@@ -141,10 +149,26 @@ public class CurvePolygonToolTest extends TestCase {
     assertFalse(g.getClass().equals(Polygon.class));
   }
 
+  public void testExistingCompoundShellIsNotLinearized() {
+    Coordinate[] upper = new Coordinate[] { A, B, C };
+    Coordinate[] lower = new Coordinate[] { C, D, A };
+    Geometry g = combiner().addCurvePolygon(null, new Coordinate[][] { upper, lower });
+    assertTrue(g instanceof CurvePolygon);
+    assertTrue(((CurvePolygon) g).getExteriorCurve() instanceof CompoundCurve);
+    String wkt = new CurveWKTWriter().write(g);
+    assertTrue("already-compound shell must stay COMPOUNDCURVE: " + wkt,
+        wkt.startsWith("CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING"));
+    assertFalse("must not linearize a compound shell to POLYGON: " + wkt,
+        wkt.startsWith("POLYGON"));
+  }
+
+  private static GeometryCombiner combiner() {
+    return new GeometryCombiner(new CurveGeometryFactory());
+  }
+
   private static Geometry commit(List<Coordinate> shell) {
-    GeometryCombiner combiner = new GeometryCombiner(new CurveGeometryFactory());
     Coordinate[] pts = shell.toArray(new Coordinate[0]);
-    return combiner.addCurvePolygon(null, pts);
+    return combiner().addCurvePolygon(null, pts);
   }
 
   private static void assertCurvePolygonCircularString(Geometry g) {
