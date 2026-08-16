@@ -286,8 +286,9 @@ public class CircularArcOverlayTest extends GeometryTestCase {
    * with the touch as a zero-length span. A same-outer hole-inside
    * pair is the holed cell. A different-outer hole composes when
    * it sits strictly inside or outside a certified outer CAP.
-   * Collinear overlap, mixed labels, and a hole that meets or
-   * crosses the other outer stay refused.
+   * Collinear overlap, mixed labels, and a hole that meets the
+   * other diameter stay refused. A hole that straddles the other
+   * shell is a bite when the new edge ⊂ that shell.
    */
   public void testHShellComplementaryHalfDiscsAreTheDisc() throws Exception {
     Geometry upper = readCurve(HALF_UPPER);
@@ -378,10 +379,12 @@ public class CircularArcOverlayTest extends GeometryTestCase {
         CompoundCurveShellOverlay.overlay(holed, right, OverlayNG.INTERSECTION));
     Geometry straddle = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (-1 1, 1 1, 1 2, -1 2, -1 1))");
-    // The hole crosses the other outer, not the other hole. hole ∩
-    // other shares the clip edge, so a punch would guess a bite.
-    assertNull("H-SHELL-HOLE-CROSS: hole straddles the other shell",
-        CompoundCurveShellOverlay.overlay(straddle, right, OverlayNG.INTERSECTION));
+    OverlayNGCurve crossCap = new OverlayNGCurve(straddle, right);
+    Geometry bite = crossCap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-SHELL-HOLE-CROSS: new edge ⊂ other.shell is a bite",
+        crossCap.isApproximate());
+    assertEquals("Q1 minus the right half-rectangle", 6.25 * Math.PI - 1.0,
+        bite.getArea(), EXACT);
     Geometry holeX = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (0.5 0.5, 1.5 0.5, 1.5 1.5, 0.5 1.5, 0.5 0.5))");
     // Two holes that cross each other is a noder, not a kit.

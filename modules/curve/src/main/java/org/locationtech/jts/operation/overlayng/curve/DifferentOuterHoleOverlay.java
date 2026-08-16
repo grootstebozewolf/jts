@@ -32,8 +32,9 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * and if it is strictly outside ignore it for CAP (keep it on the
  * holed side). A hole that meets or crosses the CAP shares the
  * clip edge: subtracting hole ∩ other is a bite, not an interior
- * punch ({@code H-SHELL-HOLE-CROSS}). Two holes that cross
- * ({@code H-SHELL-HOLE-X}) are a noder. Both stay {@code null}.
+ * punch ({@code H-SHELL-HOLE-CROSS}). That pair is
+ * {@link BiteVsHole}. Two holes that cross
+ * ({@code H-SHELL-HOLE-X}) stay {@code null}.
  */
 final class DifferentOuterHoleOverlay {
 
@@ -173,7 +174,8 @@ final class DifferentOuterHoleOverlay {
       }
     }
     // Both sides of the CAP: the hole crosses the other shell.
-    // hole ∩ CAP shares the clip edge (H-SHELL-HOLE-CROSS).
+    // hole ∩ CAP shares the clip edge -- BiteVsHole decides
+    // bite versus hole. This kit stays MIXED.
     if (mixed || (sawIn && sawOut)) return TwoNodeClip.MIXED;
     if (sawIn) return TwoNodeClip.IN;
     if (sawOut) return TwoNodeClip.OUT;

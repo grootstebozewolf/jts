@@ -128,7 +128,8 @@ final class CurveSegmentString {
   /**
    * Exterior pieces of a hole-free circular / compound / plain ring,
    * or the pieces of a lineal CircularString / CompoundCurve /
-   * LineString (R-LL). Holes stay {@code null} (P2.3 / P2.4).
+   * LineString (R-LL). A holed CurvePolygon stays {@code null};
+   * pass the hole ring itself as a LineString. Two holes are P2.4.
    */
   static List<CurveSegmentString> of(Geometry g) {
     Geometry geom = unwrap(g);

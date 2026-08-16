@@ -17,6 +17,7 @@ import java.util.List;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.textui.TestRunner;
@@ -25,7 +26,8 @@ import test.jts.GeometryTestCase;
 /**
  * P2.1 nodes plus P2.2 overlap-as-edge. {@link CurveSegmentString}
  * is the unit; {@link CurveSegmentNoder} emits the discrete node
- * set or a shared run as an edge (interval). No faces. Not N-SS.
+ * set or a shared run as an edge (interval). P2.3 walks a hole
+ * ring as strings into one face decision (bite vs hole). Not N-SS.
  */
 public class CurveSegmentStringTest extends GeometryTestCase {
 
@@ -385,13 +387,29 @@ public class CurveSegmentStringTest extends GeometryTestCase {
     assertEquals(8.0, run.length(), EXACT);
   }
 
-  public void testPinchAndHolesStayNamedMiss() throws Exception {
+  public void testHoleStraddleNodesAreTheClipPair() throws Exception {
     Geometry right = readCurve(HALF_RIGHT);
     Geometry straddle = readCurve(HOLE_STRADDLE);
-    assertNull("H-SHELL-HOLE-CROSS: holes are P2.3",
+    assertNull("H-SHELL-HOLE-CROSS: Geometry pair still has a hole",
         CurveSegmentNoder.nodes(straddle, right));
-    assertNull("H-SHELL-HOLE-CROSS: edges stay null",
+    assertNull("H-SHELL-HOLE-CROSS: Geometry edges stay on the outers",
         CurveSegmentNoder.edges(straddle, right));
+
+    CurvePolygon cp = (CurvePolygon) straddle;
+    List<CurveSegmentString> hole = CurveSegmentString.of(
+        cp.getInteriorCurveN(0));
+    List<CurveSegmentString> shell = CurveSegmentString.of(right);
+    Coordinate[] nodes = CurveSegmentNoder.nodes(hole, shell, 10.0);
+    assertEquals("H-SHELL-HOLE-CROSS: even-n on the hole ring", 2,
+        nodes.length);
+    assertHas(nodes, 0.0, 1.0);
+    assertHas(nodes, 0.0, 2.0);
+    assertEquals("new edge ⊂ other.shell ⇒ bite", BiteVsHole.BITE,
+        BiteVsHole.decide(straddle, right));
+    CurveSegmentString clip = BiteVsHole.clipEdge(straddle, right);
+    assertNotNull(clip);
+    assertEquals(1.0, clip.length(), EXACT);
+    assertTrue(sameEnds(clip, 0.0, 1.0, 0.0, 2.0));
 
     Geometry holed = readCurve(HALF_HOLED);
     Geometry holeX = readCurve(HOLE_X);
@@ -399,6 +417,8 @@ public class CurveSegmentStringTest extends GeometryTestCase {
         CurveSegmentNoder.nodes(holed, holeX));
     assertNull("H-SHELL-HOLE-X: edges stay null",
         CurveSegmentNoder.edges(holed, holeX));
+    assertEquals("H-SHELL-HOLE-X: walk does not invent a face",
+        BiteVsHole.MISS, BiteVsHole.decide(holed, holeX));
   }
 
   public void testNoderDoesNotAssembleFaces() throws Exception {
