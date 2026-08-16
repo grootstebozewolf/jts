@@ -438,11 +438,11 @@ public class CurveSegmentStringTest extends GeometryTestCase {
         0, holeEdges.size());
     assertEquals("two hole rings that cross", TwoHoleOverlay.CROSS,
         TwoHoleOverlay.decide(holed, holeX));
-    Coordinate[] clip = TwoHoleOverlay.clipNodes(holed, holeX);
-    assertNotNull(clip);
-    assertEquals(2, clip.length);
-    assertHas(clip, 0.5, 1.0);
-    assertHas(clip, 1.0, 1.5);
+    Coordinate[] holeClip = TwoHoleOverlay.clipNodes(holed, holeX);
+    assertNotNull(holeClip);
+    assertEquals(2, holeClip.length);
+    assertHas(holeClip, 0.5, 1.0);
+    assertHas(holeClip, 1.0, 1.5);
   }
 
   public void testNoderDoesNotAssembleFaces() throws Exception {
