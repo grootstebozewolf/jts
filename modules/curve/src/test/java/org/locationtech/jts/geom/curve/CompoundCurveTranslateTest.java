@@ -26,12 +26,19 @@ import test.jts.GeometryTestCase;
  * {@code CIRCULARSTRING} / {@code COMPOUNDCURVE} / {@code CURVEPOLYGON}
  * / {@code MULTICURVE}.
  * <p>
- * Found on the TestBuilder canvas: MoveTool does
- * {@code AffineTransformation.translationInstance(dx, dy)} then
- * {@code copy(); apply(trans)}. The inherited LineString apply walked
- * only the concatenated CompoundCurve sequence, which omits each later
- * member's start. Mid and end of a three-point arc moved; the start
- * did not. The type stayed {@code CIRCULARSTRING}; the arc lied.
+ * Canvas miss is TestBuilder MoveTool drag, not Function-tree
+ * AffineTranslation. MoveTool.execute is
+ * {@code translationInstance} then {@code copy(); apply(trans)}. The
+ * inherited LineString apply walked only the concatenated CompoundCurve
+ * sequence, which omits each later member's start. Mid and end of a
+ * three-point arc moved; the start did not. The type stayed
+ * {@code CIRCULARSTRING}; the arc lied.
+ * <p>
+ * Function-tree AffineTranslation is the same apply
+ * ({@code AffineTransformation.transform} = {@code copy(); apply}).
+ * That is verified, not a UX SIGN of the Function-tree. Testers still
+ * shoot AffineTranslation (10, 8) on pin JAR {@code 61eb3377}. Do not
+ * retip that pin. Do not rebuild the guides JAR.
  * <p>
  * This locks translate only. It does not sign that shear or
  * non-uniform scale still describes a circular arc. No Bézier I/O

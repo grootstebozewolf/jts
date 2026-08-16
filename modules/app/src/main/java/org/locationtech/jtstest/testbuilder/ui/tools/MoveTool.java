@@ -89,6 +89,14 @@ extends IndicatorTool
     startIndicatorLoc = null;
   }
 
+  /**
+   * Canvas drag translate. Whole-geom path is
+   * {@code copy(); apply(translation)} — the same apply as
+   * {@link AffineTransformation#transform(Geometry)}. Curve honesty
+   * (ISO/IEC 13249-3 CIRCULARSTRING three-point arcs, including
+   * CompoundCurve member starts) lives in that apply. Translate only;
+   * not a general-affine SIGN.
+   */
   private void execute(Coordinate fromLoc, Coordinate toLoc, boolean isComponentMoved) {
     double dx = toLoc.getX() - fromLoc.getX();
     double dy = toLoc.getY() - fromLoc.getY();

@@ -29,18 +29,22 @@ import junit.framework.TestSuite;
 import junit.textui.TestRunner;
 
 /**
- * TestBuilder MoveTool honesty: {@code logoLines} then affine
- * translate (10, 8) must keep the ISO/IEC 13249-3 MultiCurve and
- * every three-point {@code CIRCULARSTRING}, including each circular
- * member's start.
+ * Canvas miss is MoveTool drag, not Function-tree AffineTranslation.
  * <p>
- * MoveTool.execute is
- * {@code AffineTransformation.translationInstance(dx, dy)} plus
- * {@link GeometryComponentTransformer#transform(Geometry, AffineTransformation)}
- * ({@code copy(); apply(trans)}). Java2D Bézier controls used to
- * <em>draw</em> arcs are not written back into the geometry. Translate
- * only is signed type-honest. {@code logoBuffer} stays named
- * CHORD-PATH / toLinear + BufferOp.
+ * {@code logoLines} then MoveTool.execute ({@code translationInstance}
+ * + {@link GeometryComponentTransformer#transform(Geometry, AffineTransformation)},
+ * which is {@code copy(); apply(trans)}) must keep the ISO/IEC 13249-3
+ * MultiCurve and every three-point {@code CIRCULARSTRING}, including
+ * each circular member's start.
+ * <p>
+ * Verified same apply: Function-tree
+ * {@link AffineTransformationFunctions#translate} is
+ * {@code translationInstance(dx, dy).transform(g)}, which is also
+ * {@code copy(); apply(trans)}. That is stated, not a UX SIGN of the
+ * Function-tree. Testers still shoot AffineTranslation (10, 8) on pin
+ * JAR {@code 61eb3377}. Do not retip that pin. Do not rebuild the
+ * guides JAR. Translate only. No Bézier I/O type.
+ * {@code logoBuffer} stays named CHORD-PATH / toLinear + BufferOp.
  */
 public class JTSFunctionsLogoLinesTranslateTest extends TestCase {
 
@@ -52,10 +56,9 @@ public class JTSFunctionsLogoLinesTranslateTest extends TestCase {
   public static Test suite() { return new TestSuite(JTSFunctionsLogoLinesTranslateTest.class); }
   public JTSFunctionsLogoLinesTranslateTest(String name) { super(name); }
 
-  public void testLogoLinesTranslateKeepsTypesAndArcStarts() {
+  public void testMoveToolDragKeepsTypesAndArcStarts() {
     Geometry logo = JTSFunctions.logoLines(null);
-    Geometry moved = GeometryComponentTransformer.transform(
-        logo, AffineTransformation.translationInstance(DX, DY));
+    Geometry moved = moveToolTranslate(logo, DX, DY);
 
     assertTrue(moved instanceof MultiCurve);
     assertEquals(logo.getNumGeometries(), moved.getNumGeometries());
@@ -68,24 +71,31 @@ public class JTSFunctionsLogoLinesTranslateTest extends TestCase {
     assertFalse(wkt.toUpperCase().contains("BEZIER"));
   }
 
-  public void testAffineApplyPathMatchesMoveTool() {
+  /**
+   * Same apply, not a Function-tree SIGN. MoveTool.execute and
+   * AffineTransformation.translate are both {@code copy(); apply(trans)}.
+   */
+  public void testFunctionTreeTranslateIsTheSameApplyAsMoveTool() {
     Geometry logo = JTSFunctions.logoLines(null);
-    AffineTransformation trans = AffineTransformation.translationInstance(DX, DY);
-    Geometry viaApply = logo.copy();
-    viaApply.apply(trans);
-    Geometry viaMoveTool = GeometryComponentTransformer.transform(logo, trans);
-    assertTrue(viaApply.equalsExact(viaMoveTool));
+    Geometry viaMoveTool = moveToolTranslate(logo, DX, DY);
+    Geometry viaFunctionTree = AffineTransformationFunctions.translate(logo, DX, DY);
+    assertTrue("Function-tree AffineTranslation is the same copy(); apply(trans) as MoveTool",
+        viaMoveTool.equalsExact(viaFunctionTree));
   }
 
   public void testLogoBufferPathUnchangedAfterTranslate() {
-    Geometry moved = GeometryComponentTransformer.transform(
-        JTSFunctions.logoLines(null),
-        AffineTransformation.translationInstance(DX, DY));
+    Geometry moved = moveToolTranslate(JTSFunctions.logoLines(null), DX, DY);
     Geometry halo = JTSFunctions.logoBuffer(moved, 4.0);
     assertTrue("logoBuffer stays polygonal CHORD-PATH",
         halo instanceof Polygon || halo.getGeometryType().contains("Polygon"));
     assertFalse("named fallback, never isApproximate()=false",
         halo.getGeometryType().equals("CircularString"));
+  }
+
+  /** MoveTool.execute whole-geom path. */
+  private static Geometry moveToolTranslate(Geometry geom, double dx, double dy) {
+    return GeometryComponentTransformer.transform(
+        geom, AffineTransformation.translationInstance(dx, dy));
   }
 
   private static void assertTranslatedTree(Geometry original, Geometry moved) {
