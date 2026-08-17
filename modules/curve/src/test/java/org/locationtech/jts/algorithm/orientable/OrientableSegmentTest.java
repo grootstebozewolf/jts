@@ -74,4 +74,24 @@ public class OrientableSegmentTest extends GeometryTestCase {
         new Coordinate(0, -1), new Coordinate(0, 6));
     assertTrue(arc.intersects(chord));
   }
+
+  /** Centre query: no unique tangent — COLLINEAR sentinel. */
+  public void testCentreQueryIsCollinear() {
+    ExactCircularArc exact = new ExactCircularArc(
+        new Coordinate(-5, 0), new Coordinate(0, 5), new Coordinate(5, 0));
+    OrientableSegment arc = OrientableSegments.arc(exact);
+    assertEquals(Orientation.COLLINEAR,
+        arc.orientationIndex(new Coordinate(0, 0)));
+  }
+
+  /** Shared endpoint forces endpointOnArc path when densify-bridge is thin. */
+  public void testArcArcSharedEndpoint() {
+    ExactCircularArc a = new ExactCircularArc(
+        new Coordinate(-5, 0), new Coordinate(0, 5), new Coordinate(5, 0));
+    ExactCircularArc b = new ExactCircularArc(
+        new Coordinate(5, 0), new Coordinate(0, -5), new Coordinate(-5, 0));
+    OrientableSegment oa = OrientableSegments.arc(a);
+    OrientableSegment ob = OrientableSegments.arc(b);
+    assertTrue(oa.intersects(ob));
+  }
 }

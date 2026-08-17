@@ -19,6 +19,9 @@ import org.locationtech.jts.geom.Coordinate;
  * Lives beside {@link CircularArcDensifier} so package-private circle
  * helpers stay unexported. Not an ExactCurve* cell; not a second
  * geometry owner ({@code doc/EXACT_CURVE_BIBLE.md} §2–§3).
+ * <p>
+ * Exact arc×arc / arc×segment closed forms belong on
+ * {@link ExactCircularArc} (or a sibling Exact* cell), not here.
  */
 public final class ArcIntersects {
 

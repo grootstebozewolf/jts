@@ -25,8 +25,6 @@ import org.locationtech.jts.geom.curve.ArcIntersects;
  */
 final class ArcOrientableSegment implements OrientableSegment {
 
-  private static final double FILTER_EPS = 1.0e-12;
-
   private final ExactCircularArc exact;
   private final StraightOrientableSegment straight;
 
@@ -54,6 +52,15 @@ final class ArcOrientableSegment implements OrientableSegment {
     return exact.length();
   }
 
+  /**
+   * Side of {@code q} relative to the directed arc.
+   * <p>
+   * Radial projection onto the circle, clamped to an endpoint if the
+   * projected point is off-sweep; then the directed tangent frame at
+   * that foot. If {@code q} coincides with the circle centre
+   * ({@code dist == 0}), the tangent frame is undefined — returns
+   * {@link Orientation#COLLINEAR} (documented sentinel, not “on the arc”).
+   */
   public int orientationIndex(Coordinate q) {
     if (!exact.isArc()) {
       return straight.orientationIndex(q);
@@ -64,26 +71,22 @@ final class ArcOrientableSegment implements OrientableSegment {
     double dx = q.x - cx;
     double dy = q.y - cy;
     double dist = Math.hypot(dx, dy);
-    double ox;
-    double oy;
     if (dist == 0.0) {
-      ox = exact.getStart().x;
-      oy = exact.getStart().y;
+      // Centre: no unique radial projection / tangent.
+      return Orientation.COLLINEAR;
     }
-    else {
-      ox = cx + r * dx / dist;
-      oy = cy + r * dy / dist;
-      if (!exact.isOnSweep(ox, oy)) {
-        Coordinate s = exact.getStart();
-        Coordinate e = exact.getEnd();
-        if (q.distance(s) <= q.distance(e)) {
-          ox = s.x;
-          oy = s.y;
-        }
-        else {
-          ox = e.x;
-          oy = e.y;
-        }
+    double ox = cx + r * dx / dist;
+    double oy = cy + r * dy / dist;
+    if (!exact.isOnSweep(ox, oy)) {
+      Coordinate s = exact.getStart();
+      Coordinate e = exact.getEnd();
+      if (q.distance(s) <= q.distance(e)) {
+        ox = s.x;
+        oy = s.y;
+      }
+      else {
+        ox = e.x;
+        oy = e.y;
       }
     }
     double tx = -(oy - cy);
@@ -114,12 +117,19 @@ final class ArcOrientableSegment implements OrientableSegment {
     return other.intersects(this);
   }
 
+  /**
+   * Filter then DD. Absolute floor is scaled by the tangent magnitude so
+   * large coordinates do not force every near-zero cross through float
+   * noise before DD (Orientation-family style).
+   */
   private static int signCross(double tx, double ty, double qx, double qy) {
     double cross = tx * qy - ty * qx;
-    if (cross > FILTER_EPS) {
+    double scale = Math.hypot(tx, ty) * Math.hypot(qx, qy);
+    double eps = 1.0e-12 * (scale > 1.0 ? scale : 1.0);
+    if (cross > eps) {
       return Orientation.COUNTERCLOCKWISE;
     }
-    if (cross < -FILTER_EPS) {
+    if (cross < -eps) {
       return Orientation.CLOCKWISE;
     }
     int s = CGAlgorithmsDD.signOfDet2x2(tx, ty, qx, qy);
@@ -144,11 +154,20 @@ final class ArcOrientableSegment implements OrientableSegment {
     return li.hasIntersection();
   }
 
+  /**
+   * Endpoint extras for densify-bridge misses. Radial tolerance matches
+   * one ulp of {@code r} so constructed endpoints are not rejected by a
+   * strict {@code 0.0} {@link ExactCircularArc#inArc} band.
+   */
   private boolean endpointOnArc(ArcOrientableSegment a) {
     ExactCircularArc o = a.exact;
-    return o.inArc(exact.getStart(), 0.0)
-        || o.inArc(exact.getEnd(), 0.0)
-        || exact.inArc(o.getStart(), 0.0)
-        || exact.inArc(o.getEnd(), 0.0);
+    double tol = Math.ulp(Math.max(exact.radius(), o.radius()));
+    if (tol == 0.0) {
+      tol = Math.ulp(1.0);
+    }
+    return o.inArc(exact.getStart(), tol)
+        || o.inArc(exact.getEnd(), tol)
+        || exact.inArc(o.getStart(), tol)
+        || exact.inArc(o.getEnd(), tol);
   }
 }
