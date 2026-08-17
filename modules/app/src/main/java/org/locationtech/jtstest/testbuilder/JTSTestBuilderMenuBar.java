@@ -186,16 +186,18 @@ public class JTSTestBuilderMenuBar
       public void actionPerformed(ActionEvent e) {
         org.locationtech.jts.geom.curve.CurveLinearizationStrategy
             .setDefault(org.locationtech.jts.geom.curve.CurveLinearizationStrategy.LINEARIZED);
-        tbFrame.getLogPanel().addInfo(
-            "CurveLinearizationStrategy default = LINEARIZED (densify warns)");
+        String msg = "CurveLinearizationStrategy default = LINEARIZED (densify warns)";
+        tbFrame.getLogPanel().addInfo(msg);
+        JTSTestBuilder.controller().setStatus("Curve strategy: LINEARIZED");
       }
     });
     menuCurvePreserve.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent e) {
         org.locationtech.jts.geom.curve.CurveLinearizationStrategy
             .setDefault(org.locationtech.jts.geom.curve.CurveLinearizationStrategy.PRESERVE);
-        tbFrame.getLogPanel().addInfo(
-            "CurveLinearizationStrategy default = PRESERVE (no densify)");
+        String msg = "CurveLinearizationStrategy default = PRESERVE (no densify)";
+        tbFrame.getLogPanel().addInfo(msg);
+        JTSTestBuilder.controller().setStatus("Curve strategy: PRESERVE");
       }
     });
 

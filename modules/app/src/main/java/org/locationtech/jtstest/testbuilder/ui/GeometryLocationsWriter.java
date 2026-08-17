@@ -23,9 +23,12 @@ import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.curve.BezierCurve;
 import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jts.geom.curve.EllipseCurve;
+import org.locationtech.jts.geom.curve.NurbsCurve;
 import org.locationtech.jtstest.testbuilder.geom.GeometryElementLocater;
 import org.locationtech.jtstest.testbuilder.geom.FacetLocater;
 import org.locationtech.jtstest.testbuilder.geom.GeometryLocation;
@@ -188,7 +191,8 @@ public class GeometryLocationsWriter
     return writeFacetLocations(locs);
   }
     
-  private String writeFacetLocations(List<GeometryLocation> locs)
+  /** Package-private for curve-zoo inspect tests. */
+  String writeFacetLocations(List<GeometryLocation> locs)
   {
     if (locs.size() <= 0) return null;
     
@@ -229,6 +233,19 @@ public class GeometryLocationsWriter
     }
     if (el instanceof CircularString) {
       return arcLabel((CircularString) el);
+    }
+    if (el instanceof BezierCurve) {
+      return String.format(Locale.ROOT, "Bezier n=%d ", el.getNumPoints());
+    }
+    if (el instanceof EllipseCurve) {
+      EllipseCurve ec = (EllipseCurve) el;
+      return String.format(Locale.ROOT, "Ellipse a=%s b=%s ",
+          fmtLen(ec.getSemiMajor()), fmtLen(ec.getSemiMinor()));
+    }
+    if (el instanceof NurbsCurve) {
+      NurbsCurve nc = (NurbsCurve) el;
+      return String.format(Locale.ROOT, "NURBS deg=%d n=%d ",
+          nc.getDegree(), el.getNumPoints());
     }
     if (el instanceof CompoundCurve && !loc.isVertex()) {
       // A flat segment of a CompoundCurve falls inside one specific member.
