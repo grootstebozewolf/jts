@@ -41,11 +41,8 @@ import test.jts.GeometryTestCase;
  * prints a list of every <em>full</em> TAG that still needs work.
  * All remaining {@code fail()} methods stay. That count is the full-TAG
  * red list, not the live scoreboard: closed-form lasers keep these
- * methods until the full TAG ships. OFF, BUF-1, BUF-NEG, and BUF-N shipped
- * (open two-member corridors + stadium subset). VBF meter remains for
- * arc-length parameterisation. Delete a method only when the full TAG
- * ships; do not edit it green. Live progress is the green tests next to
- * production code on #7 / MMF and the epic §4.1 table.
+ * methods until the full TAG ships. OFF, BUF-*, DSF, TRI-DT, and TRI-VR
+ * shipped. VBF meter remains for arc-preserving variable offsets.
  *
  * <p>Tests do not have to be precise — the goal is coverage of
  * pre-existing gaps, not exact threshold checks. A green
@@ -478,31 +475,13 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Densifier
   // ============================================================
 
-  /** DSF: Densifier delegates to toLinear for arc input. */
-  public void test_DSF_densifierUsesToLinearForArcInput() throws Exception {
-    fail("DSF: org.locationtech.jts.densify.Densifier walks coordinates and "
-        + "subdivides chords. On a CircularString it should detect the type and "
-        + "delegate to toLinear(tolerance); today it produces chord-subdivisions "
-        + "that don't lie on the arc.");
-  }
+  // DSF shipped: Densifier.densify delegates to toLinear for jts-curve types.
 
   // ============================================================
   // Triangulation / Voronoi
   // ============================================================
 
-  /** TRI-DT: DelaunayTriangulationBuilder densifies curved input internally. */
-  public void test_TRI_DT_delaunayAcceptsCurveInput() throws Exception {
-    fail("TRI-DT: DelaunayTriangulationBuilder.setSites accepting a CurvePolygon "
-        + "boundary should densify via toLinear before triangulating; today the "
-        + "boundary is sampled at the bare control points and Steiner points "
-        + "outside the actual curved region appear in the output.");
-  }
-
-  /** TRI-VR: VoronoiDiagramBuilder same story. */
-  public void test_TRI_VR_voronoiAcceptsCurveInput() throws Exception {
-    fail("TRI-VR: VoronoiDiagramBuilder must accept curved input and densify "
-        + "internally to a tolerance, not silently use the bare control points.");
-  }
+  // TRI-DT / TRI-VR shipped: setSites densifies curve package geometries via Densifier→toLinear.
 
   // ============================================================
   // Polygonizer / Coverage
