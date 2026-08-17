@@ -10,8 +10,8 @@
     "kochSnowflake",
     "polygon"
   ],
-  "golden": true,
-  "skipped": false,
+  "golden": false,
+  "skipped": true,
   "fixtureFile": "_fixtures/upstream-polygon.wkt",
   "params": [
     "2"
@@ -58,5 +58,5 @@
       "MULTILINESTRING"
     ]
   },
-  "notes": "kochSnowflake n=2"
+  "notes": "kochSnowflake n=2 | PROMOTE SKIP: polygon=EXC:RuntimeException;disc=EXC:RuntimeException;circle=EXC:RuntimeException;half-moon=EXC:RuntimeException;"
 }

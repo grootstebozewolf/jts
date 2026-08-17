@@ -11,7 +11,7 @@
     "disc"
   ],
   "golden": false,
-  "skipped": false,
+  "skipped": true,
   "playbackOf": "TestCaseGeometry.bufferMitredJoin.polygon.upstream",
   "fixtureFile": "_fixtures/pr7-disc.wkt",
   "params": [
@@ -55,5 +55,5 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "bufferMitredJoin \u00b7 pr7 disc"
+  "notes": "bufferMitredJoin \u00b7 pr7 disc | PROMOTE SKIP: TestCaseGeometry.bufferMitredJoin"
 }

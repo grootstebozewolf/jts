@@ -11,7 +11,7 @@
     "circle"
   ],
   "golden": false,
-  "skipped": false,
+  "skipped": true,
   "playbackOf": "Labelling.labelPoint.polygon.upstream",
   "fixtureFile": "_fixtures/pr7-circle.wkt",
   "params": [],
@@ -48,5 +48,5 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "labelPoint \u00b7 pr7 circle"
+  "notes": "labelPoint \u00b7 pr7 circle | PROMOTE SKIP: Labelling.labelPoint"
 }

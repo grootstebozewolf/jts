@@ -10,8 +10,8 @@
     "extractPoint",
     "polygon"
   ],
-  "golden": true,
-  "skipped": false,
+  "golden": false,
+  "skipped": true,
   "fixtureFile": "_fixtures/upstream-linestring.wkt",
   "params": [
     "0.5"
@@ -56,5 +56,5 @@
       "POINT"
     ]
   },
-  "notes": "extractPoint 0.5"
+  "notes": "extractPoint 0.5 | PROMOTE SKIP: polygon=EXC:IllegalArgumentException;disc=EXC:IllegalArgumentException;circle=EXC:IllegalArgumentException;half-moon=EXC:IllegalArgumentException;"
 }

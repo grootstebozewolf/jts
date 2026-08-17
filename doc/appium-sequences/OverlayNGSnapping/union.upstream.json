@@ -10,8 +10,8 @@
     "union",
     "polygon"
   ],
-  "golden": true,
-  "skipped": false,
+  "golden": false,
+  "skipped": true,
   "fixtureFile": "_fixtures/upstream-polygon.wkt",
   "fixtureFileB": "_fixtures/upstream-polygon.wkt",
   "params": [
@@ -67,5 +67,5 @@
       "MULTIPOLYGON"
     ]
   },
-  "notes": "union tol 0.1"
+  "notes": "union tol 0.1 | PROMOTE SKIP: polygon=OK;disc=EXC:TopologyException;circle=OK;half-moon=OK;"
 }

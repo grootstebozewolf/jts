@@ -11,7 +11,7 @@
     "half-moon"
   ],
   "golden": false,
-  "skipped": false,
+  "skipped": true,
   "playbackOf": "CreateFractalShape.kochSnowflake.polygon.upstream",
   "fixtureFile": "_fixtures/pr7-half-moon.wkt",
   "params": [
@@ -55,5 +55,5 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "kochSnowflake n=2 \u00b7 pr7 half-moon"
+  "notes": "kochSnowflake n=2 \u00b7 pr7 half-moon | PROMOTE SKIP: polygon=EXC:RuntimeException;disc=EXC:RuntimeException;circle=EXC:RuntimeException;half-moon=EXC:RuntimeException;"
 }

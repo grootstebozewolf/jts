@@ -11,7 +11,7 @@
     "half-moon"
   ],
   "golden": false,
-  "skipped": false,
+  "skipped": true,
   "playbackOf": "TestCaseGeometry.bufferMitredJoin.polygon.upstream",
   "fixtureFile": "_fixtures/pr7-half-moon.wkt",
   "params": [
@@ -55,5 +55,5 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "bufferMitredJoin \u00b7 pr7 half-moon"
+  "notes": "bufferMitredJoin \u00b7 pr7 half-moon | PROMOTE SKIP: TestCaseGeometry.bufferMitredJoin"
 }

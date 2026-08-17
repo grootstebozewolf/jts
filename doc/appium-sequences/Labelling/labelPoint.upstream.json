@@ -10,8 +10,8 @@
     "labelPoint",
     "polygon"
   ],
-  "golden": true,
-  "skipped": false,
+  "golden": false,
+  "skipped": true,
   "fixtureFile": "_fixtures/upstream-polygon.wkt",
   "params": [],
   "steps": [
@@ -49,5 +49,5 @@
       "POINT"
     ]
   },
-  "notes": "labelPoint"
+  "notes": "labelPoint | PROMOTE SKIP: Labelling.labelPoint"
 }

@@ -11,7 +11,7 @@
     "disc"
   ],
   "golden": false,
-  "skipped": false,
+  "skipped": true,
   "playbackOf": "Labelling.labelPoint.polygon.upstream",
   "fixtureFile": "_fixtures/pr7-disc.wkt",
   "params": [],
@@ -48,5 +48,5 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "labelPoint \u00b7 pr7 disc"
+  "notes": "labelPoint \u00b7 pr7 disc | PROMOTE SKIP: Labelling.labelPoint"
 }

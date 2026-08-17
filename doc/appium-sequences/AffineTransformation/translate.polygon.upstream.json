@@ -5,26 +5,66 @@
   "category": "AffineTransformation",
   "function": "translate",
   "branch": "upstream",
-  "tags": ["tb-appium", "AffineTransformation", "translate", "polygon"],
+  "tags": [
+    "tb-appium",
+    "AffineTransformation",
+    "translate",
+    "polygon"
+  ],
   "golden": true,
   "skipped": false,
   "fixtureFile": "_fixtures/upstream-polygon.wkt",
-  "params": ["10", "8"],
+  "params": [
+    "10",
+    "8"
+  ],
   "steps": [
-    { "id": "jts.tb.toolbar.case.new", "action": "click" },
-    { "id": "jts.tb.wkt.a", "action": "setText", "valueFromFixture": "a" },
-    { "id": "jts.tb.wkt.load", "action": "click" },
-    { "id": "jts.tb.fn.tree", "action": "selectPath", "path": ["AffineTransformation", "translate"] },
-    { "id": "jts.tb.fn.param.0", "action": "setText", "value": "10" },
-    { "id": "jts.tb.fn.param.1", "action": "setText", "value": "8" },
-    { "id": "jts.tb.fn.exec", "action": "click" }
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "AffineTransformation",
+        "translate"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.param.0",
+      "action": "setText",
+      "value": "10"
+    },
+    {
+      "id": "jts.tb.fn.param.1",
+      "action": "setText",
+      "value": "8"
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
   ],
   "expect": {
     "fnName": "translate",
     "aNotEmpty": true,
     "resultNotEmpty": true,
-    "resultWktContainsAny": ["POLYGON"],
-    "resultWktContainsNone": ["EMPTY"]
+    "resultWktContainsAny": [
+      "POLYGON"
+    ],
+    "resultWktContainsNone": [
+      "EMPTY"
+    ]
   },
   "notes": "Upstream polygon translate (10,8). Golden AutomationId contract."
 }

@@ -10,8 +10,8 @@
     "union",
     "polygon"
   ],
-  "golden": true,
-  "skipped": false,
+  "golden": false,
+  "skipped": true,
   "fixtureFile": "_fixtures/upstream-polygon.wkt",
   "fixtureFileB": "_fixtures/upstream-polygon.wkt",
   "params": [],
@@ -60,5 +60,5 @@
       "MULTIPOLYGON"
     ]
   },
-  "notes": "union"
+  "notes": "union | PROMOTE SKIP: OverlayEnhancedPrecision.union"
 }

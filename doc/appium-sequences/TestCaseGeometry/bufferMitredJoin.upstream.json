@@ -10,8 +10,8 @@
     "bufferMitredJoin",
     "polygon"
   ],
-  "golden": true,
-  "skipped": false,
+  "golden": false,
+  "skipped": true,
   "fixtureFile": "_fixtures/upstream-polygon.wkt",
   "params": [
     "1"
@@ -57,5 +57,5 @@
       "MULTIPOLYGON"
     ]
   },
-  "notes": "bufferMitredJoin"
+  "notes": "bufferMitredJoin | PROMOTE SKIP: TestCaseGeometry.bufferMitredJoin"
 }

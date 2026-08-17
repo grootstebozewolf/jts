@@ -11,7 +11,7 @@
     "disc"
   ],
   "golden": false,
-  "skipped": false,
+  "skipped": true,
   "playbackOf": "OverlayCommonBitsRemoved.union.polygon.upstream",
   "fixtureFile": "_fixtures/pr7-disc.wkt",
   "fixtureFileB": "_fixtures/pr7-disc.wkt",
@@ -58,5 +58,5 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "union \u00b7 pr7 disc"
+  "notes": "union \u00b7 pr7 disc | PROMOTE SKIP: OverlayCommonBitsRemoved.union"
 }

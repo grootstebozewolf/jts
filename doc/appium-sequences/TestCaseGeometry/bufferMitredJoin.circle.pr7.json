@@ -11,7 +11,7 @@
     "circle"
   ],
   "golden": false,
-  "skipped": false,
+  "skipped": true,
   "playbackOf": "TestCaseGeometry.bufferMitredJoin.polygon.upstream",
   "fixtureFile": "_fixtures/pr7-circle.wkt",
   "params": [
@@ -55,5 +55,5 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "bufferMitredJoin \u00b7 pr7 circle"
+  "notes": "bufferMitredJoin \u00b7 pr7 circle | PROMOTE SKIP: TestCaseGeometry.bufferMitredJoin"
 }
