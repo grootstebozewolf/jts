@@ -11,10 +11,12 @@
  */
 package org.locationtech.jts.algorithm.orientable;
 
+import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
 import org.locationtech.jts.geom.Coordinate;
 
 /**
- * Factories for Proofs Option B carriers.
+ * Factories for Proofs Option B carriers. Arc form wraps A's
+ * {@link ExactCircularArc}.
  */
 public final class OrientableSegments {
 
@@ -27,5 +29,10 @@ public final class OrientableSegments {
   public static OrientableSegment arc(Coordinate start, Coordinate mid,
       Coordinate end) {
     return new ArcOrientableSegment(start, mid, end);
+  }
+
+  /** Preferred when the caller already built an A-team arc. */
+  public static OrientableSegment arc(ExactCircularArc exact) {
+    return new ArcOrientableSegment(exact);
   }
 }

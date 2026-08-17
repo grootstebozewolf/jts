@@ -14,81 +14,89 @@ package org.locationtech.jts.algorithm.orientable;
 import org.locationtech.jts.algorithm.CGAlgorithmsDD;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.algorithm.RobustLineIntersector;
-import org.locationtech.jts.algorithm.exactarc.AngleBetween;
+import org.locationtech.jts.algorithm.exactcurve.AngleBetween;
+import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.curve.ArcGeometry;
 
 /**
- * Circular 3-control arc window — Proofs Option B (round 2).
+ * Lightweight Proofs Option B arc carrier on top of A's
+ * {@link ExactCircularArc}. Owns only side + intersect; length / sweep /
+ * area / centroid stay on the A front-end.
  * <p>
- * Cached circumcircle + {@link AngleBetween} sweep (shared with A).
- * Side: filter-then-{@link CGAlgorithmsDD#signOfDet2x2} on the directed
- * tangent at the nearest arc point — same robustness family as
- * {@link Orientation}, no densify. Intersection via {@link ArcGeometry}.
+ * Hot path snapshots public A getters once (no second circumcircle).
+ * Side: filter → {@link CGAlgorithmsDD#signOfDet2x2}. Sweep tests use
+ * {@link AngleBetween#travelled}.
  */
 public final class ArcOrientableSegment implements OrientableSegment {
 
-  /** Adaptive filter bound (same spirit as Orientation's filter). */
   private static final double FILTER_EPS = 1.0e-12;
 
-  private final Coordinate start;
-  private final Coordinate mid;
-  private final Coordinate end;
+  private final ExactCircularArc exact;
+  private final StraightOrientableSegment straight;
+  /** Snapshot of A public geometry for allocation-light side tests. */
   private final double cx;
   private final double cy;
   private final double r;
-  private final double a0;
   private final boolean ccw;
   private final double sweep;
-  private final boolean circular;
-  private final StraightOrientableSegment straight;
+  private final double startUx;
+  private final double startUy;
 
   public ArcOrientableSegment(Coordinate start, Coordinate mid, Coordinate end) {
-    this.start = start;
-    this.mid = mid;
-    this.end = end;
-    double[] circ = ArcGeometry.circumcircle(start, mid, end);
-    if (circ == null) {
+    this(new ExactCircularArc(start, mid, end));
+  }
+
+  /**
+   * Wrap an existing A-team arc (preferred when the caller already has one).
+   */
+  public ArcOrientableSegment(ExactCircularArc exact) {
+    this.exact = exact;
+    if (!exact.isArc()) {
+      this.straight = new StraightOrientableSegment(exact.getStart(), exact.getEnd());
       this.cx = Double.NaN;
       this.cy = Double.NaN;
       this.r = 0.0;
-      this.a0 = 0.0;
       this.ccw = true;
       this.sweep = 0.0;
-      this.circular = false;
-      this.straight = new StraightOrientableSegment(start, end);
+      this.startUx = 0.0;
+      this.startUy = 0.0;
       return;
     }
-    this.cx = circ[0];
-    this.cy = circ[1];
-    this.r = circ[2];
-    this.a0 = Math.atan2(start.y - cy, start.x - cx);
-    double aMid = Math.atan2(mid.y - cy, mid.x - cx);
-    double a1 = Math.atan2(end.y - cy, end.x - cx);
-    this.ccw = AngleBetween.isCcw(a0, aMid, a1);
-    this.sweep = AngleBetween.directedSweepFromAngles(a0, aMid, a1);
-    this.circular = true;
     this.straight = null;
+    Coordinate c = exact.center();
+    this.cx = c.x;
+    this.cy = c.y;
+    this.r = exact.radius();
+    this.ccw = exact.isCcw();
+    this.sweep = exact.sweep();
+    Coordinate s = exact.getStart();
+    this.startUx = s.x - cx;
+    this.startUy = s.y - cy;
+  }
+
+  public ExactCircularArc exactArc() {
+    return exact;
   }
 
   public Coordinate getStart() {
-    return start;
+    return exact.getStart();
   }
 
   public Coordinate getMid() {
-    return mid;
+    return exact.getMid();
   }
 
   public Coordinate getEnd() {
-    return end;
+    return exact.getEnd();
   }
 
   public boolean isCircular() {
-    return circular;
+    return exact.isArc();
   }
 
   public int orientationIndex(Coordinate q) {
-    if (!circular) {
+    if (!exact.isArc()) {
       return straight.orientationIndex(q);
     }
     double dx = q.x - cx;
@@ -97,21 +105,22 @@ public final class ArcOrientableSegment implements OrientableSegment {
     double ox;
     double oy;
     if (dist == 0.0) {
-      ox = start.x;
-      oy = start.y;
+      ox = exact.getStart().x;
+      oy = exact.getStart().y;
     }
     else {
       ox = cx + r * dx / dist;
       oy = cy + r * dy / dist;
-      if (!onSweep(ox, oy)) {
-        // Nearest is an endpoint of the window.
-        if (q.distance(start) <= q.distance(end)) {
-          ox = start.x;
-          oy = start.y;
+      if (!onSweep(ox - cx, oy - cy)) {
+        Coordinate s = exact.getStart();
+        Coordinate e = exact.getEnd();
+        if (q.distance(s) <= q.distance(e)) {
+          ox = s.x;
+          oy = s.y;
         }
         else {
-          ox = end.x;
-          oy = end.y;
+          ox = e.x;
+          oy = e.y;
         }
       }
     }
@@ -123,7 +132,6 @@ public final class ArcOrientableSegment implements OrientableSegment {
     }
     double qx = q.x - ox;
     double qy = q.y - oy;
-    // Fast filter; DD only when the cross is near zero.
     double cross = tx * qy - ty * qx;
     if (cross > FILTER_EPS) {
       return Orientation.COUNTERCLOCKWISE;
@@ -142,49 +150,53 @@ public final class ArcOrientableSegment implements OrientableSegment {
   }
 
   public boolean intersects(OrientableSegment other) {
-    if (!circular) {
+    if (!exact.isArc()) {
       return straight.intersects(other);
     }
     if (other instanceof StraightOrientableSegment) {
       StraightOrientableSegment s = (StraightOrientableSegment) other;
-      if (ArcGeometry.intersectsSegment(start, mid, end, s.getStart(), s.getEnd())) {
+      if (ArcGeometry.intersectsSegment(
+          exact.getStart(), exact.getMid(), exact.getEnd(),
+          s.getStart(), s.getEnd())) {
         return true;
       }
       return endpointOnSegment(s);
     }
     if (other instanceof ArcOrientableSegment) {
       ArcOrientableSegment a = (ArcOrientableSegment) other;
-      if (!a.circular) {
+      if (!a.exact.isArc()) {
         return intersects(a.straight);
       }
-      return ArcGeometry.intersectsArc(start, mid, end, a.start, a.mid, a.end)
+      return ArcGeometry.intersectsArc(
+          exact.getStart(), exact.getMid(), exact.getEnd(),
+          a.exact.getStart(), a.exact.getMid(), a.exact.getEnd())
           || endpointOnArc(a);
     }
     return other.intersects(this);
   }
 
-  private boolean onSweep(double x, double y) {
-    double ap = Math.atan2(y - cy, x - cx);
-    double travelled = ccw
-        ? AngleBetween.normalizePositive(ap - a0)
-        : AngleBetween.normalizePositive(a0 - ap);
-    return travelled <= sweep + 1.0e-12;
+  private boolean onSweep(double ux, double uy) {
+    double travelled = AngleBetween.travelled(ccw, startUx, startUy, ux, uy);
+    return travelled <= sweep + Math.ulp(sweep);
   }
 
   private boolean endpointOnSegment(StraightOrientableSegment s) {
     RobustLineIntersector li = new RobustLineIntersector();
-    li.computeIntersection(start, start, s.getStart(), s.getEnd());
+    Coordinate a = exact.getStart();
+    Coordinate b = exact.getEnd();
+    li.computeIntersection(a, a, s.getStart(), s.getEnd());
     if (li.hasIntersection()) {
       return true;
     }
-    li.computeIntersection(end, end, s.getStart(), s.getEnd());
+    li.computeIntersection(b, b, s.getStart(), s.getEnd());
     return li.hasIntersection();
   }
 
   private boolean endpointOnArc(ArcOrientableSegment a) {
-    return ArcGeometry.distancePointToArc(start, a.start, a.mid, a.end) == 0.0
-        || ArcGeometry.distancePointToArc(end, a.start, a.mid, a.end) == 0.0
-        || ArcGeometry.distancePointToArc(a.start, start, mid, end) == 0.0
-        || ArcGeometry.distancePointToArc(a.end, start, mid, end) == 0.0;
+    ExactCircularArc o = a.exact;
+    return o.inArc(exact.getStart(), 0.0)
+        || o.inArc(exact.getEnd(), 0.0)
+        || exact.inArc(o.getStart(), 0.0)
+        || exact.inArc(o.getEnd(), 0.0);
   }
 }

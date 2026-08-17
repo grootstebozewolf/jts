@@ -1,21 +1,23 @@
 # Proofs Option B — predicate seam (B team)
 
-Sister of Proofs Option A. Lane lock: B owns side + intersect only.
+Lightweight **side + intersect** on top of A's ExactCurve* front-end.
 
-## Round 2 layout (maintainability → precision → perf)
+## Layout
 
 | Type | Role |
 |------|------|
-| `OrientableSegment` | Slim interface |
-| `StraightOrientableSegment` | Core Orientation / RLI parity |
-| `ArcOrientableSegment` | Cached circle + `AngleBetween` sweep; filter→DD side |
-| `ArcGeometry` | One circumcircle + intersect home |
-| `AngleBetween` | Shared with A (Proofs #64 atan2(cross,dot)) |
+| `ExactCircularArc` (A) | Closed-form circle / sweep / `inArc` / length / area |
+| `ArcOrientableSegment` (B) | Thin wrapper: `exactArc()` + filter→DD side + intersect |
+| `StraightOrientableSegment` (B) | Core Orientation / RLI parity |
+| `ArcGeometry` | Intersect/sample only — no second circumcircle owner |
 | `OrientableDensifyReference` | Test-only densify oracle |
 
-## Does not own
+## Factory
 
-A closed-form length / area / centroid cells (`ExactCircularArc`).
+```java
+OrientableSegments.arc(start, mid, end);
+OrientableSegments.arc(exactCircularArc); // preferred when A already built it
+```
 
 ## Handover
 

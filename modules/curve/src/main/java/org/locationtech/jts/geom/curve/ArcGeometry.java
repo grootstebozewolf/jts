@@ -11,45 +11,18 @@
  */
 package org.locationtech.jts.geom.curve;
 
-import org.locationtech.jts.algorithm.exactarc.AngleBetween;
+import org.locationtech.jts.algorithm.exactcurve.AngleBetween;
 import org.locationtech.jts.geom.Coordinate;
 
 /**
- * Thin arc helpers for the Proofs Option B predicate seam.
- * Circumcircle = {@link CircularArcDensifier#circumcircle} (one
- * determinant). Sweep = {@link AngleBetween} (shared with A-team).
- * Intersect = densifier quadratic + sweep filter.
- * <p>
- * Not a noder. Not OverlayNG. Not Option A length/area cells.
+ * Intersect / sample helpers for the B predicate seam.
+ * Circumcircle and sweep live on A's {@code ExactCircularArc} /
+ * {@link AngleBetween}; this class does not own a second circle solver.
  */
 public final class ArcGeometry {
 
   private ArcGeometry() { }
 
-  public static boolean isCircular(Coordinate start, Coordinate mid,
-      Coordinate end) {
-    return CircularArcDensifier.circumcircle(start, mid, end) != null;
-  }
-
-  /** {@code {cx, cy, r}} or {@code null}. */
-  public static double[] circumcircle(Coordinate start, Coordinate mid,
-      Coordinate end) {
-    return CircularArcDensifier.circumcircle(start, mid, end);
-  }
-
-  public static Coordinate nearestOnArc(Coordinate q, Coordinate start,
-      Coordinate mid, Coordinate end) {
-    return CircularArcDensifier.nearestPointOnArc(q, start, mid, end);
-  }
-
-  public static double distancePointToArc(Coordinate q, Coordinate start,
-      Coordinate mid, Coordinate end) {
-    return CircularArcDensifier.distancePointToArc(q, start, mid, end);
-  }
-
-  /**
-   * Arc ∩ segment via densifier quadratic + sweep.
-   */
   public static boolean intersectsSegment(Coordinate a0, Coordinate a1,
       Coordinate a2, Coordinate s0, Coordinate s1) {
     CircularArcDensifier.Circle c =
@@ -73,6 +46,12 @@ public final class ArcGeometry {
     return nodes != null && nodes.length > 0;
   }
 
+  public static double distancePointToArc(Coordinate q, Coordinate start,
+      Coordinate mid, Coordinate end) {
+    return CircularArcDensifier.distancePointToArc(q, start, mid, end);
+  }
+
+  /** Densify-reference sample only — never flagged exact. */
   public static Coordinate[] sampleArc(Coordinate start, Coordinate mid,
       Coordinate end, int nChord) {
     double[] circ = CircularArcDensifier.circumcircle(start, mid, end);
@@ -82,12 +61,9 @@ public final class ArcGeometry {
     double cx = circ[0];
     double cy = circ[1];
     double r = circ[2];
+    AngleBetween.DirectedSweep sw = AngleBetween.through(cx, cy, start, mid, end);
+    double signed = sw.signed();
     double a0 = Math.atan2(start.y - cy, start.x - cx);
-    double aMid = Math.atan2(mid.y - cy, mid.x - cx);
-    double a1 = Math.atan2(end.y - cy, end.x - cx);
-    boolean ccw = AngleBetween.isCcw(a0, aMid, a1);
-    double sweep = AngleBetween.directedSweepFromAngles(a0, aMid, a1);
-    double signed = ccw ? sweep : -sweep;
     Coordinate[] pts = new Coordinate[nChord + 1];
     for (int i = 0; i <= nChord; i++) {
       double t = (double) i / (double) nChord;

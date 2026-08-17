@@ -10,7 +10,7 @@ Seed `0xc0ffeeb007` · N=1000000 · box [-100.0,100.0]² · densify nChord=64
 | hard disagree | 0 |
 | soft agree (on-curve / collinear tie) | 0 |
 | agree rate (1 - hard/tried) | 1.0 |
-| wall ns | 176884976 |
+| wall ns | 192813517 |
 
 ### S2 straight intersects vs RobustLineIntersector
 
@@ -20,7 +20,7 @@ Seed `0xc0ffeeb007` · N=1000000 · box [-100.0,100.0]² · densify nChord=64
 | hard disagree | 0 |
 | soft agree (on-curve / collinear tie) | 0 |
 | agree rate (1 - hard/tried) | 1.0 |
-| wall ns | 463936029 |
+| wall ns | 352062086 |
 
 ### A1 arc orientationIndex vs densify reference
 
@@ -30,7 +30,7 @@ Seed `0xc0ffeeb007` · N=1000000 · box [-100.0,100.0]² · densify nChord=64
 | hard disagree | 3849 |
 | soft agree (on-curve / collinear tie) | 0 |
 | agree rate (1 - hard/tried) | 0.996151 |
-| wall ns | 5114801481 |
+| wall ns | 4350063518 |
 
 ### A2 arc×segment intersects vs densify+RLI
 
@@ -40,19 +40,19 @@ Seed `0xc0ffeeb007` · N=1000000 · box [-100.0,100.0]² · densify nChord=64
 | hard disagree | 4 |
 | soft agree (on-curve / collinear tie) | 0 |
 | agree rate (1 - hard/tried) | 0.999996 |
-| wall ns | 4674520380 |
+| wall ns | 4656451365 |
 
 ### P1 arc orientationIndex latency vs densify
 
 | metric | value |
 |---|---:|
-| B p50 ns (50k calls) | 16641248 |
-| densify p50 ns | 158769618 |
-| ratio B/ref | 0.10481380637950517 |
+| B p50 ns (50k calls) | 16627458 |
+| densify p50 ns | 159345367 |
+| ratio B/ref | 0.10434855002718717 |
 
 
 ## Verdict
 
-B-team seam: straight parity 100%; arc vs densify ≥ 0.99 (A1=0.996151, A2=0.999996); PERF p50 ratio 0.10481380637950517 ≤ 1.15.
+B-team seam: straight parity 100%; arc vs densify ≥ 0.99 (A1=0.996151, A2=0.999996); PERF p50 ratio 0.10434855002718717 ≤ 1.15.
 
 Residual A1 hard disagrees are densify-chord vs arc-tangent frame disagreements off the curve (nChord=64), not silent flatten.
