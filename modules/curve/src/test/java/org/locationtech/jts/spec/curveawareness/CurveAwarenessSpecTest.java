@@ -161,11 +161,8 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // ============================================================
 
   /** R-PR: arc-aware relate matrix. */
-  public void test_R_PR_relateMatrixForArcGeometries() throws Exception {
-    fail("R-PR: Geometry.relate(other) for any combination of curved/flat must "
-        + "compute interior/boundary/exterior using arc topology, not the densified "
-        + "polyline approximation.");
-  }
+  // test_R_PR_relateMatrixForArcGeometries shipped — see CurveAwarenessGreenMetersTest
+  // (disc∋point / disc∌point DE-9IM; densify-backed for general pairs remains open)
 
   // test_R_CONT_containsAndIntersectsForArcInputs shipped — see CurveAwarenessGreenMetersTest
 
@@ -179,12 +176,8 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
 
   // test_N_AL_arcVersusLineIntersectionPoints shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
-  /** N-SS: arc-aware SegmentString + Noder. */
-  public void test_N_SS_arcSegmentStringNoder() throws Exception {
-    fail("N-SS: NodedSegmentString variant carrying arc parameters so the existing "
-        + "Noder hierarchy (MCIndexNoder, SnapRoundingNoder) can produce a noded "
-        + "graph that still distinguishes arc spans from chord spans.");
-  }
+  // test_N_SS_arcSegmentStringNoder shipped — see CurveAwarenessGreenMetersTest
+  // (CircularNodedSegmentString + SegmentKind Option B)
 
   // ============================================================
   // Overlay (Boolean)
@@ -206,12 +199,8 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Validity
   // ============================================================
 
-  /** V-CP: IsValidOp for CurvePolygon. */
-  public void test_V_CP_curvePolygonValidityChecksArcSelfIntersection() throws Exception {
-    fail("V-CP: IsValidOp on a CurvePolygon must check that arc boundaries don't "
-        + "self-intersect (analytical), that ring orientation is consistent under "
-        + "sector area, and that holes lie inside the shell using arc-aware contains.");
-  }
+  // test_V_CP_curvePolygonValidityChecksArcSelfIntersection shipped — see CurveAwarenessGreenMetersTest
+  // (densify-backed IsValidOp; analytical arc/arc self-x remains open)
 
   // test_V_CS_circularStringSimpleCheckArcAware shipped — see CurveAwarenessGreenMetersTest
 
@@ -295,13 +284,8 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
 
   // test_TB_T_compoundCurveAndCurvePolygonDrawingTools shipped — see CurveAwarenessGreenMetersTest
 
-  /** TB-FN: function-tree curve-aware coverage badge. */
-  public void test_TB_FN_functionTreeShowsCurveAwareBadge() throws Exception {
-    fail("TB-FN: every entry in the TestBuilder function tree should display a "
-        + "small icon: ● curve-aware native, ◯ curve-passthrough (linearises "
-        + "internally but returns curved-bearing output), ✕ flattens. Wire from "
-        + "a per-function annotation on the GeometryFunction implementations.");
-  }
+  // test_TB_FN_functionTreeShowsCurveAwareBadge shipped — see CurveAwarenessBadgeTest
+  // (Metadata.curveAwareness → ●/◯/✕ in GeometryFunctionTreePanel)
 
   // ============================================================
   // Helpers

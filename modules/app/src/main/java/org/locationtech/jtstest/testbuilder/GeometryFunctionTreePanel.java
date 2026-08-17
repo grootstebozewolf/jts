@@ -85,13 +85,26 @@ public class GeometryFunctionTreePanel extends JPanel {
 				setIcon( computeIcon(func) );
         //String name = StringUtil.capitalize(func.getName());
         String name = func.getName();
-				setText(name);
-				setToolTipText(GeometryFunctionUtil.toolTipText(func)); 
+        String badge = curveBadge(func);
+				setText(badge + " " + name);
+				setToolTipText(GeometryFunctionUtil.toolTipText(func)
+            + " [" + func.getCurveAwareness() + "]"); 
 			} else {
 				setToolTipText(null); // no tool tip
 			}
 			return this;
 		}
+
+    private String curveBadge(GeometryFunction func) {
+      String level = func.getCurveAwareness();
+      if ("native".equalsIgnoreCase(level)) {
+        return "\u25CF"; // ●
+      }
+      if ("passthrough".equalsIgnoreCase(level)) {
+        return "\u25CB"; // ◯
+      }
+      return "\u2715"; // ✕
+    }
 
     private ImageIcon computeIcon(GeometryFunction func) {
       ImageIcon icon = unaryIcon;

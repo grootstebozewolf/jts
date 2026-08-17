@@ -38,7 +38,7 @@ public class BufferFunctions {
 	
 	public static String bufferDescription = "Buffers a geometry by a distance";
 	
-	@Metadata(description="Buffer a geometry by a distance")
+	@Metadata(description="Buffer a geometry by a distance", curveAwareness="passthrough")
   public static Geometry buffer(Geometry g, double distance)    {   return g.buffer(distance);  }
 
 	public static Geometry bufferWithParams(Geometry g, 

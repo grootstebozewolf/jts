@@ -130,6 +130,24 @@ public class CurvePolygon extends Polygon implements Linearizable {
   }
 
   /**
+   * V-CP (#1195): validity uses densified rings so arc self-intersections
+   * that are invisible on the control polygon are still detected. Chainsaw
+   * densify is maintainable here; analytical arc/arc self-intersection can
+   * replace this later without changing the public contract.
+   */
+  @Override
+  public boolean isValid() {
+    if (isEmpty()) {
+      return true;
+    }
+    Envelope env = getEnvelopeInternal();
+    double extent = Math.max(env.getWidth(), env.getHeight());
+    double tol = (extent > 0.0 ? extent : 1.0) * 1.0e-4;
+    Geometry flat = toLinear(tol);
+    return flat.isValid();
+  }
+
+  /**
    * Option-A structural accessor for interior rings, the counterpart to
    * {@link #getExteriorCurve()}. Returns the hole as supplied by the caller,
    * which may be a {@code CircularString}, {@code CompoundCurve},

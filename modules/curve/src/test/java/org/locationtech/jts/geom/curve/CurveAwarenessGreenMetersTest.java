@@ -270,4 +270,33 @@ public class CurveAwarenessGreenMetersTest extends TestCase {
         .reduce(cs, pm);
     assertTrue(red instanceof CircularString);
   }
+
+  public void test_V_CP() throws Exception {
+    Geometry disc = read(
+        "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0))");
+    assertTrue(disc.isValid());
+    Geometry crossed = read(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (0 0, 5 5, 10 0), (10 0, 0 5, 0 0)))");
+    assertFalse(crossed.isValid());
+  }
+
+  public void test_R_PR() throws Exception {
+    Geometry disc = read(
+        "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0))");
+    Geometry inside = read("POINT (0 0)");
+    Geometry outside = read("POINT (10 10)");
+    assertEquals("0F2FF1FF2", disc.relate(inside).toString());
+    assertEquals("FF2FF10F2", disc.relate(outside).toString());
+  }
+
+  public void test_N_SS() {
+    org.locationtech.jts.noding.CircularNodedSegmentString ss =
+        org.locationtech.jts.noding.CircularNodedSegmentString.arc(
+            new Coordinate(0, 0), new Coordinate(5, 5),
+            new Coordinate(10, 0), null);
+    assertEquals(org.locationtech.jts.noding.SegmentKind.ARC,
+        ss.getSegmentKind(0));
+    assertTrue(ss.isExact(0));
+    assertFalse(ss.mayCollapseToChord(0));
+  }
 }

@@ -156,7 +156,16 @@ public class StaticMethodGeometryFunction
 		super(category, name, description, parameterNames, parameterTypes, returnType);
     this.method = method;
     isRequiredB = extractRequiredB(method);
+    setCurveAwareness(extractCurveAwareness(method));
 	}
+
+  private static String extractCurveAwareness(Method method) {
+    Metadata meta = method.getAnnotation(Metadata.class);
+    if (meta == null) {
+      return "";
+    }
+    return meta.curveAwareness();
+  }
 
   public Object invoke(Geometry g, Object[] arg) 
   {

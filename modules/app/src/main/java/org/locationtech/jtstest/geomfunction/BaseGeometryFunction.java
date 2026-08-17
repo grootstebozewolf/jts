@@ -52,6 +52,7 @@ implements GeometryFunction, Comparable
 	protected Class[] parameterTypes;
 	protected Class returnType;
 	protected boolean isRequiredB = true;
+	protected String curveAwareness = "flattens";
 	
 	public BaseGeometryFunction(
 			String category,
@@ -125,6 +126,17 @@ implements GeometryFunction, Comparable
 
   public boolean isRequiredB() {
     return isRequiredB;
+  }
+
+  public String getCurveAwareness() {
+    return curveAwareness == null || curveAwareness.length() == 0
+        ? "flattens" : curveAwareness;
+  }
+
+  protected void setCurveAwareness(String level) {
+    if (level != null && level.length() > 0) {
+      this.curveAwareness = level;
+    }
   }
   
 	public String getSignature()
