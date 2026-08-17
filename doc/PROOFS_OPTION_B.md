@@ -1,23 +1,22 @@
 # Proofs Option B — predicate seam (B team)
 
-Sister of Proofs Option A (exact-arc laser). Phase-4 audit: abstract straight vs arc at the **predicate** layer; heavy noding/OverlayNG/snap stay concrete.
+Sister of Proofs Option A. Lane lock: B owns side + intersect only.
 
-## Maintainability layout
+## Round 2 layout (maintainability → precision → perf)
 
 | Type | Role |
 |------|------|
-| `OrientableSegment` | Slim interface (no densify on API) |
-| `StraightOrientableSegment` | Core `Orientation` / RLI parity |
-| `ArcOrientableSegment` | Robust tangent-frame side (`CGAlgorithmsDD.signOfDet2x2`) |
-| `ArcGeometry` | Single home for circle/sweep/intersect math |
-| `OrientableDensifyReference` | **Test-only** densify-chord oracle |
+| `OrientableSegment` | Slim interface |
+| `StraightOrientableSegment` | Core Orientation / RLI parity |
+| `ArcOrientableSegment` | Cached circle + `AngleBetween` sweep; filter→DD side |
+| `ArcGeometry` | One circumcircle + intersect home |
+| `AngleBetween` | Shared with A (Proofs #64 atan2(cross,dot)) |
+| `OrientableDensifyReference` | Test-only densify oracle |
 
-## Precision
+## Does not own
 
-- Straight: bit-identical to core.
-- Arc side: DD determinant on directed unit tangent × `(q−on)`.
-- Arc∩seg / arc∩arc: densifier quadratic + sweep (one implementation via `ArcGeometry`).
+A closed-form length / area / centroid cells (`ExactCircularArc`).
 
 ## Handover
 
-`PredicateOptionBMillionTrialTest` — N=1e6 · `doc/PROOFS_OPTION_B_HANDOVER.md`.
+`PredicateOptionBMillionTrialTest` · `doc/PROOFS_OPTION_B_HANDOVER.md`

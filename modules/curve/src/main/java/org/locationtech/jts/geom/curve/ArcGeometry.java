@@ -11,29 +11,32 @@
  */
 package org.locationtech.jts.geom.curve;
 
+import org.locationtech.jts.algorithm.exactarc.AngleBetween;
 import org.locationtech.jts.geom.Coordinate;
 
 /**
- * Thin exact-arc geometry helpers for the Proofs Option B predicate
- * seam. Keeps circle / sweep / intersect math in one place (same package
- * as {@link CircularArcDensifier}) so {@code OrientableSegment} carriers
- * stay small and do not re-implement quadratics.
+ * Thin arc helpers for the Proofs Option B predicate seam.
+ * Circumcircle = {@link CircularArcDensifier#circumcircle} (one
+ * determinant). Sweep = {@link AngleBetween} (shared with A-team).
+ * Intersect = densifier quadratic + sweep filter.
  * <p>
- * Not a noder. Not OverlayNG. Package-facing for jts-curve consumers.
+ * Not a noder. Not OverlayNG. Not Option A length/area cells.
  */
 public final class ArcGeometry {
 
   private ArcGeometry() { }
 
-  /** True when {@code start,mid,end} determine a non-degenerate circle. */
   public static boolean isCircular(Coordinate start, Coordinate mid,
       Coordinate end) {
-    return CircularArcDensifier.Circle.fromThreePoints(start, mid, end) != null;
+    return CircularArcDensifier.circumcircle(start, mid, end) != null;
   }
 
-  /**
-   * Nearest point on the arc window (or chord if colinear).
-   */
+  /** {@code {cx, cy, r}} or {@code null}. */
+  public static double[] circumcircle(Coordinate start, Coordinate mid,
+      Coordinate end) {
+    return CircularArcDensifier.circumcircle(start, mid, end);
+  }
+
   public static Coordinate nearestOnArc(Coordinate q, Coordinate start,
       Coordinate mid, Coordinate end) {
     return CircularArcDensifier.nearestPointOnArc(q, start, mid, end);
@@ -45,33 +48,7 @@ public final class ArcGeometry {
   }
 
   /**
-   * Unit tangent at {@code onArc} oriented along the directed sweep
-   * through {@code start → mid → end}. Returns {@code null} if the
-   * triple is not circular.
-   */
-  public static double[] directedTangentAt(Coordinate onArc, Coordinate start,
-      Coordinate mid, Coordinate end) {
-    CircularArcDensifier.Circle c =
-        CircularArcDensifier.Circle.fromThreePoints(start, mid, end);
-    if (c == null) {
-      return null;
-    }
-    boolean ccw = isCcw(c, start, mid, end);
-    double tx = -(onArc.y - c.cy);
-    double ty = onArc.x - c.cx;
-    if (!ccw) {
-      tx = -tx;
-      ty = -ty;
-    }
-    double len = Math.hypot(tx, ty);
-    if (len == 0.0) {
-      return null;
-    }
-    return new double[] { tx / len, ty / len };
-  }
-
-  /**
-   * Arc ∩ open segment, using the densifier quadratic + sweep filter.
+   * Arc ∩ segment via densifier quadratic + sweep.
    */
   public static boolean intersectsSegment(Coordinate a0, Coordinate a1,
       Coordinate a2, Coordinate s0, Coordinate s1) {
@@ -89,10 +66,6 @@ public final class ArcGeometry {
     return false;
   }
 
-  /**
-   * Arc ∩ arc via circle–circle nodes filtered to both sweeps
-   * (delegates to densifier twin of N-AA).
-   */
   public static boolean intersectsArc(Coordinate a0, Coordinate a1, Coordinate a2,
       Coordinate b0, Coordinate b1, Coordinate b2) {
     Coordinate[] nodes = CircularArcDensifier.intersectArcs(
@@ -100,49 +73,27 @@ public final class ArcGeometry {
     return nodes != null && nodes.length > 0;
   }
 
-  /**
-   * Sample the directed arc into {@code nChord} equal-angle steps
-   * (reference only — never flagged exact).
-   */
   public static Coordinate[] sampleArc(Coordinate start, Coordinate mid,
       Coordinate end, int nChord) {
-    CircularArcDensifier.Circle c =
-        CircularArcDensifier.Circle.fromThreePoints(start, mid, end);
-    if (c == null || nChord < 1) {
+    double[] circ = CircularArcDensifier.circumcircle(start, mid, end);
+    if (circ == null || nChord < 1) {
       return new Coordinate[] { start.copy(), end.copy() };
     }
-    boolean ccw = isCcw(c, start, mid, end);
-    double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
-    double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
-    double sweep = ccw ? normPos(a1 - a0) : -normPos(a0 - a1);
-    if (sweep == 0.0) {
-      sweep = ccw ? 2.0 * Math.PI : -2.0 * Math.PI;
-    }
+    double cx = circ[0];
+    double cy = circ[1];
+    double r = circ[2];
+    double a0 = Math.atan2(start.y - cy, start.x - cx);
+    double aMid = Math.atan2(mid.y - cy, mid.x - cx);
+    double a1 = Math.atan2(end.y - cy, end.x - cx);
+    boolean ccw = AngleBetween.isCcw(a0, aMid, a1);
+    double sweep = AngleBetween.directedSweepFromAngles(a0, aMid, a1);
+    double signed = ccw ? sweep : -sweep;
     Coordinate[] pts = new Coordinate[nChord + 1];
     for (int i = 0; i <= nChord; i++) {
       double t = (double) i / (double) nChord;
-      double ang = a0 + t * sweep;
-      pts[i] = new Coordinate(
-          c.cx + c.r * Math.cos(ang),
-          c.cy + c.r * Math.sin(ang));
+      double ang = a0 + t * signed;
+      pts[i] = new Coordinate(cx + r * Math.cos(ang), cy + r * Math.sin(ang));
     }
     return pts;
-  }
-
-  private static boolean isCcw(CircularArcDensifier.Circle c, Coordinate start,
-      Coordinate mid, Coordinate end) {
-    double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
-    double aM = Math.atan2(mid.y - c.cy, mid.x - c.cx);
-    double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
-    return normPos(aM - a0) < normPos(a1 - a0);
-  }
-
-  private static double normPos(double angle) {
-    double twoPi = 2.0 * Math.PI;
-    angle = angle % twoPi;
-    if (angle < 0.0) {
-      angle += twoPi;
-    }
-    return angle;
   }
 }
