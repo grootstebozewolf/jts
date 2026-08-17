@@ -12,9 +12,9 @@ Draft companion to [PR #61](https://github.com/grootstebozewolf/jts/pull/61) on 
 
 ## Shipped meter clusters (green)
 
-Option B + WKB 18–21 + OFF/BUF-*/VBF + DSF/TRI + N-AA/AL/N-SS + F-*/B-* + LRF-LEN/LOC + AT-S/NS + C-LIN/AREA/IP + S-* + OV + D-AA/OP + R-CONT/PR + V-CS/CP + PRC-SN + H-CC + PLG + TB-T/FN.
+Option B + WKB 18–21 + OFF/BUF-*/VBF + DSF/TRI + N-AA/AL/N-SS + F-*/B-* + LRF-LEN/LOC + AT-S/NS + C-LIN/AREA/IP + S-* + OV + D-AA/OP + R-CONT/PR + V-CS/CP + PRC-SN + H-CC + PLG + COV + TB-T/FN.
 
-Still red by design: **D-HF** (full TAG / general chord sight), **COV** (CoverageUnion must retain `CIRCULARSTRING` shared edges).
+Still red by design: **D-HF** (full TAG / general chord sight — apex closed-form exists; meter keeps `fail()`).
 
 ## Verify (smoke)
 
