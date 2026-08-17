@@ -55,3 +55,12 @@ Wired via `AutomationIds.set` → `Component.name` + `AccessibleContext.accessib
 
 ## Wired in Phase A
 Toolbar + WKT panel on this tree (includes curve draw tools).
+
+## Function panel (Phase B)
+
+| ID | Control |
+|---|---|
+| `jts.tb.fn.tree` | Function tree |
+| `jts.tb.fn.exec` | Compute |
+| `jts.tb.fn.execToNew` | Compute to new |
+| `jts.tb.fn.param.0`..`4` | Distance / qsegs / cap / join / mitre |
