@@ -12,7 +12,7 @@ JTS wordmark as curves plus a buffer halo (`logoLines` + `logoBuffer`: `toLinear
      not a laser. Do not caption a clothoid halo. #55 clothoidHalo is not
      this door. Do not commit mkt1_1920x1080.png as a clothoid. -->
 
-This fork treats SQL/MM ISO/IEC 13249-3 curve types 8–12 (`CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON`, `MULTICURVE`, `MULTISURFACE`) as first-class geometry. WKB/WKT ISO and EXTENDED Z/M/ZM landed in [#51](https://github.com/grootstebozewolf/jts/pull/51) (`CircularStringZ=1008`, …). Types 15–17 still unknown and throw. Core `WKBWriter` refuses to flatten 8–12. TestBuilder lives in `modules/app`.
+This fork treats SQL/MM ISO/IEC 13249-3 curve types 8–12 (`CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON`, `MULTICURVE`, `MULTISURFACE`) as first-class geometry, plus signed greenfield WKB **18–21** (`CRV-CLOTHOID`, `PRF-BEZIER`, `PRF-ELLIPSE`, `CRV-NURBS`). WKB/WKT ISO and EXTENDED Z/M/ZM landed in [#51](https://github.com/grootstebozewolf/jts/pull/51) (`CircularStringZ=1008`, …). Types 15–17 still unknown and throw. Core `WKBWriter` refuses to flatten curve types. TestBuilder lives in `modules/app`.
 
 ### User path
 
