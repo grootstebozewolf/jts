@@ -70,7 +70,8 @@ Draft off #7. SoT stays the fork; no upstream PR.
 | `feat:` | **HP.2 / HP.3** `CurveHotPixel` + `CurveHotPixelSnap` (PM-scale arc∩pixel; shared snapped ray stamp). | Not HP.4 faces; not core HotPixel rewrite. |
 | `arch:` | **`CurveSegmentDcel`** (P2.5.7) package-private for PLG/COV consumers. | PLG/COV TAGs still open. |
 | `fix:` | **TB-FN #60**: Exec prefers `currentFunc`; param focus cannot re-bind to `Buffer.buffer`. | Await UX SIGN on pin JAR. |
-| `fix:` | **VBF honesty**: TestBuilder `variableBuffer*` densifies via `CurveOps.linearise` (warn). | Full arc-length VBF meter stays. |
+| `fix:` | **VBF honesty**: TestBuilder `variableBuffer*` densifies via equal-arc-length `CurveOps.lineariseArcLength` (warn). | Full arc-preserving variable offsets meter stays. |
+| `feat:` | **DSF** shipped: `Densifier.densify` routes jts-curve types through `toLinear`. **TRI-DT / TRI-VR** shipped: `setSites` densifies curve-package geometries the same way. | Meters deleted. |
 | `test:` | **#56 locks**: `CurvePolygonToolTest` 16/16 — non-closing finish auto-closes to `CURVEPOLYGON`, Escape cancels with status, never silent empty / never `POLYGON` flatten. | HOLD issue close until PO UX SIGN. |
 
 ### 4.1 On #7 since the spike (historical tip `210f1b16`, still accurate for OV-P1 kits)
