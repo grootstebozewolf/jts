@@ -200,12 +200,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
 
   // test_C_AREA_curvePolygonCentroidSectorWeighted shipped — see CurveAwarenessGreenMetersTest
 
-  /** C-IP: InteriorPointArea picks a point provably inside the curved boundary. */
-  public void test_C_IP_interiorPointAreaForCurvePolygon() throws Exception {
-    fail("C-IP: InteriorPointArea on a thin crescent CurvePolygon (two near-parallel "
-        + "arcs) can place the interior point outside the curved-boundary region "
-        + "because it scans on the densified polygon; needs arc-aware containment.");
-  }
+  // test_C_IP_interiorPointAreaForCurvePolygon shipped — see CurveAwarenessGreenMetersTest
 
   // ============================================================
   // Validity
@@ -257,11 +252,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
 
   // test_LRF_LEN_lengthIndexedLineUsesArcLength shipped — see CurveAwarenessGreenMetersTest
 
-  /** LRF-LOC: LocationIndexedLine member-aware on CompoundCurve. */
-  public void test_LRF_LOC_locationIndexedLineMemberAware() throws Exception {
-    fail("LRF-LOC: LocationIndexedLine on a CompoundCurve must address member i, "
-        + "parameter t (arc-length within member); today members are flattened.");
-  }
+  // test_LRF_LOC_locationIndexedLineMemberAware shipped — see CurveAwarenessGreenMetersTest
 
   // ============================================================
   // Densifier
@@ -296,12 +287,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Snapping / Precision
   // ============================================================
 
-  /** PRC-SN: snap-to-grid for CircularString preserves arc when possible. */
-  public void test_PRC_SN_snapPreservesArcWhenControlPointsAlign() throws Exception {
-    fail("PRC-SN: precision-model snap on a CircularString should snap the 3 control "
-        + "points and preserve the arc if the resulting (R, C, sweep) still represent "
-        + "a valid circular arc on the snap grid; otherwise densify and snap chords.");
-  }
+  // test_PRC_SN_snapPreservesArcWhenControlPointsAlign shipped — see CurveAwarenessGreenMetersTest
 
   // ============================================================
   // TestBuilder integration

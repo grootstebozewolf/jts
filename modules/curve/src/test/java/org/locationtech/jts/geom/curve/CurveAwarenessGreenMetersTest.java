@@ -18,6 +18,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiPoint;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jts.linearref.LengthIndexedLine;
@@ -240,5 +241,33 @@ public class CurveAwarenessGreenMetersTest extends TestCase {
     java.awt.Shape s = w.toShape(cp);
     assertNotNull(s);
     assertFalse(s.getBounds2D().isEmpty());
+  }
+
+  public void test_LRF_LOC() throws Exception {
+    Geometry cc = read(
+        "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
+    org.locationtech.jts.linearref.LocationIndexedLine loc =
+        new org.locationtech.jts.linearref.LocationIndexedLine(cc);
+    org.locationtech.jts.linearref.LinearLocation ll = loc
+        .indexOf(new Coordinate(15, 5));
+    assertEquals(1, ll.getComponentIndex());
+  }
+
+  public void test_C_IP() throws Exception {
+    Geometry disc = read(
+        "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0))");
+    Coordinate ip = org.locationtech.jts.algorithm.InteriorPointArea
+        .getInteriorPoint(disc);
+    assertNotNull(ip);
+    assertTrue(disc.contains(disc.getFactory().createPoint(ip)));
+    assertTrue(Math.hypot(ip.x, ip.y) < 4.0);
+  }
+
+  public void test_PRC_SN() throws Exception {
+    Geometry cs = read("CIRCULARSTRING (0 0, 5 5, 10 0)");
+    PrecisionModel pm = new PrecisionModel(1.0);
+    Geometry red = org.locationtech.jts.precision.GeometryPrecisionReducer
+        .reduce(cs, pm);
+    assertTrue(red instanceof CircularString);
   }
 }
