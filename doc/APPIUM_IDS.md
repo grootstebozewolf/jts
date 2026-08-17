@@ -56,6 +56,11 @@ Wired via `AutomationIds.set` → `Component.name` + `AccessibleContext.accessib
 ## Wired in Phase A
 Toolbar + WKT panel on this tree (includes curve draw tools).
 
+## Seed: Appium click suite (hypothesis → golden → pr7)
+
+See `doc/appium-sequences/README.md`. First category: AffineTransformation.translate
+(`TB-AP-AFFINE-TRANSLATE`) — upstream polygon golden; pr7 disc/circle/half-moon playback.
+
 ## Seed: basics — 3-pt CircularString + Move (MMF)
 
 Curve analogue of upstream `draw.polygon` / `draw.lineString` then `mode.move`.
