@@ -44,9 +44,10 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
  * P2.4. A coincident leave-angle at a node (near-tangent) is
  * snap-rounding (P2.5.4): {@code faces} returns {@code null} and
  * {@link #missReason()} names {@link #TANGENT_LEAVE_ANGLE}.
- * Ordering those leaves needs HotPixel / ScaledNoder / core
- * {@code SegmentString} -- stamp and stop. Densify is never a
- * noder. Not P2.5.5.
+ * A local signed-curvature leave-angle order walks the wrong
+ * rings (HP.1 pin). Ordering those leaves needs HotPixel /
+ * ScaledNoder / core {@code SegmentString} -- stamp and stop.
+ * Densify is never a noder. Not P2.5.5.
  */
 final class CurveSegmentFaces {
 

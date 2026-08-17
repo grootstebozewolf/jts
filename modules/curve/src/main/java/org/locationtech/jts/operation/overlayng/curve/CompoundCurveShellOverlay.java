@@ -19,6 +19,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.MultiSurface;
@@ -39,7 +40,10 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * {@link TwoHoleOverlay} (two holes that cross on the same outer),
  * or a two-node walk vs a disc or plain polygon via
  * {@link TwoNodeClip}. A 0-node mixed shell vs a circular disc
- * ({@code CC-NEST-ANNULUS}) is not a punch. A miss is {@code null}.
+ * ({@code CC-NEST-ANNULUS}) is not a punch. A clothoid member is
+ * {@link ClothoidOverlay} (0-node identity / disjoint / nest) or
+ * a named Fresnel miss -- never a chord flatten. A miss is
+ * {@code null}.
  */
 final class CompoundCurveShellOverlay {
 
@@ -51,6 +55,9 @@ final class CompoundCurveShellOverlay {
    * not node.
    */
   static Geometry overlay(Geometry a, Geometry b, int opCode) {
+    if (ClothoidOverlay.hasClothoid(a) || ClothoidOverlay.hasClothoid(b)) {
+      return ClothoidOverlay.overlay(a, b, opCode);
+    }
     Geometry holeCell = SameOuterHoleOverlay.overlay(a, b, opCode);
     if (holeCell != null) {
       return holeCell;
@@ -119,6 +126,9 @@ final class CompoundCurveShellOverlay {
     boolean hasLine = false;
     for (int i = 0; i < cc.getNumMembers(); i++) {
       LineString m = cc.getMemberN(i);
+      if (m instanceof ClothoidSegment) {
+        return null;
+      }
       if (m instanceof CircularString) {
         hasArc = true;
       }
