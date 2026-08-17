@@ -64,3 +64,15 @@ Toolbar + WKT panel on this tree (includes curve draw tools).
 | `jts.tb.fn.exec` | Compute |
 | `jts.tb.fn.execToNew` | Compute to new |
 | `jts.tb.fn.param.0`..`4` | Distance / qsegs / cap / join / mitre |
+
+## Verification
+
+```bash
+# Headless-safe:
+mvn -pl modules/app -am test -Dtest=AutomationIdsTest,AutomationIdsWiringTest \
+  -Djava.awt.headless=true -Dcheckstyle.skip=true -Dpmd.skip=true
+
+# Full WKT panel IDs (needs display):
+xvfb-run -a mvn -pl modules/app -am test -Dtest=AutomationIdsWiringTest \
+  -Dcheckstyle.skip=true -Dpmd.skip=true
+```
