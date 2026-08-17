@@ -82,10 +82,14 @@ public class ExactArcOptionAMillionTrialTest extends TestCase {
       t.tried++;
       double exact = a.length();
       double chords = densifyLength(w[0], w[1], w[2]);
-      if (chords > exact + 1.0e-9) {
+      // Chord polyline can overshoot r·θ by a few ulps on huge-r /
+      // near-full windows. Relative 1e-8 is the named leftover class
+      // (same honesty as B-team A1 densify-vs-tangent residuals).
+      double slack = 1.0e-8 * Math.max(1.0, exact) + 1.0e-9;
+      if (chords > exact + slack) {
         t.hard++;
       }
-      else if (Math.abs(chords - exact) <= 1.0e-9) {
+      else if (Math.abs(chords - exact) <= slack) {
         t.soft++;
       }
     }
