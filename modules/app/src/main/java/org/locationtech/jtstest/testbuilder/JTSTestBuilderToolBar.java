@@ -26,6 +26,7 @@ import javax.swing.JToolBar;
 import javax.swing.SwingConstants;
 
 import org.locationtech.jtstest.testbuilder.controller.JTSTestBuilderController;
+import org.locationtech.jtstest.testbuilder.ui.AutomationIds;
 
 public class JTSTestBuilderToolBar {
 
@@ -117,6 +118,7 @@ public class JTSTestBuilderToolBar {
      * --------------------------------------------------
      */
     JButton previousButton = createButton(
+        AutomationIds.TOOLBAR_CASE_PREV,
         AppStrings.TIP_PREV, leftIcon,
         new java.awt.event.ActionListener() {
           public void actionPerformed(ActionEvent e) {
@@ -125,6 +127,7 @@ public class JTSTestBuilderToolBar {
           }
         });
     JButton nextButton = createButton(
+        AutomationIds.TOOLBAR_CASE_NEXT,
         AppStrings.TIP_NEXT, rightIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -133,6 +136,7 @@ public class JTSTestBuilderToolBar {
             }
           });
     JButton newButton = createButton(
+        AutomationIds.TOOLBAR_CASE_NEW,
         AppStrings.TIP_CASE_ADD_NEW, plusIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -140,6 +144,7 @@ public class JTSTestBuilderToolBar {
             }
           });
     JButton copyButton = createButton(
+        AutomationIds.TOOLBAR_CASE_COPY,
         AppStrings.TIP_CASE_DUP, copyCaseIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -147,6 +152,7 @@ public class JTSTestBuilderToolBar {
             }
           });
     JButton deleteButton = createButton(
+        AutomationIds.TOOLBAR_CASE_DELETE,
         AppStrings.TIP_CASE_DELETE, deleteIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -154,6 +160,7 @@ public class JTSTestBuilderToolBar {
             }
           });
     JButton oneToOneButton = createButton(
+        AutomationIds.TOOLBAR_ZOOM_ONE_TO_ONE,
         AppStrings.TIP_ZOOM_1_1, zoomOneToOneIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -161,6 +168,7 @@ public class JTSTestBuilderToolBar {
             }
           });
     JButton zoomToInputButton = createButton(
+        AutomationIds.TOOLBAR_ZOOM_INPUT,
         "Zoom To Input", zoomToInputIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -168,6 +176,7 @@ public class JTSTestBuilderToolBar {
             }
           });
     JButton zoomToInputAButton = createButton(
+        AutomationIds.TOOLBAR_ZOOM_INPUT_A,
         AppStrings.TIP_ZOOM_TO_A, zoomToInputAIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -175,6 +184,7 @@ public class JTSTestBuilderToolBar {
             }
           });
     JButton zoomToInputBButton = createButton(
+        AutomationIds.TOOLBAR_ZOOM_INPUT_B,
         AppStrings.TIP_ZOOM_TO_B, zoomToInputBIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -182,6 +192,7 @@ public class JTSTestBuilderToolBar {
             }
           });
     JButton zoomToResultButton = createButton(
+        AutomationIds.TOOLBAR_ZOOM_RESULT,
         AppStrings.TIP_ZOOM_TO_RESULT, zoomToResultIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -189,6 +200,7 @@ public class JTSTestBuilderToolBar {
             }
           });
     JButton zoomToFullExtentButton = createButton(
+        AutomationIds.TOOLBAR_ZOOM_FULL,
         AppStrings.TIP_ZOOM_TO_FULL_EXTENT, zoomToFullExtentIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -197,6 +209,7 @@ public class JTSTestBuilderToolBar {
           });
       
       drawRectangleButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_RECTANGLE,
           AppStrings.TIP_DRAW_RECTANGLE, drawRectangleIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -204,6 +217,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       drawPolygonButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_POLYGON,
           AppStrings.TIP_DRAW_POLY, drawPolygonIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -211,6 +225,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       drawLineStringButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_LINESTRING,
           AppStrings.TIP_DRAW_LINE, drawLineStringIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -218,6 +233,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       drawCircularStringButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_CIRCULARSTRING,
           AppStrings.TIP_DRAW_CIRCULAR, drawCircularStringIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -225,6 +241,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       drawCompoundCurveButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_COMPOUNDCURVE,
           AppStrings.TIP_DRAW_COMPOUNDCURVE, drawCompoundCurveIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -232,6 +249,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       drawCurvePolygonButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_CURVEPOLYGON,
           AppStrings.TIP_DRAW_CURVEPOLYGON, drawCurvePolygonIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -239,6 +257,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       drawTriangleButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_TRIANGLE,
           AppStrings.TIP_DRAW_TRIANGLE, drawTriangleIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -246,6 +265,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       drawTinButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_TIN,
           AppStrings.TIP_DRAW_TIN, drawTinIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -253,6 +273,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       drawPointButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_POINT,
           AppStrings.TIP_DRAW_POINT, drawPointIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -260,6 +281,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       infoButton = createToggleButton(
+          AutomationIds.TOOLBAR_INFO_MODE,
           AppStrings.TIP_INFO, infoIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -267,6 +289,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       zoomButton = createToggleButton(
+          AutomationIds.TOOLBAR_ZOOM_MODE,
           AppStrings.TIP_ZOOM, zoomIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -274,6 +297,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       panButton = createToggleButton(
+          AutomationIds.TOOLBAR_PAN_MODE,
           AppStrings.TIP_PAN, panIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -282,6 +306,7 @@ public class JTSTestBuilderToolBar {
           });
       
       btnEditVertex = createToggleButton(
+          AutomationIds.TOOLBAR_EDIT_VERTEX,
           AppStrings.TIP_MOVE_VERTEX, moveVertexIcon,
         new java.awt.event.ActionListener() {
           public void actionPerformed(ActionEvent e) {
@@ -290,6 +315,7 @@ public class JTSTestBuilderToolBar {
         });
 
       btnMove = createToggleButton(
+          AutomationIds.TOOLBAR_MODE_MOVE,
           AppStrings.TIP_MOVE, AppIcons.MOVE,
         new java.awt.event.ActionListener() {
           public void actionPerformed(ActionEvent e) {
@@ -298,6 +324,7 @@ public class JTSTestBuilderToolBar {
         });
 
       extractComponentButton = createToggleButton(
+          AutomationIds.TOOLBAR_EXTRACT_ELEMENTS,
           AppStrings.TIP_EXTRACT_ELEMENTS,
           new ImageIcon(this.getClass().getResource("ExtractComponent.png")), 
           new java.awt.event.ActionListener() {
@@ -308,6 +335,7 @@ public class JTSTestBuilderToolBar {
           });
       
       JToggleButton selectComponentButton = createToggleButton(
+          AutomationIds.TOOLBAR_SELECT_ELEMENTS,
           AppStrings.TIP_SELECT_ELEMENTS,
           new ImageIcon(this.getClass().getResource("Select.png")), 
           new java.awt.event.ActionListener() {
@@ -318,6 +346,7 @@ public class JTSTestBuilderToolBar {
           });
       
       deleteVertexButton = createToggleButton(
+          AutomationIds.TOOLBAR_DELETE_VERTEX,
           AppStrings.TIP_DELETE_VERTEX_ELEMENT,
           new ImageIcon(this.getClass().getResource("DeleteVertex.png")), 
           new java.awt.event.ActionListener() {
@@ -399,7 +428,7 @@ public class JTSTestBuilderToolBar {
     drawPointButton.setIcon(index == 0 ? drawPointIcon : drawPointBIcon);
   }
   
-  private static JToggleButton createToggleButton(String toolTipText, 
+  private static JToggleButton createToggleButton(String automationId, String toolTipText, 
       ImageIcon icon, 
       java.awt.event.ActionListener actionListener)
   {
@@ -416,10 +445,11 @@ public class JTSTestBuilderToolBar {
     btn.setMaximumSize(new Dimension(30, 30));
     btn.setFocusable(false);
     btn.addActionListener(actionListener);
+    AutomationIds.set(btn, automationId);
     return btn;
   }
   
-  private static JButton createButton(String toolTipText, 
+  private static JButton createButton(String automationId, String toolTipText, 
       ImageIcon icon, 
       java.awt.event.ActionListener actionListener)
   {
@@ -437,6 +467,7 @@ public class JTSTestBuilderToolBar {
     btn.addActionListener(actionListener);
     btn.setFocusable(false);
     btn.setFocusPainted(false);
+    AutomationIds.set(btn, automationId);
     return btn;
   }
   
