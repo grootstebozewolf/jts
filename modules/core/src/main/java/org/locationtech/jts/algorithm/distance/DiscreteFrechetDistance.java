@@ -79,8 +79,9 @@ public class DiscreteFrechetDistance {
 
   /**
    * True when {@link #distance(Geometry, Geometry)} uses a certified
-   * continuous closed form (two circular discs, or an endpoint-aligned
-   * minor circular arc over its chord) instead of the control-point matrix.
+   * continuous closed form (two circular discs, an endpoint-aligned
+   * minor circular arc over its chord, or two concentric full-circle
+   * rings) instead of the control-point matrix.
    *
    * @param g0 the 1st geometry
    * @param g1 the 2nd geometry
@@ -98,6 +99,9 @@ public class DiscreteFrechetDistance {
     if (isDiscType(t0) && isDiscType(t1)) {
       return DiscreteHausdorffDistance.circularDisc(g0) != null
           && DiscreteHausdorffDistance.circularDisc(g1) != null;
+    }
+    if ("CircularString".equals(t0) && "CircularString".equals(t1)) {
+      return fillConcentricCircularRings(g0, g1, null);
     }
     return false;
   }
@@ -169,9 +173,10 @@ public class DiscreteFrechetDistance {
   }
 
   /**
-   * Continuous Fréchet equals Hausdorff on the two certified pairs.
+   * Continuous Fréchet equals Hausdorff on the certified pairs.
    * Two discs reuse {@link DiscreteHausdorffDistance#circleToCircle}.
    * The aligned minor arc uses the sagitta of that same Hausdorff.
+   * Two concentric full-circle rings use {@code |R−r|}.
    */
   private boolean applyCertifiedClosedForm() {
     if (g0 == null || g1 == null) {
@@ -200,7 +205,49 @@ public class DiscreteFrechetDistance {
           db[0], db[1], db[2], da[0], da[1], da[2], ptDist);
       return true;
     }
+    if ("CircularString".equals(t0) && "CircularString".equals(t1)) {
+      ptDist = new PointPairDistance();
+      if (fillConcentricCircularRings(g0, g1, ptDist)) {
+        return true;
+      }
+      ptDist = null;
+      return false;
+    }
     return false;
+  }
+
+  /**
+   * M.5: two concentric full-circle {@code CircularString} rings.
+   * Continuous Fréchet equals Hausdorff equals {@code |R−r|}. Off-centre
+   * rings miss (not this cell). Control polylines of the same points
+   * stay on the discrete matrix.
+   *
+   * @param dest filled with a farthest pair when non-null
+   * @return {@code true} when the pair is certified
+   */
+  private static boolean fillConcentricCircularRings(Geometry a, Geometry b,
+      PointPairDistance dest) {
+    double[] ra = DiscreteHausdorffDistance.circularRing(a);
+    double[] rb = DiscreteHausdorffDistance.circularRing(b);
+    if (ra == null || rb == null) {
+      return false;
+    }
+    if (Math.hypot(ra[0] - rb[0], ra[1] - rb[1]) > 1.0e-9) {
+      return false;
+    }
+    if (dest == null) {
+      return true;
+    }
+    double cx = ra[0];
+    double cy = ra[1];
+    // Farthest pair: outer point and its radial projection on the inner.
+    double rOut = Math.max(ra[2], rb[2]);
+    double rIn = Math.min(ra[2], rb[2]);
+    Coordinate outer = new Coordinate(cx + rOut, cy);
+    Coordinate inner = new Coordinate(cx + rIn, cy);
+    dest.initialize();
+    dest.setMaximum(outer, inner);
+    return true;
   }
 
   private static boolean isArcSegmentTypePair(String t0, String t1) {

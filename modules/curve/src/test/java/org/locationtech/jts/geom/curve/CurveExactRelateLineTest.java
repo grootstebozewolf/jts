@@ -144,10 +144,11 @@ public class CurveExactRelateLineTest extends GeometryTestCase {
     assertNull("two members are not this cell", CurveExact.relate(disc, multi));
   }
 
-  public void testNotADiscReturnsNull() throws Exception {
+  public void testHalfDiscLineDiameterExtentIsBoundaryRun() throws Exception {
+    // CROSS lies on the diameter line — BI=1 run, not the disc secant II=1.
     Geometry half = readCurve(HALF_DISC);
     Geometry line = readCurve(CROSS);
-    assertNull(CurveExact.relate(half, line));
+    assertEquals("FF21F1102", CurveExact.relate(half, line).toString());
   }
 
   /**

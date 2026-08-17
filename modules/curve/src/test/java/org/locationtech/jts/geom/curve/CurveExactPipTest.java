@@ -103,12 +103,14 @@ public class CurveExactPipTest extends GeometryTestCase {
     assertFalse(disc.covers(pts));
   }
 
-  public void testNotADiscReturnsNull() throws Exception {
+  public void testHalfDiscPuntalIsR2() throws Exception {
     Geometry half = readCurve(HALF_DISC);
-    Geometry p = readCurve("POINT (3 3)");
-    assertNull("half-disc is not a circular disc",
-        CurveExact.contains(half, p));
-    assertNull(CurveExact.covers(half, p));
+    Geometry inside = readCurve("POINT (3 3)");
+    Geometry below = readCurve("POINT (0 -2)");
+    assertEquals(Boolean.TRUE, CurveExact.contains(half, inside));
+    assertEquals(Boolean.TRUE, CurveExact.covers(half, inside));
+    assertEquals(Boolean.FALSE, CurveExact.contains(half, below));
+    assertEquals(Boolean.FALSE, CurveExact.covers(half, below));
   }
 
   public void testNotPuntalReturnsNull() throws Exception {

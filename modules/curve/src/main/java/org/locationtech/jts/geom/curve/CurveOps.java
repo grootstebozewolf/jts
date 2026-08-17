@@ -11,6 +11,7 @@
  */
 package org.locationtech.jts.geom.curve;
 
+import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -223,38 +224,7 @@ public final class CurveOps {
     if (t >= 1.0) {
       return new Coordinate(b);
     }
-    CircularArcDensifier.Circle c = CircularArcDensifier.Circle.fromThreePoints(
-        a, mid, b);
-    if (c == null) {
-      return new Coordinate(
-          a.x + t * (b.x - a.x), a.y + t * (b.y - a.y));
-    }
-    double a0 = Math.atan2(a.y - c.cy, a.x - c.cx);
-    double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
-    double a1 = Math.atan2(b.y - c.cy, b.x - c.cx);
-    boolean ccw = midInCcwSweep(a0, aMid, a1);
-    double sweep = signedSweep(a0, a1, ccw);
-    double ang = a0 + (ccw ? sweep : -sweep) * t;
-    return new Coordinate(c.cx + c.r * Math.cos(ang), c.cy + c.r * Math.sin(ang));
-  }
-
-  private static boolean midInCcwSweep(double a0, double aMid, double a1) {
-    double toMid = normPos(aMid - a0);
-    double toEnd = normPos(a1 - a0);
-    return toMid <= toEnd + 1.0e-15;
-  }
-
-  private static double signedSweep(double a0, double a1, boolean ccw) {
-    double d = ccw ? normPos(a1 - a0) : normPos(a0 - a1);
-    return d == 0.0 ? 2.0 * Math.PI : d;
-  }
-
-  private static double normPos(double a) {
-    double t = a % (2.0 * Math.PI);
-    if (t < 0) {
-      t += 2.0 * Math.PI;
-    }
-    return t;
+    return new ExactCircularArc(a, mid, b).pointAt(t);
   }
 
   private static Coordinate pointAlongLine(LineString ls, double s) {

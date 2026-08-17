@@ -17,7 +17,7 @@
 > Assisted-by: Cursor Grok (grok-4.6)
 > ```
 
-**Status:** Draft v6 MMF Option B (2026-08-17). Tip `d62f8726` · [LASER_RATCHET.md](doc/LASER_RATCHET.md) · [OVERLAYNGCURVE_P2_SEAMS.md](doc/OVERLAYNGCURVE_P2_SEAMS.md).
+**Status:** Draft v6 MMF Option B (2026-08-17). Tip `c956b50d` · M.5→ML.2→HP.4→N-SS expand **stop** · [LASER_RATCHET.md](doc/LASER_RATCHET.md) · [CHAINSAW_LASER_PROGRAM.md](doc/CHAINSAW_LASER_PROGRAM.md) · [OVERLAYNGCURVE_P2_SEAMS.md](doc/OVERLAYNGCURVE_P2_SEAMS.md).
 **Source:** Parent epic [locationtech/jts#1195](https://github.com/locationtech/jts/issues/1195). Fork SoT [grootstebozewolf/jts#7](https://github.com/grootstebozewolf/jts/pull/7) `feature/sfa-curve-rgr`. MMF draft [grootstebozewolf/jts#61](https://github.com/grootstebozewolf/jts/pull/61) `cursor/jts-issue-1195-c5d1` — Option B `SegmentKind`, no-silent-linearize strategy, WKB 18–21 greenfield, OFF/BUF/VBF/COV/H-CC/PLG + TB-FN badges. Slack still 15%. No upstream locationtech PR until dr-jts engages.
 **Origin (historical):** [`feature/sfa-curve-buffer-spike`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-buffer-spike) — Draft v3 of this epic and the 49-method spec class. Draft v5 (2026-08-16) described #7 @ `210f1b16` with OV-P1 kits; Bar 2 stayed off #7 until this MMF fold.
 **Audience:** locationtech/jts maintainers and contributors. Lift verbatim into a GitHub Epic / Discussion.

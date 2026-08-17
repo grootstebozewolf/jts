@@ -54,6 +54,13 @@ final class CurveSegmentFaces {
   /** Named stamp: coincident leave-angle. Snap-rounding, not a walk. */
   static final String TANGENT_LEAVE_ANGLE = "P2.5.4 tangent leave-angle";
 
+  /**
+   * HP.4: coincident leave-angles whose snapped pixel exits share one
+   * lattice heading. Stamp and stop — same stop as P2.5.4, named via
+   * {@link CurveHotPixelSnap#SHARED_SNAPPED_RAY}. Not a face walk.
+   */
+  static final String SHARED_SNAPPED_RAY = CurveHotPixelSnap.SHARED_SNAPPED_RAY;
+
   private static final double ANGLE_EPS = 1.0e-8;
 
   private static String missReason;
@@ -170,8 +177,7 @@ final class CurveSegmentFaces {
 
     List<Vertex> verts = indexByStart(halves, pool, eps);
     if (verts == null) return null;
-    if (hasCoincidentLeave(verts)) {
-      missReason = TANGENT_LEAVE_ANGLE;
+    if (hasCoincidentLeave(verts, scale)) {
       return null;
     }
 
@@ -409,21 +415,59 @@ final class CurveSegmentFaces {
 
   /**
    * Two different pieces leaving at the same angle are a tangent.
-   * Ordering them is snap-rounding (P2.5.4). Stamp and stop.
+   * HP.4: snap leave exits onto grid headings. Shared snapped ray →
+   * {@link #SHARED_SNAPPED_RAY} stamp. Differing headings are not a
+   * stamp (walk may continue). Snap miss keeps {@link #TANGENT_LEAVE_ANGLE}.
+   * Never a curvature-order tie-break.
    */
-  private static boolean hasCoincidentLeave(List<Vertex> verts) {
+  private static boolean hasCoincidentLeave(List<Vertex> verts, double scale) {
     boolean hit = false;
     for (int i = 0; i < verts.size() && !hit; i++) {
-      List<Half> out = verts.get(i).out;
+      Vertex v = verts.get(i);
+      List<Half> out = v.out;
       for (int j = 0; j < out.size() && !hit; j++) {
         Half a = out.get(j);
         Half b = out.get((j + 1) % out.size());
         if (a != b && angleDiff(a.leaveAngle, b.leaveAngle) < ANGLE_EPS) {
-          hit = true;
+          String snap = sharedSnappedRayOrNull(v.pt, a.piece, b.piece, scale);
+          if (SHARED_SNAPPED_RAY.equals(snap)) {
+            missReason = SHARED_SNAPPED_RAY;
+            hit = true;
+          }
+          else if (snap == null && headingsExistAndDiffer(v.pt, a.piece, b.piece, scale)) {
+            // Distinct snapped headings: not a P2.5.4 / HP.4 stamp.
+            continue;
+          }
+          else {
+            missReason = TANGENT_LEAVE_ANGLE;
+            hit = true;
+          }
         }
       }
     }
     return hit;
+  }
+
+  private static String sharedSnappedRayOrNull(Coordinate node,
+      CurveSegmentString leaveA, CurveSegmentString leaveB, double scale) {
+    if (scale <= 0.0) {
+      return null;
+    }
+    CurveHotPixel pixel = new CurveHotPixel(node, scale);
+    CurveHotPixelSnap.Heading ha = CurveHotPixelSnap.heading(pixel, leaveA);
+    CurveHotPixelSnap.Heading hb = CurveHotPixelSnap.heading(pixel, leaveB);
+    return CurveHotPixelSnap.sharedRayOrNull(ha, hb);
+  }
+
+  private static boolean headingsExistAndDiffer(Coordinate node,
+      CurveSegmentString leaveA, CurveSegmentString leaveB, double scale) {
+    if (scale <= 0.0) {
+      return false;
+    }
+    CurveHotPixel pixel = new CurveHotPixel(node, scale);
+    CurveHotPixelSnap.Heading ha = CurveHotPixelSnap.heading(pixel, leaveA);
+    CurveHotPixelSnap.Heading hb = CurveHotPixelSnap.heading(pixel, leaveB);
+    return ha != null && hb != null && !ha.equals(hb);
   }
 
   private static List<LineString> walkRing(Half start, double eps,

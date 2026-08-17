@@ -111,10 +111,10 @@ public class CurveExactRelateTest extends GeometryTestCase {
         CurveExact.relate(disc, mixed));
   }
 
-  public void testNotADiscReturnsNull() throws Exception {
+  public void testHalfDiscPointIsR2NotNull() throws Exception {
     Geometry half = readCurve(HALF_DISC);
     Geometry p = readCurve("POINT (3 3)");
-    assertNull(CurveExact.relate(half, p));
+    assertEquals(IM_IN, CurveExact.relate(half, p).toString());
   }
 
   /**

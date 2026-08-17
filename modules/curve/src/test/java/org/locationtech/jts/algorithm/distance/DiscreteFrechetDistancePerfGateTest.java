@@ -126,4 +126,15 @@ public class DiscreteFrechetDistancePerfGateTest extends GeometryTestCase {
         () -> DiscreteFrechetDistance.distance(line, seg),
         () -> DiscreteFrechetDistance.distance(line, seg));
   }
+
+  /** M.5: concentric rings continuous closed form. */
+  public void testConcentricRingsNotSlowerThanControlPoints() throws Exception {
+    Geometry outer = readCurve(
+        "CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0)");
+    Geometry inner = readCurve(
+        "CIRCULARSTRING (-3 0, 0 3, 3 0, 0 -3, -3 0)");
+    assertLaserNotSlower("Frechet concentric rings",
+        () -> DiscreteFrechetDistance.distance(outer, inner),
+        () -> controlPointDistance(outer, inner));
+  }
 }

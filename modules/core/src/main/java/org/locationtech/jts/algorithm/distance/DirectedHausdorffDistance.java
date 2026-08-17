@@ -327,6 +327,13 @@ public class DirectedHausdorffDistance {
     if (isBeyond(geom.getEnvelopeInternal(), target.getEnvelopeInternal(), maxDistance))
       return false;
 
+    // M.3: certified Curve* pairs use the exact oriented distance (arc /
+    // disc), not densified control polylines.
+    Coordinate[] exact = DiscreteHausdorffDistance.exactOrientedPoints(geom, target);
+    if (exact != null) {
+      return distance(exact) <= maxDistance;
+    }
+
     Coordinate[] maxDistCoords = computeDistancePoints(geom, tolerance, maxDistance);
     //-- handle empty case
     if (maxDistCoords == null)

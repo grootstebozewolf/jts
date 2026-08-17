@@ -177,7 +177,24 @@ public class OverlayNGCircleTest extends GeometryTestCase {
         readCurve(STADIUM_ODD)
     };
     assertNull(CurveSegmentFaces.faces(geoms));
-    assertEquals(CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
+    assertEquals(CurveSegmentFaces.SHARED_SNAPPED_RAY,
         CurveSegmentFaces.missReason());
+  }
+
+  /**
+   * Deliberate Option-B expand: proper two-shell crossing (no MIXED)
+   * nodes on CircularNodedSegmentString then TwoShellClip assemble.
+   */
+  public void testProperCrossingTwoShellIsExactViaNoder() throws Exception {
+    Geometry half = readCurve(HALF_DISC);
+    Geometry hanging = readCurve(HALF_HANGING);
+    Geometry viaCircle = OverlayNGCircle.overlay(half, hanging,
+        OverlayNG.INTERSECTION);
+    assertNotNull("Option-B expand owns half×hanging CAP", viaCircle);
+    OverlayNGCurve op = new OverlayNGCurve(half, hanging);
+    Geometry laser = op.getResult(OverlayNG.INTERSECTION);
+    assertFalse("public OverlayNGCurve stays laser", op.isApproximate());
+    assertEquals(viaCircle.getArea(), laser.getArea(), EXACT);
+    assertEquals(8.17505543966422, laser.getArea(), 1.0e-9);
   }
 }

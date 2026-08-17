@@ -28,8 +28,10 @@ import org.locationtech.jts.geom.Polygon;
  * Collections are flattened. Each component is measured with the
  * metric that matches its kind: Euclidean for points, facet /
  * interior-zero for linear rings and polygons, point-to-arc for
- * {@code CircularString} windows, and the closed disc formulas for
- * a circular disc (filled) or a full-circle ring (circumference).
+ * {@code CircularString} windows, the closed disc formulas for
+ * a circular disc (filled) or a full-circle ring (circumference),
+ * and <b>ML.4 filled assembly</b> for a hole-free {@code CurvePolygon}
+ * shell (interior distance 0; exterior = min over shell arcs/segments).
  * A {@code CompoundCurve} is the min over its members.
  * <p>
  * Package-private on purpose: not a user-facing type. Detection uses
@@ -122,7 +124,14 @@ class ObstacleDistance {
       return;
     }
     if ("CurvePolygon".equals(type)) {
-      flatten(g.getBoundary());
+      Polygon poly = (Polygon) g;
+      if (poly.getNumInteriorRing() > 0) {
+        // Holed: named miss for filled assembly — boundary only.
+        flatten(g.getBoundary());
+        return;
+      }
+      // ML.4: hole-free shell is a filled obstacle (interior distance 0).
+      components.add(new FilledCurvePolygonComponent(g));
       return;
     }
     if (g instanceof Point) {
@@ -216,6 +225,57 @@ class ObstacleDistance {
 
     public Coordinate nearestOnObstacle(Point pt, Coordinate q) {
       return index.nearestPoints(pt)[0];
+    }
+  }
+
+  /**
+   * Hole-free {@code CurvePolygon}: interior is distance 0 (filled),
+   * exterior is the min typed distance to the shell (arcs + segments).
+   * PIP uses {@link Geometry#covers(Geometry)} so CurveExact half-disc /
+   * disc cells answer without a core→curve import. Shell members are
+   * assembled the same way as a standalone CompoundCurve / CircularString.
+   * Proofs #474 candidate classes stay exhaustive; this is assembly, not
+   * a new theorem. Holed shells are not this component.
+   */
+  private static final class FilledCurvePolygonComponent implements Component {
+    private final Geometry polygon;
+    private final List<Component> shell = new ArrayList<Component>();
+
+    FilledCurvePolygonComponent(Geometry polygon) {
+      this.polygon = polygon;
+      ObstacleDistance boundary = new ObstacleDistance(polygon.getBoundary());
+      this.shell.addAll(boundary.components);
+    }
+
+    public double distance(Point pt, Coordinate q) {
+      if (polygon.covers(pt)) {
+        return 0.0;
+      }
+      double min = Double.POSITIVE_INFINITY;
+      for (int i = 0; i < shell.size(); i++) {
+        double d = shell.get(i).distance(pt, q);
+        if (d < min) {
+          min = d;
+        }
+      }
+      return min;
+    }
+
+    public Coordinate nearestOnObstacle(Point pt, Coordinate q) {
+      if (polygon.covers(pt)) {
+        return q.copy();
+      }
+      double min = Double.POSITIVE_INFINITY;
+      Coordinate best = q;
+      for (int i = 0; i < shell.size(); i++) {
+        Coordinate cand = shell.get(i).nearestOnObstacle(pt, q);
+        double d = q.distance(cand);
+        if (d < min) {
+          min = d;
+          best = cand;
+        }
+      }
+      return best;
     }
   }
 

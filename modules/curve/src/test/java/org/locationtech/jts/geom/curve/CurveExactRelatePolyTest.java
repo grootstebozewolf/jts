@@ -140,7 +140,8 @@ public class CurveExactRelatePolyTest extends GeometryTestCase {
     assertNull("holes are not this cell", CurveExact.relate(disc, holed));
   }
 
-  public void testNotADiscReturnsNull() throws Exception {
+  public void testHalfDiscVsPolygonStillNull() throws Exception {
+    // R.2 covers Point / Line / same-circle disc; plain polygon stays chainsaw.
     Geometry half = readCurve(HALF_DISC);
     Geometry inner = readCurve(NESTED);
     assertNull(CurveExact.relate(half, inner));

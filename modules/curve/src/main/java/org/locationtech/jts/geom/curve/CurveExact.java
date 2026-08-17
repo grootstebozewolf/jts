@@ -590,61 +590,291 @@ final class CurveExact {
   }
 
   /**
-   * SFS {@code contains} of a Point or MultiPoint in a circular disc, or
-   * {@code null} if this pair is not that shape. Cheap check first.
-   * <p>
-   * For disc centre {@code C}, radius {@code r}, query {@code P},
-   * {@code d² = |P−C|²}:
-   * <ul>
-   * <li>{@code d² < r²} -- interior -- {@code true}</li>
-   * <li>{@code d² == r²} -- boundary -- {@code false} (geometries do not
-   *     contain their boundary)</li>
-   * <li>{@code d² > r²} -- exterior -- {@code false}</li>
-   * </ul>
-   * A MultiPoint is contained only when every member is interior.
-   */
-  static Boolean contains(Geometry curve, Geometry other) {
-    return discPuntal(curve, other, false);
-  }
-
-  /**
-   * SFS {@code covers} of a Point or MultiPoint by a circular disc, or
-   * {@code null} if this pair is not that shape. Same {@code d²} test as
-   * {@link #contains}; the boundary ({@code d² == r²}) is covered.
+   * SFS {@code covers} of a Point or MultiPoint by a circular disc or
+   * certified half-disc, or {@code null} if this pair is not that shape.
+   * Same locate test as {@link #contains}; the boundary is covered.
    */
   static Boolean covers(Geometry curve, Geometry other) {
-    return discPuntal(curve, other, true);
+    Boolean disc = discPuntal(curve, other, true);
+    if (disc != null) return disc;
+    return halfPuntal(curve, other, true);
   }
 
   /**
-   * SFS DE-9IM of a circular disc vs a Point, a uniform MultiPoint, a
-   * LineString (or a single-member MultiLineString), a second circular
-   * disc, or a plain Polygon (no holes, no curve rings). {@code null}
-   * if this pair is not that shape. Puntal reuses {@link #locatePoint};
-   * lineal and polygonal use
-   * {@link CircularArcDensifier#intersectSegmentCircle}
-   * ({@code t ∈ [0,1]}, the R1.6 / {@code ARC_SEGMENT_XY} quadratic)
-   * plus endpoint / vertex location. Two discs classify in {@code R²}
-   * ({@code d²} vs {@code (r1±r2)²}); the kiss coordinates are not
-   * needed for the matrix. A polygonal miss also samples
-   * mid-arc points in the polygon (jts-core PIP). Mixed MultiPoint
-   * location classes, a multi-member MultiLineString or MultiSurface,
-   * a holed or non-disc curve polygon return {@code null} so the caller
-   * linearises rather than guessing. A single-member MultiSurface of a
-   * disc unwraps through {@link #circularDisc}.
+   * SFS {@code contains} of a Point or MultiPoint by a circular disc or
+   * certified half-disc, or {@code null}. Boundary is not contained
+   * ({@code d² == r²} / half boundary → false). A MultiPoint is
+   * contained only when every member is interior.
+   */
+  static Boolean contains(Geometry curve, Geometry other) {
+    Boolean disc = discPuntal(curve, other, false);
+    if (disc != null) return disc;
+    return halfPuntal(curve, other, false);
+  }
+
+  private static Boolean halfPuntal(Geometry curve, Geometry other,
+      boolean cover) {
+    HalfDisc half = HalfDisc.of(curve);
+    if (half == null || !isPuntal(other)) return null;
+    int n = other.getNumGeometries();
+    boolean anyInterior = false;
+    for (int i = 0; i < n; i++) {
+      Geometry g = other.getGeometryN(i);
+      if (!(g instanceof Point) || g.isEmpty()) return null;
+      int loc = half.locate(((Point) g).getCoordinate());
+      if (loc == Location.EXTERIOR) return Boolean.FALSE;
+      if (loc == Location.BOUNDARY) {
+        if (!cover) return Boolean.FALSE;
+      } else {
+        anyInterior = true;
+      }
+    }
+    if (!cover && !anyInterior) return Boolean.FALSE;
+    return Boolean.TRUE;
+  }
+
+  /**
+   * SFS DE-9IM of a circular disc, a certified half-disc, or a single
+   * open circular arc vs a Point / uniform MultiPoint / LineString /
+   * second disc / plain Polygon. {@code null} if this pair is not that
+   * shape. Puntal reuses locate; lineal and polygonal use
+   * {@link CircularArcDensifier#intersectSegmentCircle}. Half-disc and
+   * open-arc cells are R.2; full-disc cells are R.0 / R-PR.
    */
   static IntersectionMatrix relate(Geometry curve, Geometry other) {
     if (curve == null || other == null || other.isEmpty()) return null;
+
     CircularArcDensifier.Circle disc = circularDisc(curve);
-    if (disc == null) return null;
-    if (isPuntal(other)) return relatePuntal(disc, other);
-    LineString line = plainLine(other);
-    if (line != null) return relateLine(disc, line);
-    CircularArcDensifier.Circle otherDisc = circularDisc(other);
-    if (otherDisc != null) return relateDisc(disc, otherDisc);
-    Polygon poly = plainPolygon(other);
-    if (poly != null) return relatePolygon(disc, poly);
+    if (disc != null) {
+      if (isPuntal(other)) return relatePuntal(disc, other);
+      LineString line = plainLine(other);
+      if (line != null) return relateLine(disc, line);
+      CircularArcDensifier.Circle otherDisc = circularDisc(other);
+      if (otherDisc != null) return relateDisc(disc, otherDisc);
+      Polygon poly = plainPolygon(other);
+      if (poly != null) return relatePolygon(disc, poly);
+      // Disc vs half-disc: answer from the half side when possible.
+      HalfDisc otherHalf = HalfDisc.of(other);
+      if (otherHalf != null) return relateDiscHalf(disc, otherHalf);
+      return null;
+    }
+
+    HalfDisc half = HalfDisc.of(curve);
+    if (half != null) {
+      if (isPuntal(other)) return relateHalfPuntal(half, other);
+      LineString line = plainLine(other);
+      if (line != null) return relateHalfLine(half, line);
+      CircularArcDensifier.Circle otherDisc = circularDisc(other);
+      if (otherDisc != null) return relateHalfToDisc(half, otherDisc);
+      return null;
+    }
+
+    if (curve instanceof CircularString) {
+      CircularString cs = (CircularString) curve;
+      if (isSingleOpenArc(cs) && isPuntal(other)) {
+        return relateOpenArcPuntal(cs, other);
+      }
+    }
     return null;
+  }
+
+  private static boolean isSingleOpenArc(CircularString cs) {
+    return isSingleArc(cs) && !cs.isClosed();
+  }
+
+  private static IntersectionMatrix relateHalfPuntal(HalfDisc half,
+      Geometry other) {
+    int loc = -1;
+    int n = other.getNumGeometries();
+    for (int i = 0; i < n; i++) {
+      Geometry g = other.getGeometryN(i);
+      if (!(g instanceof Point) || g.isEmpty()) return null;
+      int li = half.locate(((Point) g).getCoordinate());
+      if (loc < 0) loc = li;
+      else if (li != loc) return null;
+    }
+    if (loc < 0) return null;
+    if (loc == Location.INTERIOR) return new IntersectionMatrix(IM_POINT_INTERIOR);
+    if (loc == Location.BOUNDARY) return new IntersectionMatrix(IM_POINT_BOUNDARY);
+    return new IntersectionMatrix(IM_POINT_EXTERIOR);
+  }
+
+  /**
+   * Half-disc vs straight-edged line. Half-disc is convex. A segment
+   * that lies on the diameter (or arc) is a 1-d boundary∩line-interior
+   * meeting — BI={@code 1}, unlike a circle where nodes are points.
+   */
+  private static IntersectionMatrix relateHalfLine(HalfDisc half,
+      LineString line) {
+    Coordinate[] c = line.getCoordinates();
+    if (c.length < 2) return null;
+    boolean closed = line.isClosed();
+    Coordinate first = c[0];
+    Coordinate last = c[c.length - 1];
+
+    boolean ii = false;
+    boolean ib = false;
+    boolean bi0 = false;
+    boolean bi1 = false;
+    boolean bb = false;
+    boolean ei = false;
+    boolean eb = false;
+
+    if (!closed) {
+      int loc0 = half.locate(first);
+      int locN = half.locate(last);
+      if (loc0 == Location.INTERIOR || locN == Location.INTERIOR) ib = true;
+      if (loc0 == Location.BOUNDARY || locN == Location.BOUNDARY) bb = true;
+      if (loc0 == Location.EXTERIOR || locN == Location.EXTERIOR) eb = true;
+    }
+
+    boolean anySeg = false;
+    CircularArcDensifier.Circle disc = half.circle;
+    for (int i = 1; i < c.length; i++) {
+      Coordinate a = c[i - 1];
+      Coordinate bpt = c[i];
+      if (a.equals2D(bpt)) continue;
+      anySeg = true;
+      int locA = half.locate(a);
+      int locB = half.locate(bpt);
+      Coordinate mid = new Coordinate(0.5 * (a.x + bpt.x), 0.5 * (a.y + bpt.y));
+      int locM = half.locate(mid);
+      if (overlapsDiameter(half, a, bpt)) {
+        bi1 = true;
+      }
+      Coordinate[] hits = CircularArcDensifier.intersectSegmentCircle(disc, a, bpt);
+      boolean hitInterior = false;
+      for (int h = 0; h < hits.length; h++) {
+        int lh = half.locate(hits[h]);
+        if (lh == Location.BOUNDARY
+            && hitIsLineInterior(hits[h], first, last, closed)) {
+          bi0 = true;
+        } else if (lh == Location.INTERIOR) {
+          hitInterior = true;
+        }
+      }
+      if (locA == Location.INTERIOR || locB == Location.INTERIOR
+          || locM == Location.INTERIOR || hitInterior) {
+        ii = true;
+      }
+      if (locA == Location.EXTERIOR || locB == Location.EXTERIOR
+          || locM == Location.EXTERIOR) {
+        ei = true;
+      }
+    }
+    if (!anySeg) return null;
+    char bi = bi1 ? '1' : (bi0 ? '0' : 'F');
+    return new IntersectionMatrix(""
+        + (ii ? '1' : 'F') + (ib ? '0' : 'F') + '2'
+        + bi + (bb ? '0' : 'F') + '1'
+        + (ei ? '1' : 'F') + (eb ? '0' : 'F') + '2');
+  }
+
+  /**
+   * True when {@code ab} shares a positive-length colinear run with the
+   * half-disc diameter.
+   */
+  private static boolean overlapsDiameter(HalfDisc half, Coordinate a,
+      Coordinate b) {
+    Coordinate d0 = half.a;
+    Coordinate d1 = half.b;
+    double dx = d1.x - d0.x;
+    double dy = d1.y - d0.y;
+    double len2 = dx * dx + dy * dy;
+    if (len2 == 0.0) return false;
+    // Both endpoints of ab must be on the diameter line (not necessarily segment).
+    double crossA = dx * (a.y - d0.y) - dy * (a.x - d0.x);
+    double crossB = dx * (b.y - d0.y) - dy * (b.x - d0.x);
+    if (Math.abs(crossA) > 1.0e-9 || Math.abs(crossB) > 1.0e-9) return false;
+    double tA = ((a.x - d0.x) * dx + (a.y - d0.y) * dy) / len2;
+    double tB = ((b.x - d0.x) * dx + (b.y - d0.y) * dy) / len2;
+    double lo = Math.min(tA, tB);
+    double hi = Math.max(tA, tB);
+    double overlap = Math.min(hi, 1.0) - Math.max(lo, 0.0);
+    return overlap > 1.0e-12;
+  }
+
+  /**
+   * Half-disc vs full disc. Same circle → coveredBy with diameter in
+   * disc interior ({@code 2FF11F212}). Other pairs null → linearise.
+   */
+  private static IntersectionMatrix relateHalfToDisc(HalfDisc half,
+      CircularArcDensifier.Circle disc) {
+    if (Math.hypot(half.circle.cx - disc.cx, half.circle.cy - disc.cy) > 1.0e-9
+        || Math.abs(half.circle.r - disc.r) > 1.0e-9) {
+      return null;
+    }
+    // Same circle: half ⊂ disc; diameter ⊂ disc interior; arc ⊂ boundary.
+    return new IntersectionMatrix("2FF11F212");
+  }
+
+  private static IntersectionMatrix relateDiscHalf(
+      CircularArcDensifier.Circle disc, HalfDisc half) {
+    IntersectionMatrix rev = relateHalfToDisc(half, disc);
+    if (rev == null) return null;
+    return rev.transpose();
+  }
+
+  /**
+   * Open single-arc CircularString vs Point / uniform MultiPoint.
+   * Lineal DE-9IM: on-arc interior {@code 0F1FF0FF2}, endpoint
+   * {@code FF10F0FF2}, miss {@code FF1FF00F2}.
+   */
+  private static IntersectionMatrix relateOpenArcPuntal(CircularString cs,
+      Geometry other) {
+    int kind = -1; // 0=miss, 1=end, 2=interior
+    int n = other.getNumGeometries();
+    for (int i = 0; i < n; i++) {
+      Geometry g = other.getGeometryN(i);
+      if (!(g instanceof Point) || g.isEmpty()) return null;
+      int k = locateOnOpenArc(cs, ((Point) g).getCoordinate());
+      if (kind < 0) kind = k;
+      else if (k != kind) return null;
+    }
+    if (kind < 0) return null;
+    if (kind == 2) return new IntersectionMatrix("0F1FF0FF2");
+    if (kind == 1) return new IntersectionMatrix("FF10F0FF2");
+    return new IntersectionMatrix("FF1FF00F2");
+  }
+
+  /** 0 = miss, 1 = endpoint, 2 = open-arc interior. */
+  private static int locateOnOpenArc(CircularString cs, Coordinate p) {
+    Coordinate s = cs.getCoordinateN(0);
+    Coordinate m = cs.getCoordinateN(1);
+    Coordinate e = cs.getCoordinateN(2);
+    if (p.equals2D(s) || p.equals2D(e)) return 1;
+    CircularArcDensifier.Circle c =
+        CircularArcDensifier.Circle.fromThreePoints(s, m, e);
+    if (c == null) {
+      // Colinear: chord segment.
+      return onSegment(p, s, e) ? 2 : 0;
+    }
+    double dx = p.x - c.cx;
+    double dy = p.y - c.cy;
+    double dist = Math.hypot(dx, dy);
+    if (Math.abs(dist - c.r) > 1.0e-9) return 0;
+    double a0 = Math.atan2(s.y - c.cy, s.x - c.cx);
+    double aMid = Math.atan2(m.y - c.cy, m.x - c.cx);
+    double a1 = Math.atan2(e.y - c.cy, e.x - c.cx);
+    boolean ccw = midInCcw(a0, aMid, a1);
+    double sweep = ccw ? normPos(a1 - a0) : normPos(a0 - a1);
+    if (sweep == 0.0) sweep = TWO_PI;
+    double angle = Math.atan2(p.y - c.cy, p.x - c.cx);
+    double travelled = ccw ? normPos(angle - a0) : normPos(a0 - angle);
+    if (travelled <= 1.0e-12 || travelled >= sweep - 1.0e-12) return 1;
+    if (travelled < sweep) return 2;
+    return 0;
+  }
+
+  private static boolean onSegment(Coordinate p, Coordinate a, Coordinate b) {
+    double len = a.distance(b);
+    if (len == 0.0) return p.equals2D(a);
+    double t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y))
+        / (len * len);
+    if (t < 0.0 || t > 1.0) return false;
+    Coordinate proj = new Coordinate(
+        a.x + t * (b.x - a.x), a.y + t * (b.y - a.y));
+    return p.distance(proj) <= 1.0e-9;
   }
 
   private static IntersectionMatrix relatePuntal(CircularArcDensifier.Circle disc,
@@ -1068,7 +1298,31 @@ final class CurveExact {
   static CircularArcDensifier.Circle mic(Geometry g) {
     CircularArcDensifier.Circle disc = circularDisc(g);
     if (disc != null) return disc;
-    return stadiumMic(g);
+    CircularArcDensifier.Circle stadium = stadiumMic(g);
+    if (stadium != null) return stadium;
+    return halfDiscMic(g);
+  }
+
+  /**
+   * ML.2: MIC of a certified half-disc. Centre sits on the symmetry
+   * ray through the arc mid-control; radius is {@code R/2}. Matches
+   * densify-{@code MaximumInscribedCircle} on HALF_DISC (R=5 → (0, 2.5)).
+   * Non-half-disc convex shells and nonconvex shapes miss.
+   */
+  static CircularArcDensifier.Circle halfDiscMic(Geometry g) {
+    HalfDisc half = HalfDisc.of(g);
+    if (half == null) return null;
+    double r = half.circle.r;
+    if (r <= 0.0) return null;
+    double ux = half.mid.x - half.circle.cx;
+    double uy = half.mid.y - half.circle.cy;
+    double len = Math.hypot(ux, uy);
+    if (len <= 1.0e-12) return null;
+    ux /= len;
+    uy /= len;
+    double micR = 0.5 * r;
+    return new CircularArcDensifier.Circle(
+        half.circle.cx + micR * ux, half.circle.cy + micR * uy, micR);
   }
 
   /**
