@@ -79,6 +79,17 @@ public class DirectedHausdorffDistancePerfGateTest extends GeometryTestCase {
             CurveOps.linearise(arc), seg));
   }
 
+  /** M.3: IWD on the certified arc→segment pair. */
+  public void testIwdArcNotSlowerThanChord() throws Exception {
+    Geometry arc = readCurve(ARC);
+    Geometry seg = readCurve(BASELINE);
+    double lim = DirectedHausdorffDistance.distance(arc, seg) + 0.01;
+    assertLaserNotSlower("DHD IWD arc-segment",
+        () -> DirectedHausdorffDistance.isFullyWithinDistance(arc, seg, lim),
+        () -> DirectedHausdorffDistance.isFullyWithinDistance(
+            CurveOps.linearise(arc), seg, lim));
+  }
+
   private void assertLaserNotSlower(String label, Runnable laser,
       Runnable chainsaw) {
     for (int i = 0; i < WARMUP; i++) {

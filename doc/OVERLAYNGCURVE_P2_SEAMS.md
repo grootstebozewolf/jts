@@ -4,7 +4,9 @@ A seam is where a kit returns null and the chordsaw takes over.
 
 **Scoreboard (user 2026-08-17):** sewn 28 · stamped 6 · open 1 · named-miss 5 · total 35
 
-Synced onto SoT `feature/sfa-curve-rgr`. Contract: Draft v6 MMF Option B — `SegmentKind`, no silent linearize, name **OverlayNGCurve** never *Curved*, slack 15%.
+Synced onto SoT `feature/sfa-curve-rgr` @ `47c0f33e`. Contract: Draft v6 MMF Option B — `SegmentKind`, no silent linearize, name **OverlayNGCurve** never *Curved*, slack 15%.
+
+**Named-miss leftover (honest, after B/C/D/E):** 3 primary open leftovers on the laser board — H-ANNULUS-TANGENT refuse · open-arc H-DISC lineal · N-SS full hierarchy deferred. R-PR-HALF clears when R.2 lands.
 
 ## Updates from B/C/D/E work
 
