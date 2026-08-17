@@ -11,9 +11,11 @@
  */
 package org.locationtech.jts.geom.curve;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.IntersectionMatrix;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
 
 /**
@@ -79,6 +81,74 @@ public final class CurveOps {
     }
     CurveLinearizationStrategy.warnLinearized(g, "CurveOps.linearise");
     return ((Linearizable) g).toLinear(tolerance(g));
+  }
+
+  /**
+   * Densify a lineal curve into a polyline whose vertices are spaced
+   * by equal <em>arc length</em> (circular members) or equal chord
+   * length (straight members). Used by VariableBuffer so distance
+   * interpolation follows arc length rather than control-chord length.
+   * Honours {@link CurveLinearizationStrategy} (warns on LINEARIZED).
+   */
+  public static Geometry lineariseArcLength(Geometry g, int samplesPerArc) {
+    if (g == null || g.isEmpty()) {
+      return g;
+    }
+    if (!(g instanceof Linearizable) && !(g instanceof LineString)) {
+      return g;
+    }
+    if (CurveLinearizationStrategy.current()
+        == CurveLinearizationStrategy.PRESERVE) {
+      return g;
+    }
+    if (g instanceof CircularString || g instanceof CompoundCurve
+        || g instanceof BezierCurve || g instanceof ClothoidSegment
+        || g instanceof EllipseCurve || g instanceof NurbsCurve) {
+      CurveLinearizationStrategy.warnLinearized(g, "CurveOps.lineariseArcLength");
+    }
+    int n = Math.max(1, samplesPerArc);
+    if (g instanceof CircularString) {
+      return lineariseCircularStringArcLength((CircularString) g, n);
+    }
+    if (g instanceof CompoundCurve) {
+      CompoundCurve cc = (CompoundCurve) g;
+      java.util.ArrayList<Coordinate> pts = new java.util.ArrayList<Coordinate>();
+      for (int i = 0; i < cc.getNumMembers(); i++) {
+        LineString m = cc.getMemberN(i);
+        Geometry piece = lineariseArcLength(m, n);
+        Coordinate[] c = piece.getCoordinates();
+        int from = pts.isEmpty() ? 0 : 1;
+        for (int k = from; k < c.length; k++) {
+          pts.add(c[k]);
+        }
+      }
+      return g.getFactory().createLineString(
+          pts.toArray(new Coordinate[0]));
+    }
+    if (g instanceof Linearizable) {
+      return ((Linearizable) g).toLinear(tolerance(g));
+    }
+    return g;
+  }
+
+  private static Geometry lineariseCircularStringArcLength(CircularString cs,
+      int samplesPerArc) {
+    org.locationtech.jts.geom.CoordinateSequence seq = cs.getCoordinateSequence();
+    int n = seq.size();
+    if (n < 3) {
+      return cs.copy();
+    }
+    java.util.ArrayList<Coordinate> out = new java.util.ArrayList<Coordinate>();
+    for (int i = 0; i + 2 < n; i += 2) {
+      java.util.List<Coordinate> chord = CircularArcDensifier.densifyArcUniform(
+          seq.getCoordinate(i), seq.getCoordinate(i + 1), seq.getCoordinate(i + 2),
+          samplesPerArc);
+      int from = out.isEmpty() ? 0 : 1;
+      for (int k = from; k < chord.size(); k++) {
+        out.add(chord.get(k));
+      }
+    }
+    return cs.getFactory().createLineString(out.toArray(new Coordinate[0]));
   }
 
   /**

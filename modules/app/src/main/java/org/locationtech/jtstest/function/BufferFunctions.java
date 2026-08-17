@@ -243,14 +243,17 @@ public class BufferFunctions {
   }
 
   /**
-   * VBF honesty (#1195): VariableBuffer samples vertices / chord length.
-   * Curve inputs densify via {@link CurveOps#linearise} (strategy + warn),
-   * never silent control-polygon flatten. Arc-length parameterisation
+   * VBF honesty (#1195): VariableBuffer samples vertices by cumulative
+   * length. Curve inputs densify by equal <em>arc length</em> via
+   * {@link CurveOps#lineariseArcLength} (strategy + warn), never silent
+   * control-polygon flatten. Emitting arc-preserving variable offsets
    * remains the full TAG meter.
    */
   private static Geometry linearizeCurveForVariableBuffer(Geometry g) {
-    if (g instanceof org.locationtech.jts.geom.curve.Linearizable) {
-      return org.locationtech.jts.geom.curve.CurveOps.linearise(g);
+    if (g instanceof org.locationtech.jts.geom.curve.Linearizable
+        || g instanceof org.locationtech.jts.geom.curve.CircularString
+        || g instanceof org.locationtech.jts.geom.curve.CompoundCurve) {
+      return org.locationtech.jts.geom.curve.CurveOps.lineariseArcLength(g, 16);
     }
     return g;
   }

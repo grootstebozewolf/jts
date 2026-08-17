@@ -70,6 +70,43 @@ public final class CircularArcDensifier {
   }
 
   /**
+   * Densify a circular arc into {@code numSegments} equal arc-length
+   * chords (equal central angle). Used by variable-buffer length
+   * parameterisation (VBF). Degenerate triples return the chord.
+   */
+  public static List<Coordinate> densifyArcUniform(Coordinate start, Coordinate mid,
+      Coordinate end, int numSegments) {
+    if (numSegments < 1) {
+      throw new IllegalArgumentException("numSegments must be >= 1: " + numSegments);
+    }
+    Circle c = Circle.fromThreePoints(start, mid, end);
+    if (c == null) {
+      List<Coordinate> out = new ArrayList<Coordinate>(2);
+      out.add(new Coordinate(start));
+      out.add(new Coordinate(end));
+      return out;
+    }
+    double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
+    double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
+    double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
+    boolean ccw = isMidInCcwSweep(a0, aMid, a1);
+    double sweep = signedSweep(a0, a1, ccw);
+    double delta = sweep / numSegments;
+    if (!ccw) {
+      delta = -delta;
+    }
+    List<Coordinate> out = new ArrayList<Coordinate>(numSegments + 1);
+    out.add(new Coordinate(start));
+    for (int i = 1; i < numSegments; i++) {
+      double ang = a0 + i * delta;
+      out.add(new Coordinate(c.cx + c.r * Math.cos(ang),
+          c.cy + c.r * Math.sin(ang)));
+    }
+    out.add(new Coordinate(end));
+    return out;
+  }
+
+  /**
    * Densify a single arc, also guaranteeing that every projection of a
    * {@code mustInclude} coordinate that lies within {@code tolerance}
    * of the arc appears in the output at its parametric position.
