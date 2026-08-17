@@ -71,7 +71,7 @@ public class DirectedHausdorffDistancePerfGateTest extends GeometryTestCase {
 
   /** M.2: tall bulge closed form also holds the gate. */
   public void testTallBulgeArcNotSlowerThanChord() throws Exception {
-    Geometry arc = readCurve("CIRCULARSTRING (0 0, 5 5, 10 0)");
+    Geometry arc = readCurve("CIRCULARSTRING (0 0, 2 5, 10 0)");
     Geometry seg = readCurve(BASELINE);
     assertLaserNotSlower("DHD tall bulge arc-segment",
         () -> DirectedHausdorffDistance.distance(arc, seg),

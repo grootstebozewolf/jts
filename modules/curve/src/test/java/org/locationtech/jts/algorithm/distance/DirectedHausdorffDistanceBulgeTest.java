@@ -27,10 +27,11 @@ import test.jts.GeometryTestCase;
 public class DirectedHausdorffDistanceBulgeTest extends GeometryTestCase {
 
   private static final String BASE = "LINESTRING (0 0, 10 0)";
-  private static final String ARC_TALL = "CIRCULARSTRING (0 0, 5 5, 10 0)";
-  private static final String ARC_FLAT = "CIRCULARSTRING (0 0, 5 1, 10 0)";
-  private static final String CHORD_TALL = "LINESTRING (0 0, 5 5, 10 0)";
-  private static final String CHORD_FLAT = "LINESTRING (0 0, 5 1, 10 0)";
+  /** Mid not at the apex x — arc HD ≠ mid-control height. */
+  private static final String ARC_TALL = "CIRCULARSTRING (0 0, 2 5, 10 0)";
+  private static final String ARC_FLAT = "CIRCULARSTRING (0 0, 2 1, 10 0)";
+  private static final String CHORD_TALL = "LINESTRING (0 0, 2 5, 10 0)";
+  private static final String CHORD_FLAT = "LINESTRING (0 0, 2 1, 10 0)";
 
   private static final double TOL = 1.0e-9;
 
@@ -85,5 +86,6 @@ public class DirectedHausdorffDistanceBulgeTest extends GeometryTestCase {
         Math.abs(arcTall - 5.0) < 1.0e-6);
     assertFalse("flat arc apex must not equal mid-control height 1",
         Math.abs(arcFlat - 1.0) < 1.0e-6);
+    assertTrue("bulge sensitivity: tall > flat", arcTall > arcFlat + 1.0e-6);
   }
 }
