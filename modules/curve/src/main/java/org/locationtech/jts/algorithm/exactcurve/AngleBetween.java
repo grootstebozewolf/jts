@@ -23,9 +23,9 @@ import org.locationtech.jts.geom.Coordinate;
  * absolute {@code atan2}s, so the {@code ±π} branch cut does not
  * collapse a tiny crossing into a false full turn.
  */
-public final class AngleBetween {
+final class AngleBetween {
 
-  public static final double TWO_PI = 2.0 * Math.PI;
+  static final double TWO_PI = 2.0 * Math.PI;
 
   private AngleBetween() { }
 
@@ -33,7 +33,7 @@ public final class AngleBetween {
    * Signed short angle from {@code u} to {@code v} in {@code (-π, π]}.
    * {@code atan2(u×v, u·v)}.
    */
-  public static double signedShort(double ux, double uy, double vx, double vy) {
+  static double signedShort(double ux, double uy, double vx, double vy) {
     return Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
   }
 
@@ -41,7 +41,7 @@ public final class AngleBetween {
    * Signed short from {@code from} to {@code to}, both measured from
    * {@code (cx, cy)}.
    */
-  public static double signedShort(double cx, double cy, Coordinate from,
+  static double signedShort(double cx, double cy, Coordinate from,
       Coordinate to) {
     return signedShort(from.x - cx, from.y - cy, to.x - cx, to.y - cy);
   }
@@ -50,7 +50,7 @@ public final class AngleBetween {
    * Directed sweep through {@code mid}: orientation and magnitude
    * together, so they cannot desynchronize.
    */
-  public static DirectedSweep through(double cx, double cy,
+  static DirectedSweep through(double cx, double cy,
       Coordinate start, Coordinate mid, Coordinate end) {
     return fromShorts(
         signedShort(cx, cy, start, end),
@@ -62,7 +62,7 @@ public final class AngleBetween {
    * absolute angles. Reconstructs unit vectors so the branch cut of
    * {@code atan2} is not re-introduced by subtracting those angles.
    */
-  public static DirectedSweep throughAngles(double a0, double aMid, double a1) {
+  static DirectedSweep throughAngles(double a0, double aMid, double a1) {
     return fromShorts(
         signedShort(Math.cos(a0), Math.sin(a0), Math.cos(a1), Math.sin(a1)),
         signedShort(Math.cos(a0), Math.sin(a0), Math.cos(aMid), Math.sin(aMid)));
@@ -72,25 +72,25 @@ public final class AngleBetween {
    * Positive directed sweep in {@code (0, 2π]} through {@code mid}.
    * Allocation-free — used by the static {@code r·θ} path.
    */
-  public static double directedSweep(double cx, double cy,
+  static double directedSweep(double cx, double cy,
       Coordinate start, Coordinate mid, Coordinate end) {
     return sweepFromShorts(
         signedShort(cx, cy, start, end),
         signedShort(cx, cy, start, mid));
   }
 
-  public static boolean isCcw(double cx, double cy,
+  static boolean isCcw(double cx, double cy,
       Coordinate start, Coordinate mid, Coordinate end) {
     return ccwFromShorts(
         signedShort(cx, cy, start, end),
         signedShort(cx, cy, start, mid));
   }
 
-  public static boolean isCcw(double a0, double aMid, double a1) {
+  static boolean isCcw(double a0, double aMid, double a1) {
     return throughAngles(a0, aMid, a1).isCcw();
   }
 
-  public static double directedSweepFromAngles(double a0, double aMid,
+  static double directedSweepFromAngles(double a0, double aMid,
       double a1) {
     return throughAngles(a0, aMid, a1).radians();
   }
@@ -99,17 +99,17 @@ public final class AngleBetween {
    * How far {@code p} has travelled from {@code start} along the
    * directed sweep, in {@code [0, 2π)}.
    */
-  public static double travelled(boolean ccw, double ux, double uy,
+  static double travelled(boolean ccw, double ux, double uy,
       double px, double py) {
     double s = signedShort(ux, uy, px, py);
     return ccw ? normalizePositive(s) : normalizePositive(-s);
   }
 
-  public static double travelledFromAngles(boolean ccw, double a0, double ap) {
+  static double travelledFromAngles(boolean ccw, double a0, double ap) {
     return ccw ? normalizePositive(ap - a0) : normalizePositive(a0 - ap);
   }
 
-  public static double normalizePositive(double angle) {
+  static double normalizePositive(double angle) {
     angle = angle % TWO_PI;
     if (angle < 0.0) {
       angle += TWO_PI;
@@ -121,7 +121,7 @@ public final class AngleBetween {
    * Orientation plus magnitude of one 3-control window. Prefer this
    * over a bare {@code boolean} + {@code double} pair.
    */
-  public static final class DirectedSweep {
+  static final class DirectedSweep {
     private final boolean ccw;
     private final double radians;
 
@@ -130,17 +130,17 @@ public final class AngleBetween {
       this.radians = radians;
     }
 
-    public boolean isCcw() {
+    boolean isCcw() {
       return ccw;
     }
 
     /** Central angle in {@code (0, 2π]}. */
-    public double radians() {
+    double radians() {
       return radians;
     }
 
     /** {@code +θ} CCW, {@code −θ} CW. */
-    public double signed() {
+    double signed() {
       return ccw ? radians : -radians;
     }
   }

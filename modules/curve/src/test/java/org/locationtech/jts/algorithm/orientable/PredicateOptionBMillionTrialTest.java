@@ -165,7 +165,7 @@ public class PredicateOptionBMillionTrialTest extends GeometryTestCase {
       r.tried++;
       if (got != exp) {
         double d = CircularArcDensifier.distancePointToArc(
-            q, arc.getStart(), arc.getMid(), arc.getEnd());
+            q, arc.getStart(), arc.exactArc().getMid(), arc.getEnd());
         if (d <= ON_CURVE_EPS
             || got == Orientation.COLLINEAR
             || exp == Orientation.COLLINEAR) {
@@ -238,12 +238,11 @@ public class PredicateOptionBMillionTrialTest extends GeometryTestCase {
   }
 
   private static ArcOrientableSegment randomMinorArc(Random rnd) {
-    // Prefer a clean minor arc: random centre, radius, angles
     double cx = (rnd.nextDouble() * 2 - 1) * BOX * 0.5;
     double cy = (rnd.nextDouble() * 2 - 1) * BOX * 0.5;
     double r = 1.0 + rnd.nextDouble() * (BOX * 0.25);
     double a0 = rnd.nextDouble() * 2.0 * Math.PI;
-    double sweep = 0.05 + rnd.nextDouble() * (Math.PI - 0.1); // minor
+    double sweep = 0.05 + rnd.nextDouble() * (Math.PI - 0.1);
     if (rnd.nextBoolean()) {
       sweep = -sweep;
     }
@@ -252,7 +251,7 @@ public class PredicateOptionBMillionTrialTest extends GeometryTestCase {
     Coordinate start = new Coordinate(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
     Coordinate mid = new Coordinate(cx + r * Math.cos(am), cy + r * Math.sin(am));
     Coordinate end = new Coordinate(cx + r * Math.cos(a1), cy + r * Math.sin(a1));
-    return new ArcOrientableSegment(start, mid, end);
+    return (ArcOrientableSegment) OrientableSegments.arc(start, mid, end);
   }
 
   private static Coordinate randPt(Random rnd) {

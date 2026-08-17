@@ -19,34 +19,26 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.curve.ArcIntersects;
 
 /**
- * Optional OrientableSegment adapter over
- * {@link ExactCircularArc} — Bible §3 demotion: ExactCircularArc is the
- * privileged primitive; this type composes it and owns only side +
- * intersect. Length, sweep, area, centroid, and {@code toLinear} stay
- * on Exact*.
- * <p>
- * Side: filter → {@link CGAlgorithmsDD#signOfDet2x2}. Intersect: named
- * densifier bridge {@link ArcIntersects} + Exact* {@code isOnSweep}.
+ * Package-private adapter that <b>composes</b> {@link ExactCircularArc}.
+ * Does not re-derive circumcircle or sweep. Construct via
+ * {@link OrientableSegments#arc(ExactCircularArc)}.
  */
-public final class ArcOrientableSegment implements OrientableSegment {
+final class ArcOrientableSegment implements OrientableSegment {
 
   private static final double FILTER_EPS = 1.0e-12;
 
   private final ExactCircularArc exact;
   private final StraightOrientableSegment straight;
 
-  public ArcOrientableSegment(Coordinate start, Coordinate mid, Coordinate end) {
-    this(new ExactCircularArc(start, mid, end));
-  }
-
-  public ArcOrientableSegment(ExactCircularArc exact) {
+  ArcOrientableSegment(ExactCircularArc exact) {
     this.exact = exact;
     this.straight = exact.isArc()
         ? null
         : new StraightOrientableSegment(exact.getStart(), exact.getEnd());
   }
 
-  public ExactCircularArc exactArc() {
+  /** Package access for tests in this package. */
+  ExactCircularArc exactArc() {
     return exact;
   }
 
@@ -54,16 +46,12 @@ public final class ArcOrientableSegment implements OrientableSegment {
     return exact.getStart();
   }
 
-  public Coordinate getMid() {
-    return exact.getMid();
-  }
-
   public Coordinate getEnd() {
     return exact.getEnd();
   }
 
-  public boolean isCircular() {
-    return exact.isArc();
+  public double length() {
+    return exact.length();
   }
 
   public int orientationIndex(Coordinate q) {
@@ -113,24 +101,17 @@ public final class ArcOrientableSegment implements OrientableSegment {
     }
     if (other instanceof StraightOrientableSegment) {
       StraightOrientableSegment s = (StraightOrientableSegment) other;
-      return intersectsStraight(s) || endpointOnSegment(s);
+      return ArcIntersects.segment(exact, s.getStart(), s.getEnd())
+          || endpointOnSegment(s);
     }
     if (other instanceof ArcOrientableSegment) {
       ArcOrientableSegment a = (ArcOrientableSegment) other;
       if (!a.exact.isArc()) {
         return intersects(a.straight);
       }
-      return intersectsArc(a) || endpointOnArc(a);
+      return ArcIntersects.arcs(exact, a.exact) || endpointOnArc(a);
     }
     return other.intersects(this);
-  }
-
-  private boolean intersectsStraight(StraightOrientableSegment s) {
-    return ArcIntersects.segment(exact, s.getStart(), s.getEnd());
-  }
-
-  private boolean intersectsArc(ArcOrientableSegment a) {
-    return ArcIntersects.arcs(exact, a.exact);
   }
 
   private static int signCross(double tx, double ty, double qx, double qy) {

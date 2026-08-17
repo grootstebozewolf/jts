@@ -16,18 +16,14 @@ import org.locationtech.jts.algorithm.RobustLineIntersector;
 import org.locationtech.jts.geom.Coordinate;
 
 /**
- * Optional straight OrientableSegment adapter.
- * Bit-identical to {@link Orientation#index} /
- * {@link RobustLineIntersector#hasIntersection} on straight×straight.
- * Not an ExactCurve* type — Exact* remains the privileged family
- * ({@code doc/EXACT_CURVE_BIBLE.md}).
+ * Package-private straight adapter. Construct via {@link OrientableSegments}.
  */
-public final class StraightOrientableSegment implements OrientableSegment {
+final class StraightOrientableSegment implements OrientableSegment {
 
   private final Coordinate p0;
   private final Coordinate p1;
 
-  public StraightOrientableSegment(Coordinate p0, Coordinate p1) {
+  StraightOrientableSegment(Coordinate p0, Coordinate p1) {
     this.p0 = p0;
     this.p1 = p1;
   }
@@ -38,6 +34,10 @@ public final class StraightOrientableSegment implements OrientableSegment {
 
   public Coordinate getEnd() {
     return p1;
+  }
+
+  public double length() {
+    return p0.distance(p1);
   }
 
   public int orientationIndex(Coordinate q) {
@@ -51,7 +51,6 @@ public final class StraightOrientableSegment implements OrientableSegment {
       li.computeIntersection(p0, p1, s.p0, s.p1);
       return li.hasIntersection();
     }
-    // Arc (and future) carriers own the mixed case.
     return other.intersects(this);
   }
 }

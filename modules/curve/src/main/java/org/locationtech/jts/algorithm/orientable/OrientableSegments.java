@@ -15,9 +15,8 @@ import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
 import org.locationtech.jts.geom.Coordinate;
 
 /**
- * Factories for optional OrientableSegment adapters.
- * Prefer {@link #arc(ExactCircularArc)} so geometry stays on the
- * ExactCurve* atom ({@code doc/EXACT_CURVE_BIBLE.md} §3).
+ * Sole public entry for optional OrientableSegment adapters.
+ * Implementations are package-private; geometry stays on Exact*.
  */
 public final class OrientableSegments {
 
@@ -27,17 +26,14 @@ public final class OrientableSegments {
     return new StraightOrientableSegment(a, b);
   }
 
-  /**
-   * Builds an {@link ExactCircularArc} then wraps it. Prefer
-   * {@link #arc(ExactCircularArc)} when the caller already holds one.
-   */
-  public static OrientableSegment arc(Coordinate start, Coordinate mid,
-      Coordinate end) {
-    return new ArcOrientableSegment(start, mid, end);
-  }
-
-  /** Preferred: compose an existing ExactCurve* circular window. */
+  /** Preferred: compose an existing ExactCircularArc. */
   public static OrientableSegment arc(ExactCircularArc exact) {
     return new ArcOrientableSegment(exact);
+  }
+
+  /** Convenience: builds ExactCircularArc then wraps it. */
+  public static OrientableSegment arc(Coordinate start, Coordinate mid,
+      Coordinate end) {
+    return arc(new ExactCircularArc(start, mid, end));
   }
 }

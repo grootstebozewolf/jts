@@ -14,21 +14,20 @@ package org.locationtech.jts.algorithm.orientable;
 import org.locationtech.jts.geom.Coordinate;
 
 /**
- * Thin optional directed-piece protocol for side and intersect only.
+ * Optional thin adapter for side and intersect only
+ * ({@code doc/EXACT_CURVE_BIBLE.md} §3). Not the privileged curve
+ * representation — prefer {@link org.locationtech.jts.algorithm.exactcurve.ExactCircularArc}.
  * <p>
- * Per {@code doc/EXACT_CURVE_BIBLE.md} §3, this is <b>not</b> the
- * privileged curve representation. Prefer
- * {@link org.locationtech.jts.algorithm.exactcurve.ExactCircularArc}
- * (and later Exact* siblings). Densify oracles stay out of this
- * interface.
- *
- * @see org.locationtech.jts.algorithm.exactcurve.ExactCurve
+ * Public surface is intentionally minimal: ends, length, side, intersect.
  */
 public interface OrientableSegment {
 
   Coordinate getStart();
 
   Coordinate getEnd();
+
+  /** Exact length when backed by Exact*; Euclidean length when straight. */
+  double length();
 
   /**
    * {@link org.locationtech.jts.algorithm.Orientation} codes for

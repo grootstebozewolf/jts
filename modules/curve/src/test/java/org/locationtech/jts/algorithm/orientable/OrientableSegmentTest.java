@@ -19,8 +19,7 @@ import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
 
 /**
- * Pins for optional OrientableSegment adapters that compose
- * {@link ExactCircularArc} (Bible §3).
+ * Pins for the thin OrientableSegment adapter (Bible §3).
  */
 public class OrientableSegmentTest extends GeometryTestCase {
 
@@ -33,15 +32,15 @@ public class OrientableSegmentTest extends GeometryTestCase {
   }
 
   public void testStraightMatchesOrientation() {
-    Coordinate a = new Coordinate(0, 0);
-    Coordinate b = new Coordinate(10, 0);
-    OrientableSegment s = OrientableSegments.straight(a, b);
+    OrientableSegment s = OrientableSegments.straight(
+        new Coordinate(0, 0), new Coordinate(10, 0));
     assertEquals(Orientation.COUNTERCLOCKWISE,
         s.orientationIndex(new Coordinate(5, 1)));
     assertEquals(Orientation.CLOCKWISE,
         s.orientationIndex(new Coordinate(5, -1)));
     assertEquals(Orientation.COLLINEAR,
         s.orientationIndex(new Coordinate(5, 0)));
+    assertEquals(10.0, s.length(), 0.0);
   }
 
   public void testStraightCrossing() {
@@ -52,15 +51,18 @@ public class OrientableSegmentTest extends GeometryTestCase {
     assertTrue(a.intersects(b));
   }
 
-  public void testWrapsExactCircularArc() {
+  public void testComposesExactCircularArc() {
     ExactCircularArc exact = new ExactCircularArc(
         new Coordinate(0, 0), new Coordinate(2, 3), new Coordinate(10, 0));
-    ArcOrientableSegment arc = new ArcOrientableSegment(exact);
-    assertTrue(arc.isCircular());
-    assertSame(exact, arc.exactArc());
+    OrientableSegment arc = OrientableSegments.arc(exact);
+    assertEquals(exact.length(), arc.length(), 0.0);
+    assertSame(exact.getStart(), arc.getStart());
+    assertSame(exact.getEnd(), arc.getEnd());
     Coordinate q = new Coordinate(5, 8);
+    ArcOrientableSegment impl = (ArcOrientableSegment) arc;
+    assertSame(exact, impl.exactArc());
     assertEquals(
-        OrientableDensifyReference.orientationIndex(arc, q, 64),
+        OrientableDensifyReference.orientationIndex(impl, q, 64),
         arc.orientationIndex(q));
   }
 
