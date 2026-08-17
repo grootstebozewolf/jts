@@ -9,7 +9,8 @@ OverlayNG / snap stay concrete.
 - `AngleBetween` — Proofs #64 `atan2(cross,dot)` + mid long/short
 - `ExactCircularArc` — 3-control window: `r·θ`, `chord ≤ arc` via
   `2 r sin(θ/2) ≤ r θ`, in-arc on `d²`, segment area, centroid
-- Circumcircle is `CircularArcDensifier.circumcircle` (one determinant)
+- Circumcircle **and r** are `CircularArcDensifier.circumcircle` (one
+  determinant, one radius — no second mean-r)
 - Front-end for `CircularString.getLength()` / centroid and
   `CircularArcDensifier.arcLength`
 
@@ -22,5 +23,6 @@ OverlayNG / snap stay concrete.
 
 ## Handover
 
-`ExactArcOptionAMillionTrialTest` — N=1e6 suites; report under
+`ExactArcOptionAMillionTrialTest` — N=1e6; L1 is analytic n-gon
+`n·2r·sin(θ/2n)`, not a densify polyline. Report:
 `doc/PROOFS_OPTION_A_HANDOVER.md`.

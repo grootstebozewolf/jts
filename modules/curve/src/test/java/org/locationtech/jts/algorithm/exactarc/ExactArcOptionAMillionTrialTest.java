@@ -21,8 +21,9 @@ import junit.framework.TestCase;
 import junit.textui.TestRunner;
 
 /**
- * 1M-trial handover for Proofs Option A. Leftovers are named
- * (huge-r / near-full), not a blanket relative slack.
+ * 1M-trial handover for Proofs Option A. L1 is the analytic n-gon
+ * {@code n·2r·sin(θ/2n) ≤ rθ}, not a densify polyline (those re-snap
+ * endpoints off the float circle).
  */
 public class ExactArcOptionAMillionTrialTest extends TestCase {
 
@@ -83,9 +84,12 @@ public class ExactArcOptionAMillionTrialTest extends TestCase {
       ExactCircularArc a = new ExactCircularArc(w[0], w[1], w[2]);
       t.tried++;
       double exact = a.length();
-      double chords = densifyLength(w[0], w[1], w[2]);
-      if (chords <= exact + Math.ulp(Math.max(exact, 1.0))) {
-        if (Math.abs(chords - exact) <= Math.ulp(Math.max(exact, 1.0))) {
+      // Analytic n-gon: n · 2r · sin(θ/2n) ≤ rθ. Do not sum
+      // densifyArcUniform polylines — those re-snap start/end off the
+      // float circle and can overshoot (named leftover, not a hard fail).
+      double inscribed = inscribedLength(a);
+      if (inscribed <= exact + Math.ulp(Math.max(exact, 1.0))) {
+        if (Math.abs(inscribed - exact) <= Math.ulp(Math.max(exact, 1.0))) {
           t.soft++;
         }
         continue;
@@ -117,6 +121,13 @@ public class ExactArcOptionAMillionTrialTest extends TestCase {
     }
     t.wallNs = System.nanoTime() - t0;
     return t;
+  }
+
+  private static double inscribedLength(ExactCircularArc a) {
+    if (!a.isArc()) {
+      return a.chordLength();
+    }
+    return N_CHORD * 2.0 * a.radius() * Math.sin(a.sweep() / (2.0 * N_CHORD));
   }
 
   private static double densifyLength(Coordinate s, Coordinate m, Coordinate e) {

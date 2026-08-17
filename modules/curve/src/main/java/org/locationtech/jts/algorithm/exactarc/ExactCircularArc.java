@@ -59,9 +59,8 @@ public final class ExactCircularArc {
     double a1 = Math.atan2(end.y - cy, end.x - cx);
     this.ccw = AngleBetween.isCcw(a0, aMid, a1);
     this.sweep = AngleBetween.directedSweepFromAngles(a0, aMid, a1);
-    // Mean of the three control radii — one float circle cannot hit
-    // all three exactly; the mean is the honest r for r·θ.
-    this.r = meanRadius(circ[0], circ[1], start, mid, end);
+    // Same r as CircularArcDensifier.Circle — one circle, one length.
+    this.r = circ[2];
     this.arc = true;
   }
 
@@ -75,7 +74,7 @@ public final class ExactCircularArc {
       return start.distance(end);
     }
     double sweep = AngleBetween.directedSweep(circ[0], circ[1], start, mid, end);
-    return meanRadius(circ[0], circ[1], start, mid, end) * sweep;
+    return circ[2] * sweep;
   }
 
   public Coordinate getStart() {
@@ -203,13 +202,6 @@ public final class ExactCircularArc {
         ? AngleBetween.normalizePositive(ap - a0)
         : AngleBetween.normalizePositive(a0 - ap);
     return travelled <= sweep + Math.ulp(sweep);
-  }
-
-  private static double meanRadius(double cx, double cy,
-      Coordinate a, Coordinate b, Coordinate c) {
-    return (Math.hypot(a.x - cx, a.y - cy)
-        + Math.hypot(b.x - cx, b.y - cy)
-        + Math.hypot(c.x - cx, c.y - cy)) / 3.0;
   }
 
   private static boolean onSegment(Coordinate p, Coordinate a, Coordinate b,
