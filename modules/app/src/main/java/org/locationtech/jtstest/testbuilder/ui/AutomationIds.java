@@ -86,6 +86,16 @@ public final class AutomationIds {
       "jts.tb.menu.edit.curveStrategy.preserve";
   public static final String STATUS_CURVE_STRATEGY = "jts.tb.status.curveStrategy";
 
+
+  public static final String FN_TREE = "jts.tb.fn.tree";
+  public static final String FN_EXEC = "jts.tb.fn.exec";
+  public static final String FN_EXEC_NEW = "jts.tb.fn.execToNew";
+  public static final String FN_PARAM_0 = "jts.tb.fn.param.0";
+  public static final String FN_PARAM_1 = "jts.tb.fn.param.1";
+  public static final String FN_PARAM_2 = "jts.tb.fn.param.2";
+  public static final String FN_PARAM_3 = "jts.tb.fn.param.3";
+  public static final String FN_PARAM_4 = "jts.tb.fn.param.4";
+
   public static void set(JComponent c, String id) {
     if (c == null || id == null || id.length() == 0) {
       return;

@@ -295,6 +295,23 @@ extends JPanel implements FunctionPanel
     geomFuncPanel.addGeometryFunctionListener(gfListener);
     
     hideAllParams(paramComp, paramLabel);
+
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        geomFuncPanel, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_TREE);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        execButton, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_EXEC);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        execToNewButton, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_EXEC_NEW);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        txtDistance, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_PARAM_0);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        txtQuadrantSegs, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_PARAM_1);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        cbCapStyle, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_PARAM_2);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        cbJoinStyle, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_PARAM_3);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        txtMitreLimit, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_PARAM_4);
   }
 
   static void initLabels(JLabel[] paramLabel)

@@ -52,3 +52,12 @@ Wired via `AutomationIds.set` → `Component.name` + `AccessibleContext.accessib
 | `jts.tb.menu.edit.curveStrategy.linearized` | *(Phase B)* |
 | `jts.tb.menu.edit.curveStrategy.preserve` | *(Phase B)* |
 | `jts.tb.status.curveStrategy` | *(Phase B)* |
+
+## Function panel (Phase B)
+
+| ID | Control |
+|---|---|
+| `jts.tb.fn.tree` | Function tree |
+| `jts.tb.fn.exec` | Compute |
+| `jts.tb.fn.execToNew` | Compute to new |
+| `jts.tb.fn.param.0`..`4` | Distance / qsegs / cap / join / mitre |
