@@ -6,10 +6,12 @@ OverlayNG / snap stay concrete.
 
 ## Types
 
-- `ExactCircularArc` — 3-control window: atan2 sweep, `r·θ` length,
-  `chord ≤ arc`, in-arc, circular-segment area, arc-length centroid
-- Front-end for `CircularString.getLength()` and
-  `CircularArcDensifier.arcLength` (densifier no longer owns `r·θ`)
+- `AngleBetween` — Proofs #64 `atan2(cross,dot)` + mid long/short
+- `ExactCircularArc` — 3-control window: `r·θ`, `chord ≤ arc` via
+  `2 r sin(θ/2) ≤ r θ`, in-arc on `d²`, segment area, centroid
+- Circumcircle is `CircularArcDensifier.circumcircle` (one determinant)
+- Front-end for `CircularString.getLength()` / centroid and
+  `CircularArcDensifier.arcLength`
 
 ## Never
 

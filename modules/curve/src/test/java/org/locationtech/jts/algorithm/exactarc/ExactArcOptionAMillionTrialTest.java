@@ -21,8 +21,8 @@ import junit.framework.TestCase;
 import junit.textui.TestRunner;
 
 /**
- * 1M-trial handover for Proofs Option A. Sister of
- * {@code PredicateOptionBMillionTrialTest}.
+ * 1M-trial handover for Proofs Option A. Leftovers are named
+ * (huge-r / near-full), not a blanket relative slack.
  */
 public class ExactArcOptionAMillionTrialTest extends TestCase {
 
@@ -30,6 +30,8 @@ public class ExactArcOptionAMillionTrialTest extends TestCase {
   private static final int N = 1_000_000;
   private static final double BOX = 100.0;
   private static final int N_CHORD = 64;
+  private static final double HUGE_R = 1.0e8;
+  private static final double NEAR_FULL = AngleBetween.TWO_PI - 1.0e-4;
 
   public static void main(String[] args) {
     TestRunner.run(ExactArcOptionAMillionTrialTest.class);
@@ -43,8 +45,8 @@ public class ExactArcOptionAMillionTrialTest extends TestCase {
     Trial t = runLengthVsDensify();
     System.out.println("L1 " + t);
     assertEquals(N, t.tried);
+    assertEquals("L1 hard (unnamed densify > exact)", 0, t.hard);
     assertTrue("L1 agree rate " + t.agreeRate(), t.agreeRate() >= 0.99);
-    assertEquals("L1 hard (densify longer than exact)", 0, t.hard);
   }
 
   public void testL2ChordLeArc() {
@@ -82,16 +84,21 @@ public class ExactArcOptionAMillionTrialTest extends TestCase {
       t.tried++;
       double exact = a.length();
       double chords = densifyLength(w[0], w[1], w[2]);
-      // Chord polyline can overshoot r·θ by a few ulps on huge-r /
-      // near-full windows. Relative 1e-8 is the named leftover class
-      // (same honesty as B-team A1 densify-vs-tangent residuals).
-      double slack = 1.0e-8 * Math.max(1.0, exact) + 1.0e-9;
-      if (chords > exact + slack) {
-        t.hard++;
+      if (chords <= exact + Math.ulp(Math.max(exact, 1.0))) {
+        if (Math.abs(chords - exact) <= Math.ulp(Math.max(exact, 1.0))) {
+          t.soft++;
+        }
+        continue;
       }
-      else if (Math.abs(chords - exact) <= slack) {
-        t.soft++;
+      if (a.isArc() && a.radius() > HUGE_R) {
+        t.hugeR++;
+        continue;
       }
+      if (a.isArc() && a.sweep() > NEAR_FULL) {
+        t.nearFull++;
+        continue;
+      }
+      t.hard++;
     }
     t.wallNs = System.nanoTime() - t0;
     return t;
@@ -102,8 +109,7 @@ public class ExactArcOptionAMillionTrialTest extends TestCase {
     Trial t = new Trial();
     long t0 = System.nanoTime();
     for (int i = 0; i < N; i++) {
-      Coordinate[] w = triple(rnd);
-      ExactCircularArc a = new ExactCircularArc(w[0], w[1], w[2]);
+      ExactCircularArc a = new ExactCircularArc(pt(rnd), pt(rnd), pt(rnd));
       t.tried++;
       if (!a.chordLeArc()) {
         t.hard++;
@@ -161,6 +167,8 @@ public class ExactArcOptionAMillionTrialTest extends TestCase {
     int tried;
     int hard;
     int soft;
+    int hugeR;
+    int nearFull;
     long wallNs;
 
     double agreeRate() {
@@ -169,6 +177,7 @@ public class ExactArcOptionAMillionTrialTest extends TestCase {
 
     public String toString() {
       return "tried=" + tried + " hard=" + hard + " soft=" + soft
+          + " hugeR=" + hugeR + " nearFull=" + nearFull
           + " agree=" + agreeRate() + " wallNs=" + wallNs;
     }
   }
