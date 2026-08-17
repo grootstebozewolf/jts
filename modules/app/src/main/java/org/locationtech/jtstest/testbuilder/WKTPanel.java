@@ -38,6 +38,7 @@ import javax.swing.border.TitledBorder;
 
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jtstest.testbuilder.geom.GeometryUtil;
+import org.locationtech.jtstest.testbuilder.ui.AutomationIds;
 import org.locationtech.jtstest.testbuilder.io.IOUtil;
 import org.locationtech.jtstest.testbuilder.model.DisplayParameters;
 import org.locationtech.jtstest.testbuilder.model.GeometryEditModel;
@@ -357,6 +358,19 @@ public class WKTPanel extends JPanel
             });
         editMode.add(aRB);
         editMode.add(bRB);
+
+        // Appium / accessibility automation IDs
+        AutomationIds.set(aTextArea, AutomationIds.WKT_A);
+        AutomationIds.set(bTextArea, AutomationIds.WKT_B);
+        AutomationIds.set(loadButton, AutomationIds.WKT_LOAD);
+        AutomationIds.set(inspectButton, AutomationIds.WKT_INSPECT);
+        AutomationIds.set(exchangeButton, AutomationIds.WKT_EXCHANGE);
+        AutomationIds.set(aCopyButton, AutomationIds.WKT_A_COPY);
+        AutomationIds.set(aPasteButton, AutomationIds.WKT_A_PASTE);
+        AutomationIds.set(aCutButton, AutomationIds.WKT_A_CLEAR);
+        AutomationIds.set(bCopyButton, AutomationIds.WKT_B_COPY);
+        AutomationIds.set(bPasteButton, AutomationIds.WKT_B_PASTE);
+        AutomationIds.set(bCutButton, AutomationIds.WKT_B_CLEAR);
     }
 
     public void setText(Geometry g, int geomIndex)
