@@ -20,8 +20,8 @@ import test.jts.GeometryTestCase;
 /**
  * ML.1: certified stadium MIC. Radius is the cap radius; centre is
  * the midpoint of the two cap centres. Disc MIC (ML.0) is tried first
- * and stays bit-identical. {@code HALF_DISC} is two members -- a named
- * miss, not a half-disc diamond claimed exact.
+ * and stays bit-identical. {@code HALF_DISC} is ML.2 (r=R/2), not a
+ * stadium.
  */
 public class CurveExactStadiumMicTest extends GeometryTestCase {
 
@@ -101,8 +101,13 @@ public class CurveExactStadiumMicTest extends GeometryTestCase {
     Geometry half = readCurve(HALF_DISC);
     assertNull("HALF_DISC is one semicircle + diameter",
         CurveExact.stadiumMic(half));
-    assertNull("HALF_DISC is not a disc either -- chordsaw, not a diamond laser",
-        CurveExact.mic(half));
+    // ML.2: half-disc is the convex MIC cell, not a stadium miss.
+    CircularArcDensifier.Circle mic = CurveExact.mic(half);
+    assertNotNull(mic);
+    assertEquals(0.0, mic.cx, 0.0);
+    assertEquals(2.5, mic.cy, 0.0);
+    assertEquals(2.5, mic.r, 0.0);
+    assertEquals(mic.cx, CurveExact.halfDiscMic(half).cx, 0.0);
   }
 
   public void testHoledStadiumStamps() throws Exception {

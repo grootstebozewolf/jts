@@ -113,4 +113,28 @@ public class DiscreteFrechetDistanceCurveTest extends GeometryTestCase {
     assertEquals(10.0, frechet, TOL);
     assertTrue(Math.abs(frechet - APEX) > 0.1);
   }
+
+  /**
+   * M.5: concentric full-circle rings — continuous F = |R−r|.
+   */
+  public void testConcentricRingsContinuousFrechetIsRadiusGap() throws Exception {
+    Geometry outer = readCurve(
+        "CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0)");
+    Geometry inner = readCurve(
+        "CIRCULARSTRING (-3 0, 0 3, 3 0, 0 -3, -3 0)");
+    assertTrue(DiscreteFrechetDistance.hasCertifiedClosedForm(outer, inner));
+    assertEquals(2.0, DiscreteFrechetDistance.distance(outer, inner), TOL);
+    assertEquals(2.0, DiscreteFrechetDistance.distance(inner, outer), TOL);
+    // Discrete Hausdorff on control diamonds is not the continuous answer.
+    assertTrue(Math.abs(DiscreteHausdorffDistance.distance(outer, inner) - 2.0)
+        > 0.1);
+  }
+
+  public void testOffCentreRingsAreNotConcentricCell() throws Exception {
+    Geometry a = readCurve(
+        "CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0)");
+    Geometry b = readCurve(
+        "CIRCULARSTRING (-3 2, 0 5, 3 2, 0 -1, -3 2)");
+    assertTrue(!DiscreteFrechetDistance.hasCertifiedClosedForm(a, b));
+  }
 }

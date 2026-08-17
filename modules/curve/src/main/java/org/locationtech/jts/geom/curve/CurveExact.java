@@ -1298,7 +1298,31 @@ final class CurveExact {
   static CircularArcDensifier.Circle mic(Geometry g) {
     CircularArcDensifier.Circle disc = circularDisc(g);
     if (disc != null) return disc;
-    return stadiumMic(g);
+    CircularArcDensifier.Circle stadium = stadiumMic(g);
+    if (stadium != null) return stadium;
+    return halfDiscMic(g);
+  }
+
+  /**
+   * ML.2: MIC of a certified half-disc. Centre sits on the symmetry
+   * ray through the arc mid-control; radius is {@code R/2}. Matches
+   * densify-{@code MaximumInscribedCircle} on HALF_DISC (R=5 → (0, 2.5)).
+   * Non-half-disc convex shells and nonconvex shapes miss.
+   */
+  static CircularArcDensifier.Circle halfDiscMic(Geometry g) {
+    HalfDisc half = HalfDisc.of(g);
+    if (half == null) return null;
+    double r = half.circle.r;
+    if (r <= 0.0) return null;
+    double ux = half.mid.x - half.circle.cx;
+    double uy = half.mid.y - half.circle.cy;
+    double len = Math.hypot(ux, uy);
+    if (len <= 1.0e-12) return null;
+    ux /= len;
+    uy /= len;
+    double micR = 0.5 * r;
+    return new CircularArcDensifier.Circle(
+        half.circle.cx + micR * ux, half.circle.cy + micR * uy, micR);
   }
 
   /**
