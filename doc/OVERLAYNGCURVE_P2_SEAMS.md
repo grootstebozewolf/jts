@@ -6,7 +6,7 @@ A seam is where a kit returns null and the chordsaw takes over.
 
 Synced onto SoT `feature/sfa-curve-rgr` @ `47c0f33e`. Contract: Draft v6 MMF Option B — `SegmentKind`, no silent linearize, name **OverlayNGCurve** never *Curved*, slack 15%.
 
-**Named-miss leftover (honest, after B/C/D/E):** 3 primary open leftovers on the laser board — H-ANNULUS-TANGENT refuse · open-arc H-DISC lineal · N-SS full hierarchy deferred. R-PR-HALF clears when R.2 lands.
+**Named-miss leftover (honest, after B/C/D/E + R.2):** 3 primary open leftovers — H-ANNULUS-TANGENT refuse · open-arc H-DISC lineal · N-SS full hierarchy deferred. R-PR-HALF sewn.
 
 ## Updates from B/C/D/E work
 
@@ -54,7 +54,7 @@ Synced onto SoT `feature/sfa-curve-rgr` @ `47c0f33e`. Contract: Draft v6 MMF Opt
 | **P2.5.3** | CurveSegmentFaces | faces | Leave-angle walk. | sewn | done · jts#24 |
 | **P2.5.4** | coincident leave | (±1,0)+(0,5) | Named stamp. | stamped | done · jts#25 |
 | **HP** | CurveHotPixel | arc ∩ pixel | SHARED_SNAPPED_RAY. | stamped | Option-B pin · not M.1/ML.2 |
-| **R-PR-HALF** | CurveExact relate | — | Full discs only. | stamped | R.2 after R.1 TOUCH |
+| **R-PR-HALF** | CurveExact relate | — | Half-disc / open CircularString R.2 cell. | sewn | done · R.2 |
 | **N-SS / P2.5.5** | OverlayNGCircle + SegmentKind | N | **Started** (circles first slice). Full 74-file hierarchy deferred. | open / started | expand only deliberately |
 
 ## Named misses / refuses (honest)

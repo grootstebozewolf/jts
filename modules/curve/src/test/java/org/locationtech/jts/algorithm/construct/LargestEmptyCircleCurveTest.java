@@ -284,6 +284,49 @@ public class LargestEmptyCircleCurveTest extends GeometryTestCase {
   }
 
   /**
+   * ML.4: hole-free half-disc shell is filled. Interior query is 0;
+   * below the diameter is the typed shell distance, not a control chord.
+   */
+  public void testHoleFreeHalfDiscIsFilledShell() throws Exception {
+    Geometry half = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)))");
+    ObstacleDistance od = new ObstacleDistance(half);
+    Point inside = half.getFactory().createPoint(new Coordinate(0, 2));
+    Point below = half.getFactory().createPoint(new Coordinate(0, -2));
+    Point outside = half.getFactory().createPoint(new Coordinate(0, 8));
+    assertEquals(0.0, od.distance(inside), 0.0);
+    assertEquals(2.0, od.distance(below), 1.0e-9);
+    assertEquals(3.0, od.distance(outside), 1.0e-9);
+
+    Geometry square = readCurve("POLYGON ((-6 -3, 6 -3, 6 6, -6 6, -6 -3))");
+    Geometry obs = withBoundaryObstacle(half, square);
+    Point center = LargestEmptyCircle.getCenter(obs, square, 0.01);
+    double r = LargestEmptyCircle.getRadiusLine(obs, square, 0.01).getLength();
+    // Largest empty pocket is below the diameter in the square.
+    assertTrue("centre must not sit inside the filled half-disc",
+        !half.covers(center));
+    assertEquals(od.distance(center), r, 0.05);
+    assertTrue("radius reaches the diameter, not a far corner only",
+        r < 3.5);
+  }
+
+  /**
+   * ML.4: certified stadium shell is filled. Interior of the capsule is
+   * distance 0; above a side is the cap radius clearance.
+   */
+  public void testHoleFreeStadiumIsFilledShell() throws Exception {
+    // STADIUM_IN: caps at (±1, 2), r=1, sides y=1 and y=3.
+    Geometry stad = readCurve(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, -2 2, -1 3), (-1 3, 1 3), "
+            + "CIRCULARSTRING (1 3, 2 2, 1 1), (1 1, -1 1)))");
+    ObstacleDistance od = new ObstacleDistance(stad);
+    Point inside = stad.getFactory().createPoint(new Coordinate(0, 2));
+    assertEquals(0.0, od.distance(inside), 0.0);
+    Point above = stad.getFactory().createPoint(new Coordinate(0, 5));
+    assertEquals(2.0, od.distance(above), 1.0e-6);
+  }
+
+  /**
    * LEC centre is only required to lie in the boundary; the circle
    * may leave it. Including the ring as an obstacle keeps the
    * circle inside, which is the configuration the location

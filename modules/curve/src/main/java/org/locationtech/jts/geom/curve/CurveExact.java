@@ -590,30 +590,47 @@ final class CurveExact {
   }
 
   /**
-   * SFS {@code contains} of a Point or MultiPoint in a circular disc, or
-   * {@code null} if this pair is not that shape. Cheap check first.
-   * <p>
-   * For disc centre {@code C}, radius {@code r}, query {@code P},
-   * {@code d² = |P−C|²}:
-   * <ul>
-   * <li>{@code d² < r²} -- interior -- {@code true}</li>
-   * <li>{@code d² == r²} -- boundary -- {@code false} (geometries do not
-   *     contain their boundary)</li>
-   * <li>{@code d² > r²} -- exterior -- {@code false}</li>
-   * </ul>
-   * A MultiPoint is contained only when every member is interior.
+   * SFS {@code covers} of a Point or MultiPoint by a circular disc or
+   * certified half-disc, or {@code null} if this pair is not that shape.
+   * Same locate test as {@link #contains}; the boundary is covered.
    */
-  static Boolean contains(Geometry curve, Geometry other) {
-    return discPuntal(curve, other, false);
+  static Boolean covers(Geometry curve, Geometry other) {
+    Boolean disc = discPuntal(curve, other, true);
+    if (disc != null) return disc;
+    return halfPuntal(curve, other, true);
   }
 
   /**
-   * SFS {@code covers} of a Point or MultiPoint by a circular disc, or
-   * {@code null} if this pair is not that shape. Same {@code d²} test as
-   * {@link #contains}; the boundary ({@code d² == r²}) is covered.
+   * SFS {@code contains} of a Point or MultiPoint by a circular disc or
+   * certified half-disc, or {@code null}. Boundary is not contained
+   * ({@code d² == r²} / half boundary → false). A MultiPoint is
+   * contained only when every member is interior.
    */
-  static Boolean covers(Geometry curve, Geometry other) {
-    return discPuntal(curve, other, true);
+  static Boolean contains(Geometry curve, Geometry other) {
+    Boolean disc = discPuntal(curve, other, false);
+    if (disc != null) return disc;
+    return halfPuntal(curve, other, false);
+  }
+
+  private static Boolean halfPuntal(Geometry curve, Geometry other,
+      boolean cover) {
+    HalfDisc half = HalfDisc.of(curve);
+    if (half == null || !isPuntal(other)) return null;
+    int n = other.getNumGeometries();
+    boolean anyInterior = false;
+    for (int i = 0; i < n; i++) {
+      Geometry g = other.getGeometryN(i);
+      if (!(g instanceof Point) || g.isEmpty()) return null;
+      int loc = half.locate(((Point) g).getCoordinate());
+      if (loc == Location.EXTERIOR) return Boolean.FALSE;
+      if (loc == Location.BOUNDARY) {
+        if (!cover) return Boolean.FALSE;
+      } else {
+        anyInterior = true;
+      }
+    }
+    if (!cover && !anyInterior) return Boolean.FALSE;
+    return Boolean.TRUE;
   }
 
   /**
