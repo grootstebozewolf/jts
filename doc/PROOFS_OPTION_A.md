@@ -6,9 +6,13 @@ OverlayNG / snap stay concrete.
 
 ## Types
 
-- `AngleBetween` — Proofs #64 `atan2(cross,dot)` + mid long/short
+- `AngleBetween` — **only** `% 2π` / sweep owner. Proofs #64
+  `atan2(cross,dot)` + mid long/short. `DirectedSweep` keeps
+  orientation and magnitude together. `CircularArcDensifier` delegates
+  (no private `normPos`).
 - `ExactCircularArc` — 3-control window: `r·θ`, `chord ≤ arc` via
-  `2 r sin(θ/2) ≤ r θ`, in-arc on `d²`, segment area, centroid
+  `2 r sin(θ/2) ≤ r θ`, in-arc on `d²` + `travelled`, segment area,
+  one signed-sweep centroid formula
 - Circumcircle **and r** are `CircularArcDensifier.circumcircle` (one
   determinant, one radius — no second mean-r)
 - Front-end for `CircularString.getLength()` / centroid and

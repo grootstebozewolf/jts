@@ -2,7 +2,7 @@
 
 Tip pin: session @ `8787709a` (A-team advance, parallel to B).
 
-**A-team active:** Proofs Option A exact-arc front-end (`ExactCircularArc`) + 1M-trial handover.
+**A-team active:** Proofs Option A exact-arc front-end (`ExactCircularArc` + `AngleBetween` as the only `% 2π` owner) + 1M-trial handover.
 
 Prior: M.5→ML.2→HP.4→N-SS expand **stop** @ `c956b50d`.
 

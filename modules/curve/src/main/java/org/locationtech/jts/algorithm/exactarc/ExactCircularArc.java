@@ -11,6 +11,7 @@
  */
 package org.locationtech.jts.algorithm.exactarc;
 
+import org.locationtech.jts.algorithm.exactarc.AngleBetween.DirectedSweep;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.curve.CircularArcDensifier;
 
@@ -20,9 +21,9 @@ import org.locationtech.jts.geom.curve.CircularArcDensifier;
  * area, arc-length centroid).
  * <p>
  * Circumcircle is {@link CircularArcDensifier#circumcircle} — one
- * determinant, not a second copy. Sweep is {@link AngleBetween}.
- * Colinear triples degrade to the chord; never a silent flatten
- * flagged exact.
+ * determinant, not a second copy. Sweep is {@link AngleBetween}
+ * ({@code atan2(cross, dot)} + mid long/short). Colinear triples
+ * degrade to the chord; never a silent flatten flagged exact.
  */
 public final class ExactCircularArc {
 
@@ -54,13 +55,11 @@ public final class ExactCircularArc {
     }
     this.cx = circ[0];
     this.cy = circ[1];
-    this.a0 = Math.atan2(start.y - cy, start.x - cx);
-    double aMid = Math.atan2(mid.y - cy, mid.x - cx);
-    double a1 = Math.atan2(end.y - cy, end.x - cx);
-    this.ccw = AngleBetween.isCcw(a0, aMid, a1);
-    this.sweep = AngleBetween.directedSweepFromAngles(a0, aMid, a1);
-    // Same r as CircularArcDensifier.Circle — one circle, one length.
     this.r = circ[2];
+    this.a0 = Math.atan2(start.y - cy, start.x - cx);
+    DirectedSweep sw = AngleBetween.through(cx, cy, start, mid, end);
+    this.ccw = sw.isCcw();
+    this.sweep = sw.radians();
     this.arc = true;
   }
 
@@ -73,8 +72,7 @@ public final class ExactCircularArc {
     if (circ == null) {
       return start.distance(end);
     }
-    double sweep = AngleBetween.directedSweep(circ[0], circ[1], start, mid, end);
-    return circ[2] * sweep;
+    return circ[2] * AngleBetween.directedSweep(circ[0], circ[1], start, mid, end);
   }
 
   public Coordinate getStart() {
@@ -140,8 +138,8 @@ public final class ExactCircularArc {
   }
 
   /**
-   * Point-on-arc via {@code |d² − r²|} (no extra hypot) and the cached
-   * start angle. Chord fallback is the segment.
+   * Point-on-arc via {@code |d² − r²|} (no extra hypot) and
+   * {@link AngleBetween#travelled}. Chord fallback is the segment.
    */
   public boolean inArc(Coordinate p, double radialTol) {
     if (p == null) {
@@ -170,7 +168,8 @@ public final class ExactCircularArc {
   }
 
   /**
-   * Wire (arc-length) centroid. Uses the cached start angle.
+   * Wire (arc-length) centroid. One signed-sweep formula for both
+   * orientations: {@code (r/δ) (sin a1 − sin a0, −cos a1 + cos a0)}.
    */
   public Coordinate arcLengthCentroid() {
     if (!arc) {
@@ -179,28 +178,20 @@ public final class ExactCircularArc {
     if (sweep == 0.0) {
       return start.copy();
     }
-    double a1 = a0 + (ccw ? sweep : -sweep);
-    double x;
-    double y;
-    if (ccw) {
-      x = cx + (r / sweep) * (Math.sin(a1) - Math.sin(a0));
-      y = cy + (r / sweep) * (-Math.cos(a1) + Math.cos(a0));
-    }
-    else {
-      x = cx + (r / sweep) * (Math.sin(a0) - Math.sin(a1));
-      y = cy + (r / sweep) * (-Math.cos(a0) + Math.cos(a1));
-    }
-    return new Coordinate(x, y);
+    double signed = ccw ? sweep : -sweep;
+    double a1 = a0 + signed;
+    double k = r / signed;
+    return new Coordinate(
+        cx + k * (Math.sin(a1) - Math.sin(a0)),
+        cy + k * (-Math.cos(a1) + Math.cos(a0)));
   }
 
   boolean onSweep(Coordinate p) {
     if (!arc) {
       return false;
     }
-    double ap = Math.atan2(p.y - cy, p.x - cx);
-    double travelled = ccw
-        ? AngleBetween.normalizePositive(ap - a0)
-        : AngleBetween.normalizePositive(a0 - ap);
+    double travelled = AngleBetween.travelled(ccw,
+        start.x - cx, start.y - cy, p.x - cx, p.y - cy);
     return travelled <= sweep + Math.ulp(sweep);
   }
 

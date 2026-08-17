@@ -85,4 +85,23 @@ public class ExactCircularArcTest extends TestCase {
     assertEquals(new ExactCircularArc(s, m, e).length(),
         ExactCircularArc.length(s, m, e), 0.0);
   }
+
+  public void testArcLengthCentroidSemicircle() {
+    ExactCircularArc a = new ExactCircularArc(
+        new Coordinate(5, 0), new Coordinate(0, 5), new Coordinate(-5, 0));
+    Coordinate c = a.arcLengthCentroid();
+    assertEquals(0.0, c.x, 1.0e-12);
+    assertEquals(10.0 / Math.PI, c.y, 1.0e-12);
+  }
+
+  public void testCwCentroidMirrorsCcw() {
+    ExactCircularArc ccw = new ExactCircularArc(
+        new Coordinate(5, 0), new Coordinate(0, 5), new Coordinate(-5, 0));
+    ExactCircularArc cw = new ExactCircularArc(
+        new Coordinate(5, 0), new Coordinate(0, -5), new Coordinate(-5, 0));
+    assertFalse(cw.isCcw());
+    assertEquals(ccw.length(), cw.length(), 0.0);
+    assertEquals(ccw.arcLengthCentroid().x, cw.arcLengthCentroid().x, 1.0e-12);
+    assertEquals(-ccw.arcLengthCentroid().y, cw.arcLengthCentroid().y, 1.0e-12);
+  }
 }

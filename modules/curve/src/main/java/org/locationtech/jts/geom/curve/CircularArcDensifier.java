@@ -19,6 +19,8 @@ import java.util.List;
 import org.locationtech.jts.algorithm.LineIntersector;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.algorithm.RobustLineIntersector;
+import org.locationtech.jts.algorithm.exactarc.AngleBetween;
+import org.locationtech.jts.algorithm.exactarc.AngleBetween.DirectedSweep;
 import org.locationtech.jts.algorithm.exactarc.ExactCircularArc;
 import org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance;
 import org.locationtech.jts.geom.Coordinate;
@@ -88,10 +90,9 @@ public final class CircularArcDensifier {
       return out;
     }
     double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
-    double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
-    double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
-    boolean ccw = isMidInCcwSweep(a0, aMid, a1);
-    double sweep = signedSweep(a0, a1, ccw);
+    DirectedSweep sw = AngleBetween.through(c.cx, c.cy, start, mid, end);
+    boolean ccw = sw.isCcw();
+    double sweep = sw.radians();
     double delta = sweep / numSegments;
     if (!ccw) {
       delta = -delta;
@@ -138,11 +139,9 @@ public final class CircularArcDensifier {
         : tolerance;
 
     double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
-    double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
-    double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
-
-    boolean ccw = isMidInCcwSweep(a0, aMid, a1);
-    double sweep = signedSweep(a0, a1, ccw);
+    DirectedSweep sw = AngleBetween.through(c.cx, c.cy, start, mid, end);
+    boolean ccw = sw.isCcw();
+    double sweep = sw.radians();
 
     int segments = computeSegmentCount(c.r, sweep, effectiveTolerance);
     double delta = sweep / segments;
@@ -248,27 +247,6 @@ public final class CircularArcDensifier {
     return n < 1 ? 1 : n;
   }
 
-  private static boolean isMidInCcwSweep(double a0, double aMid, double a1) {
-    double sweepCcw = normalizePositive(a1 - a0);
-    double midOffset = normalizePositive(aMid - a0);
-    return midOffset < sweepCcw;
-  }
-
-  private static double signedSweep(double a0, double a1, boolean ccw) {
-    double sweep = ccw
-        ? normalizePositive(a1 - a0)
-        : normalizePositive(a0 - a1);
-    if (sweep == 0.0) sweep = 2.0 * Math.PI;
-    return sweep;
-  }
-
-  private static double normalizePositive(double angle) {
-    double twoPi = 2.0 * Math.PI;
-    angle = angle % twoPi;
-    if (angle < 0.0) angle += twoPi;
-    return angle;
-  }
-
   /** Project every must-include point onto the arc; keep those within
    *  {@code tolerance} radial distance, then sort by sweep-angle so the
    *  caller can interleave them with the chord-vertex emission. */
@@ -286,9 +264,7 @@ public final class CircularArcDensifier {
       double dist = Math.hypot(dx, dy);
       if (Math.abs(dist - c.r) > tolerance) continue;          // off-curve
       double angle = Math.atan2(dy, dx);
-      double sweepAngle = ccw
-          ? normalizePositive(angle - a0)
-          : normalizePositive(a0 - angle);
+      double sweepAngle = AngleBetween.travelledFromAngles(ccw, a0, angle);
       if (sweepAngle > sweep) continue;                        // outside sweep
       // Carry the ORIGINAL coordinate, not its projection onto the circle. The
       // angle exists only to order the anchor among the chord vertices; the
@@ -356,11 +332,8 @@ public final class CircularArcDensifier {
       return 0.5 * (start.x * end.y - end.x * start.y);
     }
     double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
-    double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
-    double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
-    boolean ccw = isMidInCcwSweep(a0, aMid, a1);
-    double sweep = signedSweep(a0, a1, ccw);
-    double delta = ccw ? sweep : -sweep;
+    DirectedSweep sw = AngleBetween.through(c.cx, c.cy, start, mid, end);
+    double delta = sw.signed();
     return 0.5 * (c.r * c.r * delta
         + c.cx * c.r * (Math.sin(a0 + delta) - Math.sin(a0))
         - c.cy * c.r * (Math.cos(a0 + delta) - Math.cos(a0)));
@@ -697,15 +670,12 @@ public final class CircularArcDensifier {
   private static void addAxisExtrema(Circle c, Coordinate start, Coordinate mid,
       Coordinate end, Envelope env, List<Coordinate> dest) {
     double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
-    double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
-    double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
-    boolean ccw = isMidInCcwSweep(a0, aMid, a1);
-    double sweep = signedSweep(a0, a1, ccw);
+    DirectedSweep sw = AngleBetween.through(c.cx, c.cy, start, mid, end);
+    boolean ccw = sw.isCcw();
+    double sweep = sw.radians();
     for (int q = 0; q < 4; q++) {
       double axis = q * Math.PI / 2.0;
-      double travelled = ccw
-          ? normalizePositive(axis - a0)
-          : normalizePositive(a0 - axis);
+      double travelled = AngleBetween.travelledFromAngles(ccw, a0, axis);
       if (travelled <= sweep) {
         double x = c.cx + c.r * Math.cos(axis);
         double y = c.cy + c.r * Math.sin(axis);
@@ -717,16 +687,10 @@ public final class CircularArcDensifier {
 
   static boolean isOnSweep(Coordinate p, Circle c, Coordinate start,
       Coordinate mid, Coordinate end) {
-    double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
-    double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
-    double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
-    boolean ccw = isMidInCcwSweep(a0, aMid, a1);
-    double sweep = signedSweep(a0, a1, ccw);
-    double angle = Math.atan2(p.y - c.cy, p.x - c.cx);
-    double travelled = ccw
-        ? normalizePositive(angle - a0)
-        : normalizePositive(a0 - angle);
-    return travelled <= sweep + 1.0e-12;
+    DirectedSweep sw = AngleBetween.through(c.cx, c.cy, start, mid, end);
+    double travelled = AngleBetween.travelled(sw.isCcw(),
+        start.x - c.cx, start.y - c.cy, p.x - c.cx, p.y - c.cy);
+    return travelled <= sw.radians() + 1.0e-12;
   }
 
   static Coordinate nearestPointOnSegment(Coordinate p, Coordinate a, Coordinate b) {

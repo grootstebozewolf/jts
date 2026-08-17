@@ -49,4 +49,38 @@ public class AngleBetweenTest extends TestCase {
     assertEquals(0.0, AngleBetween.normalizePositive(0.0), 0.0);
     assertEquals(Math.PI, AngleBetween.normalizePositive(-Math.PI), 1.0e-15);
   }
+
+  public void testDirectedThreeQuarter() {
+    // start → north → south is the long CCW 3π/2, not the short CW π/2
+    AngleBetween.DirectedSweep sw = AngleBetween.through(0, 0,
+        new Coordinate(1, 0), new Coordinate(0, 1), new Coordinate(0, -1));
+    assertTrue(sw.isCcw());
+    assertEquals(1.5 * Math.PI, sw.radians(), 1.0e-12);
+    assertEquals(1.5 * Math.PI, sw.signed(), 1.0e-12);
+  }
+
+  public void testBranchCutIsNotAFullTurn() {
+    // start/end straddle atan2's ±π cut. Subtracting two atan2s
+    // collapses that to 0 ≡ 2π; atan2(cross,dot) keeps the tiny gap.
+    Coordinate start = new Coordinate(-1.0, 1.0e-15);
+    Coordinate end = new Coordinate(-1.0, -1.0e-15);
+    Coordinate mid = new Coordinate(0.0, 1.0);
+    AngleBetween.DirectedSweep sw = AngleBetween.through(0, 0, start, mid, end);
+    assertFalse(sw.isCcw());
+    assertTrue(sw.radians() < AngleBetween.TWO_PI);
+    assertTrue(sw.radians() > AngleBetween.TWO_PI - 1.0e-12);
+    double a0 = Math.atan2(start.y, start.x);
+    double a1 = Math.atan2(end.y, end.x);
+    double collapsed = AngleBetween.normalizePositive(a1 - a0);
+    assertEquals(0.0, collapsed, 0.0);
+  }
+
+  public void testThroughMatchesDirectedSweep() {
+    Coordinate s = new Coordinate(3, 1);
+    Coordinate m = new Coordinate(0, 4);
+    Coordinate e = new Coordinate(-2, 0);
+    AngleBetween.DirectedSweep sw = AngleBetween.through(0, 1, s, m, e);
+    assertEquals(sw.radians(), AngleBetween.directedSweep(0, 1, s, m, e), 0.0);
+    assertEquals(sw.isCcw(), AngleBetween.isCcw(0, 1, s, m, e));
+  }
 }
