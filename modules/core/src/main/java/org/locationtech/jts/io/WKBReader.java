@@ -343,6 +343,9 @@ public class WKBReader
       case WKBConstants.wkbMultiSurface :
         geom = readMultiSurface(SRID);
         break;
+      case WKBConstants.wkbClothoid :
+        geom = readClothoid(ordinateFlags);
+        break;
       default:
         geom = readOtherGeometry(geometryType, ordinateFlags, SRID);
         break;
@@ -372,6 +375,27 @@ public class WKBReader
     }
     catch (UnsupportedOperationException e) {
       throw curveFactoryRequired(WKBConstants.wkbCircularString, e);
+    }
+  }
+
+  /**
+   * CRV-CLOTHOID (WKB 18). Greenfield fork layout:
+   * {@code startXY[ZM] + startTangent + startKappa + endKappa + length}.
+   * No nested Point header. End pose is recovered analytically.
+   */
+  private Geometry readClothoid(EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    CoordinateSequence startSeq = readCoordinateSequence(1, ordinateFlags);
+    double startTangent = dis.readDouble();
+    double startKappa = dis.readDouble();
+    double endKappa = dis.readDouble();
+    double length = dis.readDouble();
+    try {
+      return factory.createClothoid(startSeq.getCoordinate(0),
+          startTangent, startKappa, endKappa, length);
+    }
+    catch (UnsupportedOperationException e) {
+      throw curveFactoryRequired(WKBConstants.wkbClothoid, e);
     }
   }
 

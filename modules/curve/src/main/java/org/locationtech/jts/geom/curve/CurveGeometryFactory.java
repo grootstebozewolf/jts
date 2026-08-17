@@ -11,6 +11,7 @@
  */
 package org.locationtech.jts.geom.curve;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFactory;
 import org.locationtech.jts.geom.Geometry;
@@ -89,6 +90,13 @@ public class CurveGeometryFactory extends GeometryFactory {
   @Override
   public MultiCurve createMultiCurve(LineString[] members) {
     return new MultiCurve(members, this);
+  }
+
+  @Override
+  public ClothoidSegment createClothoid(Coordinate start, double startTangent,
+      double startKappa, double endKappa, double length) {
+    return new ClothoidSegment(start, startTangent, startKappa, endKappa,
+        length, this);
   }
 
   /**

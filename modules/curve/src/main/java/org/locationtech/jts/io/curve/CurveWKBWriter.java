@@ -14,12 +14,15 @@ package org.locationtech.jts.io.curve;
 import java.io.IOException;
 import java.util.EnumSet;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.MultiCurve;
 import org.locationtech.jts.geom.curve.MultiSurface;
+import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.io.Ordinate;
 import org.locationtech.jts.io.OutStream;
 import org.locationtech.jts.io.WKBConstants;
@@ -92,7 +95,29 @@ public class CurveWKBWriter extends WKBWriter {
           children(geom), outputOrdinates, os);
       return true;
     }
+    if (geom instanceof ClothoidSegment) {
+      writeClothoid((ClothoidSegment) geom, outputOrdinates, os);
+      return true;
+    }
     return false;
+  }
+
+  /**
+   * CRV-CLOTHOID WKB 18: start point ordinates (no size prefix) then
+   * {@code startTangent, startKappa, endKappa, length}.
+   */
+  private void writeClothoid(ClothoidSegment cl,
+      EnumSet<Ordinate> outputOrdinates, OutStream os) throws IOException {
+    writeByteOrder(os);
+    writeGeometryType(WKBConstants.wkbClothoid, outputOrdinates, cl, os);
+    Coordinate start = cl.getStartCoordinate();
+    CoordinateArraySequence seq = new CoordinateArraySequence(
+        new Coordinate[] { start });
+    writeCoordinateSequence(seq, outputOrdinates, false, os);
+    writeDouble(cl.getStartTangent(), os);
+    writeDouble(cl.getStartKappa(), os);
+    writeDouble(cl.getEndKappa(), os);
+    writeDouble(cl.getLength(), os);
   }
 
   private void writeCircularString(CircularString cs,

@@ -706,6 +706,23 @@ public class GeometryFactory
     throw unsupportedCurve();
   }
 
+  /**
+   * Creates a CRV-CLOTHOID (WKB 18) from start pose and spiral parameters.
+   * Default factory cannot construct curve types; {@code CurveGeometryFactory}
+   * overrides. Do not implement by densifying to a LineString.
+   *
+   * @param start start point (Z/M preserved when present)
+   * @param startTangent heading at start (radians, XY-up CCW)
+   * @param startKappa curvature κ₀
+   * @param endKappa curvature κ₁ ({@code !=} startKappa)
+   * @param length arc length L {@code > 0}
+   * @return a clothoid (as a LineString)
+   */
+  public LineString createClothoid(Coordinate start, double startTangent,
+      double startKappa, double endKappa, double length) {
+    throw unsupportedCurve();
+  }
+
   private static UnsupportedOperationException unsupportedCurve() {
     return new UnsupportedOperationException(
         "requires a GeometryFactory that can construct curve types (CurveGeometryFactory).");

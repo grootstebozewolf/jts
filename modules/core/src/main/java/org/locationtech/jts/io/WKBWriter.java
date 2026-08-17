@@ -443,7 +443,7 @@ public class WKBWriter
       throw new IllegalArgumentException(
           "WKB type " + geom.getGeometryType()
               + " requires CurveWKBWriter; core WKBWriter must not flatten"
-              + " SQL/MM types 8–12 to LineString or Polygon");
+              + " SQL/MM / curve-zoo types 8–12 or 18–21 to LineString or Polygon");
     }
 
     if (geom instanceof Point)
@@ -494,7 +494,9 @@ public class WKBWriter
         || WKTConstants.COMPOUNDCURVE.equalsIgnoreCase(type)
         || WKTConstants.CURVEPOLYGON.equalsIgnoreCase(type)
         || WKTConstants.MULTICURVE.equalsIgnoreCase(type)
-        || WKTConstants.MULTISURFACE.equalsIgnoreCase(type);
+        || WKTConstants.MULTISURFACE.equalsIgnoreCase(type)
+        || WKTConstants.CLOTHOID.equalsIgnoreCase(type)
+        || "ClothoidSegment".equalsIgnoreCase(type);
   }
 
   private void writePoint(Point pt, EnumSet<Ordinate> outputOrdinates, OutStream os) throws IOException
@@ -621,6 +623,16 @@ public class WKBWriter
   {
     ByteOrderValues.putInt(intValue, buf, byteOrder);
     os.write(buf, 4);
+  }
+
+  /**
+   * Writes one IEEE-754 double in the writer byte order.
+   * Used by curve zoo payloads (e.g. CRV-CLOTHOID parameters).
+   */
+  protected void writeDouble(double value, OutStream os) throws IOException
+  {
+    ByteOrderValues.putDouble(value, buf, byteOrder);
+    os.write(buf, 8);
   }
 
   protected void writeCoordinateSequence(CoordinateSequence seq, EnumSet<Ordinate> outputOrdinates, boolean writeSize, OutStream os)
