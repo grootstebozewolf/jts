@@ -17,7 +17,7 @@
 > Assisted-by: Cursor Grok (grok-4.6)
 > ```
 
-**Status:** Draft v6 MMF Option B (2026-08-17). Tip `6f9ae158` on [#61](https://github.com/grootstebozewolf/jts/pull/61).
+**Status:** Draft v6 MMF Option B (2026-08-17). Tip `6f5ec9b5` on [#61](https://github.com/grootstebozewolf/jts/pull/61).
 **Source:** Parent epic [locationtech/jts#1195](https://github.com/locationtech/jts/issues/1195). Fork SoT [grootstebozewolf/jts#7](https://github.com/grootstebozewolf/jts/pull/7) `feature/sfa-curve-rgr`. MMF draft [grootstebozewolf/jts#61](https://github.com/grootstebozewolf/jts/pull/61) `cursor/jts-issue-1195-c5d1` — Option B `SegmentKind`, no-silent-linearize strategy, WKB 18–21 greenfield, OFF/BUF/VBF/COV/H-CC/PLG + TB-FN badges. Slack still 15%. No upstream locationtech PR until dr-jts engages.
 **Origin (historical):** [`feature/sfa-curve-buffer-spike`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-buffer-spike) — Draft v3 of this epic and the 49-method spec class. Draft v5 (2026-08-16) described #7 @ `210f1b16` with OV-P1 kits; Bar 2 stayed off #7 until this MMF fold.
 **Audience:** locationtech/jts maintainers and contributors. Lift verbatim into a GitHub Epic / Discussion.
@@ -226,78 +226,75 @@ Mirror the `CompoundCurve` work onto the remaining composite types.
 
 ### Phase 3 — Measurement (Distance, Centroid, Interior point)
 
-- **D-PT / D-AA** — analytical point-arc and arc-arc distance. Closed-form helpers exist in `CurveExact`; the public `DistanceOp` TAG is still red.
-- **D-OP** — `DistanceOp` accepts curved inputs without forced densification. Still the public TAG; keep the spec method.
-- **D-HF** — **Partial (half-red):** public DHD still sees chords in general. On #7 via `0ca71b` closed-form for two pairs only: single-arc `CircularString` → single-segment `LineString` (apex √949/6 − 7/6 = 3.967640600249787), and two circular discs (10.0). A single-member `MultiSurface` of one disc is the same pair, not a third. Exact path skips densify; densify 0.05 is not the laser. Keep the spec `fail()`.
-- **C-LIN / C-AREA / C-IP** — centroids and interior point.
+- **D-PT / D-AA / D-OP** — **Shipped (MMF #61):** analytical point-arc / arc-arc / DistanceOp green meters.
+- **D-HF** — **Partial (half-red):** public DHD apex + disc closed forms; general pairs densify curve package inputs. Full TAG keep `fail()` in `CurveAwarenessSpecTest`.
+- **C-LIN / C-AREA / C-IP** — **Shipped (MMF #61).**
 
 **Depends on:** Phase 1 (F-CP for `CurvePolygon` cases).
 
 ### Phase 4 — Construction (Buffer, Hulls, Simplification, Affine, Linear-Ref, Densifier)
 
-- **BUF-1 / BUF-N / BUF-NEG** — analytical buffer. Open-arc buffer still open.
-- **OFF / VBF** — offset curve and variable buffer. **OFF** = concentric arc (refactor) still open.
-- **H-CV / H-CC** — convex / concave hull. **H-CV partial:** disc / arc convex hull closed forms exist. **H-CC** still open. CompoundCurve hull still open.
-- **S-DP / S-VW / S-TP** — simplification preserves arc identity.
-- **AT-S / AT-NS** — affine transforms (similarity preserves; non-similarity densifies — see §7 risk).
-- **LRF-LEN / LRF-LOC** — linear referencing parameterised by arc length.
-- **DSF** — densifier delegates to `toLinear`.
+- **BUF-1 / BUF-N / BUF-NEG** — **Shipped (MMF #61):** open-arc corridor + stadium / N-member CompoundCurve.
+- **OFF** — **Shipped (MMF #61):** concentric single-arc OffsetCurve.
+- **VBF** — **Partial:** arc-length densify + warn shipped; arc-preserving offset laser still optional.
+- **H-CV / H-CC** — **Shipped (MMF #61):** convex hull kits + ConcaveHull densify sites (hull fraction).
+- **S-DP / S-VW / S-TP** — **Shipped (MMF #61):** 3-pt CircularString identity preserved.
+- **AT-S / AT-NS** — **Shipped (MMF #61).**
+- **LRF-LEN / LRF-LOC** — **Shipped (MMF #61).**
+- **DSF** — **Shipped (MMF #61):** densifier → `toLinear`.
 
 **Depends on:** Phase 1 (output may be `CurvePolygon`).
 
 ### Phase 5 — Noding foundation
 
-- **N-AA** — public arc-arc intersection utility. **Still red.**
-- **N-AL** — public arc-line intersection utility. **Still red.** Line–circle clip is used inside R1.6; R-LL / R-AA are overlay kits; those are not this TAG.
-- **N-SS** — arc-aware `SegmentString` / `NodedSegmentString` and integration with the `Noder` hierarchy. **Still red.** OV-P2 / Bar 2 — different epic; do not start from this PR.
+- **N-AA / N-AL** — **Shipped (MMF #61):** `CurveIntersection` public utility.
+- **N-SS** — **Partial (Option B):** `SegmentKind` + `CircularNodedSegmentString` + OverlayNG prepared edges shipped. Full hierarchy rewrite still OV-P2 / Bar 2 (different epic).
 
-**Depends on:** Phase 1. **Touches `jts-core`** — see §6. Phase 6 *general* overlay still depends on N-SS.
+**Depends on:** Phase 1. **Touches `jts-core`** — see §6.
 
 ### Phase 6 — Overlay, Predicates, Polygonizer, Coverage
 
-- **OV** — arc-preserving overlay output (`union` / `intersection` / `difference` / `symDifference`). **Partial (closed-form subset):** OverlayNGCurve R0 / R1 / R1.5 two-disc / R1.6 disc vs hole-free plain polygon / R1.7 CompoundCurve-shell kits (two-node, two-shell, collinear, 0/1-node, even-n, tangent-odd NSpan, same-outer hole, different-outer punch) / R-LL / R-AA / D4 nested annulus (`16π`, covers `EEEE` / coveredBy `EE0E`). **OV-P1 flipped.** Remaining named R2: `H-SHELL-N-MIXED`, `H-SHELL-HOLE-CROSS`, `H-SHELL-HOLE-X`, `H-ANNULUS-TANGENT`. **Not** a general circular noder. Circular noder + arrangement is OV-P2 / Bar 2 — different epic; do not start. Do not mark the *full* OV TAG green.
-- **R-PR / R-CONT / R-EQ** — arc-aware relate, predicates, exact equality. **R-PR / R-CONT partial:** certified disc PIP; DE-9IM for disc vs Point / LineString / hole-free Polygon / second disc; MultiSurface unwrap; SFS table; two areas never `crosses`. Half-disc / CompoundCurve still null → linearise. **R-EQ** (arc-vs-chord `equalsExact`) still open.
-- **PLG** — `Polygonizer` accepts `CompoundCurve` edges and emits `CurvePolygon` faces.
-- **COV** — `CoverageUnion` preserves shared arc edges.
+- **OV** — **Partial:** OverlayNGCurve kits + OverlayNGCircle MIXED + ClothoidOverlay 0-node. Full OV TAG not green.
+- **R-PR / R-CONT / R-EQ** — **Partial→stronger (MMF #61):** disc DE-9IM + contains meters; arc-vs-chord `equalsExact` shipped earlier on #7.
+- **PLG** — **Partial (MMF #61):** densify on add (faces remain Polygon; CurvePolygon faces laser open).
+- **COV** — **Shipped (MMF #61):** `CurveCoverageUnion` keeps exterior CIRCULARSTRINGs.
 
-**Depends on:** Phase 5 for *general* OV / PLG / COV / R-EQ. **Phase 6 subsets already landed without N-SS** — see §4.1 and §10.
+**Depends on:** Phase 5 for *general* OV. **Phase 6 subsets already landed without a full circular noder.**
 
 ### Phase 7 — Independent tracks
 
 Three single-theme tracks that depend only on Phase 1 and have no inter-dependencies; can land in parallel with Phases 2–6 once Phase 1 ships.
 
 - **Snapping**
-  - **PRC-SN** — snap-to-grid preserves arc when the snapped `(R, centre, sweep)` still lies on grid; otherwise densify-and-snap chords.
+  - **PRC-SN** — **Shipped (MMF #61):** preserve CircularString when snapped centre on-grid.
 - **Triangulation / Voronoi**
-  - **TRI-DT / TRI-VR** — `DelaunayTriangulationBuilder` / `VoronoiDiagramBuilder` accept curved boundary input (densify internally via `toLinear(tolerance)`).
+  - **TRI-DT / TRI-VR** — **Shipped (MMF #61):** densify curve sites.
 - **TestBuilder**
-  - **TB-T** — `CompoundCurveTool`, `CurvePolygonTool` drawing UX.
-  - **TB-FN** — function-tree curve-awareness badges (●/◯/✕). *Stretch goal* — see §8.
-  - Visual QA still open: TestBuilder inspector `ClassCastException`.
+  - **TB-T / TB-FN** — **Partial→stronger (MMF #61):** draw tools + badges + WarnSink/status; await UX SIGN #56/#60.
 
-Most of Phase 2 / 4 / 7 TAGs are still the full red list. Also still open (not a phase of their own): RocqRefRunner SQL/MM suite for public Curve predicates. **LEC** is partial (typed obstacle distance for point / segment / polygon / arc / disc); the public TAG is wider.
+### Named misses still open (explicit list)
+
+- **CLOTHOID-FRESNEL** — clothoid–circle / clothoid–line node (never chord-flatten).
+- **D-HF full TAG** — general public Hausdorff beyond apex/disc closed forms.
+- **VBF arc-offset laser** — preserve CircularString offsets under variable distance.
+- **PLG CurvePolygon faces** — Polygonizer still emits Polygon.
+- **HP.1 wrong-ring walk** — local curvature leave-angle order (pin; needs HotPixel).
+- Remaining OverlayNGCurve R2 stamps as listed in §4.1 / ratchet.
+- WKB **15–17** Architect-gated.
+- RocqRefRunner SQL/MM suite for public Curve predicates (optional).
+- Visual QA: await UX SIGN on #56 / #60 pin JAR.
+
+Most Phase 2–7 *full* TAGs that still lack a closed-form or densify-honesty ship remain red in `CurveAwarenessSpecTest` (currently **D-HF** only). See [MMF_WALKTHROUGH.md](doc/MMF_WALKTHROUGH.md).
 
 ## 10. Suggested order
 
 ```
-Phase 1 (Foundations)
+Phase 1 (Foundations) — done on #7 / MMF #61
    │
-   ├──> Phase 2 (Properties)            M-AREA-CP partial: circular discs
-   ├──> Phase 3 (Measurement)           CurveExact helpers; D-HF half-red
-                                        (public DHD two pairs via 0ca71b; still sees chords; Fréchet open)
-   ├──> Phase 4 (Construction)          H-CV partial: disc / arc hulls
-   ├──> Phase 5 (Noding)  ──>  Phase 6 *general* OV / PLG / COV / R-EQ
-   │                            (OV-P2 / Bar 2 — different epic)
-   │
-   └──> Phase 6 *subsets* (already on #7, did not wait for N-SS)
-            OverlayNGCurve R0 / R1 / R1.5 / R1.6 / R1.7 + R-LL / R-AA
-            D4 nested annulus; OV-P1 flipped
-            remaining named R2: MIXED / HOLE-CROSS / HOLE-X / H-ANNULUS-TANGENT
-            R-PR / R-CONT closed-form disc cells
-   └──> Phase 7 (Independent tracks: snap / triangulation / TestBuilder)
+   ├──> Phase 2–4 / 7 TAGs — largely shipped on MMF #61 (see above)
+   ├──> Phase 5 Option B SegmentKind — shipped; full noder hierarchy = OV-P2
+   └──> Phase 6 subsets — OverlayNGCurve + COV + PLG densify on tip
 ```
-
-After Phase 1 finishes, Phases 2 / 3 / 4 / 5 / 7 can run in parallel. **Phase 6 general overlay still waits for Phase 5.** Phase 6 *subsets* (two-disc overlay, disc-vs-polygon overlay, CompoundCurve-shell kits, lineal R-LL / R-AA, nested annulus, disc DE-9IM) already shipped on #7 without a public noder. The phase graph must not say “overlay requires a noder” as if those subsets were blocked.
 
 ## 11. Conventions
 
@@ -323,14 +320,11 @@ After Phase 1 finishes, Phases 2 / 3 / 4 / 5 / 7 can run in parallel. **Phase 6 
 - OGC Simple Feature Access 1.2.1 / ISO 19125-2.
 - `jts-curve` source: `modules/curve/`.
 - Parent epic: [locationtech/jts#1195](https://github.com/locationtech/jts/issues/1195).
-- [#7](https://github.com/grootstebozewolf/jts/pull/7) `feature/sfa-curve-rgr` — live tip `210f1b16` (merge of #11). SFA/SQL-MM types, WKT, structural types, PERF-GATE, OverlayNGCurve kits, `CurveExact`, WKB 8–12.
-- [#8](https://github.com/grootstebozewolf/jts/pull/8) `cursor/curve-perf-gate-45a0` — **merged into #7**. PERF-GATE and the first closed-form lasers, including WKB 8–12.
-- [#10](https://github.com/grootstebozewolf/jts/pull/10) nested annulus (`92fdbb71`) — **merged into #7**.
-- [#11](https://github.com/grootstebozewolf/jts/pull/11) odd-n tangent NSpan (`d8c5824f`) — **merged into #7**.
-- Draft [#12](https://github.com/grootstebozewolf/jts/pull/12) (`3cc5f1a5`) — stamps `H-SHELL-HOLE-CROSS` + `H-SHELL-HOLE-X`. Stacked, not merged.
-- Draft [#13](https://github.com/grootstebozewolf/jts/pull/13) (`73703036`) — stamps `H-ANNULUS-TANGENT`. Stacked, not merged.
+- [#7](https://github.com/grootstebozewolf/jts/pull/7) `feature/sfa-curve-rgr` — SoT.
+- MMF draft [#61](https://github.com/grootstebozewolf/jts/pull/61) `cursor/jts-issue-1195-c5d1` — Option B spine + WKB 18–21 + meter ship.
 - OverlayNGCurve (package-private overlay helpers in `org.locationtech.jts.operation.overlayng.curve`).
 - `CurveExact` (package-private in `org.locationtech.jts.geom.curve`).
+- `doc/MMF_OPTION_B.md`, `doc/MMF_WALKTHROUGH.md`, `doc/latex/`.
 - GEOS `src/io/WKBReader.cpp` / `WKBWriter.cpp` / `include/geos/io/WKBConstants.h` — type codes 8–12 and child-WKB layout.
 - Spike branch (origin): `feature/sfa-curve-buffer-spike` on `grootstebozewolf/jts`.
-- `CurveAwarenessSpecTest` — full-TAG red list (49 `fail()` methods still present; excluded from default Surefire). Live meter: #7 green tests + [JTS curve laser — progress](https://www.notion.so/JTS-curve-laser-progress-3bd1c9833b068135bd74e817b67e77eb).
+- `CurveAwarenessSpecTest` — remaining full-TAG red: **D-HF** only (excluded from default Surefire). Live meter: `CurveAwarenessGreenMetersTest` + [MMF_WALKTHROUGH.md](doc/MMF_WALKTHROUGH.md).

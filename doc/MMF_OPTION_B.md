@@ -16,6 +16,10 @@ Option B + WKB 18–21 + OFF/BUF-*/VBF + DSF/TRI + N-AA/AL/N-SS + F-*/B-* + LRF-
 
 Still red by design: **D-HF** (full TAG keep `fail()`; apex closed-form + general curve densify honesty landed).
 
+### Named misses (Phase 2 accept — explicit)
+
+- CLOTHOID-FRESNEL; VBF arc-offset laser; PLG CurvePolygon faces; HP.1 wrong-ring walk; OverlayNGCurve R2 stamps; WKB 15–17 Architect-gated.
+
 Folded pins onto tip: **#55** `logoClothoid`, **#52** write-flatten honesty, **#40** `ClothoidOverlay`, **#26** HP.1.
 
 ## Verify (smoke)
