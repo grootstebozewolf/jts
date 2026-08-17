@@ -129,14 +129,38 @@ public class CurveAwarenessGreenMetersTest extends TestCase {
     assertEquals("LineString", sheared.getGeometryType());
   }
 
+  public void test_F_CP() throws Exception {
+    Geometry g = read(
+        "CURVEPOLYGON ((CIRCULARSTRING (0 0, 5 5, 10 0), CIRCULARSTRING (10 0, 5 -5, 0 0)))");
+    assertTrue(g instanceof CurvePolygon);
+    assertTrue(((CurvePolygon) g).getExteriorCurve() instanceof CompoundCurve);
+  }
+
+  public void test_B_CP() throws Exception {
+    Geometry g = read(
+        "CURVEPOLYGON ((CIRCULARSTRING (0 0, 5 5, 10 0), (10 0, 0 0)))");
+    Geometry b = g.getBoundary();
+    assertTrue(b instanceof CompoundCurve);
+    CompoundCurve cc = (CompoundCurve) b;
+    assertEquals(2, cc.getNumMembers());
+    assertTrue(cc.getMemberN(0) instanceof CircularString);
+  }
+
+  public void test_B_MS() throws Exception {
+    Geometry g = read(
+        "MULTISURFACE (((0 0, 10 0, 10 10, 0 10, 0 0)), "
+            + "CURVEPOLYGON ((CIRCULARSTRING (20 0, 25 5, 30 0), (30 0, 20 0))))");
+    Geometry b = g.getBoundary();
+    assertEquals("MultiCurve", b.getGeometryType());
+    assertTrue(b instanceof MultiCurve);
+  }
+
   public void test_LRF_LEN() throws Exception {
-    // LengthIndexedLine still indexes the control polyline; apex is near
-    // mid-arc for a semicircle but not bit-exact until LRF densifies by
-    // arc length. Guard: extracted point lies on the circle.
     Geometry arc = read("CIRCULARSTRING (-5 0, 0 5, 5 0)");
     LengthIndexedLine lil = new LengthIndexedLine(arc);
     Coordinate mid = lil.extractPoint(arc.getLength() / 2.0);
-    assertEquals(5.0, Math.hypot(mid.x, mid.y), 0.75);
+    assertEquals(0.0, mid.x, 1.0e-9);
+    assertEquals(5.0, mid.y, 1.0e-9);
   }
 
   public void test_D_PT() throws Exception {

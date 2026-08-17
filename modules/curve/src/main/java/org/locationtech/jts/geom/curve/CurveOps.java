@@ -152,6 +152,137 @@ public final class CurveOps {
   }
 
   /**
+   * Point along a lineal curve at arc length {@code s} (clamped).
+   * CircularString / CompoundCurve use analytical arc length; others
+   * return {@code null} so callers fall back to chord indexing.
+   */
+  public static Coordinate extractPointByArcLength(Geometry g, double s) {
+    if (g == null || g.isEmpty()) {
+      return null;
+    }
+    if (g instanceof CircularString) {
+      return extractOnCircularString((CircularString) g, s);
+    }
+    if (g instanceof CompoundCurve) {
+      CompoundCurve cc = (CompoundCurve) g;
+      double remaining = s;
+      if (remaining < 0.0) {
+        remaining = 0.0;
+      }
+      double total = cc.getLength();
+      if (remaining > total) {
+        remaining = total;
+      }
+      for (int i = 0; i < cc.getNumMembers(); i++) {
+        LineString m = cc.getMemberN(i);
+        double len = m.getLength();
+        if (remaining <= len || i == cc.getNumMembers() - 1) {
+          if (m instanceof CircularString) {
+            return extractOnCircularString((CircularString) m, remaining);
+          }
+          return pointAlongLine(m, remaining);
+        }
+        remaining -= len;
+      }
+    }
+    return null;
+  }
+
+  private static Coordinate extractOnCircularString(CircularString cs, double s) {
+    org.locationtech.jts.geom.CoordinateSequence seq = cs.getCoordinateSequence();
+    int n = seq.size();
+    if (n < 3) {
+      return pointAlongLine(cs, s);
+    }
+    double remaining = s;
+    if (remaining < 0.0) {
+      remaining = 0.0;
+    }
+    double total = cs.getLength();
+    if (remaining > total) {
+      remaining = total;
+    }
+    for (int i = 0; i + 2 < n; i += 2) {
+      Coordinate a = seq.getCoordinate(i);
+      Coordinate mid = seq.getCoordinate(i + 1);
+      Coordinate b = seq.getCoordinate(i + 2);
+      double len = CircularArcDensifier.arcLength(a, mid, b);
+      if (remaining <= len || i + 2 >= n - 1) {
+        return pointOnArc(a, mid, b, remaining / (len > 0 ? len : 1.0));
+      }
+      remaining -= len;
+    }
+    return new Coordinate(seq.getCoordinate(n - 1));
+  }
+
+  private static Coordinate pointOnArc(Coordinate a, Coordinate mid, Coordinate b,
+      double t) {
+    if (t <= 0.0) {
+      return new Coordinate(a);
+    }
+    if (t >= 1.0) {
+      return new Coordinate(b);
+    }
+    CircularArcDensifier.Circle c = CircularArcDensifier.Circle.fromThreePoints(
+        a, mid, b);
+    if (c == null) {
+      return new Coordinate(
+          a.x + t * (b.x - a.x), a.y + t * (b.y - a.y));
+    }
+    double a0 = Math.atan2(a.y - c.cy, a.x - c.cx);
+    double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
+    double a1 = Math.atan2(b.y - c.cy, b.x - c.cx);
+    boolean ccw = midInCcwSweep(a0, aMid, a1);
+    double sweep = signedSweep(a0, a1, ccw);
+    double ang = a0 + (ccw ? sweep : -sweep) * t;
+    return new Coordinate(c.cx + c.r * Math.cos(ang), c.cy + c.r * Math.sin(ang));
+  }
+
+  private static boolean midInCcwSweep(double a0, double aMid, double a1) {
+    double toMid = normPos(aMid - a0);
+    double toEnd = normPos(a1 - a0);
+    return toMid <= toEnd + 1.0e-15;
+  }
+
+  private static double signedSweep(double a0, double a1, boolean ccw) {
+    double d = ccw ? normPos(a1 - a0) : normPos(a0 - a1);
+    return d == 0.0 ? 2.0 * Math.PI : d;
+  }
+
+  private static double normPos(double a) {
+    double t = a % (2.0 * Math.PI);
+    if (t < 0) {
+      t += 2.0 * Math.PI;
+    }
+    return t;
+  }
+
+  private static Coordinate pointAlongLine(LineString ls, double s) {
+    Coordinate[] pts = ls.getCoordinates();
+    if (pts.length == 0) {
+      return new Coordinate();
+    }
+    if (s <= 0.0) {
+      return new Coordinate(pts[0]);
+    }
+    double remaining = s;
+    for (int i = 0; i < pts.length - 1; i++) {
+      double len = pts[i].distance(pts[i + 1]);
+      if (remaining <= len || i == pts.length - 2) {
+        double t = len > 0.0 ? remaining / len : 0.0;
+        if (t > 1.0) {
+          t = 1.0;
+        }
+        return new Coordinate(
+            pts[i].x + t * (pts[i + 1].x - pts[i].x),
+            pts[i].y + t * (pts[i + 1].y - pts[i].y));
+      }
+      remaining -= len;
+    }
+    return new Coordinate(pts[pts.length - 1]);
+  }
+
+  /**
    * The densification tolerance {@link #linearise(Geometry)} would use for this
    * geometry, and therefore the maximum distance by which its densified copy
    * deviates from the true arc. Zero for a geometry with no arc, whose linearised

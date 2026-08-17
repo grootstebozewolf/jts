@@ -312,22 +312,59 @@ public class CurveWKTReader extends WKTReader {
       throws IOException, ParseException {
     String tok = getNextEmptyOrOpener(tokenizer);
     if (tok.equals(WKTConstants.EMPTY)) return new CurvePolygon(geometryFactory);
-    // Option A (FCP-S / FCP-H): preserve every member as a structural LineString
-    // (may be CircularString / CompoundCurve / plain LineString). CurvePolygon
-    // derives the legacy LinearRing shell and holes from their control points.
-    LineString structuralShell = null;
+    // Rings may be a single curve member, or a parenthesised list of
+    // members forming a CompoundCurve shell/hole (ISO/SQL-MM).
+    LineString structuralShell = readCurvePolygonRing(tokenizer, ordinateFlags);
     List<LineString> structuralHoles = new ArrayList<LineString>();
-    do {
-      LineString member = readCurveMember(tokenizer, ordinateFlags);
-      if (structuralShell == null) {
-        structuralShell = member;
-      } else {
-        structuralHoles.add(member);
-      }
+    tok = getNextCloserOrComma(tokenizer);
+    while (tok.equals(",")) {
+      structuralHoles.add(readCurvePolygonRing(tokenizer, ordinateFlags));
       tok = getNextCloserOrComma(tokenizer);
-    } while (tok.equals(","));
+    }
     return new CurvePolygon(structuralShell,
         structuralHoles.toArray(new LineString[0]), geometryFactory);
+  }
+
+  /**
+   * One CurvePolygon ring: {@code CIRCULARSTRING(...)} /
+   * {@code COMPOUNDCURVE(...)} / plain {@code (...)} coords, or a
+   * compound list {@code (CIRCULARSTRING(...), (x y, ...), ...)}.
+   */
+  private LineString readCurvePolygonRing(StreamTokenizer tokenizer,
+      EnumSet<Ordinate> ordinateFlags) throws IOException, ParseException {
+    String w = lookAheadWord(tokenizer);
+    if (w.equals(L_PAREN)) {
+      getNextWord(tokenizer); // consume '('
+      String inner = lookAheadWord(tokenizer);
+      if (isTaggedCurveWord(inner) || inner.equalsIgnoreCase(CLOTHOID)) {
+        List<LineString> members = new ArrayList<LineString>();
+        do {
+          members.add(readCurveMember(tokenizer, ordinateFlags));
+          w = getNextCloserOrComma(tokenizer);
+        } while (w.equals(","));
+        if (members.size() == 1) {
+          return members.get(0);
+        }
+        return new CompoundCurve(members.toArray(new LineString[0]),
+            geometryFactory);
+      }
+      // Untagged coordinate ring; '(' already consumed.
+      List<Coordinate> coordinates = new ArrayList<Coordinate>();
+      do {
+        coordinates.add(getCoordinate(tokenizer, ordinateFlags, false));
+      } while (getNextCloserOrComma(tokenizer).equals(","));
+      return geometryFactory.createLineString(
+          coordinates.toArray(new Coordinate[0]));
+    }
+    return readCurveMember(tokenizer, ordinateFlags);
+  }
+
+  private static boolean isTaggedCurveWord(String w) {
+    if (w == null) return false;
+    String u = w.toUpperCase(Locale.ROOT);
+    return u.equals(WKTConstants.CIRCULARSTRING)
+        || u.equals(WKTConstants.COMPOUNDCURVE)
+        || u.equals(WKTConstants.LINESTRING);
   }
 
   private MultiCurve readMultiCurveText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)

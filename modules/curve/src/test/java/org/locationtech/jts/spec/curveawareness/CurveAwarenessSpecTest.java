@@ -41,10 +41,10 @@ import test.jts.GeometryTestCase;
  * prints a list of every <em>full</em> TAG that still needs work.
  * All remaining {@code fail()} methods stay. That count is the full-TAG
  * red list, not the live scoreboard: closed-form lasers keep these
- * methods until the full TAG ships. Shipped cluster: OFF, BUF-*, DSF, TRI-*,
- * M-LEN-*, M-AREA-CP, M-DIM, F-MC, F-MS, B-CC, H-CV, R-EQ, AT-S, AT-NS, D-PT,
- * N-AA, N-AL. VBF/LRF-LEN meters remain for full arc-length indexing /
- * arc-offset emission. TB-T held for #56 UX SIGN.
+ * methods until the full TAG ships. Shipped cluster includes F-CP, B-CP,
+ * B-MS, LRF-LEN (analytical extractPoint), plus prior M-LEN/AREA/DIM,
+ * F-MC/MS, B-CC, H-CV, R-EQ, AT-S/NS, D-PT, N-AA/AL, OFF, BUF-*, DSF, TRI-*.
+ * VBF meter remains for arc-offset emission. TB-T held for #56 UX SIGN.
  *
  * <p>Tests do not have to be precise — the goal is coverage of
  * pre-existing gaps, not exact threshold checks. A green
@@ -60,14 +60,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Foundations -- structural completeness in jts-curve
   // ============================================================
 
-  /** F-CP: CurvePolygon stores CompoundCurve shell + holes (today: flat LinearRing). */
-  public void test_F_CP_curvePolygonStoresCompoundCurveShell() throws Exception {
-    Geometry g = read(
-        "CURVEPOLYGON ((CIRCULARSTRING (0 0, 5 5, 10 0), CIRCULARSTRING (10 0, 5 -5, 0 0)))");
-    assertTrue(g instanceof CurvePolygon);
-    fail("F-CP: CurvePolygon should expose its shell as a CompoundCurve; today the WKT "
-        + "reader collapses the rings to a flat LinearRing in the parent Polygon.");
-  }
+  // test_F_CP_curvePolygonStoresCompoundCurveShell shipped — see CurveAwarenessGreenMetersTest
 
   // test_F_MC_multiCurvePreservesMemberSubtypesThroughCopy shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
@@ -96,24 +89,9 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Boundary
   // ============================================================
 
-  /** B-CP: CurvePolygon.getBoundary() returns a CompoundCurve. */
-  public void test_B_CP_curvePolygonBoundaryIsCompoundCurve() throws Exception {
-    Geometry g = read(
-        "CURVEPOLYGON ((CIRCULARSTRING (0 0, 5 5, 10 0), (10 0, 0 0)))");
-    Geometry boundary = g.getBoundary();
-    fail("B-CP: CurvePolygon.getBoundary() should be a CompoundCurve(CircularString, "
-        + "LineString); got " + boundary.getGeometryType() + ".");
-  }
+  // test_B_CP_curvePolygonBoundaryIsCompoundCurve shipped — see CurveAwarenessGreenMetersTest
 
-  /** B-MS: MultiSurface.getBoundary() returns a MultiCurve. */
-  public void test_B_MS_multiSurfaceBoundaryIsMultiCurve() throws Exception {
-    Geometry g = read(
-        "MULTISURFACE (((0 0, 10 0, 10 10, 0 10, 0 0)), "
-        + "CURVEPOLYGON ((CIRCULARSTRING (20 0, 25 5, 30 0), (30 0, 20 0))))");
-    Geometry boundary = g.getBoundary();
-    fail("B-MS: MultiSurface.getBoundary() should be a MultiCurve preserving curved "
-        + "ring members; got " + boundary.getGeometryType() + ".");
-  }
+  // test_B_MS_multiSurfaceBoundaryIsMultiCurve shipped — see CurveAwarenessGreenMetersTest
 
   // test_B_CC_openCompoundCurveBoundaryIsTwoEndpoints shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
@@ -354,13 +332,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Linear referencing
   // ============================================================
 
-  // test_LRF_LEN_lengthIndexedLineUsesArcLength — partial: LengthIndexedLine
-  // still uses control chords; keep meter until arc-length indexing ships.
-  /** LRF-LEN: LengthIndexedLine uses arc length. */
-  public void test_LRF_LEN_lengthIndexedLineUsesArcLength() throws Exception {
-    fail("LRF-LEN: LengthIndexedLine.extractPoint(s) on a CircularString must "
-        + "parameterise by analytical arc length, not the control-point polyline.");
-  }
+  // test_LRF_LEN_lengthIndexedLineUsesArcLength shipped — see CurveAwarenessGreenMetersTest
 
   /** LRF-LOC: LocationIndexedLine member-aware on CompoundCurve. */
   public void test_LRF_LOC_locationIndexedLineMemberAware() throws Exception {
