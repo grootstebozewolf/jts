@@ -338,6 +338,9 @@ public class TestCasePanel extends JPanel {
     lblStatus.setBorder(new EmptyBorder(0, 8, 0, 4));
     lblStatus.setText("");
     lblStatus.setHorizontalAlignment(SwingConstants.LEFT);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        lblStatus,
+        org.locationtech.jtstest.testbuilder.ui.AutomationIds.STATUS_CURVE_STRATEGY);
     reserveStatusRoom();
 
     JPanel panelCase = new JPanel();

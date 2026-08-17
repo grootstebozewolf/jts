@@ -178,6 +178,12 @@ public class JTSTestBuilderMenuBar
         "Curve strategy: LINEARIZED (warn)");
     final JRadioButtonMenuItem menuCurvePreserve = new JRadioButtonMenuItem(
         "Curve strategy: PRESERVE");
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        menuCurveLinearized,
+        org.locationtech.jtstest.testbuilder.ui.AutomationIds.MENU_CURVE_STRATEGY_LINEARIZED);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        menuCurvePreserve,
+        org.locationtech.jtstest.testbuilder.ui.AutomationIds.MENU_CURVE_STRATEGY_PRESERVE);
     javax.swing.ButtonGroup curveStrategyGroup = new javax.swing.ButtonGroup();
     curveStrategyGroup.add(menuCurveLinearized);
     curveStrategyGroup.add(menuCurvePreserve);
