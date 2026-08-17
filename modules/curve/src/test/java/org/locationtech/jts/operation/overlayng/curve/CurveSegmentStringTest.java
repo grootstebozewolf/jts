@@ -579,8 +579,8 @@ public class CurveSegmentStringTest extends GeometryTestCase {
         readCurve(HALF_DISC), readCurve(HALF_HANGING),
         readCurve(STADIUM_ODD) });
     assertNull("N≥3 near-tangent is P2.5.4, not a face walk", faces);
-    assertEquals("snap-rounding: coincident leave-angle",
-        CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
+    assertEquals("HP.4: shared snapped ray stamp",
+        CurveSegmentFaces.SHARED_SNAPPED_RAY,
         CurveSegmentFaces.missReason());
   }
 
@@ -602,8 +602,8 @@ public class CurveSegmentStringTest extends GeometryTestCase {
         new Geometry[] { half, hanging, stadium });
     assertNull("HP.1: P2.5.4 stamp is not a curvature-order laser",
         stamped);
-    assertEquals("HP.1: named stamp unchanged",
-        CurveSegmentFaces.TANGENT_LEAVE_ANGLE,
+    assertEquals("HP.4: shared snapped ray (not curvature-order)",
+        CurveSegmentFaces.SHARED_SNAPPED_RAY,
         CurveSegmentFaces.missReason());
 
     Geometry kit = CurveSegmentFaces.pairKitFaces(half, stadium);

@@ -117,4 +117,20 @@ public class CurveHotPixelTest extends TestCase {
     boolean ccw = TwoNodeClip.normPos(aM - a0) < TwoNodeClip.normPos(a1 - a0);
     return ccw ? Math.atan2(rx, -ry) : Math.atan2(-rx, ry);
   }
+
+  /** HP.4: faces path stamps shared snapped ray — not a walk. */
+  public void testFacesAfterSnapStampsSharedRay() throws Exception {
+    org.locationtech.jts.io.curve.CurveWKTReader r =
+        new org.locationtech.jts.io.curve.CurveWKTReader(
+            new org.locationtech.jts.geom.curve.CurveGeometryFactory());
+    org.locationtech.jts.geom.Geometry[] geoms =
+        new org.locationtech.jts.geom.Geometry[] {
+            r.read("CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)))"),
+            r.read("CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 8, 0 3, 5 8), (5 8, -5 8)))"),
+            r.read("CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 4, 0 5, 1 4), (1 4, 1 -1), CIRCULARSTRING (1 -1, 0 -2, -1 -1), (-1 -1, -1 4)))")
+        };
+    assertNull(CurveSegmentFaces.faces(geoms));
+    assertEquals(CurveSegmentFaces.SHARED_SNAPPED_RAY,
+        CurveSegmentFaces.missReason());
+  }
 }

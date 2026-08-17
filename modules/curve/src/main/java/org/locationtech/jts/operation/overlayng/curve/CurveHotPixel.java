@@ -28,10 +28,9 @@ import org.locationtech.jts.geom.Coordinate;
  * A circular leave is not a segment. {@code intersects} of an arc
  * is circle–square / arc–AABB in that scaled space, then restricted
  * to the sweep. It is not the supporting chord, not
- * {@code HotPixel.intersectsScaled}, and not a densified polyline.
- * {@link #exit} is the same pixel test: where the arc leaves the
- * square. Leave-angle snap is {@link CurveHotPixelSnap} (HP.3).
- * This class is not a noder and does not walk faces.
+ * Leave-angle snap is {@link CurveHotPixelSnap} (HP.3). HP.4 wires
+ * that snap into {@link CurveSegmentFaces}: shared snapped ray stamps
+ * and stops. This class is not a noder and does not walk faces.
  */
 final class CurveHotPixel {
 

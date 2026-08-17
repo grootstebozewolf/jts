@@ -23,16 +23,18 @@ import org.locationtech.jts.geom.curve.MultiSurface;
 import org.locationtech.jts.noding.NodedSegmentString;
 
 /**
- * OverlayNG-for-circles first slice: convert a leftover circular
+ * OverlayNG-for-circles Option B slices: convert a leftover circular
  * pair onto core {@link org.locationtech.jts.noding.CircularNodedSegmentString},
  * node through OverlayNG's {@link org.locationtech.jts.noding.Noder}
  * entry, and assemble a named exact area.
  * <p>
- * First cell is H-SHELL-N-MIXED (collinear diameter overlap). The
- * P2.1–P2.5.4 kits stay refused; this rung is the OverlayNG path,
- * not a kit rewrite. A proper crossing, a 0-node nest
- * ({@code CC-NEST-ANNULUS}), or the P2.5.4 tangent stamp stay
- * {@code null}. Package-private -- not a public API.
+ * Cells:
+ * <ul>
+ * <li>H-SHELL-N-MIXED — collinear diameter overlap → containment assemble</li>
+ * <li>two-shell proper crossing — noder names crossings → {@link TwoShellClip}</li>
+ * </ul>
+ * The P2.1–P2.5.4 kits stay refused on their own path; the P2.5.4
+ * tangent stamp stays {@code null}. Package-private -- not a public API.
  */
 final class OverlayNGCircle {
 
@@ -61,10 +63,14 @@ final class OverlayNGCircle {
     OverlayNGCircleNoder noder = new OverlayNGCircleNoder(scale);
     noder.computeNodes(edges);
     noder.getNodedSubstrings();
-    if (!noder.hasMixedOverlap() || noder.hasProperCrossing()) {
-      return null;
+    if (noder.hasMixedOverlap() && !noder.hasProperCrossing()) {
+      return TwoShellClip.containmentOverlay(ca, cb, opCode, a);
     }
-    return TwoShellClip.containmentOverlay(ca, cb, opCode, a);
+    // Deliberate Option-B expand: proper crossings → two-shell assemble.
+    if (noder.hasProperCrossing() && !noder.hasMixedOverlap()) {
+      return TwoShellClip.overlay(ca, cb, opCode, a);
+    }
+    return null;
   }
 
   /**
