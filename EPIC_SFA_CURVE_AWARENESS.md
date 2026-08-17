@@ -72,6 +72,7 @@ Draft off #7. SoT stays the fork; no upstream PR.
 | `fix:` | **TB-FN #60**: Exec prefers `currentFunc`; param focus cannot re-bind to `Buffer.buffer`. **TB-FN badges** ●/◯/✕ via `Metadata.curveAwareness`. **Strategy picker** Edit menu LINEARIZED/PRESERVE; warn sink → Log tab. | Await UX SIGN on pin JAR. |
 | `fix:` | **VBF honesty**: `VariableBuffer` + TestBuilder densify via equal-arc-length `CurveOps.lineariseArcLength` (warn). | Full arc-preserving variable offsets still optional laser. |
 | `feat:` | **DSF / TRI / H-CC / LRF-LOC / C-IP / PRC-SN / V-CP / N-SS / R-PR** densify or Option B honesty paths shipped (see `CurveAwarenessGreenMetersTest`). | Meters deleted from red suite. |
+| `docs:` | **`doc/latex/`** guide sources cherry-picked from #47 (Makefile + manuals + figures). Amyuni PDF binaries not force-swapped. | Phase 6 partial; `make` + UX SIGN still HOLD. |
 | `test:` | **#56 locks**: `CurvePolygonToolTest` 16/16 — non-closing finish auto-closes to `CURVEPOLYGON`, Escape cancels with status, never silent empty / never `POLYGON` flatten. | HOLD issue close until PO UX SIGN. |
 
 ### 4.1 On #7 since the spike (historical tip `210f1b16`, still accurate for OV-P1 kits)
