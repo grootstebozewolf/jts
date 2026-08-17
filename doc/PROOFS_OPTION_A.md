@@ -25,6 +25,13 @@ OverlayNG / snap stay concrete.
 - Premature OverlayNG rewrite from this package
 - Touch B-team `orientable` types
 
+## Merge note for B
+
+B round-2 (`59976b5a`) copied the v1 `AngleBetween` (3-atan2 subtract).
+This branch's file is a compatible superset: same method names, Proofs
+`atan2(cross,dot)` implementation, `DirectedSweep`, `travelled`. Take
+**this** `AngleBetween.java` on merge; do not keep the v1 copy.
+
 ## Handover
 
 `ExactArcOptionAMillionTrialTest` — N=1e6; L1 is analytic n-gon
