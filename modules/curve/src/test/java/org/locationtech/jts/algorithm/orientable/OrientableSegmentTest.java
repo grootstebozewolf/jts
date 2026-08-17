@@ -19,7 +19,8 @@ import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
 
 /**
- * Pins for lightweight Option B carriers on A's ExactCircularArc.
+ * Pins for optional OrientableSegment adapters that compose
+ * {@link ExactCircularArc} (Bible §3).
  */
 public class OrientableSegmentTest extends GeometryTestCase {
 

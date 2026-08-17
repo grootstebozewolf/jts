@@ -15,9 +15,10 @@ import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
 import org.locationtech.jts.geom.Coordinate;
 
 /**
- * Public intersect bridge for B's {@code OrientableSegment}. Lives next
- * to {@link CircularArcDensifier} so package-private circle/sweep helpers
- * stay unexported. Not a second geometry owner.
+ * Named densifier bridge for optional OrientableSegment intersect.
+ * Lives beside {@link CircularArcDensifier} so package-private circle
+ * helpers stay unexported. Not an ExactCurve* cell; not a second
+ * geometry owner ({@code doc/EXACT_CURVE_BIBLE.md} §2–§3).
  */
 public final class ArcIntersects {
 

@@ -1,28 +1,24 @@
 # Chainsaw → Laser · arc-native program
 
-Tip pin: session @ `8787709a` (advance on B land).
+Tip pin: session advances on ExactCurve* / adapter work.  
+Canonical architecture: [`EXACT_CURVE_BIBLE.md`](EXACT_CURVE_BIBLE.md).
 
-**B-team active:** Proofs Option B predicate seam (`OrientableSegment`) + 1M-trial handover.
+**Year-1 lock:** `ExactCircularArc` is the privileged pure primitive.  
+`OrientableSegment` is a demoted, optional adapter (Bible §3).
 
-Prior: M.5→ML.2→HP.4→N-SS expand **stop** @ `c956b50d`.
-
-Contract: parity or named densify-shim · `t_laser ≤ 1.15 × t_chainsaw` · no silent ConcaveHull · OverlayNGCurve never *Curved*.
+Contract: parity or named densify-shim · `t_laser ≤ 1.15 × t_chainsaw` · no silent ConcaveHull · OverlayNGCurve never *Curved* · core `SegmentString` stays linear.
 
 ## Glossary
 
 | Term | Meaning |
 |------|---------|
-| Proofs **A** | Exact arc closed-form cells (sister team) |
-| Proofs **B** | Predicate abstraction OrientableSegment (this team) |
-| JTS MMF “Option B” | `SegmentKind` typed carrier — orthogonal |
+| **ExactCurve*** | Privileged immutable value types (`exactcurve` package) |
+| **OrientableSegment** | Thin optional side/intersect adapter — not the centre of design |
+| JTS MMF “Option B” | `SegmentKind` typed carrier — orthogonal to Proofs A/B prose |
 
-## B-team status
+## Pointers
 
-See [PROOFS_OPTION_B.md](PROOFS_OPTION_B.md) · handover [PROOFS_OPTION_B_HANDOVER.md](PROOFS_OPTION_B_HANDOVER.md).
-
-## Related
-
-- [LASER_RATCHET.md](LASER_RATCHET.md)
-- [OVERLAYNGCURVE_P2_SEAMS.md](OVERLAYNGCURVE_P2_SEAMS.md)
-- [METRIC_KIT_MX.md](METRIC_KIT_MX.md)
-- [MMF_OPTION_B.md](MMF_OPTION_B.md)
+- Bible: [EXACT_CURVE_BIBLE.md](EXACT_CURVE_BIBLE.md)
+- Exact* A: [PROOFS_OPTION_A.md](PROOFS_OPTION_A.md) (when present)
+- Adapter B: [PROOFS_OPTION_B.md](PROOFS_OPTION_B.md) · [PROOFS_OPTION_B_HANDOVER.md](PROOFS_OPTION_B_HANDOVER.md)
+- [LASER_RATCHET.md](LASER_RATCHET.md) · [OVERLAYNGCURVE_P2_SEAMS.md](OVERLAYNGCURVE_P2_SEAMS.md) · [MMF_OPTION_B.md](MMF_OPTION_B.md)

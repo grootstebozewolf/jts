@@ -19,8 +19,14 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.curve.ArcIntersects;
 
 /**
- * Lightweight Option B arc predicate on A's {@link ExactCircularArc}.
- * Side + intersect only — no length/area/centroid copy.
+ * Optional OrientableSegment adapter over
+ * {@link ExactCircularArc} — Bible §3 demotion: ExactCircularArc is the
+ * privileged primitive; this type composes it and owns only side +
+ * intersect. Length, sweep, area, centroid, and {@code toLinear} stay
+ * on Exact*.
+ * <p>
+ * Side: filter → {@link CGAlgorithmsDD#signOfDet2x2}. Intersect: named
+ * densifier bridge {@link ArcIntersects} + Exact* {@code isOnSweep}.
  */
 public final class ArcOrientableSegment implements OrientableSegment {
 

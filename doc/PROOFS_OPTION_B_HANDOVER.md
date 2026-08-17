@@ -1,6 +1,8 @@
-# Proofs Option B — 1M-trial handover
+# OrientableSegment adapter — 1M-trial handover
 
-Seed `0xc0ffeeb007` · N=1000000 · box [-100.0,100.0]² · densify nChord=64
+Per [`EXACT_CURVE_BIBLE.md`](EXACT_CURVE_BIBLE.md) §3, `ExactCircularArc` is privileged; these trials cover the **optional** OrientableSegment side/intersect adapters only.
+
+Seed `0xc0ffeeb007` · N=1000000 · box [-100.0,100.0]² · densify nChord=64 (samples via `ExactCircularArc.pointAt`)
 
 ### S1 straight orientationIndex vs Orientation.index
 

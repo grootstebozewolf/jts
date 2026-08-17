@@ -14,9 +14,15 @@ package org.locationtech.jts.algorithm.orientable;
 import org.locationtech.jts.geom.Coordinate;
 
 /**
- * Proofs Option B — directed piece answering orientation and
- * intersection without forcing a single linear representation.
- * Densify references live in tests only — not on this interface.
+ * Thin optional directed-piece protocol for side and intersect only.
+ * <p>
+ * Per {@code doc/EXACT_CURVE_BIBLE.md} §3, this is <b>not</b> the
+ * privileged curve representation. Prefer
+ * {@link org.locationtech.jts.algorithm.exactcurve.ExactCircularArc}
+ * (and later Exact* siblings). Densify oracles stay out of this
+ * interface.
+ *
+ * @see org.locationtech.jts.algorithm.exactcurve.ExactCurve
  */
 public interface OrientableSegment {
 

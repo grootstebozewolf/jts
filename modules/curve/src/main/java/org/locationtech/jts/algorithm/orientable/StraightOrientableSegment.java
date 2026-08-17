@@ -16,11 +16,11 @@ import org.locationtech.jts.algorithm.RobustLineIntersector;
 import org.locationtech.jts.geom.Coordinate;
 
 /**
- * Straight directed segment — Proofs Option B.
+ * Optional straight OrientableSegment adapter.
  * Bit-identical to {@link Orientation#index} /
- * {@link RobustLineIntersector#hasIntersection} on the straight×straight
- * predicates. Reuses one intersector instance per call site pattern
- * via thread-confined locals (no shared mutable state).
+ * {@link RobustLineIntersector#hasIntersection} on straight×straight.
+ * Not an ExactCurve* type — Exact* remains the privileged family
+ * ({@code doc/EXACT_CURVE_BIBLE.md}).
  */
 public final class StraightOrientableSegment implements OrientableSegment {
 

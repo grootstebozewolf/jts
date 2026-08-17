@@ -17,9 +17,9 @@ import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
 import org.locationtech.jts.geom.Coordinate;
 
 /**
- * Densify / sample reference for B-team trials. Samples via A's
- * {@link ExactCircularArc#pointAt(double)} — not a second sweep owner.
- * Never production; never flagged exact.
+ * Test-only sample oracle via {@link ExactCircularArc#pointAt(double)}.
+ * Named densify reference — never production, never flagged exact
+ * (Bible §2).
  */
 final class OrientableDensifyReference {
 

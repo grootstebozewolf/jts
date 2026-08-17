@@ -25,8 +25,8 @@ import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
 
 /**
- * B-team handover: Proofs Option B predicate seam vs core / densify
- * reference over N = 1_000_000 trials per suite.
+ * Million-trial pack for the optional OrientableSegment adapters
+ * (Bible §3 demotion). ExactCircularArc metrics are A's lane.
  */
 public class PredicateOptionBMillionTrialTest extends GeometryTestCase {
 
@@ -50,10 +50,13 @@ public class PredicateOptionBMillionTrialTest extends GeometryTestCase {
 
   public void testMillionTrialHandover() throws Exception {
     StringBuilder report = new StringBuilder();
-    report.append("# Proofs Option B — 1M-trial handover\n\n");
+    report.append("# OrientableSegment adapter — 1M-trial handover\n\n");
+    report.append("Bible §3: ExactCircularArc privileged; these trials cover the ")
+        .append("optional OrientableSegment side/intersect adapters only.\n\n");
     report.append("Seed `0x").append(Long.toHexString(SEED)).append("` · N=")
         .append(N).append(" · box [-").append(BOX).append(",").append(BOX)
-        .append("]² · densify nChord=").append(N_CHORD).append("\n\n");
+        .append("]² · densify nChord=").append(N_CHORD)
+        .append(" (via ExactCircularArc.pointAt)\n\n");
 
     Random rnd = new Random(SEED);
 
@@ -87,14 +90,15 @@ public class PredicateOptionBMillionTrialTest extends GeometryTestCase {
           p1.ratio50 <= PERF_SLACK);
     }
 
-    report.append("\n## Verdict\n\nB-team seam: straight parity 100%; arc vs densify ≥ ")
+    report.append("\n## Verdict\n\nOptional OrientableSegment adapters: straight parity 100%; arc vs densify ≥ ")
         .append(ARC_AGREE_FLOOR)
         .append(" (A1=").append(agree1).append(", A2=").append(agree2)
         .append("); PERF p50 ratio ").append(p1.ratio50)
         .append(" ≤ ").append(PERF_SLACK).append(".\n");
     report.append("\nResidual A1 hard disagrees are densify-chord vs arc-tangent ")
         .append("frame disagreements off the curve (nChord=")
-        .append(N_CHORD).append("), not silent flatten.\n");
+        .append(N_CHORD).append("), not silent flatten. ExactCircularArc remains ")
+        .append("the privileged primitive (Bible §3).\n");
 
     writeHandover(report.toString(), s1, s2, a1, a2, p1);
   }
