@@ -10,12 +10,18 @@ Draft companion to [PR #61](https://github.com/grootstebozewolf/jts/pull/61) on 
 4. **Overlay name:** `OverlayNGCurve`, never *Curved*.
 5. **WKB zoo SIGN:** types **18–21** (`CRV-CLOTHOID`, `PRF-BEZIER`, `PRF-ELLIPSE`, `CRV-NURBS`) plus ISO `+1000/+2000/+3000`. Types **15–17** stay Architect-gated.
 
+## Shipped meter clusters (green)
+
+Option B + WKB 18–21 + OFF/BUF-*/VBF + DSF/TRI + N-AA/AL/N-SS + F-*/B-* + LRF-LEN/LOC + AT-S/NS + C-LIN/AREA/IP + S-* + OV + D-AA/OP + R-CONT/PR + V-CS/CP + PRC-SN + H-CC + PLG + TB-T/FN.
+
+Still red by design: **D-HF** (full TAG / general chord sight), **COV** (CoverageUnion must retain `CIRCULARSTRING` shared edges).
+
 ## Verify (smoke)
 
 ```bash
 bash dev/check-no-curved.sh
 mvn -pl modules/core,modules/curve,modules/app -am test \
-  -Dtest=SegmentStringContractTest,WKBClothoidTest,WKBCurveZoo19_21Test,CurveOffsetCurveTest,CurveBufferArcTest,OverlayNGCircleTest,CurveHotPixelTest,CurveSegmentDcelTest,CurveLinearizationStrategyTest,CurvePolygonToolTest,SpatialFunctionPanelFocusTest \
+  -Dtest=SegmentStringContractTest,WKBClothoidTest,WKBCurveZoo19_21Test,CurveOffsetCurveTest,CurveBufferArcTest,OverlayNGCircleTest,CurveHotPixelTest,CurveSegmentDcelTest,CurveLinearizationStrategyTest,CurveAwarenessGreenMetersTest,CurveAwarenessBadgeTest,CurvePolygonToolTest,SpatialFunctionPanelFocusTest \
   -DfailIfNoTests=false -Dcheckstyle.skip=true -Dpmd.skip=true
 ```
 
@@ -23,4 +29,5 @@ mvn -pl modules/core,modules/curve,modules/app -am test \
 
 - Issue [#56](https://github.com/grootstebozewolf/jts/issues/56): tip locks `CurvePolygonToolTest` (16/16); leave open until PO UX SIGN on pin JAR.
 - Issue [#60](https://github.com/grootstebozewolf/jts/issues/60): Exec/`currentFunc` fix landed; await UX SIGN.
+- Guides [#47](https://github.com/grootstebozewolf/jts/pull/47): LaTeX rebuild CONFLICTING — do not force-merge.
 - Do not open `locationtech/jts` PRs from this branch without PO word.
