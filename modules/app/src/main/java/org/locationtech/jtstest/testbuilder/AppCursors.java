@@ -13,24 +13,39 @@
 package org.locationtech.jtstest.testbuilder;
 
 import java.awt.Cursor;
+import java.awt.GraphicsEnvironment;
+import java.awt.Point;
 import java.awt.Toolkit;
+
+import javax.swing.ImageIcon;
 
 
 public class AppCursors
 {
-  public static Cursor DRAW_GEOM = Toolkit.getDefaultToolkit().createCustomCursor(
-      AppIcons.load("DrawCursor.png").getImage(), new java.awt.Point(4, 26),
-      "Draw");
+  public static Cursor DRAW_GEOM = customOrDefault(
+      "DrawCursor.png", new Point(4, 26), "Draw");
 
-  public static Cursor EDIT_VERTEX = Toolkit.getDefaultToolkit().createCustomCursor(
-      AppIcons.load("MoveVertexCursor.gif").getImage(),
-      new java.awt.Point(16, 16), "MoveVertex");
+  public static Cursor EDIT_VERTEX = customOrDefault(
+      "MoveVertexCursor.gif", new Point(16, 16), "MoveVertex");
 
-  public static Cursor HAND = Toolkit.getDefaultToolkit().createCustomCursor(
-      AppIcons.load("Hand.gif").getImage(), new java.awt.Point(7, 7), "Pan");
+  public static Cursor HAND = customOrDefault(
+      "Hand.gif", new Point(7, 7), "Pan");
 
-  public static Cursor ZOOM = Toolkit.getDefaultToolkit().createCustomCursor(
-      AppIcons.load("MagnifyCursor.gif").getImage(),
-      new java.awt.Point(16, 16), "Zoom In");
+  public static Cursor ZOOM = customOrDefault(
+      "MagnifyCursor.gif", new Point(16, 16), "Zoom In");
+
+  /**
+   * Headless CI (and other no-display hosts) cannot create custom
+   * cursors; fall back to the default arrow so tool singletons still
+   * construct for existence / wiring tests.
+   */
+  private static Cursor customOrDefault(String icon, Point hotSpot, String name) {
+    if (GraphicsEnvironment.isHeadless()) {
+      return Cursor.getDefaultCursor();
+    }
+    ImageIcon img = AppIcons.load(icon);
+    return Toolkit.getDefaultToolkit().createCustomCursor(
+        img.getImage(), hotSpot, name);
+  }
 
 }
