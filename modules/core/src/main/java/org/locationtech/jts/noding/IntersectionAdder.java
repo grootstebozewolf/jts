@@ -121,6 +121,12 @@ public class IntersectionAdder
      )
   {
     if (e0 == e1 && segIndex0 == segIndex1) return;
+    // Option B: collapse to a chord only when the contract allows it.
+    // Exact arcs / certified primitives are OverlayNGCurve's noder.
+    if (!e0.mayCollapseToChord(segIndex0)
+        || !e1.mayCollapseToChord(segIndex1)) {
+      return;
+    }
     numTests++;
     Coordinate p00 = e0.getCoordinate(segIndex0);
     Coordinate p01 = e0.getCoordinate(segIndex0 + 1);

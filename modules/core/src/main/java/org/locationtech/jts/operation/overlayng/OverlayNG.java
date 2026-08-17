@@ -25,6 +25,7 @@ import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geomgraph.Label;
 import org.locationtech.jts.noding.MCIndexNoder;
+import org.locationtech.jts.noding.NodedSegmentString;
 import org.locationtech.jts.noding.Noder;
 import org.locationtech.jts.noding.snap.SnappingNoder;
 import org.locationtech.jts.noding.snapround.SnapRoundingNoder;
@@ -331,6 +332,7 @@ public class OverlayNG
   private GeometryFactory geomFact;
   private PrecisionModel pm;
   private Noder noder;
+  private List<NodedSegmentString> inputEdges;
   private boolean isStrictMode = STRICT_MODE_DEFAULT;
   private boolean isOptimized = true;
   private boolean isAreaResultOnly = false;
@@ -450,6 +452,17 @@ public class OverlayNG
   void setNoder(Noder noder) {
     this.noder = noder;
   }
+
+  /**
+   * Supplies pre-extracted segment strings, skipping geometry
+   * extract. OverlayNGCurve uses this so a circular arc is not
+   * flattened to its control chord. Not a public noder API.
+   *
+   * @param edges the prepared edges (may include circular segments)
+   */
+  void setInputEdges(List<NodedSegmentString> edges) {
+    this.inputEdges = edges;
+  }
   
   /**
    * Gets the result of the overlay operation.
@@ -530,20 +543,29 @@ public class OverlayNG
      * Node the edges, using whatever noder is being used
      */
     EdgeNodingBuilder nodingBuilder = new EdgeNodingBuilder(pm, noder);
-    
-    /**
-     * Optimize Intersection and Difference by clipping to the 
-     * result extent, if enabled.
-     */
-    if ( isOptimized ) {
-      Envelope clipEnv = OverlayUtil.clippingEnvelope(opCode, inputGeom, pm);
-      if (clipEnv != null)
-        nodingBuilder.setClipEnvelope( clipEnv );
+
+    List<Edge> mergedEdges;
+    if (inputEdges != null) {
+      for (NodedSegmentString ss : inputEdges) {
+        nodingBuilder.addEdge(ss);
+      }
+      mergedEdges = nodingBuilder.buildPrepared();
     }
-    
-    List<Edge> mergedEdges = nodingBuilder.build(
-        inputGeom.getGeometry(0), 
-        inputGeom.getGeometry(1));
+    else {
+      /**
+       * Optimize Intersection and Difference by clipping to the
+       * result extent, if enabled.
+       */
+      if ( isOptimized ) {
+        Envelope clipEnv = OverlayUtil.clippingEnvelope(opCode, inputGeom, pm);
+        if (clipEnv != null)
+          nodingBuilder.setClipEnvelope( clipEnv );
+      }
+
+      mergedEdges = nodingBuilder.build(
+          inputGeom.getGeometry(0),
+          inputGeom.getGeometry(1));
+    }
     
     /**
      * Record if an input geometry has collapsed.

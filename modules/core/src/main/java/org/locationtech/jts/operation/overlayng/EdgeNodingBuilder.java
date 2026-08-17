@@ -50,6 +50,21 @@ import org.locationtech.jts.noding.snapround.SnapRoundingNoder;
  * <li>removes any fully collapsed noded edges
  * <li>builds {@link Edge}s and merges them
  * </ul>
+ * <p>
+ * <b>OverlayNG-for-circles (Option B, P2.5.5).</b> This is the
+ * OverlayNG surface that may consume exact circular edges.
+ * Stock extract ({@link #add} of a {@link Geometry}) always
+ * builds linearized {@link NodedSegmentString}s -- linearization
+ * is the explicit default. Prepared
+ * {@link #addEdge(NodedSegmentString)} may carry an
+ * {@link org.locationtech.jts.noding.SegmentKind#ARC} or
+ * {@link org.locationtech.jts.noding.SegmentKind#CERTIFIED}
+ * segment. A noder may collapse a segment to its chord only when
+ * {@link SegmentString#mayCollapseToChord(int)} is true. Buffer,
+ * relateng, coverage, prep, and snap-round are not this surface;
+ * they keep linearization. OverlayNGCurve converts
+ * CircularString / CompoundCurve at this boundary so core does
+ * not depend on jts-curve.
  * 
  * @author mdavis
  *
@@ -412,7 +427,54 @@ class EdgeNodingBuilder {
   
   private void addEdge(Coordinate[] pts, EdgeSourceInfo info) {
     NodedSegmentString ss = new NodedSegmentString(pts, info);
+    addEdge(ss);
+  }
+
+  /**
+   * Accepts a prepared {@link NodedSegmentString}. OverlayNG-only:
+   * the string may name an exact {@link SegmentString#getSegmentKind(int)
+   * segment kind}. Stock extract never calls this with an exact
+   * arc; OverlayNGCurve does, after converting at this boundary.
+   *
+   * @param ss the extracted edge (may be exact)
+   */
+  void addEdge(NodedSegmentString ss) {
+    if (ss == null) {
+      return;
+    }
     inputEdges.add(ss);
+  }
+
+  /**
+   * True when any prepared or extracted segment is exact
+   * ({@link SegmentString#isExact(int)}). Stock OverlayNG extract
+   * is linearized, so this is false until OverlayNGCurve feeds
+   * an arc or certified primitive.
+   *
+   * @return true if an exact segment is present
+   */
+  boolean hasExactSegment() {
+    boolean exact = false;
+    for (int i = 0; i < inputEdges.size() && !exact; i++) {
+      NodedSegmentString ss = inputEdges.get(i);
+      for (int j = 0; j < ss.size() - 1 && !exact; j++) {
+        if (ss.isExact(j)) {
+          exact = true;
+        }
+      }
+    }
+    return exact;
+  }
+
+  /**
+   * Nodes prepared edges and merges them. Skips geometry extract;
+   * the caller already supplied {@link #addEdge(NodedSegmentString)}.
+   *
+   * @return the noded, merged, labelled edges
+   */
+  List<Edge> buildPrepared() {
+    List<Edge> nodedEdges = node(inputEdges);
+    return EdgeMerger.merge(nodedEdges);
   }
 
   /**

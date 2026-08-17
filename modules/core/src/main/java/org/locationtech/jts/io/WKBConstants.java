@@ -28,16 +28,29 @@ public interface WKBConstants {
 
   /**
    * ISO/IEC 13249-3 (SQL/MM Spatial) type codes for curve geometries.
-   * Same integers as GEOS {@code WKBConstants}: types 8–12 only.
-   * No {@code wkbCurve} / {@code wkbSurface}. No WKB 15–17
+   * Same integers as GEOS {@code WKBConstants} for types 8–12.
+   * No {@code wkbCurve} / {@code wkbSurface}. WKB 15–17
    * (Triangle / PolyhedralSurface / TIN) — GEO-TIN waits Architect SIGN.
-   * Unknown types throw.
+   * <p>
+   * Fork MMF (#1195) greenfield zoo (SIGNED):
+   * {@link #wkbClothoid}=18, {@link #wkbBezier}=19,
+   * {@link #wkbEllipse}=20, {@link #wkbNurbs}=21.
+   * Unknown types outside the signed set throw.
    */
   int wkbCircularString = 8;
   int wkbCompoundCurve = 9;
   int wkbCurvePolygon = 10;
   int wkbMultiCurve = 11;
   int wkbMultiSurface = 12;
+
+  /** CRV-CLOTHOID — Euler / Cornu spiral (fork SIGN 18). */
+  int wkbClothoid = 18;
+  /** PRF-BEZIER — cubic Bézier curve geometry (fork SIGN 19). */
+  int wkbBezier = 19;
+  /** PRF-ELLIPSE — elliptic arc / ellipse primitive (fork SIGN 20). */
+  int wkbEllipse = 20;
+  /** CRV-NURBS — NURBS curve (fork SIGN 21). */
+  int wkbNurbs = 21;
 
   /**
    * Writer flavour: PostGIS / SFSQL Extended WKB (EWKB high bits for

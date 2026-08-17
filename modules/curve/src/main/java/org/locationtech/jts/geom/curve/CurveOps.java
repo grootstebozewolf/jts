@@ -65,9 +65,19 @@ public final class CurveOps {
    * A densified copy of {@code g} if it is a curve, otherwise {@code g}
    * unchanged. Applied to both operands so a curve-to-curve operation sees
    * arcs on both sides.
+   * <p>
+   * Honour {@link CurveLinearizationStrategy}: {@link
+   * CurveLinearizationStrategy#PRESERVE} returns {@code g} unchanged.
+   * {@link CurveLinearizationStrategy#LINEARIZED} (default) densifies and
+   * <b>always warns</b> — no silent flatten (#1195 MMF).
    */
   public static Geometry linearise(Geometry g) {
     if (!(g instanceof Linearizable)) return g;
+    if (CurveLinearizationStrategy.current()
+        == CurveLinearizationStrategy.PRESERVE) {
+      return g;
+    }
+    CurveLinearizationStrategy.warnLinearized(g, "CurveOps.linearise");
     return ((Linearizable) g).toLinear(tolerance(g));
   }
 
