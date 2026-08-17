@@ -39,12 +39,12 @@ import test.jts.GeometryTestCase;
  * <p>The class is intentionally red — running
  * {@code mvn -pl modules/curve test -Dtest=CurveAwarenessSpecTest}
  * prints a list of every <em>full</em> TAG that still needs work.
- * All 49 {@code fail()} methods remain. That count is the full-TAG
- * red list, not the live scoreboard: closed-form lasers on #8
- * (OverlayNGCurve Phase 0, disc DE-9IM, WKB 8–12, …) keep these
- * methods. Delete a method only when the full TAG ships; do not
+ * All remaining {@code fail()} methods stay. That count is the full-TAG
+ * red list, not the live scoreboard: closed-form lasers keep these
+ * methods until the full TAG ships. OFF shipped (single-arc concentric
+ * OffsetCurve). Delete a method only when the full TAG ships; do not
  * edit it green. Live progress is the green tests next to
- * production code on #8 and the epic §4.1 table.
+ * production code on #7 / MMF and the epic §4.1 table.
  *
  * <p>Tests do not have to be precise — the goal is coverage of
  * pre-existing gaps, not exact threshold checks. A green
@@ -205,13 +205,6 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
     fail("BUF-NEG: negative buffer where |d| > R should yield EMPTY; today the path "
         + "densifies and produces a polyline self-collapse, returning "
         + buf.getGeometryType() + " with " + buf.getNumPoints() + " points.");
-  }
-
-  /** OFF: OffsetCurve preserves arc identity. */
-  public void test_OFF_offsetCurveOnArcReturnsArc() throws Exception {
-    fail("OFF: org.locationtech.jts.operation.buffer.OffsetCurve on a CircularString "
-        + "should return an analytically-offset CircularString (R±d, same C, same "
-        + "sweep), not a densified polyline. Currently densifies before offsetting.");
   }
 
   /** VBF: VariableBuffer arc-aware. */

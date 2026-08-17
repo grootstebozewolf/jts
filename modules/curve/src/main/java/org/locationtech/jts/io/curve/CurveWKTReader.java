@@ -27,6 +27,7 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
@@ -103,7 +104,7 @@ public class CurveWKTReader extends WKTReader {
   }
 
   public CurveWKTReader() {
-    super();
+    super(new CurveGeometryFactory());
   }
 
   public CurveWKTReader(GeometryFactory geometryFactory) {

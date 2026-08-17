@@ -199,10 +199,22 @@ public class OffsetCurve {
   
   /**
    * Gets the computed offset curve lines.
+   * <p>
+   * Option B / OFF (#1195): a single-arc {@code CircularString}
+   * (three control points) is offset concentrically — same centre and
+   * sweep, radius adjusted by left-of-direction distance. Positive
+   * distance is left of the directed curve (CCW arc ⇒ inward). Multi-arc
+   * and non-circular inputs keep the chord path.
    * 
    * @return the offset curve geometry
    */
   public Geometry getCurve() {
+    if (isSingleCircularArc(inputGeom)) {
+      Geometry exact = offsetSingleCircularArc((LineString) inputGeom, distance);
+      if (exact != null) {
+        return exact;
+      }
+    }
     return GeometryMapper.flatMap(inputGeom, 1, new GeometryMapper.MapOp() {
       
       @Override
@@ -214,6 +226,119 @@ public class OffsetCurve {
         return computeCurve((LineString) geom, distance);
       }
     });
+  }
+
+  /**
+   * True when {@code g} is a three-point CircularString.
+   * Type check avoids importing jts-curve.
+   */
+  private static boolean isSingleCircularArc(Geometry g) {
+    if (g == null || !"CircularString".equals(g.getGeometryType())) {
+      return false;
+    }
+    return g.getNumPoints() == 3;
+  }
+
+  /**
+   * Concentric offset of a three-point circular arc. Returns
+   * {@code null} to fall through when the triple is collinear or the
+   * factory cannot build a CircularString.
+   */
+  private static Geometry offsetSingleCircularArc(LineString arc, double dist) {
+    Coordinate p0 = arc.getCoordinateN(0);
+    Coordinate p1 = arc.getCoordinateN(1);
+    Coordinate p2 = arc.getCoordinateN(2);
+    double[] circle = circumcircleXY(p0, p1, p2);
+    if (circle == null) {
+      return null;
+    }
+    double cx = circle[0];
+    double cy = circle[1];
+    double r = circle[2];
+    boolean ccw = isMidInCcwSweep(p0, p1, p2, cx, cy);
+    // Positive distance = left of direction. Left of CCW is toward centre.
+    double radial = ccw ? -dist : dist;
+    double rn = r + radial;
+    if (rn <= 0.0) {
+      return arc.getFactory().createLineString();
+    }
+    double k = rn / r;
+    Coordinate[] pts = new Coordinate[] {
+        scaleFromCentre(p0, cx, cy, k),
+        scaleFromCentre(p1, cx, cy, k),
+        scaleFromCentre(p2, cx, cy, k)
+    };
+    try {
+      return arc.getFactory().createCircularString(
+          arc.getFactory().getCoordinateSequenceFactory().create(pts));
+    }
+    catch (UnsupportedOperationException e) {
+      // CurveWKTReader may attach a non-curve factory to a CircularString.
+      // Rebuild as the same runtime class without importing jts-curve.
+      return rebuildAsSameLinealType(arc, pts);
+    }
+  }
+
+  /**
+   * Reflectively constructs {@code arc}'s concrete class with new points.
+   * Used when {@link GeometryFactory#createCircularString} is unsupported
+   * but the input is already a curve type instance.
+   */
+  private static Geometry rebuildAsSameLinealType(LineString arc,
+      Coordinate[] pts) {
+    try {
+      java.lang.reflect.Constructor<?> ctor = arc.getClass().getConstructor(
+          org.locationtech.jts.geom.CoordinateSequence.class,
+          GeometryFactory.class);
+      org.locationtech.jts.geom.CoordinateSequence seq =
+          arc.getFactory().getCoordinateSequenceFactory().create(pts);
+      return (Geometry) ctor.newInstance(seq, arc.getFactory());
+    }
+    catch (Exception ex) {
+      return null;
+    }
+  }
+
+  private static Coordinate scaleFromCentre(Coordinate p, double cx, double cy,
+      double k) {
+    return new Coordinate(cx + (p.x - cx) * k, cy + (p.y - cy) * k);
+  }
+
+  /** Circumcircle {@code {cx,cy,r}} or null if collinear. */
+  private static double[] circumcircleXY(Coordinate a, Coordinate b, Coordinate c) {
+    double det = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+    if (det == 0.0) {
+      return null;
+    }
+    double a2 = a.x * a.x + a.y * a.y;
+    double b2 = b.x * b.x + b.y * b.y;
+    double c2 = c.x * c.x + c.y * c.y;
+    double cx = (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / det;
+    double cy = (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / det;
+    double r = Math.hypot(a.x - cx, a.y - cy);
+    if (!(r > 0.0) || Double.isInfinite(r)) {
+      return null;
+    }
+    return new double[] { cx, cy, r };
+  }
+
+  private static boolean isMidInCcwSweep(Coordinate start, Coordinate mid,
+      Coordinate end, double cx, double cy) {
+    double a0 = Math.atan2(start.y - cy, start.x - cx);
+    double am = Math.atan2(mid.y - cy, mid.x - cx);
+    double a1 = Math.atan2(end.y - cy, end.x - cx);
+    double ccwToMid = normalizePositive(am - a0);
+    double ccwToEnd = normalizePositive(a1 - a0);
+    return ccwToMid <= ccwToEnd + 1.0e-15;
+  }
+
+  private static double normalizePositive(double a) {
+    double twoPi = 2 * Math.PI;
+    double t = a % twoPi;
+    if (t < 0) {
+      t += twoPi;
+    }
+    return t;
   }
   
   private Geometry computePolygonCurve(Polygon poly, double distance) {
