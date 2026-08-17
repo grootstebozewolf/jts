@@ -26,7 +26,8 @@ import org.locationtech.jts.operation.overlayng.OverlayNG;
 /**
  * Angular-interval overlay of two lineal operands that live on the
  * <em>same</em> circle. Package-private -- not a two-node clip, not a
- * noder, not a public API.
+ * noder, not a public API. {@link #sharedSweep} is the interval the
+ * noder lifts onto {@link CurveSegmentString}.
  * <p>
  * Each sweep window becomes a closed arc of the circle; CAP / CUP /
  * SUB / XOR are the interval operations; pieces stay
@@ -45,6 +46,21 @@ final class CircleSweepOverlay {
     double[] c = circleOf(a, scale);
     if (c == null) return false;
     return sameCircle(c, circleOf(b, scale), scale);
+  }
+
+  /**
+   * Shared sweep of two same-circle arcs as typed edges, or
+   * {@code null} if they are not the same circle. Empty is a
+   * pinch / endpoint kiss -- not an interval.
+   */
+  static List<TwoNodeClip.Edge> sharedSweep(TwoNodeClip.Edge a,
+      TwoNodeClip.Edge b, double scale) {
+    if (a == null || b == null || !a.isArc || !b.isArc) return null;
+    double[] c = new double[] { a.circle[0], a.circle[1], a.circle[2] };
+    if (!sameCircle(c, b.circle, scale)) return null;
+    Intervals ia = Intervals.ofEdge(a, c);
+    Intervals ib = Intervals.ofEdge(b, c);
+    return ia.combine(ib, 2).toEdges(c);
   }
 
   static Geometry overlay(List<TwoNodeClip.Edge> a, List<TwoNodeClip.Edge> b,
@@ -256,6 +272,22 @@ final class CircleSweepOverlay {
       return CircularLineOverlay.linealResult(pieces, f);
     }
 
+    /**
+     * Interval pieces as sweep edges. A zero-width kiss is dropped
+     * (not an interval). A full circle is one closed edge.
+     */
+    List<TwoNodeClip.Edge> toEdges(double[] c) {
+      List<double[]> merged = mergeWrap(segs);
+      List<TwoNodeClip.Edge> out = new ArrayList<TwoNodeClip.Edge>();
+      for (int i = 0; i < merged.size(); i++) {
+        TwoNodeClip.Edge e = edgeOf(merged.get(i)[0], merged.get(i)[1], c);
+        if (e != null) {
+          out.add(e);
+        }
+      }
+      return out;
+    }
+
     private void addEvents(List<Ev> ev) {
       addEvents(ev, 0);
     }
@@ -305,11 +337,22 @@ final class CircleSweepOverlay {
 
     private static LineString arcOf(double a0, double a1, double[] c,
         GeometryFactory f) {
+      TwoNodeClip.Edge e = edgeOf(a0, a1, c);
+      if (e == null) return null;
+      if (e.a.distance(e.b) <= EPS) return fullCircle(c, f);
+      return TwoNodeClip.arc(e.a, e.mid, e.b, f);
+    }
+
+    private static TwoNodeClip.Edge edgeOf(double a0, double a1, double[] c) {
       double sweep = a1 - a0;
       if (sweep <= EPS) return null;
-      if (sweep >= TWO_PI - 1.0e-9) return fullCircle(c, f);
+      if (sweep >= TWO_PI - 1.0e-9) {
+        Coordinate p = pt(0.0, c);
+        return new TwoNodeClip.Edge(p, pt(Math.PI, c), new Coordinate(p),
+            true, c);
+      }
       double mid = a0 + 0.5 * sweep;
-      return TwoNodeClip.arc(pt(a0, c), pt(mid, c), pt(a1, c), f);
+      return new TwoNodeClip.Edge(pt(a0, c), pt(mid, c), pt(a1, c), true, c);
     }
 
     private static CircularString fullCircle(double[] c, GeometryFactory f) {

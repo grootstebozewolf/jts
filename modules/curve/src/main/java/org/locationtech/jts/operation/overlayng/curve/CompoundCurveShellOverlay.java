@@ -33,8 +33,13 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * {@link SameOuterHoleOverlay}, {@link DifferentOuterHoleOverlay},
  * {@link HalfDiscOverlay} (complementary / sectors / collinear),
  * {@link TwoShellClip} (0 / 1 / 2 / even-n / odd-n with a tangent
- * as a degenerate NSpan), or a two-node walk vs a disc or plain
- * polygon via {@link TwoNodeClip}. A miss is {@code null}.
+ * as a degenerate NSpan), {@link BiteVsHole} (straddling hole,
+ * or a hole whose ring overlaps the other shell: new edge ⊂
+ * other.shell is a bite, not a punch),
+ * {@link TwoHoleOverlay} (two holes that cross on the same outer),
+ * or a two-node walk vs a disc or plain polygon via
+ * {@link TwoNodeClip}. A 0-node mixed shell vs a circular disc
+ * ({@code CC-NEST-ANNULUS}) is not a punch. A miss is {@code null}.
  */
 final class CompoundCurveShellOverlay {
 
@@ -53,6 +58,14 @@ final class CompoundCurveShellOverlay {
     Geometry differentHole = DifferentOuterHoleOverlay.overlay(a, b, opCode);
     if (differentHole != null) {
       return differentHole;
+    }
+    Geometry bite = BiteVsHole.overlay(a, b, opCode);
+    if (bite != null) {
+      return bite;
+    }
+    Geometry twoHole = TwoHoleOverlay.overlay(a, b, opCode);
+    if (twoHole != null) {
+      return twoHole;
     }
     CurvePolygon shellA = compoundCurveShell(a);
     CurvePolygon shellB = compoundCurveShell(b);
@@ -130,6 +143,7 @@ final class CompoundCurveShellOverlay {
     List<TwoNodeClip.Edge> edges = TwoNodeClip.flatten(shell);
     if (edges == null) return null;
     List<TwoNodeClip.Node> nodes = other.nodes(edges);
+    // 0-node mixed-vs-disc is CC-NEST-ANNULUS, not a stadium punch.
     if (!TwoNodeClip.properPair(nodes, other.scale())) return null;
 
     TwoNodeClip.Node p = nodes.get(0);
