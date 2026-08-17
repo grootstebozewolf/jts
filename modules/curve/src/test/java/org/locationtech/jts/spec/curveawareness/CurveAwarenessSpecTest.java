@@ -41,11 +41,11 @@ import test.jts.GeometryTestCase;
  * prints a list of every <em>full</em> TAG that still needs work.
  * All remaining {@code fail()} methods stay. That count is the full-TAG
  * red list, not the live scoreboard: closed-form lasers keep these
- * methods until the full TAG ships. OFF, BUF-1, and BUF-NEG shipped.
- * BUF-N has a stadium CompoundCurve subset laser; keep the meter for
- * open mixed CompoundCurve corridors. Delete a method only when the
- * full TAG ships; do not edit it green. Live progress is the green
- * tests next to production code on #7 / MMF and the epic §4.1 table.
+ * methods until the full TAG ships. OFF, BUF-1, BUF-NEG, and BUF-N shipped
+ * (open two-member corridors + stadium subset). VBF meter remains for
+ * arc-length parameterisation. Delete a method only when the full TAG
+ * ships; do not edit it green. Live progress is the green tests next to
+ * production code on #7 / MMF and the epic §4.1 table.
  *
  * <p>Tests do not have to be precise — the goal is coverage of
  * pre-existing gaps, not exact threshold checks. A green
