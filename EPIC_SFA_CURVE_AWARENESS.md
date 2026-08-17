@@ -17,9 +17,9 @@
 > Assisted-by: Cursor Grok (grok-4.6)
 > ```
 
-**Status:** Draft v5 (2026-08-16).
-**Source:** Parent epic [locationtech/jts#1195](https://github.com/locationtech/jts/issues/1195). Fork work: [grootstebozewolf/jts#7](https://github.com/grootstebozewolf/jts/pull/7) `feature/sfa-curve-rgr`, tip `210f1b16` (merge of [#11](https://github.com/grootstebozewolf/jts/pull/11)). [#8](https://github.com/grootstebozewolf/jts/pull/8) PERF-GATE, [#10](https://github.com/grootstebozewolf/jts/pull/10) nested annulus (`92fdbb71`), and [#11](https://github.com/grootstebozewolf/jts/pull/11) odd-n tangent NSpan (`d8c5824f`) are **merged into #7**. Draft [#12](https://github.com/grootstebozewolf/jts/pull/12) (`3cc5f1a5`) stamps `H-SHELL-HOLE-CROSS` + `H-SHELL-HOLE-X`; draft [#13](https://github.com/grootstebozewolf/jts/pull/13) (`73703036`) stamps `H-ANNULUS-TANGENT`. Both drafts are stacked, not merged. Slack still 15%. No new public API.
-**Origin (historical):** [`feature/sfa-curve-buffer-spike`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-buffer-spike) — Draft v3 of this epic and the 49-method spec class. Draft v4 (2026-08-15, tip `488c48ba`) described #8 as the live stacked branch; that merge order is done.
+**Status:** Draft v6 MMF Option B (2026-08-17).
+**Source:** Parent epic [locationtech/jts#1195](https://github.com/locationtech/jts/issues/1195). Fork SoT [grootstebozewolf/jts#7](https://github.com/grootstebozewolf/jts/pull/7) `feature/sfa-curve-rgr`. MMF draft [grootstebozewolf/jts#61](https://github.com/grootstebozewolf/jts/pull/61) `cursor/jts-issue-1195-c5d1` — Option B `SegmentKind`, no-silent-linearize strategy, WKB 18–21 greenfield, OFF + BUF-1/NEG, OverlayNG-for-circles R-OV, HP.2/HP.3. Slack still 15%. No upstream locationtech PR until dr-jts engages.
+**Origin (historical):** [`feature/sfa-curve-buffer-spike`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-buffer-spike) — Draft v3 of this epic and the 49-method spec class. Draft v5 (2026-08-16) described #7 @ `210f1b16` with OV-P1 kits; Bar 2 stayed off #7 until this MMF fold.
 **Audience:** locationtech/jts maintainers and contributors. Lift verbatim into a GitHub Epic / Discussion.
 
 **Field contract (PERF-GATE):** Maintainable → Reliable → Faster. Take the curve path only if `t_laser ≤ 1.15 × t_chainsaw`. Do not loosen 15%. The overlay name is **OverlayNGCurve**, never *Curved*.
