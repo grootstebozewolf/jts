@@ -19,6 +19,11 @@
   ],
   "steps": [
     {
+      "id": "jts.tb.menu.edit.curveStrategy.linearized",
+      "action": "click",
+      "notes": "Option B: explicit LINEARIZED (warn) before densify path"
+    },
+    {
       "id": "jts.tb.toolbar.case.new",
       "action": "click"
     },
@@ -55,5 +60,11 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "offsetCurve 1 \u00b7 pr7 disc"
+  "notes": "offsetCurve 1 \u00b7 pr7 disc",
+  "optionB": {
+    "contract": "Draft v6 MMF Option B",
+    "defaultStrategy": "LINEARIZED",
+    "requiresWarnOnDensify": true,
+    "overlayName": "OverlayNGCurve"
+  }
 }

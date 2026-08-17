@@ -58,5 +58,11 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "nearestPoints needs B=same \u00b7 pr7 circle"
+  "notes": "nearestPoints needs B=same \u00b7 pr7 circle",
+  "optionB": {
+    "contract": "Draft v6 MMF Option B",
+    "defaultStrategy": "LINEARIZED",
+    "requiresWarnOnDensify": true,
+    "overlayName": "OverlayNGCurve"
+  }
 }

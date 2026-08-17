@@ -18,6 +18,11 @@
   ],
   "steps": [
     {
+      "id": "jts.tb.menu.edit.curveStrategy.linearized",
+      "action": "click",
+      "notes": "Option B: explicit LINEARIZED (warn) before densify path"
+    },
+    {
       "id": "jts.tb.toolbar.case.new",
       "action": "click"
     },
@@ -54,5 +59,11 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "pr7-only toLinear \u00b7 pr7 half-moon"
+  "notes": "pr7-only toLinear \u00b7 pr7 half-moon",
+  "optionB": {
+    "contract": "Draft v6 MMF Option B",
+    "defaultStrategy": "LINEARIZED",
+    "requiresWarnOnDensify": true,
+    "overlayName": "OverlayNGCurve"
+  }
 }

@@ -57,5 +57,11 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "pr7-only OverlayNGCurve.union \u00b7 pr7 disc"
+  "notes": "pr7-only OverlayNGCurve.union \u00b7 pr7 disc",
+  "optionB": {
+    "contract": "Draft v6 MMF Option B",
+    "defaultStrategy": "LINEARIZED",
+    "requiresWarnOnDensify": true,
+    "overlayName": "OverlayNGCurve"
+  }
 }

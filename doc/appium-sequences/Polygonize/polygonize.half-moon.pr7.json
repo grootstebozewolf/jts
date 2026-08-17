@@ -48,5 +48,11 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "polygonize \u00b7 pr7 half-moon"
+  "notes": "polygonize \u00b7 pr7 half-moon",
+  "optionB": {
+    "contract": "Draft v6 MMF Option B",
+    "defaultStrategy": "LINEARIZED",
+    "requiresWarnOnDensify": true,
+    "overlayName": "OverlayNGCurve"
+  }
 }

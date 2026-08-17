@@ -17,6 +17,7 @@ import java.util.List;
 
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.geom.curve.CurveLinearizationStrategy;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jtstest.geomfunction.GeometryFunction;
 import org.locationtech.jtstest.geomfunction.GeometryFunctionRegistry;
@@ -42,12 +43,25 @@ public class TbAppiumPr7PlaybackTest extends TestCase {
   }
 
   public void testAllNonSkippedPr7SequencesPlayback() throws Exception {
+    try {
+      playbackAll();
+    } finally {
+      CurveLinearizationStrategy.clearThreadOverride();
+      CurveLinearizationStrategy.setDefault(CurveLinearizationStrategy.LINEARIZED);
+    }
+  }
+
+  private void playbackAll() throws Exception {
     File root = TbAppiumPaths.seqRoot();
     List files = listPr7(root);
     assertTrue("expected pr7 sequences", files.size() >= 100);
 
     GeometryFunctionRegistry reg = GeometryFunctionRegistry.createTestBuilderRegistry();
     CurveWKTReader reader = new CurveWKTReader(new CurveGeometryFactory());
+
+    // Draft v6 MMF Option B: default LINEARIZED (warns on densify).
+    CurveLinearizationStrategy.setDefault(CurveLinearizationStrategy.LINEARIZED);
+    CurveLinearizationStrategy.clearThreadOverride();
 
     int played = 0;
     int skippedJson = 0;
@@ -64,6 +78,9 @@ public class TbAppiumPr7PlaybackTest extends TestCase {
           json.contains(AutomationIds.FN_TREE));
       assertTrue(f.getName() + " must include fn.exec",
           json.contains(AutomationIds.FN_EXEC));
+      assertTrue(f.getName() + " must stamp Option B metadata",
+          json.contains("\"optionB\"")
+              || json.contains(AutomationIds.MENU_CURVE_STRATEGY_LINEARIZED));
 
       String cat = field(json, "category");
       String fn = field(json, "function");
@@ -74,7 +91,6 @@ public class TbAppiumPr7PlaybackTest extends TestCase {
 
       File fix = new File(root, fixRel.replaceFirst("^_fixtures/", "_fixtures/"));
       if (!fix.isFile()) {
-        // fixtureFile is "_fixtures/pr7-disc.wkt"
         fix = new File(new File(root, "_fixtures"),
             fixRel.substring(fixRel.lastIndexOf('/') + 1));
       }
@@ -94,7 +110,6 @@ public class TbAppiumPr7PlaybackTest extends TestCase {
           continue;
         }
         Geometry out = (Geometry) r;
-        // Empty allowed for some ops; still counts as playback
         played++;
         assertNotNull(out);
       } catch (Throwable ex) {

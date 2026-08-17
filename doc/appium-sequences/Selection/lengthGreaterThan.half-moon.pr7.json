@@ -55,5 +55,11 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "lengthGreaterThan 0 \u00b7 pr7 half-moon"
+  "notes": "lengthGreaterThan 0 \u00b7 pr7 half-moon",
+  "optionB": {
+    "contract": "Draft v6 MMF Option B",
+    "defaultStrategy": "LINEARIZED",
+    "requiresWarnOnDensify": true,
+    "overlayName": "OverlayNGCurve"
+  }
 }

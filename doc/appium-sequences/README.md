@@ -1,6 +1,15 @@
-# Appium sequences — TestBuilder hardening
+# Appium sequences — TestBuilder hardening (Draft v6 MMF Option B)
 
 AutomationId click contracts for JTS TestBuilder (`jts.tb.*`).
+Aligned with [MMF_OPTION_B.md](../MMF_OPTION_B.md) / epic Draft **v6 MMF Option B**.
+
+## Option B contracts
+
+1. **Noder = Option B** (`SegmentKind` LINEARIZED | ARC | CERTIFIED)
+2. **No silent linearization** — default `CurveLinearizationStrategy.LINEARIZED` **must warn**; `PRESERVE` keeps identity
+3. Overlay name is **OverlayNGCurve**, never *Curved*
+4. PERF-GATE slack **15%**
+5. pr7 densify paths prepend `jts.tb.menu.edit.curveStrategy.linearized`
 
 ## Loop
 
@@ -9,25 +18,19 @@ AutomationId click contracts for JTS TestBuilder (`jts.tb.*`).
 3. If golden: playback on PR #7 with **disc / circle / half moon**
 4. Append `HISTORY.md` for full regression packs
 
-## Status (2026-08-17 A→Z)
+## Status
 
 | Bucket | Count |
 |---|---|
-| Playable categories (sequences generated) | 46 + Affine |
-| Skip categories (Notion Status=skip) | 13 |
-| Sequence JSON files | ~187 |
+| Playable categories | 46 + Affine |
+| Skip (Notion) | category skips + promote skips |
 | Fixtures | polygon, linestring, disc, circle, half-moon |
-
-Catalog: `_catalog/playable.json`, `_catalog/skips.json`.
-
-## ClaimId
-
-`TB-AP-<CAT>-<FN>` · CaseId `case-tb-ap-<cat>-<fn>`
 
 ## Tests
 
 ```bash
+bash dev/check-no-curved.sh
 mvn -pl modules/app -am test \
-  -Dtest=TbAppiumSequenceContractTest,TbAppiumTranslatePlaybackTest,TbAppiumCatalogPlaybackTest \
+  -Dtest=TbAppiumOptionBContractTest,TbAppiumPr7PlaybackTest,TbAppiumTranslatePlaybackTest,TbAppiumSequenceContractTest,TbAppiumCatalogPlaybackTest \
   -DfailIfNoTests=false -Djava.awt.headless=true -Dcheckstyle.skip=true -Dpmd.skip=true
 ```

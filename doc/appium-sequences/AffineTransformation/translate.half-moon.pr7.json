@@ -69,5 +69,11 @@
     "preserveCurveType": true
   },
   "notes": "pr7 playback \u2014 half moon.",
-  "skipped": false
+  "skipped": false,
+  "optionB": {
+    "contract": "Draft v6 MMF Option B",
+    "defaultStrategy": "LINEARIZED",
+    "requiresWarnOnDensify": true,
+    "overlayName": "OverlayNGCurve"
+  }
 }

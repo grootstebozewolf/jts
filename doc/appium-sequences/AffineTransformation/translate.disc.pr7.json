@@ -69,5 +69,11 @@
     ],
     "preserveCurveType": true
   },
-  "notes": "pr7 playback \u2014 simple disc."
+  "notes": "pr7 playback \u2014 simple disc.",
+  "optionB": {
+    "contract": "Draft v6 MMF Option B",
+    "defaultStrategy": "LINEARIZED",
+    "requiresWarnOnDensify": true,
+    "overlayName": "OverlayNGCurve"
+  }
 }

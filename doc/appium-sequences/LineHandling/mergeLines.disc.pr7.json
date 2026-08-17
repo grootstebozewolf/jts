@@ -48,5 +48,11 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "mergeLines \u00b7 pr7 disc"
+  "notes": "mergeLines \u00b7 pr7 disc",
+  "optionB": {
+    "contract": "Draft v6 MMF Option B",
+    "defaultStrategy": "LINEARIZED",
+    "requiresWarnOnDensify": true,
+    "overlayName": "OverlayNGCurve"
+  }
 }
