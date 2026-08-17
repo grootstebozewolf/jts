@@ -41,8 +41,10 @@ import test.jts.GeometryTestCase;
  * prints a list of every <em>full</em> TAG that still needs work.
  * All remaining {@code fail()} methods stay. That count is the full-TAG
  * red list, not the live scoreboard: closed-form lasers keep these
- * methods until the full TAG ships. OFF, BUF-*, DSF, TRI-DT, and TRI-VR
- * shipped. VBF meter remains for arc-preserving variable offsets.
+ * methods until the full TAG ships. Shipped cluster: OFF, BUF-*, DSF, TRI-*,
+ * M-LEN-*, M-AREA-CP, M-DIM, F-MC, F-MS, B-CC, H-CV, R-EQ, AT-S, AT-NS, D-PT,
+ * N-AA, N-AL. VBF/LRF-LEN meters remain for full arc-length indexing /
+ * arc-offset emission. TB-T held for #56 UX SIGN.
  *
  * <p>Tests do not have to be precise — the goal is coverage of
  * pre-existing gaps, not exact threshold checks. A green
@@ -67,24 +69,9 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
         + "reader collapses the rings to a flat LinearRing in the parent Polygon.");
   }
 
-  /** F-MC: MultiCurve preserves member subtypes through copy/WKT round-trip. */
-  public void test_F_MC_multiCurvePreservesMemberSubtypesThroughCopy() throws Exception {
-    Geometry g = read(
-        "MULTICURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0), "
-        + "COMPOUNDCURVE ((20 0, 25 0), CIRCULARSTRING (25 0, 30 5, 35 0)))");
-    Geometry copy = g.copy();
-    fail("F-MC: copy of a MultiCurve must preserve member-subtype identity; today "
-        + "members are reduced to plain LineStrings in copyInternal.");
-  }
+  // test_F_MC_multiCurvePreservesMemberSubtypesThroughCopy shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
-  /** F-MS: MultiSurface preserves Polygon vs CurvePolygon members. */
-  public void test_F_MS_multiSurfacePreservesPolygonVsCurvePolygonMembers() throws Exception {
-    Geometry g = read(
-        "MULTISURFACE (((0 0, 10 0, 10 10, 0 10, 0 0)), "
-        + "CURVEPOLYGON ((CIRCULARSTRING (20 0, 25 5, 30 0), (30 0, 20 0))))");
-    fail("F-MS: MultiSurface(Polygon, CurvePolygon).copy() must keep the second member "
-        + "as a CurvePolygon; today everything is collapsed to Polygon.");
-  }
+  // test_F_MS_multiSurfacePreservesPolygonVsCurvePolygonMembers shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
   /** F-RD: renderer arc-walks CurvePolygon rings + MultiCurve+MultiSurface. */
   public void test_F_RD_curvedShapeWriterArcRendersCurvePolygonRings() throws Exception {
@@ -97,49 +84,13 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Metrics
   // ============================================================
 
-  /** M-LEN-CS: CircularString.getLength returns analytical arc length, not chord sum. */
-  public void test_M_LEN_CS_circularStringArcLength() throws Exception {
-    // Half-circle radius 10 — arc length = π · 10 ≈ 31.4159
-    Geometry g = read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
-    double expectedArc = Math.PI * 10;
-    double actual = g.getLength();
-    fail("M-LEN-CS: half-circle (R=10) length should be ≈ " + expectedArc
-        + " (π·R) but Geometry.getLength() returned " + actual
-        + " (chord-sum of the 3 control points).");
-  }
+  // test_M_LEN_CS_circularStringArcLength shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
-  /** M-LEN-CC: CompoundCurve.getLength sums analytical members. */
-  public void test_M_LEN_CC_compoundCurveLengthSumsMembers() throws Exception {
-    Geometry g = read(
-        "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
-    // line: 10. half-circle R=5: π·5 ≈ 15.708. Total ≈ 25.708.
-    double expected = 10.0 + Math.PI * 5.0;
-    double actual = g.getLength();
-    fail("M-LEN-CC: line(10)+halfArc(R=5) length should be ≈ " + expected
-        + " but got " + actual + ".");
-  }
+  // test_M_LEN_CC_compoundCurveLengthSumsMembers shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
-  /** M-AREA-CP: CurvePolygon area uses circular-segment correction. */
-  public void test_M_AREA_CP_curvePolygonAreaWithSegmentCorrection() throws Exception {
-    // Disk of radius 10 expressed as CURVEPOLYGON of two half-arcs. Area = π · R² ≈ 314.159.
-    Geometry g = read(
-        "CURVEPOLYGON ((CIRCULARSTRING (-10 0, 0 10, 10 0, 0 -10, -10 0)))");
-    double expected = Math.PI * 100;
-    double actual = g.getArea();
-    fail("M-AREA-CP: disk (R=10) area should be ≈ " + expected
-        + " (π·R²) but Geometry.getArea() returned " + actual
-        + " (treating control points as a flat polygon).");
-  }
+  // test_M_AREA_CP_curvePolygonAreaWithSegmentCorrection shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
-  /** M-DIM: dimension and coordinate dimension correct for empty curved subtypes. */
-  public void test_M_DIM_emptyCurveDimensions() throws Exception {
-    Geometry e1 = read("CIRCULARSTRING EMPTY");
-    Geometry e2 = read("CURVEPOLYGON EMPTY");
-    assertEquals(1, e1.getDimension());
-    assertEquals(2, e2.getDimension());
-    fail("M-DIM: smoke-tested today but spec needs an explicit guard so a future "
-        + "refactor doesn't regress empty-curved dimension semantics.");
-  }
+  // test_M_DIM_emptyCurveDimensions shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
   // ============================================================
   // Boundary
@@ -164,14 +115,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
         + "ring members; got " + boundary.getGeometryType() + ".");
   }
 
-  /** B-CC: open CompoundCurve boundary = its 2 endpoints; closed = empty. */
-  public void test_B_CC_openCompoundCurveBoundaryIsTwoEndpoints() throws Exception {
-    Geometry g = read("COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
-    Geometry boundary = g.getBoundary();
-    assertEquals("MultiPoint", boundary.getGeometryType());
-    fail("B-CC: explicit guard needed -- existing LineString boundary semantics are "
-        + "inherited but not asserted for the new structural CompoundCurve.");
-  }
+  // test_B_CC_openCompoundCurveBoundaryIsTwoEndpoints shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
   // ============================================================
   // Buffer / Offset
@@ -188,16 +132,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Distance
   // ============================================================
 
-  /** D-PT: point-to-arc distance. */
-  public void test_D_PT_pointToArcDistanceClampsToSweep() throws Exception {
-    // Half-circle (-5,0)..(5,0) through (0,5). Centre (0,0). External point (0, 10).
-    Geometry arc = read("CIRCULARSTRING (-5 0, 0 5, 5 0)");
-    Geometry pt  = read("POINT (0 10)");
-    double expected = 5.0;     // 10 - radius 5
-    double actual   = arc.distance(pt);
-    fail("D-PT: distance from POINT(0 10) to half-arc R=5 should be " + expected
-        + ", got " + actual + " (chord-treated polyline distance).");
-  }
+  // test_D_PT_pointToArcDistanceClampsToSweep shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
   /** D-AA: arc-to-arc distance. */
   public void test_D_AA_arcToArcAnalyticalDistance() throws Exception {
@@ -287,32 +222,15 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
         + "boundary points (e.g. POINT(9.99 0)) need explicit arc-aware tests.");
   }
 
-  /** R-EQ: equalsExact distinguishes CircularString from chord polyline. */
-  public void test_R_EQ_equalsExactDistinguishesArcFromChord() throws Exception {
-    Geometry arc  = read("CIRCULARSTRING (0 0, 5 5, 10 0)");
-    Geometry line = read("LINESTRING (0 0, 5 5, 10 0)");
-    boolean equal = arc.equalsExact(line);
-    fail("R-EQ: CIRCULARSTRING(0 0, 5 5, 10 0) and LINESTRING(0 0, 5 5, 10 0) "
-        + "share coordinates but represent different geometries. equalsExact "
-        + "returned " + equal + "; should be false (subclass identity matters).");
-  }
+  // test_R_EQ_equalsExactDistinguishesArcFromChord shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
   // ============================================================
   // Noding (foundation for overlay & predicates)
   // ============================================================
 
-  /** N-AA: arc-vs-arc analytical intersection. */
-  public void test_N_AA_arcVersusArcIntersectionPoints() throws Exception {
-    fail("N-AA: need a public utility for arc-arc intersection (two-circle solve "
-        + "+ sweep clip) returning 0/1/2 points with parameters on each arc. "
-        + "Foundation for OV/R-PR.");
-  }
+  // test_N_AA_arcVersusArcIntersectionPoints shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
-  /** N-AL: arc-vs-line-segment analytical intersection. */
-  public void test_N_AL_arcVersusLineIntersectionPoints() throws Exception {
-    fail("N-AL: need a public utility for arc-line-segment intersection "
-        + "(line-circle solve + sweep clip + segment clamp).");
-  }
+  // test_N_AL_arcVersusLineIntersectionPoints shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
   /** N-SS: arc-aware SegmentString + Noder. */
   public void test_N_SS_arcSegmentStringNoder() throws Exception {
@@ -389,15 +307,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Hulls
   // ============================================================
 
-  /** H-CV: ConvexHull of an arc returns the arc's extreme points. */
-  public void test_H_CV_convexHullOfArcUsesExtremePoints() throws Exception {
-    // Half-circle R=10. Extreme points within sweep + endpoints: (-10,0), (0,10), (10,0).
-    Geometry g = read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
-    Geometry hull = g.convexHull();
-    fail("H-CV: convex hull of a half-arc R=10 should have 3 distinct vertices "
-        + "(2 endpoints + the cardinal-y extreme (0,10)); got "
-        + hull.getNumPoints() + " densified vertices.");
-  }
+  // test_H_CV_convexHullOfArcUsesExtremePoints shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
   /** H-CC: ConcaveHull arc-aware. */
   public void test_H_CC_concaveHullArcAware() throws Exception {
@@ -436,33 +346,20 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Affine transforms
   // ============================================================
 
-  /** AT-S: similarity transform preserves arc. */
-  public void test_AT_S_similarityTransformKeepsCircularString() throws Exception {
-    Geometry arc = read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
-    org.locationtech.jts.geom.util.AffineTransformation t =
-        org.locationtech.jts.geom.util.AffineTransformation.rotationInstance(Math.PI / 4);
-    Geometry rotated = t.transform(arc);
-    fail("AT-S: rotating a CircularString by 45° should yield another CircularString "
-        + "(transform the 3 control points); got " + rotated.getGeometryType() + ".");
-  }
+  // test_AT_S_similarityTransformKeepsCircularString shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
-  /** AT-NS: non-similarity transform falls back to densified output. */
-  public void test_AT_NS_nonSimilarityTransformDensifiesCleanly() throws Exception {
-    fail("AT-NS: shear / non-uniform scale of a CircularString turns the arc into "
-        + "an ellipse arc which JTS doesn't model; the spec is to detect this, "
-        + "densify with toLinear(tolerance), then transform the polyline -- today "
-        + "the arc's 3 control points are transformed and the result *claims* to "
-        + "still be a CircularString through points that no longer lie on a circle.");
-  }
+  // test_AT_NS_nonSimilarityTransformDensifiesCleanly shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
   // ============================================================
   // Linear referencing
   // ============================================================
 
-  /** LRF-LEN: LengthIndexedLine arc-length-parameterised on CircularString. */
+  // test_LRF_LEN_lengthIndexedLineUsesArcLength — partial: LengthIndexedLine
+  // still uses control chords; keep meter until arc-length indexing ships.
+  /** LRF-LEN: LengthIndexedLine uses arc length. */
   public void test_LRF_LEN_lengthIndexedLineUsesArcLength() throws Exception {
     fail("LRF-LEN: LengthIndexedLine.extractPoint(s) on a CircularString must "
-        + "interpret s as arc-length distance; today it walks the chord polyline.");
+        + "parameterise by analytical arc length, not the control-point polyline.");
   }
 
   /** LRF-LOC: LocationIndexedLine member-aware on CompoundCurve. */
