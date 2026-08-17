@@ -499,5 +499,18 @@ public class OverlayNGTest extends OverlayNGTestCase {
     Geometry actual = intersection(a, a);
     checkEqualExact(a, actual);
   }
+
+  /**
+   * OverlayNG on linear inputs must not mutate input coordinates.
+   * Edge stores a deep copy of pts.
+   */
+  public void testOverlayNGDoesNotMutateInputCoordinatesLinear() {
+    Geometry inputA = read("LINESTRING (0 0, 10 0, 20 0)");
+    Geometry inputB = read("LINESTRING (5 -5, 5 5)");
+    org.locationtech.jts.geom.Coordinate orig = inputA.getCoordinates()[1].copy();
+    intersection(inputA, inputB);
+    assertTrue(inputA.getCoordinates()[1].equals2D(orig));
+    assertFalse(inputA.getCoordinates()[1] == orig);
+  }
   
 }

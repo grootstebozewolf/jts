@@ -171,7 +171,8 @@ public class BufferInputLineSimplifier
     CoordinateList coordList = new CoordinateList();
     for (int i = 0; i < inputLine.length; i++) {
       if (! isDeleted[i])
-        coordList.add(inputLine[i]);
+        // Copy so the simplified list cannot alias caller coordinates.
+        coordList.add(inputLine[i].copy());
     }
     return coordList.toCoordinateArray();
   }

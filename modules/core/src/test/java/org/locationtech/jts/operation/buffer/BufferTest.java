@@ -783,6 +783,28 @@ public class BufferTest extends GeometryTestCase {
     return false;
   }
 
+  /**
+   * Buffer must not mutate input coordinates. BufferInputLineSimplifier
+   * (linear/ring offset, negative distance, collapse) previously returned
+   * shared Coordinate instances from collapseLine.
+   */
+  public void testBufferDoesNotMutateInputCoordinates() {
+    Geometry input = read("LINESTRING (0 0, 5 1, 10 0)");
+    org.locationtech.jts.geom.Coordinate orig1 = input.getCoordinates()[1].copy();
+    input.buffer(1.0);
+    assertTrue(input.getCoordinates()[1].equals2D(orig1));
+  }
 
+  /**
+   * Thin rectangle, small negative buffer: no spurious extra fragments.
+   */
+  public void testBufferThinLinearNoSpurious() {
+    Geometry thinRect = read("POLYGON((0 0, 100 0, 100 0.1, 0 0.1, 0 0))");
+    Geometry bufSmallNeg = thinRect.buffer(-0.01);
+    assertTrue(bufSmallNeg.getNumGeometries() <= 1);
+    if (!bufSmallNeg.isEmpty()) {
+      assertTrue(bufSmallNeg.getArea() > 0);
+    }
+  }
 
 }

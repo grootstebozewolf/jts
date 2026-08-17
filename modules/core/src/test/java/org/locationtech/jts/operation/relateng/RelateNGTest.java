@@ -11,6 +11,7 @@
  */
 package org.locationtech.jts.operation.relateng;
 
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.IntersectionMatrix;
 
 import junit.textui.TestRunner;
@@ -697,6 +698,17 @@ public class RelateNGTest extends RelateNGTestCase {
     String patternTrans = IntersectionMatrix.transpose(pattern);  // T*F**F***
     checkPreparedMatches(a, b, pattern);
     checkPreparedMatches(b, a, patternTrans); //
+  }
+
+  /**
+   * Area-rect vertical touch. Pins current JTS full-exterior matrix
+   * {@code FF2F11212} (Proofs witness for the same pair is the minimal
+   * {@code FFFF1FFF2} form).
+   */
+  public void testAreaRectTouchVertical() {
+    Geometry a = read("POLYGON((0 0,1 0,1 1,0 1,0 0))");
+    Geometry b = read("POLYGON((1 0,2 0,2 1,1 1,1 0))");
+    assertEquals("FF2F11212", a.relate(b).toString());
   }
 
 }
