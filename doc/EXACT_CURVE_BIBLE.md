@@ -151,12 +151,13 @@ This document supersedes all previous Proofs option discussions, temporary STOP 
 
 - Java 8: `ExactCurve` is a thin interface, conceptually sealed (only Exact*
   types implement it). Do not add methods. Do not introduce an abstract base.
-- Sweep/angle logic is package-private on `exactcurve.AngleBetween` — not a
-  public shim. Callers use `ExactCircularArc` cells.
+- `org.locationtech.jts.algorithm.exactarc` is a deprecated alias package so
+  the B-team `AngleBetween` import still compiles. New code uses `exactcurve`.
 - Colinear 3-control windows degrade to an exact chord. `isExact()` stays
   true (closed form). `isArc()` is the circular-vs-chord discriminator and
   is **not** on the thin protocol.
 - `toLinear(tolerance)` is the only densify path and is named as such.
-- `OrientableSegment` is an optional adapter (Bible §3): public surface is
-  start/end/length/orientationIndex/intersects only; implementations are
-  package-private and compose `ExactCircularArc`.
+- Optional adapter: `OrientableSegment` / `OrientableSegments` (Bible §3) —
+  public surface is start/end/length/orientationIndex/intersects only;
+  implementations are package-private and compose `ExactCircularArc`.
+  See `doc/ORIENTABLE_SEGMENT_ADAPTER.md`.
