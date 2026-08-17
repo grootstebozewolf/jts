@@ -105,6 +105,7 @@ public class JTSTestBuilderFrame extends JFrame
       setIconImage(AppIcons.APP.getImage());
       jbInit();
       installCurveLinearizationWarnSink();
+      JTSTestBuilder.controller().setStatus("Curve strategy: LINEARIZED");
       testCasePanel.cbRevealTopo.addActionListener(
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
