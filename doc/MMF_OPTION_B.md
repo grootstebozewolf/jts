@@ -16,7 +16,7 @@ Option B + WKB 18–21 + OFF/BUF-*/VBF + DSF/TRI + N-AA/AL/N-SS + F-*/B-* + LRF-
 
 Still red by design: **D-HF** (full TAG keep `fail()`; apex closed-form + general curve densify honesty landed).
 
-Folded pins onto tip: **#55** `logoClothoid`, **#52** write-flatten honesty (`SqlMmTypes`, `toText` → CurveWKTWriter).
+Folded pins onto tip: **#55** `logoClothoid`, **#52** write-flatten honesty, **#40** `ClothoidOverlay`, **#26** HP.1.
 
 ## Verify (smoke)
 
