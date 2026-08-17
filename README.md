@@ -23,7 +23,7 @@ Build this tree and run TestBuilder. Load a `CIRCULARSTRING` — it must stay a 
 
 ### Developer path
 
-Working branch / source of truth: [`feature/sfa-curve-rgr`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-rgr). `mvn clean install` from the [Developing Guide](DEVELOPING.md). Curve work lives in the curve module. Do not silently flatten. Named linear fallback only if named.
+Working branch / source of truth: [`feature/sfa-curve-rgr`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-rgr). `mvn clean install` from the [Developing Guide](DEVELOPING.md). Curve work lives in the curve module. Do not silently flatten. Named linear fallback only if named. MMF Option B quality gate: [doc/MMF_OPTION_B.md](doc/MMF_OPTION_B.md) (draft [PR #61](https://github.com/grootstebozewolf/jts/pull/61)).
 
 * [Developing Guide](DEVELOPING.md)
 * [Contributing Guide](CONTRIBUTING.md)

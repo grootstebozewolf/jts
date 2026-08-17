@@ -55,37 +55,52 @@ Every circular pair that has a closed form has a kit. Everything else is a named
 
 ## 4. What's already landed
 
-### 4.1 On #7 since the spike (tip `210f1b16`)
+### 4.0 MMF Option B fold ([#61](https://github.com/grootstebozewolf/jts/pull/61), 17 Aug 2026)
+
+Draft off #7. SoT stays the fork; no upstream PR.
+
+| Bucket | Summary | TAG honesty |
+|---|---|---|
+| `arch:` | **Option B** `SegmentKind` (`LINEARIZED` / `ARC` / `CERTIFIED`) on core `SegmentString`; `CircularNodedSegmentString`; `IntersectionAdder.mayCollapseToChord`; OverlayNG prepared edges. Index may lie under `PrecisionModel`. | N-SS path is Option B, not the rejected 74-file Option B *lie* framing. |
+| `arch:` | **`CurveLinearizationStrategy`**: default `LINEARIZED` always logs a warning; `PRESERVE` keeps type. Wired through `CurveOps.linearise`. | No silent flatten. |
+| `feat:` | **WKB 18–21** SIGN greenfield: `CRV-CLOTHOID` / `PRF-BEZIER` / `PRF-ELLIPSE` / `CRV-NURBS` (+ ISO `+1000/+2000/+3000`). Factory stubs; `CurveWKBWriter`; core writer refuses flatten. 15–17 still Architect-gated. | I/O zoo partial–full for 18–21 types; ops still mostly chordsaw. |
+| `feat:` | **OFF** shipped: public `OffsetCurve.getCurve` concentric single-arc (left-of-direction). | Full OFF TAG for 3-pt CS. Multi-arc still chordsaw. |
+| `feat:` | **BUF-1 / BUF-NEG** shipped: open-arc corridor `CurvePolygon`; `|d|≥R` empty. **BUF-N** stadium subset (certified four-member stadium dilates at `r+d`). | Open mixed line+arc CompoundCurve corridor still meter. |
+| `feat:` | **R-OV** OverlayNG-for-circles: H-SHELL-N-MIXED via `OverlayNGCircle` + `CurveSegmentString` bridge; BiteVsHole / TwoHoleOverlay folded. | Named R2 leftovers shrink; full OV still not green. |
+| `feat:` | **HP.2 / HP.3** `CurveHotPixel` + `CurveHotPixelSnap` (PM-scale arc∩pixel; shared snapped ray stamp). | Not HP.4 faces; not core HotPixel rewrite. |
+| `arch:` | **`CurveSegmentDcel`** (P2.5.7) package-private for PLG/COV consumers. | PLG/COV TAGs still open. |
+| `fix:` | **TB-FN #60**: Exec prefers `currentFunc`; param focus cannot re-bind to `Buffer.buffer`. | Await UX SIGN on pin JAR. |
+| `fix:` | **VBF honesty**: TestBuilder `variableBuffer*` densifies via `CurveOps.linearise` (warn). | Full arc-length VBF meter stays. |
+| `test:` | **#56 locks**: `CurvePolygonToolTest` 16/16 — non-closing finish auto-closes to `CURVEPOLYGON`, Escape cancels with status, never silent empty / never `POLYGON` flatten. | HOLD issue close until PO UX SIGN. |
+
+### 4.1 On #7 since the spike (historical tip `210f1b16`, still accurate for OV-P1 kits)
 
 | Bucket | Summary | TAG honesty |
 |---|---|---|
 | `feat:` / `fix:` | **WKB 8–12.** Core `WKBReader` first-class cases: CircularString = count+coords; CompoundCurve / CurvePolygon / MultiCurve / MultiSurface = count + child WKBs (CurvePolygon rings carry their own type). `GeometryFactory.createCircularString` / `createCompoundCurve(LineString[])` / `createCurvePolygon(LineString, LineString[])` / `createMultiCurve` / `createMultiSurface` — default throws; `CurveGeometryFactory` implements. `new WKBReader(new CurveGeometryFactory()).read(type8)` returns `CircularString`. `CurveWKBReader` is the no-arg convenience. Locked XDR hex for `CIRCULARSTRING (0 0, 5 5, 10 0)` unchanged. Disc `CurvePolygon` area still 25π after round-trip. No `toLinear` on that path. | WKB sibling from Draft v3 — **landed on #7** (via #8). Not a new public I/O class beyond the factory surface + existing curve writer/reader convenience. |
-| `feat:` | **OverlayNGCurve kits.** **R0** envelope-disjoint skip; **R1** retention when one envelope covers; **R1.5** `CircularDiscOverlay` two-disc closed form (CAP lens / CUP blob / SUB crescent / XOR crescents; crossing nodes `(3.5, ±√12.75)`); **R1.6** `CircularDiscPolygonOverlay` disc vs hole-free plain polygon (line–circle clip; half-disc area `12.5π`); **R1.7** CompoundCurve-shell kits (two-node, two-shell, collinear, 0/1-node, even-n, tangent-odd NSpan, same-outer hole, different-outer punch); **R-LL** CircularString / lineal CompoundCurve vs LineString; **R-AA** two CircularStrings (or lineal CompoundCurve vs CircularString) at exact nodes. Reverse `plain.op(curve)`, reverse SUB, MultiCurve/MultiSurface dispatch, nested Multi envelope skip. **D4** nested annulus: `CIRCLE_5 \ CIRCLE_3` is exact area `16π`, covers `EEEE` / coveredBy `EE0E`. **OV-P1 flipped.** Remaining named R2: `H-SHELL-N-MIXED`, `H-SHELL-HOLE-CROSS`, `H-SHELL-HOLE-X`, `H-ANNULUS-TANGENT`. Circular noder + arrangement is **OV-P2 / Bar 2** — different epic; do not start. | **OV partial** (closed-form subset). OV-P1 flipped; do **not** mark the *full* OV TAG green. Not a general circular noder. Keep `test_OV_*`. |
+| `feat:` | **OverlayNGCurve kits.** **R0** envelope-disjoint skip; **R1** retention when one envelope covers; **R1.5** `CircularDiscOverlay` two-disc closed form (CAP lens / CUP blob / SUB crescent / XOR crescents; crossing nodes `(3.5, ±√12.75)`); **R1.6** `CircularDiscPolygonOverlay` disc vs hole-free plain polygon (line–circle clip; half-disc area `12.5π`); **R1.7** CompoundCurve-shell kits (two-node, two-shell, collinear, 0/1-node, even-n, tangent-odd NSpan, same-outer hole, different-outer punch); **R-LL** CircularString / lineal CompoundCurve vs LineString; **R-AA** two CircularStrings (or lineal CompoundCurve vs CircularString) at exact nodes. Reverse `plain.op(curve)`, reverse SUB, MultiCurve/MultiSurface dispatch, nested Multi envelope skip. **D4** nested annulus: `CIRCLE_5 \ CIRCLE_3` is exact area `16π`, covers `EEEE` / coveredBy `EE0E`. **OV-P1 flipped.** Remaining named R2 on tip shrink after R-OV / hole kits on MMF; `H-ANNULUS-TANGENT` stays a named miss. Circular noder + arrangement is **OV-P2** under Option B. | **OV partial** (closed-form subset). Do **not** mark the *full* OV TAG green. Keep `test_OV_*`. |
 | `feat:` | **R-CONT** certified disc PIP (interior + boundary band) in `CurveExact`. | **R-CONT partial**. |
 | `feat:` | **R-PR DE-9IM** for disc vs Point, LineString, hole-free Polygon, and two discs. Point: interior `0F2FF1FF2`, boundary `FF20F1FF2`, exterior `FF2FF10F2`. Line: crossing `1F20F1102`, tangent `FF20F1102`, miss `FF2FF1102`, endpoint-interior `1020F1102`. Polygon: disjoint `FF2FF1212`, nested `212FF1FF2`, disc-in-square `2FF1FF212`, crossing `212101212`. Two discs: crossing `212101212`, disjoint `FF2FF1212`, nested `212FF1FF2` / `2FF1FF212`, ext tangent `FF2F01212`, int tangent `212F01FF2`, equal `2FFF1FFF2`. Finish slice: single-member MultiSurface both orders; `equalsTopo` on equal/crossing/rotated-control discs; full SFS table; `crosses` of two areas always false. Half-disc / CompoundCurve miss still null → linearise. | **R-PR partial**. Not “any combination of curved/flat”. Do not delete `test_R_PR_*` / `test_R_CONT_*`. |
 | `feat:` | Distance closed-form helpers in `CurveExact` (arc-to-segment, overlapping discs `nearestPoints` 0, `decideTolerance` arc-aware). | Helpers only. **D-PT / D-AA / D-OP** still describe the public `DistanceOp` TAG — keep those spec methods red. |
-| `feat:` | Disc / arc convex hull closed forms. | **H-CV partial**. **H-CC** still open. |
+| `feat:` | Disc / arc / CompoundCurve convex hull closed forms (`CurveConvexHull`). | **H-CV / H-CC partial**. |
 | `feat:` | Public `DiscreteHausdorffDistance` on #7 (`0ca71b`) has closed-form for two pairs only: single-arc `CircularString` → single-segment `LineString` (apex √949/6 − 7/6 = 3.967640600249787), and two circular discs (10.0). A single-member `MultiSurface` of one disc is the same pair, not a third. Public DHD still sees chords in general. Exact path skips densify; densify 0.05 is not the laser. Keep the spec `fail()`. | **D-HF half-red**. Keep the spec method. |
 | `feat:` | Typed LEC obstacle distance (point / segment / polygon / arc / disc) and certified disc closed form. Other obstacle sets keep the grid. | **LEC partial**. The public TAG is wider; do not describe LEC as a blank open. |
 | `feat:` | Disc `CurvePolygon` area 25π. | **M-AREA-CP partial** (circular discs). Keep the spec method. |
 | `arch:` | PERF-GATE: identity/chord-path rows use `assertChordPath`; slack stays **15%** (`1.15`). | Contract, not a TAG. |
 
-These closed-form subsets of **OV** and **R-PR** did **not** wait for N-SS. Line–circle clip is used *inside* R1.6; R-LL / R-AA are overlay kits, not a public arc-arc / arc-line utility and not an arc `SegmentString`.
+These closed-form subsets of **OV** and **R-PR** did **not** wait for N-SS. Line–circle clip is used *inside* R1.6; R-LL / R-AA are overlay kits, not a public arc-arc / arc-line utility.
 
-**Still open** (say so, do not close as “future work” a TAG that already has a named subset):
+**Still open** (say so; do not close as “future work” a TAG that already has a named subset):
 
-- Full **OV** TAG — OV-P1 flipped; remaining named R2 are `H-SHELL-N-MIXED`, `H-SHELL-HOLE-CROSS`, `H-SHELL-HOLE-X`, `H-ANNULUS-TANGENT`. Circular noder + arrangement is OV-P2 / Bar 2 (different epic).
-- Public arc-arc / arc-line utilities and arc `SegmentString` (N-AA, N-AL, N-SS)
-- Open-arc buffer, CompoundCurve hull
-- Public `DiscreteHausdorffDistance` (D-HF) — still sees chords in general. On #7 via `0ca71b` closed-form for two pairs only: single-arc `CircularString` → single-segment `LineString` (apex √949/6 − 7/6 = 3.967640600249787), and two circular discs (10.0). A single-member `MultiSurface` of one disc is the same pair, not a third.
-- Full LEC TAG (typed obstacle distance landed; public TAG is wider)
-- Fréchet (still open; not a D-HF stand-in)
-- OFF = concentric arc (refactor)
+- Full **OV** TAG — OV-P1 + R-OV MIXED / hole kits; `H-ANNULUS-TANGENT` named miss; general arrangement still Option B unfinished.
+- Public arc-arc / arc-line utilities (N-AA, N-AL) as standalone API
+- Open mixed **BUF-N** corridors (line+arc CompoundCurve); full **VBF** arc-length parameterisation
+- Public `DiscreteHausdorffDistance` in general (D-HF); Fréchet
+- Full LEC TAG
 - RocqRefRunner SQL/MM suite for public Curve predicates
-- TestBuilder inspector `ClassCastException` (visual QA)
 - `equalsExact` arc-vs-chord (R-EQ)
-- Most of Phase 2 / 4 / 7 TAGs
-
+- PLG / COV (DCEL present; TAGs open)
+- Most remaining Phase 2 / 4 / 7 meters in `CurveAwarenessSpecTest`
 ### 4.2 Historical — `feature/sfa-curve-buffer-spike` (Draft v3 origin)
 
 | Bucket | Summary |
