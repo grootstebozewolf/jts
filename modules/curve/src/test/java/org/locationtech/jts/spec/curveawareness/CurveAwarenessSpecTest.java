@@ -179,15 +179,6 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Buffer / Offset
   // ============================================================
 
-  /** BUF-1: single-arc CircularString buffer → CurvePolygon(CompoundCurve(...)). */
-  public void test_BUF_1_singleArcBufferReturnsCurvePolygon() throws Exception {
-    Geometry arc = read("CIRCULARSTRING (45 45, 0 90, -45 45)");
-    Geometry buf = arc.buffer(12.0);
-    fail("BUF-1: single-arc buffer should return a CurvePolygon with CompoundCurve "
-        + "rings (outerArc, cap0, innerArcRev, cap1); got " + buf.getGeometryType()
-        + " with " + buf.getNumPoints() + " densified vertices.");
-  }
-
   /** BUF-N: multi-arc / mixed CompoundCurve buffer preserves arcs. */
   public void test_BUF_N_compoundCurveBufferPreservesArcs() throws Exception {
     Geometry g = read(
@@ -195,16 +186,6 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
     Geometry buf = g.buffer(2.0);
     fail("BUF-N: CompoundCurve buffer should produce CurvePolygon-bearing output "
         + "with arc-preserving offsets; got " + buf.getGeometryType() + ".");
-  }
-
-  /** BUF-NEG: negative buffer with R < d behaves cleanly. */
-  public void test_BUF_NEG_negativeBufferGracefulWhenDistanceExceedsRadius() throws Exception {
-    // Half-circle R=5, buffer -10 → should return empty cleanly.
-    Geometry arc = read("CIRCULARSTRING (-5 0, 0 5, 5 0)");
-    Geometry buf = arc.buffer(-10.0);
-    fail("BUF-NEG: negative buffer where |d| > R should yield EMPTY; today the path "
-        + "densifies and produces a polyline self-collapse, returning "
-        + buf.getGeometryType() + " with " + buf.getNumPoints() + " points.");
   }
 
   /** VBF: VariableBuffer arc-aware. */

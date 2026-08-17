@@ -110,16 +110,115 @@ final class CurveExact {
   }
 
   /**
-   * Exact buffer of a circular disc, or {@code null} if {@code g} is not one.
-   * Open arcs stay on {@code BufferOp}: an offset corridor is not a disc.
+   * Exact buffer: circular disc → concentric disc; single open
+   * CircularString arc → CurvePolygon corridor (outer/inner parallels
+   * + round caps). {@code null} otherwise (chainsaw + warn via
+   * {@link CurveOps}).
    */
   static Geometry buffer(Geometry g, double distance) {
     CircularArcDensifier.Circle disc = circularDisc(g);
-    if (disc == null) return null;
-    double r = disc.r + distance;
-    if (r <= 0.0) return g.getFactory().createPolygon();
-    return makeDisc(new CircularArcDensifier.Circle(disc.cx, disc.cy, r),
-        g.getFactory());
+    if (disc != null) {
+      double r = disc.r + distance;
+      if (r <= 0.0) return g.getFactory().createPolygon();
+      return makeDisc(new CircularArcDensifier.Circle(disc.cx, disc.cy, r),
+          g.getFactory());
+    }
+    if (g instanceof CircularString && isSingleArc((CircularString) g)) {
+      return bufferOpenArc((CircularString) g, distance);
+    }
+    return null;
+  }
+
+  /**
+   * BUF-1 / BUF-NEG: open single-arc buffer corridor.
+   * Positive {@code d} dilates; {@code |d|} larger than radius on the
+   * inward side collapses that parallel (returns empty for
+   * {@code d < 0 && |d| >= r} on an open arc — BUF-NEG).
+   */
+  private static Geometry bufferOpenArc(CircularString arc, double d) {
+    if (d == 0.0) {
+      return arc.copy();
+    }
+    double abs = Math.abs(d);
+    Coordinate p0 = arc.getCoordinateN(0);
+    Coordinate p1 = arc.getCoordinateN(1);
+    Coordinate p2 = arc.getCoordinateN(2);
+    CircularArcDensifier.Circle c = CircularArcDensifier.Circle.fromThreePoints(
+        p0, p1, p2);
+    if (c == null) {
+      return null;
+    }
+    // Negative buffer of an open arc is not a simple corridor.
+    if (d < 0.0) {
+      if (abs >= c.r) {
+        return arc.getFactory().createPolygon(); // BUF-NEG empty
+      }
+      return null; // erosion of open arc → chainsaw
+    }
+    if (c.r - abs <= 0.0) {
+      // Inward parallel collapses: buffer is outer arc + full end discs
+      // joined — fall through until a dedicated cell lands.
+      return null;
+    }
+    GeometryFactory f = arc.getFactory();
+    double a0 = Math.atan2(p0.y - c.cy, p0.x - c.cx);
+    double a1 = Math.atan2(p1.y - c.cy, p1.x - c.cx);
+    double a2 = Math.atan2(p2.y - c.cy, p2.x - c.cx);
+    boolean ccw = midInCcw(a0, a1, a2);
+
+    Coordinate out0 = radial(c, a0, c.r + abs);
+    Coordinate out1 = radial(c, a1, c.r + abs);
+    Coordinate out2 = radial(c, a2, c.r + abs);
+    Coordinate in0 = radial(c, a0, c.r - abs);
+    Coordinate in1 = radial(c, a1, c.r - abs);
+    Coordinate in2 = radial(c, a2, c.r - abs);
+
+    CircularString outer = circ(f, out0, out1, out2);
+    CircularString innerRev = circ(f, in2, in1, in0);
+
+    // End caps: semicircle of radius |d| centred at the arc end,
+    // from outer end through the outward tangent tip to inner end.
+    Coordinate endTanTip = tangentTip(c, a2, ccw, abs, true);
+    Coordinate startTanTip = tangentTip(c, a0, ccw, abs, false);
+    CircularString capEnd = circ(f, out2, endTanTip, in2);
+    CircularString capStart = circ(f, in0, startTanTip, out0);
+
+    CompoundCurve shell = new CompoundCurve(
+        new LineString[] { outer, capEnd, innerRev, capStart }, f);
+    return new CurvePolygon(shell, null, f);
+  }
+
+  private static Coordinate radial(CircularArcDensifier.Circle c, double ang,
+      double r) {
+    return new Coordinate(c.cx + r * Math.cos(ang), c.cy + r * Math.sin(ang));
+  }
+
+  /**
+   * Tip of the round cap: centre ± |d| along the arc tangent (forward at
+   * end, backward at start).
+   */
+  private static Coordinate tangentTip(CircularArcDensifier.Circle c,
+      double ang, boolean ccw, double d, boolean atEnd) {
+    // Unit tangent for increasing angle (CCW): (-sin, cos)
+    double tx = -Math.sin(ang);
+    double ty = Math.cos(ang);
+    if (!ccw) {
+      tx = -tx;
+      ty = -ty;
+    }
+    if (!atEnd) {
+      tx = -tx;
+      ty = -ty;
+    }
+    double px = c.cx + c.r * Math.cos(ang);
+    double py = c.cy + c.r * Math.sin(ang);
+    return new Coordinate(px + d * tx, py + d * ty);
+  }
+
+  private static CircularString circ(GeometryFactory f, Coordinate a,
+      Coordinate b, Coordinate c) {
+    return new CircularString(f.getCoordinateSequenceFactory().create(
+        new Coordinate[] { a, b, c }), f);
   }
 
   /**
