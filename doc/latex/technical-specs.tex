@@ -238,9 +238,9 @@ A CompoundCurve is a LineString whose members are LineString and/or
 CircularString pieces, end-to-start connected. Member structure is
 preserved on copy and on \texttt{CurveWKTWriter} /
 \texttt{CurveWKBWriter}. A clothoid may appear as a non-leading
-member when read by \texttt{CurveWKTReader}; core
-\texttt{WKTReader} still fails on the \texttt{CLOTHOID} keyword.
-Clothoid membership is extras, not a closed-form construction.
+member when read by \texttt{CurveWKTReader}, and as first-class
+WKB 18 / WKT \texttt{CLOTHOID}. Core \texttt{WKTReader} still fails
+on the keyword without a curve factory.
 
 \subsection{CurvePolygon (jts-curve)}
 A CurvePolygon is a Polygon whose rings may be CircularString,
@@ -256,10 +256,36 @@ MultiSurface of one certified disc unwraps to that disc for the D-HF
 disc pair. They are not a general overlay noder.
 
 \subsection{What this section does not add}
-No public noder. Constructors do not linearise. This fork is not
-described as LocationTech upstream. Triangle / PolyhedralSurface /
-TIN exist in the same module as additional ISO types; they are not
-the curve overlay stack.
+No public noder that treats every chord as an arc. Constructors do not
+linearise silently. This fork is not described as LocationTech upstream.
+Triangle / PolyhedralSurface / TIN (WKB 15--17) stay Architect-gated.
+WKB 18--21 are fork SIGN greenfield (below).
+
+\subsection{Option B noding contract}
+Public \texttt{SegmentString} names each span
+$[i,i{+}1]$ as \texttt{SegmentKind.LINEARIZED}, \texttt{ARC}, or
+\texttt{CERTIFIED}. Default earth is linearized
+(\texttt{mayCollapseToChord} true). Exact consumers ask the kind;
+they do not treat chord ends as an arc. Spatial indexes may use
+PrecisionModel-scaled chord or expanded bounds (the allowed lie);
+PM snap must not rename the kind. OverlayNG may consume
+\texttt{CircularNodedSegmentString}. See
+\texttt{SegmentStringContractTest}.
+
+\subsection{No silent linearization}
+\texttt{CurveLinearizationStrategy} defaults to \texttt{LINEARIZED}
+and \textbf{must} warn on densify. \texttt{PRESERVE} keeps curve
+identity. TestBuilder Edit menu toggles the default; the Log tab
+receives warn-sink messages.
+
+\subsection{WKB 18--21 (fork SIGN)}
+Greenfield type codes on this tree:
+\texttt{CRV-CLOTHOID}=18, \texttt{PRF-BEZIER}=19,
+\texttt{PRF-ELLIPSE}=20, \texttt{CRV-NURBS}=21, with ISO
+dimension offsets $+1000/+2000/+3000$ for Z/M/ZM. Round-trips are
+locked in \texttt{WKBClothoidTest} /
+\texttt{WKBCurveZoo19\_21Test}. A bare \texttt{WKBWriter} refuses
+to flatten these types.
 
 \section{Basic geometric algorithms}
 The 2003 primitives remain the linear primitives: point-line
@@ -365,13 +391,15 @@ types need the curve writer to keep member tags.
 
 Added tagged text (SQL/MM Spatial): \texttt{CIRCULARSTRING},
 \texttt{COMPOUNDCURVE}, \texttt{CURVEPOLYGON}, \texttt{MULTICURVE},
-\texttt{MULTISURFACE}. \texttt{CLOTHOID} is recognised only by
-\texttt{CurveWKTReader}, and only as a non-leading
-\texttt{COMPOUNDCURVE} member. That path is extras, not a laser.
-Core \texttt{WKTReader} still fails on those keywords.
+\texttt{MULTISURFACE}. \texttt{CLOTHOID}, \texttt{BEZIER},
+\texttt{ELLIPSE}, and \texttt{NURBS} are recognised by
+\texttt{CurveWKTReader} / \texttt{CurveWKTWriter} (WKB 18--21).
+Clothoid may also appear as a non-leading \texttt{COMPOUNDCURVE}
+member. Core \texttt{WKTReader} still fails on those keywords unless
+the factory path is curve-capable.
 
 \subsection{WKB}
-The 2003 spec did not list WKB codes 8--12. On this tree:
+The 2003 spec did not list WKB codes 8--12 or 18--21. On this tree:
 
 \begin{center}
 \begin{tabular}{clp{4.4cm}p{5.4cm}}
@@ -396,17 +424,26 @@ The 2003 spec did not list WKB codes 8--12. On this tree:
   12 & MultiSurface &
     Yes; \texttt{factory.createMultiSurface} &
     CurveWKBWriter. Bare WKBWriter emits 6 \\
+  18 & Clothoid (CRV-CLOTHOID) &
+    Curve factory & CurveWKBWriter (no flatten) \\
+  19 & B\'ezier (PRF-BEZIER) &
+    Curve factory & CurveWKBWriter (no flatten) \\
+  20 & Ellipse (PRF-ELLIPSE) &
+    Curve factory & CurveWKBWriter (no flatten) \\
+  21 & NURBS (CRV-NURBS) &
+    Curve factory & CurveWKBWriter (no flatten) \\
   \bottomrule
 \end{tabular}
 \end{center}
 
-WKB type codes 8--12 are first-class in core \texttt{WKBReader} and
-\texttt{WKBConstants}. Construction still requires a curve-capable
-factory; otherwise the reader throws. \texttt{CurveWKBWriter} emits
-codes 8--12. A bare \texttt{WKBWriter} still walks the parent
-\texttt{instanceof} ladder and writes a CircularString as LineString
-(code 2) and a CurvePolygon as Polygon (code 3). Default and export
-WKB paths route through \texttt{CurveWKBWriter}.
+WKB type codes 8--12 and 18--21 are first-class in core
+\texttt{WKBReader} / \texttt{WKBConstants}. Construction still
+requires a curve-capable factory; otherwise the reader throws.
+\texttt{CurveWKBWriter} emits those codes. A bare \texttt{WKBWriter}
+still walks the parent \texttt{instanceof} ladder for 8--12 and
+\textbf{refuses} to flatten 18--21. ISO flavour adds
+$+1000/+2000/+3000$ for Z/M/ZM. Default and export WKB paths route
+through \texttt{CurveWKBWriter}.
 
 Default GeometryFactory throws on the \texttt{create*} curve
 methods, so \texttt{new WKBReader().read(type8)} fails with a
@@ -414,7 +451,7 @@ factory-required ParseException.
 \texttt{new WKBReader(new CurveGeometryFactory())} or
 \texttt{CurveWKBReader} succeeds.
 
-\fighole{TS-1 WKB 8--12}
+\fighole{TS-1 WKB 8--12 / 18--21}
 
 \section{Discrete Hausdorff distance}
 The 2003 spec did not define Hausdorff. On this tree the public

@@ -56,7 +56,9 @@ public class ClothoidSegment extends LineString implements Linearizable {
   private ClothoidSegment(Coordinate startPoint, double startTangent,
                           double startKappa, double endKappa, double length,
                           double[] endXYTheta, GeometryFactory factory) {
-    super(twoPointSeq(startPoint, new Coordinate(endXYTheta[0], endXYTheta[1]), factory),
+    super(twoPointSeq(startPoint,
+            endWithStartOrdinates(startPoint, endXYTheta[0], endXYTheta[1]),
+            factory),
           factory);
     if (length <= 0 || Double.isNaN(length) || Double.isInfinite(length)) {
       throw new IllegalArgumentException("CLOTHOID length must be finite > 0, got " + length);
@@ -66,12 +68,12 @@ public class ClothoidSegment extends LineString implements Linearizable {
           "CLOTHOID requires startKappa != endKappa (got " + startKappa + ", " + endKappa
           + "); use CIRCULARSTRING or LINESTRING for the degenerate case.");
     }
-    this.startPoint = new Coordinate(startPoint);
+    this.startPoint = startPoint.copy();
     this.startTangent = startTangent;
     this.startKappa = startKappa;
     this.endKappa = endKappa;
     this.length = length;
-    this.endPoint = new Coordinate(endXYTheta[0], endXYTheta[1]);
+    this.endPoint = endWithStartOrdinates(startPoint, endXYTheta[0], endXYTheta[1]);
     this.endTangent = endXYTheta[2];
   }
 
@@ -94,8 +96,8 @@ public class ClothoidSegment extends LineString implements Linearizable {
         startKappa + dK, length, factory);
   }
 
-  public Coordinate getStartCoordinate() { return new Coordinate(startPoint); }
-  public Coordinate getEndCoordinate()   { return new Coordinate(endPoint); }
+  public Coordinate getStartCoordinate() { return startPoint.copy(); }
+  public Coordinate getEndCoordinate()   { return endPoint.copy(); }
   public double getStartTangent()        { return startTangent; }
   public double getEndTangent()          { return endTangent; }
   public double getStartKappa()          { return startKappa; }
@@ -324,8 +326,17 @@ public class ClothoidSegment extends LineString implements Linearizable {
   private static CoordinateSequence twoPointSeq(Coordinate a, Coordinate b,
                                                 GeometryFactory factory) {
     return factory.getCoordinateSequenceFactory().create(new Coordinate[] {
-        new Coordinate(a), new Coordinate(b)
+        a.copy(), b.copy()
     });
+  }
+
+  /** End XY with Z/M copied from start when present (ISO ordinate honesty). */
+  private static Coordinate endWithStartOrdinates(Coordinate start, double x,
+      double y) {
+    Coordinate end = start.copy();
+    end.setX(x);
+    end.setY(y);
+    return end;
   }
 
   private static double normaliseAngle(double theta) {

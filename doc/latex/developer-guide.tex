@@ -476,38 +476,46 @@ structured members with \texttt{CurveWKTWriter}. Core
 \texttt{getGeometryType()} for a flat \texttt{CircularString};
 composite types need the curve writer to keep member tags.
 
-\texttt{CLOTHOID} is recognised only by \texttt{CurveWKTReader}, and
-only as a non-leading \texttt{COMPOUNDCURVE} member. That path is
-extras, not a closed-form construction.
+\texttt{CLOTHOID} / \texttt{BEZIER} / \texttt{ELLIPSE} / \texttt{NURBS}
+are recognised by the curve WKT/WKB pair (WKB 18--21 greenfield).
+Clothoid may also appear as a non-leading \texttt{COMPOUNDCURVE}
+member.
 
-WKB type codes 8--12 are first-class in core \texttt{WKBReader} and
-\texttt{WKBConstants} (\texttt{CircularString}=8,
-\texttt{CompoundCurve}=9, \texttt{CurvePolygon}=10,
-\texttt{MultiCurve}=11, \texttt{MultiSurface}=12). Construction still
+WKB type codes 8--12 and 18--21 are first-class in core
+\texttt{WKBReader} and \texttt{WKBConstants}. Construction still
 requires a curve-capable factory; otherwise the reader throws.
-\texttt{CurveWKBWriter} emits codes 8--12. A bare
+\texttt{CurveWKBWriter} emits those codes. A bare
 \texttt{WKBWriter} still walks the parent \texttt{instanceof} ladder
-and writes a \texttt{CircularString} as LineString (code 2) and a
-\texttt{CurvePolygon} as Polygon (code 3). That is what a direct
-\texttt{WKBWriter.write} call does on this tree.
+for 8--12 and \textbf{refuses} to flatten 18--21. ISO flavour adds
+$+1000/+2000/+3000$ for Z/M/ZM.
+
+\textbf{Option B.} Public \texttt{SegmentString} names each span as
+\texttt{LINEARIZED} / \texttt{ARC} / \texttt{CERTIFIED}. Default is
+linearized. Exact consumers ask \texttt{mayCollapseToChord}. Indexes
+may lie under \texttt{PrecisionModel} without renaming the kind.
+
+\textbf{No silent densify.} \texttt{CurveLinearizationStrategy}
+defaults to \texttt{LINEARIZED} and warns; \texttt{PRESERVE} keeps
+type. TestBuilder Edit menu toggles the default; the Log tab shows
+warn-sink lines.
 
 Default and export WKB paths (JtsOp, TestBuilder XML export) route
 through \texttt{CurveWKBWriter} so those writers do not flatten
-codes 8--12.
+codes 8--12 / 18--21.
 
 \begin{lstlisting}
-// Read codes 8-12 as curve types:
+// Read codes 8-12 / 18-21 as curve types:
 Geometry g = new WKBReader(new CurveGeometryFactory()).read(bytes);
 Geometry g2 = new CurveWKBReader().read(bytes);
 
-// Write codes 8-12:
+// Write codes 8-12 / 18-21:
 byte[] wkb = new CurveWKBWriter().write(g);
 
-// Bare writer still emits 2 / 3 for the parent types:
+// Bare writer: 8-12 may emit 2/3; 18-21 refuse flatten
 byte[] flat = new WKBWriter().write(g); // CircularString -> type 2
 \end{lstlisting}
 
-\fighole{DG-2 WKB type 8 (CurveWKBWriter)}
+\fighole{DG-2 WKB type 8 / 18 (CurveWKBWriter)}
 
 \section{Hausdorff on this tree}
 The 2003 Developer's Guide did not document Hausdorff. It is recorded

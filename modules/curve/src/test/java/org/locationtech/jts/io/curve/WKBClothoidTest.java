@@ -69,6 +69,34 @@ public class WKBClothoidTest extends TestCase {
     assertTrue(back instanceof ClothoidSegment);
   }
 
+  public void testIsoMTypeWord() throws Exception {
+    CurveGeometryFactory gf = new CurveGeometryFactory();
+    Coordinate start = new org.locationtech.jts.geom.CoordinateXYM(1, 2, 9.0);
+    ClothoidSegment cl = gf.createClothoid(start, 0.1, 0.0, 0.01, 40.0);
+    CurveWKBWriter writer = new CurveWKBWriter(3);
+    writer.setFlavor(WKBConstants.wkbIso);
+    writer.setOutputOrdinates(java.util.EnumSet.of(
+        org.locationtech.jts.io.Ordinate.X,
+        org.locationtech.jts.io.Ordinate.Y,
+        org.locationtech.jts.io.Ordinate.M));
+    byte[] wkb = writer.write(cl);
+    assertEquals(2018, typeWord(wkb));
+    Geometry back = new CurveWKBReader().read(wkb);
+    assertTrue(back instanceof ClothoidSegment);
+  }
+
+  public void testIsoZmTypeWord() throws Exception {
+    CurveGeometryFactory gf = new CurveGeometryFactory();
+    Coordinate start = new org.locationtech.jts.geom.CoordinateXYZM(1, 2, 3, 9.0);
+    ClothoidSegment cl = gf.createClothoid(start, 0.1, 0.0, 0.01, 40.0);
+    CurveWKBWriter writer = new CurveWKBWriter(4);
+    writer.setFlavor(WKBConstants.wkbIso);
+    byte[] wkb = writer.write(cl);
+    assertEquals(3018, typeWord(wkb));
+    Geometry back = new CurveWKBReader().read(wkb);
+    assertTrue(back instanceof ClothoidSegment);
+  }
+
   public void testCoreWriterRefusesFlatten() {
     CurveGeometryFactory gf = new CurveGeometryFactory();
     ClothoidSegment cl = gf.createClothoid(
