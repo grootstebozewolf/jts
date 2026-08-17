@@ -9,23 +9,29 @@
  *
  * http://www.eclipse.org/org/documents/edl-v10.php.
  */
-package org.locationtech.jts.algorithm.exactarc;
+package org.locationtech.jts.algorithm.exactcurve;
 
-import org.locationtech.jts.algorithm.exactarc.AngleBetween.DirectedSweep;
+import java.util.List;
+
+import org.locationtech.jts.algorithm.exactcurve.AngleBetween.DirectedSweep;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.curve.CircularArcDensifier;
 
 /**
- * Proofs Option A front-end: exact closed-form cells for one 3-control
- * circular window ({@code r·θ}, {@code chord ≤ arc}, in-arc, segment
- * area, arc-length centroid).
+ * Privileged ExactCurve* primitive: one 3-control circular window.
+ * Closed-form {@code r·θ}, {@code chord ≤ arc}, in-arc, segment area,
+ * arc-length centroid, {@code pointAt}.
  * <p>
  * Circumcircle is {@link CircularArcDensifier#circumcircle} — one
- * determinant, not a second copy. Sweep is {@link AngleBetween}
- * ({@code atan2(cross, dot)} + mid long/short). Colinear triples
- * degrade to the chord; never a silent flatten flagged exact.
+ * determinant, not a second copy. Sweep is {@link AngleBetween}.
+ * Colinear triples degrade to an exact chord; never a silent flatten
+ * flagged circular. Densify only via {@link #toLinear(double)}.
+ * <p>
+ * Canonical architecture: {@code doc/EXACT_CURVE_BIBLE.md}.
  */
-public final class ExactCircularArc {
+public final class ExactCircularArc implements ExactCurve {
 
   private final Coordinate start;
   private final Coordinate mid;
@@ -39,9 +45,9 @@ public final class ExactCircularArc {
   private final boolean arc;
 
   public ExactCircularArc(Coordinate start, Coordinate mid, Coordinate end) {
-    this.start = start;
-    this.mid = mid;
-    this.end = end;
+    this.start = start.copy();
+    this.mid = mid.copy();
+    this.end = end.copy();
     double[] circ = CircularArcDensifier.circumcircle(start, mid, end);
     if (circ == null) {
       this.cx = Double.NaN;
@@ -117,6 +123,47 @@ public final class ExactCircularArc {
 
   public double chordLength() {
     return start.distance(end);
+  }
+
+  /**
+   * Point at arc-length fraction {@code t ∈ [0, 1]}. Endpoints are the
+   * original controls. Chord fallback is linear interpolation.
+   */
+  public Coordinate pointAt(double t) {
+    if (!Double.isFinite(t) || t < 0.0 || t > 1.0) {
+      throw new IllegalArgumentException("t must be in [0,1]: " + t);
+    }
+    if (t == 0.0) {
+      return start.copy();
+    }
+    if (t == 1.0) {
+      return end.copy();
+    }
+    if (!arc) {
+      return new Coordinate(
+          start.x + t * (end.x - start.x),
+          start.y + t * (end.y - start.y));
+    }
+    double ang = a0 + (ccw ? sweep : -sweep) * t;
+    return new Coordinate(cx + r * Math.cos(ang), cy + r * Math.sin(ang));
+  }
+
+  /**
+   * Documented densify shim. Not used by {@link #length()} or
+   * {@link #pointAt(double)}.
+   */
+  public Geometry toLinear(double tolerance) {
+    List<Coordinate> pts = CircularArcDensifier.densifyArc(start, mid, end,
+        tolerance);
+    return new GeometryFactory().createLineString(
+        pts.toArray(new Coordinate[0]));
+  }
+
+  /**
+   * Closed-form (circular or exact chord). Never a hidden densify.
+   */
+  public boolean isExact() {
+    return true;
   }
 
   /**

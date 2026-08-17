@@ -9,9 +9,11 @@
  *
  * http://www.eclipse.org/org/documents/edl-v10.php.
  */
-package org.locationtech.jts.algorithm.exactarc;
+package org.locationtech.jts.algorithm.exactcurve;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LineString;
 
 import junit.framework.TestCase;
 import junit.textui.TestRunner;
@@ -103,5 +105,62 @@ public class ExactCircularArcTest extends TestCase {
     assertEquals(ccw.length(), cw.length(), 0.0);
     assertEquals(ccw.arcLengthCentroid().x, cw.arcLengthCentroid().x, 1.0e-12);
     assertEquals(-ccw.arcLengthCentroid().y, cw.arcLengthCentroid().y, 1.0e-12);
+  }
+
+  public void testExactCurveProtocol() {
+    ExactCurve a = new ExactCircularArc(
+        new Coordinate(5, 0), new Coordinate(0, 5), new Coordinate(-5, 0));
+    assertTrue(a.isExact());
+    assertEquals(5.0 * Math.PI, a.length(), 1.0e-12);
+    assertEquals(5.0, a.getStart().x, 0.0);
+    assertEquals(-5.0, a.getEnd().x, 0.0);
+    Coordinate mid = a.pointAt(0.5);
+    assertEquals(0.0, mid.x, 1.0e-12);
+    assertEquals(5.0, mid.y, 1.0e-12);
+    assertEquals(a.getStart().x, a.pointAt(0.0).x, 0.0);
+    assertEquals(a.getEnd().x, a.pointAt(1.0).x, 0.0);
+    Geometry lin = a.toLinear(0.01);
+    assertTrue(lin instanceof LineString);
+    assertTrue(lin.getNumPoints() > 2);
+    assertEquals(5.0, lin.getCoordinates()[0].x, 0.0);
+    assertEquals(-5.0, lin.getCoordinates()[lin.getNumPoints() - 1].x, 0.0);
+  }
+
+  public void testPointAtRejectsOutOfRange() {
+    ExactCircularArc a = new ExactCircularArc(
+        new Coordinate(5, 0), new Coordinate(0, 5), new Coordinate(-5, 0));
+    try {
+      a.pointAt(-0.1);
+      fail("expected IAE");
+    }
+    catch (IllegalArgumentException expected) {
+      // contract
+    }
+    try {
+      a.pointAt(1.1);
+      fail("expected IAE");
+    }
+    catch (IllegalArgumentException expected) {
+      // contract
+    }
+  }
+
+  public void testColinearPointAtIsLerp() {
+    ExactCircularArc a = new ExactCircularArc(
+        new Coordinate(0, 0), new Coordinate(1, 0), new Coordinate(4, 0));
+    assertTrue(a.isExact());
+    assertFalse(a.isArc());
+    Coordinate p = a.pointAt(0.25);
+    assertEquals(1.0, p.x, 1.0e-15);
+    assertEquals(0.0, p.y, 0.0);
+  }
+
+  public void testConstructorDoesNotAliasCallerCoordinates() {
+    Coordinate s = new Coordinate(5, 0);
+    Coordinate m = new Coordinate(0, 5);
+    Coordinate e = new Coordinate(-5, 0);
+    ExactCircularArc a = new ExactCircularArc(s, m, e);
+    s.x = 99;
+    assertEquals(5.0, a.getStart().x, 0.0);
   }
 }

@@ -15,7 +15,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.locationtech.jts.algorithm.exactarc.ExactCircularArc;
+import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequences;

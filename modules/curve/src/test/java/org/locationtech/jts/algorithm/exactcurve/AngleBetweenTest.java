@@ -9,7 +9,7 @@
  *
  * http://www.eclipse.org/org/documents/edl-v10.php.
  */
-package org.locationtech.jts.algorithm.exactarc;
+package org.locationtech.jts.algorithm.exactcurve;
 
 import org.locationtech.jts.geom.Coordinate;
 
