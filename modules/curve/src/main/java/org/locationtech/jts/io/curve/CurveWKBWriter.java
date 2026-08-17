@@ -14,12 +14,18 @@ package org.locationtech.jts.io.curve;
 import java.io.IOException;
 import java.util.EnumSet;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.curve.BezierCurve;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
+import org.locationtech.jts.geom.curve.EllipseCurve;
 import org.locationtech.jts.geom.curve.MultiCurve;
 import org.locationtech.jts.geom.curve.MultiSurface;
+import org.locationtech.jts.geom.curve.NurbsCurve;
+import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.io.Ordinate;
 import org.locationtech.jts.io.OutStream;
 import org.locationtech.jts.io.WKBConstants;
@@ -92,7 +98,85 @@ public class CurveWKBWriter extends WKBWriter {
           children(geom), outputOrdinates, os);
       return true;
     }
+    if (geom instanceof ClothoidSegment) {
+      writeClothoid((ClothoidSegment) geom, outputOrdinates, os);
+      return true;
+    }
+    if (geom instanceof BezierCurve) {
+      writeBezier((BezierCurve) geom, outputOrdinates, os);
+      return true;
+    }
+    if (geom instanceof EllipseCurve) {
+      writeEllipse((EllipseCurve) geom, outputOrdinates, os);
+      return true;
+    }
+    if (geom instanceof NurbsCurve) {
+      writeNurbs((NurbsCurve) geom, outputOrdinates, os);
+      return true;
+    }
     return false;
+  }
+
+  private void writeBezier(BezierCurve bz, EnumSet<Ordinate> outputOrdinates,
+      OutStream os) throws IOException {
+    writeByteOrder(os);
+    writeGeometryType(WKBConstants.wkbBezier, outputOrdinates, bz, os);
+    writeCoordinateSequence(bz.getCoordinateSequence(), outputOrdinates, true,
+        os);
+  }
+
+  private void writeEllipse(EllipseCurve el, EnumSet<Ordinate> outputOrdinates,
+      OutStream os) throws IOException {
+    writeByteOrder(os);
+    writeGeometryType(WKBConstants.wkbEllipse, outputOrdinates, el, os);
+    Coordinate centre = new Coordinate(el.getCentreX(), el.getCentreY());
+    if (!Double.isNaN(el.getCentreZ())) {
+      centre.setZ(el.getCentreZ());
+    }
+    writeCoordinateSequence(
+        new CoordinateArraySequence(new Coordinate[] { centre }),
+        outputOrdinates, false, os);
+    writeDouble(el.getSemiMajor(), os);
+    writeDouble(el.getSemiMinor(), os);
+    writeDouble(el.getRotation(), os);
+    writeDouble(el.getStartAngle(), os);
+    writeDouble(el.getEndAngle(), os);
+  }
+
+  private void writeNurbs(NurbsCurve nu, EnumSet<Ordinate> outputOrdinates,
+      OutStream os) throws IOException {
+    writeByteOrder(os);
+    writeGeometryType(WKBConstants.wkbNurbs, outputOrdinates, nu, os);
+    writeInt(nu.getDegree(), os);
+    writeCoordinateSequence(nu.getCoordinateSequence(), outputOrdinates, true,
+        os);
+    double[] w = nu.getWeights();
+    for (int i = 0; i < w.length; i++) {
+      writeDouble(w[i], os);
+    }
+    double[] k = nu.getKnots();
+    writeInt(k.length, os);
+    for (int i = 0; i < k.length; i++) {
+      writeDouble(k[i], os);
+    }
+  }
+
+  /**
+   * CRV-CLOTHOID WKB 18: start point ordinates (no size prefix) then
+   * {@code startTangent, startKappa, endKappa, length}.
+   */
+  private void writeClothoid(ClothoidSegment cl,
+      EnumSet<Ordinate> outputOrdinates, OutStream os) throws IOException {
+    writeByteOrder(os);
+    writeGeometryType(WKBConstants.wkbClothoid, outputOrdinates, cl, os);
+    Coordinate start = cl.getStartCoordinate();
+    CoordinateArraySequence seq = new CoordinateArraySequence(
+        new Coordinate[] { start });
+    writeCoordinateSequence(seq, outputOrdinates, false, os);
+    writeDouble(cl.getStartTangent(), os);
+    writeDouble(cl.getStartKappa(), os);
+    writeDouble(cl.getEndKappa(), os);
+    writeDouble(cl.getLength(), os);
   }
 
   private void writeCircularString(CircularString cs,

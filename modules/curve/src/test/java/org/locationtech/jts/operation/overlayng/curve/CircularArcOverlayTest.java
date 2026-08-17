@@ -374,12 +374,27 @@ public class CircularArcOverlayTest extends GeometryTestCase {
     assertEquals("small half minus hole", 4.5 * Math.PI - 1.0,
         punched.getArea(), EXACT);
 
-    assertNull("H-SHELL-HOLE-OUTER: hole meets the other diameter",
-        CompoundCurveShellOverlay.overlay(holed, right, OverlayNG.INTERSECTION));
     Geometry straddle = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)), (-1 1, 1 1, 1 2, -1 2, -1 1))");
-    assertNull("H-SHELL-HOLE-CROSS: hole straddles the other shell",
-        CompoundCurveShellOverlay.overlay(straddle, right, OverlayNG.INTERSECTION));
+    // H-SHELL-HOLE-CROSS: straddling hole — BiteVsHole keeps the bite inside
+    // the solid when the outer CAP preserves its arc.
+    Geometry outerHoleCross = CompoundCurveShellOverlay.overlay(
+        straddle, right, OverlayNG.INTERSECTION);
+    assertNotNull("H-SHELL-HOLE-CROSS: certified bite inside solid",
+        outerHoleCross);
+    assertEquals("quarter-disc minus hole-in-solid", 6.25 * Math.PI - 1.0,
+        outerHoleCross.getArea(), EXACT);
+    assertTrue("H-SHELL-HOLE-CROSS keeps an arc",
+        hasCircularString(outerHoleCross));
+    // H-SHELL-HOLE-OUTER: hole edge ⊂ other diameter. BiteVsHole certifies
+    // the bite when the outer CAP keeps its arc (quarter-disc minus hole).
+    Geometry outerHoleMeet = CompoundCurveShellOverlay.overlay(
+        holed, right, OverlayNG.INTERSECTION);
+    assertNotNull("H-SHELL-HOLE-OUTER: hole on diameter is a certified bite",
+        outerHoleMeet);
+    assertEquals("quarter-disc minus hole", 6.25 * Math.PI - 1.0,
+        outerHoleMeet.getArea(), EXACT);
+    assertTrue("H-SHELL-HOLE-OUTER keeps an arc", hasCircularString(outerHoleMeet));
     Geometry onDiameter = readCurve(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 1, 0 2, 1 1), (1 1, 1 0), (1 0, -1 0), (-1 0, -1 1)))");
     // Collinear overlap is not a discrete node set; no cheap closed

@@ -11,6 +11,7 @@
  */
 package org.locationtech.jts.geom.curve;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFactory;
 import org.locationtech.jts.geom.Geometry;
@@ -89,6 +90,32 @@ public class CurveGeometryFactory extends GeometryFactory {
   @Override
   public MultiCurve createMultiCurve(LineString[] members) {
     return new MultiCurve(members, this);
+  }
+
+  @Override
+  public ClothoidSegment createClothoid(Coordinate start, double startTangent,
+      double startKappa, double endKappa, double length) {
+    return new ClothoidSegment(start, startTangent, startKappa, endKappa,
+        length, this);
+  }
+
+  @Override
+  public BezierCurve createBezierCurve(CoordinateSequence controls) {
+    return new BezierCurve(controls, this);
+  }
+
+  @Override
+  public EllipseCurve createEllipseCurve(double centreX, double centreY,
+      double centreZ, double semiMajor, double semiMinor, double rotation,
+      double startAngle, double endAngle) {
+    return new EllipseCurve(centreX, centreY, centreZ, semiMajor, semiMinor,
+        rotation, startAngle, endAngle, this);
+  }
+
+  @Override
+  public NurbsCurve createNurbsCurve(CoordinateSequence controls, int degree,
+      double[] weights, double[] knots) {
+    return new NurbsCurve(controls, degree, weights, knots, this);
   }
 
   /**

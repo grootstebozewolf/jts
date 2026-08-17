@@ -11,9 +11,11 @@
  */
 package org.locationtech.jts.geom.curve;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.IntersectionMatrix;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
 
 /**
@@ -65,10 +67,219 @@ public final class CurveOps {
    * A densified copy of {@code g} if it is a curve, otherwise {@code g}
    * unchanged. Applied to both operands so a curve-to-curve operation sees
    * arcs on both sides.
+   * <p>
+   * Honour {@link CurveLinearizationStrategy}: {@link
+   * CurveLinearizationStrategy#PRESERVE} returns {@code g} unchanged.
+   * {@link CurveLinearizationStrategy#LINEARIZED} (default) densifies and
+   * <b>always warns</b> — no silent flatten (#1195 MMF).
    */
   public static Geometry linearise(Geometry g) {
     if (!(g instanceof Linearizable)) return g;
+    if (CurveLinearizationStrategy.current()
+        == CurveLinearizationStrategy.PRESERVE) {
+      return g;
+    }
+    CurveLinearizationStrategy.warnLinearized(g, "CurveOps.linearise");
     return ((Linearizable) g).toLinear(tolerance(g));
+  }
+
+  /**
+   * Densify a lineal curve into a polyline whose vertices are spaced
+   * by equal <em>arc length</em> (circular members) or equal chord
+   * length (straight members). Used by VariableBuffer so distance
+   * interpolation follows arc length rather than control-chord length.
+   * Honours {@link CurveLinearizationStrategy} (warns on LINEARIZED).
+   */
+  public static Geometry lineariseArcLength(Geometry g, int samplesPerArc) {
+    if (g == null || g.isEmpty()) {
+      return g;
+    }
+    if (!(g instanceof Linearizable) && !(g instanceof LineString)) {
+      return g;
+    }
+    if (CurveLinearizationStrategy.current()
+        == CurveLinearizationStrategy.PRESERVE) {
+      return g;
+    }
+    if (g instanceof CircularString || g instanceof CompoundCurve
+        || g instanceof BezierCurve || g instanceof ClothoidSegment
+        || g instanceof EllipseCurve || g instanceof NurbsCurve) {
+      CurveLinearizationStrategy.warnLinearized(g, "CurveOps.lineariseArcLength");
+    }
+    int n = Math.max(1, samplesPerArc);
+    if (g instanceof CircularString) {
+      return lineariseCircularStringArcLength((CircularString) g, n);
+    }
+    if (g instanceof CompoundCurve) {
+      CompoundCurve cc = (CompoundCurve) g;
+      java.util.ArrayList<Coordinate> pts = new java.util.ArrayList<Coordinate>();
+      for (int i = 0; i < cc.getNumMembers(); i++) {
+        LineString m = cc.getMemberN(i);
+        Geometry piece = lineariseArcLength(m, n);
+        Coordinate[] c = piece.getCoordinates();
+        int from = pts.isEmpty() ? 0 : 1;
+        for (int k = from; k < c.length; k++) {
+          pts.add(c[k]);
+        }
+      }
+      return g.getFactory().createLineString(
+          pts.toArray(new Coordinate[0]));
+    }
+    if (g instanceof Linearizable) {
+      return ((Linearizable) g).toLinear(tolerance(g));
+    }
+    return g;
+  }
+
+  private static Geometry lineariseCircularStringArcLength(CircularString cs,
+      int samplesPerArc) {
+    org.locationtech.jts.geom.CoordinateSequence seq = cs.getCoordinateSequence();
+    int n = seq.size();
+    if (n < 3) {
+      return cs.copy();
+    }
+    java.util.ArrayList<Coordinate> out = new java.util.ArrayList<Coordinate>();
+    for (int i = 0; i + 2 < n; i += 2) {
+      java.util.List<Coordinate> chord = CircularArcDensifier.densifyArcUniform(
+          seq.getCoordinate(i), seq.getCoordinate(i + 1), seq.getCoordinate(i + 2),
+          samplesPerArc);
+      int from = out.isEmpty() ? 0 : 1;
+      for (int k = from; k < chord.size(); k++) {
+        out.add(chord.get(k));
+      }
+    }
+    return cs.getFactory().createLineString(out.toArray(new Coordinate[0]));
+  }
+
+  /**
+   * Point along a lineal curve at arc length {@code s} (clamped).
+   * CircularString / CompoundCurve use analytical arc length; others
+   * return {@code null} so callers fall back to chord indexing.
+   */
+  public static Coordinate extractPointByArcLength(Geometry g, double s) {
+    if (g == null || g.isEmpty()) {
+      return null;
+    }
+    if (g instanceof CircularString) {
+      return extractOnCircularString((CircularString) g, s);
+    }
+    if (g instanceof CompoundCurve) {
+      CompoundCurve cc = (CompoundCurve) g;
+      double remaining = s;
+      if (remaining < 0.0) {
+        remaining = 0.0;
+      }
+      double total = cc.getLength();
+      if (remaining > total) {
+        remaining = total;
+      }
+      for (int i = 0; i < cc.getNumMembers(); i++) {
+        LineString m = cc.getMemberN(i);
+        double len = m.getLength();
+        if (remaining <= len || i == cc.getNumMembers() - 1) {
+          if (m instanceof CircularString) {
+            return extractOnCircularString((CircularString) m, remaining);
+          }
+          return pointAlongLine(m, remaining);
+        }
+        remaining -= len;
+      }
+    }
+    return null;
+  }
+
+  private static Coordinate extractOnCircularString(CircularString cs, double s) {
+    org.locationtech.jts.geom.CoordinateSequence seq = cs.getCoordinateSequence();
+    int n = seq.size();
+    if (n < 3) {
+      return pointAlongLine(cs, s);
+    }
+    double remaining = s;
+    if (remaining < 0.0) {
+      remaining = 0.0;
+    }
+    double total = cs.getLength();
+    if (remaining > total) {
+      remaining = total;
+    }
+    for (int i = 0; i + 2 < n; i += 2) {
+      Coordinate a = seq.getCoordinate(i);
+      Coordinate mid = seq.getCoordinate(i + 1);
+      Coordinate b = seq.getCoordinate(i + 2);
+      double len = CircularArcDensifier.arcLength(a, mid, b);
+      if (remaining <= len || i + 2 >= n - 1) {
+        return pointOnArc(a, mid, b, remaining / (len > 0 ? len : 1.0));
+      }
+      remaining -= len;
+    }
+    return new Coordinate(seq.getCoordinate(n - 1));
+  }
+
+  private static Coordinate pointOnArc(Coordinate a, Coordinate mid, Coordinate b,
+      double t) {
+    if (t <= 0.0) {
+      return new Coordinate(a);
+    }
+    if (t >= 1.0) {
+      return new Coordinate(b);
+    }
+    CircularArcDensifier.Circle c = CircularArcDensifier.Circle.fromThreePoints(
+        a, mid, b);
+    if (c == null) {
+      return new Coordinate(
+          a.x + t * (b.x - a.x), a.y + t * (b.y - a.y));
+    }
+    double a0 = Math.atan2(a.y - c.cy, a.x - c.cx);
+    double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
+    double a1 = Math.atan2(b.y - c.cy, b.x - c.cx);
+    boolean ccw = midInCcwSweep(a0, aMid, a1);
+    double sweep = signedSweep(a0, a1, ccw);
+    double ang = a0 + (ccw ? sweep : -sweep) * t;
+    return new Coordinate(c.cx + c.r * Math.cos(ang), c.cy + c.r * Math.sin(ang));
+  }
+
+  private static boolean midInCcwSweep(double a0, double aMid, double a1) {
+    double toMid = normPos(aMid - a0);
+    double toEnd = normPos(a1 - a0);
+    return toMid <= toEnd + 1.0e-15;
+  }
+
+  private static double signedSweep(double a0, double a1, boolean ccw) {
+    double d = ccw ? normPos(a1 - a0) : normPos(a0 - a1);
+    return d == 0.0 ? 2.0 * Math.PI : d;
+  }
+
+  private static double normPos(double a) {
+    double t = a % (2.0 * Math.PI);
+    if (t < 0) {
+      t += 2.0 * Math.PI;
+    }
+    return t;
+  }
+
+  private static Coordinate pointAlongLine(LineString ls, double s) {
+    Coordinate[] pts = ls.getCoordinates();
+    if (pts.length == 0) {
+      return new Coordinate();
+    }
+    if (s <= 0.0) {
+      return new Coordinate(pts[0]);
+    }
+    double remaining = s;
+    for (int i = 0; i < pts.length - 1; i++) {
+      double len = pts[i].distance(pts[i + 1]);
+      if (remaining <= len || i == pts.length - 2) {
+        double t = len > 0.0 ? remaining / len : 0.0;
+        if (t > 1.0) {
+          t = 1.0;
+        }
+        return new Coordinate(
+            pts[i].x + t * (pts[i + 1].x - pts[i].x),
+            pts[i].y + t * (pts[i + 1].y - pts[i].y));
+      }
+      remaining -= len;
+    }
+    return new Coordinate(pts[pts.length - 1]);
   }
 
   /**

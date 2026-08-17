@@ -22,6 +22,7 @@ import org.locationtech.jtstest.geomfunction.Metadata;
 
 public class OffsetCurveFunctions {
 
+  @Metadata(curveAwareness="native")
   public static Geometry offsetCurve(Geometry geom, double distance)
   {
     return OffsetCurve.getCurve(geom, distance);

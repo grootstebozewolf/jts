@@ -53,8 +53,36 @@ public class LengthIndexedLine
    */
   public Coordinate extractPoint(double index)
   {
+    Coordinate curvePt = extractCurvePointByLength(linearGeom, index);
+    if (curvePt != null) {
+      return curvePt;
+    }
     LinearLocation loc = LengthLocationMap.getLocation(linearGeom, index);
     return loc.getCoordinate(linearGeom);
+  }
+
+  /**
+   * LRF-LEN (#1195): when {@code geom} is a jts-curve lineal type,
+   * extract by analytical arc length via CurveOps (reflection so core
+   * does not import jts-curve).
+   */
+  private static Coordinate extractCurvePointByLength(Geometry geom, double index) {
+    if (geom == null || geom.getClass().getName().indexOf(".geom.curve.") < 0) {
+      return null;
+    }
+    try {
+      Class<?> ops = Class.forName("org.locationtech.jts.geom.curve.CurveOps");
+      java.lang.reflect.Method m = ops.getMethod("extractPointByArcLength",
+          Geometry.class, double.class);
+      Object out = m.invoke(null, geom, Double.valueOf(index));
+      if (out instanceof Coordinate) {
+        return (Coordinate) out;
+      }
+    }
+    catch (ReflectiveOperationException ex) {
+      return null;
+    }
+    return null;
   }
 
   /**

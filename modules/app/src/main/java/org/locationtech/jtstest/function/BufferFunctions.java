@@ -38,7 +38,7 @@ public class BufferFunctions {
 	
 	public static String bufferDescription = "Buffers a geometry by a distance";
 	
-	@Metadata(description="Buffer a geometry by a distance")
+	@Metadata(description="Buffer a geometry by a distance", curveAwareness="passthrough")
   public static Geometry buffer(Geometry g, double distance)    {   return g.buffer(distance);  }
 
 	public static Geometry bufferWithParams(Geometry g, 
@@ -224,6 +224,7 @@ public class BufferFunctions {
     if (line instanceof Polygon) {
       line = ((Polygon) line).getExteriorRing();
     }
+    line = linearizeCurveForVariableBuffer(line);
     return VariableBuffer.buffer(line, startDist, endDist);
   }
   
@@ -237,7 +238,24 @@ public class BufferFunctions {
     if (line instanceof Polygon) {
       line = ((Polygon) line).getExteriorRing();
     }
+    line = linearizeCurveForVariableBuffer(line);
     return VariableBuffer.buffer(line, startDist, midDist, startDist);
+  }
+
+  /**
+   * VBF honesty (#1195): VariableBuffer samples vertices by cumulative
+   * length. Curve inputs densify by equal <em>arc length</em> via
+   * {@link CurveOps#lineariseArcLength} (strategy + warn), never silent
+   * control-polygon flatten. Emitting arc-preserving variable offsets
+   * remains the full TAG meter.
+   */
+  private static Geometry linearizeCurveForVariableBuffer(Geometry g) {
+    if (g instanceof org.locationtech.jts.geom.curve.Linearizable
+        || g instanceof org.locationtech.jts.geom.curve.CircularString
+        || g instanceof org.locationtech.jts.geom.curve.CompoundCurve) {
+      return org.locationtech.jts.geom.curve.CurveOps.lineariseArcLength(g, 16);
+    }
+    return g;
   }
   
   public static Geometry bufferRadius(Geometry radiusLine) {

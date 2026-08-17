@@ -16,6 +16,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 
 /** A collection of {@link Polygon} and {@link CurvePolygon} members. */
 public class MultiSurface extends MultiPolygon implements Linearizable {
@@ -59,6 +60,14 @@ public class MultiSurface extends MultiPolygon implements Linearizable {
   // -- Arc-aware spatial operations ----------------------------------------
   // Same family the single curve types route through CurveOps. A member
   // with no cheaper path is the chord baseline.
+
+  /**
+   * Core {@code WKTWriter} refuses to flatten curved members to untagged polygons.
+   */
+  @Override
+  public String toText() {
+    return new CurveWKTWriter().write(this);
+  }
 
   @Override
   public Geometry convexHull() {

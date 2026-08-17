@@ -23,6 +23,7 @@ import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jtstest.geomfunction.Metadata;
 
 
 /**
@@ -34,12 +35,16 @@ import org.locationtech.jts.geom.Polygon;
 public class GeometryFunctions 
 {
 	public static String lengthDescription = "Computes the length of perimeter of a Geometry";
+	@Metadata(curveAwareness="native")
 	public static double length(Geometry g)				{		return g.getLength();	}
+  @Metadata(curveAwareness="native")
   public static double area(Geometry g)         {   return g.getArea(); }
   public static double SRID(Geometry g)         {   return g.getSRID(); }
   
   public static boolean isEmpty(Geometry g)    {   return g.isEmpty();  }
+  @Metadata(curveAwareness="native")
   public static boolean isSimple(Geometry g)    {   return g.isSimple();  }
+	@Metadata(curveAwareness="native")
 	public static boolean isValid(Geometry g)			{		return g.isValid();	}
 	public static boolean isRectangle(Geometry g)	{		return g.isRectangle();	}
 	public static boolean isClosed(Geometry g)	{

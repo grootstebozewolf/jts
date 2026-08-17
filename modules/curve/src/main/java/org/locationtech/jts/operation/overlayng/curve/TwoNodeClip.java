@@ -26,6 +26,7 @@ import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularArcDensifier;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.geom.curve.CurveOps;
@@ -136,7 +137,9 @@ final class TwoNodeClip {
   /**
    * Flatten a CompoundCurve shell to typed edges. A LineString member
    * becomes segments; a CircularString becomes 3-control sweep windows.
-   * A colinear triple is a segment, not an arc.
+   * A colinear triple is a segment, not an arc. A
+   * {@link ClothoidSegment} is a miss -- its parent sequence is
+   * start+end only, and that chord is not the spiral.
    */
   static List<Edge> flatten(CurvePolygon shell) {
     LineString ring = shell.getExteriorCurve();
@@ -145,6 +148,9 @@ final class TwoNodeClip {
     List<Edge> edges = new ArrayList<Edge>();
     for (int i = 0; i < cc.getNumMembers(); i++) {
       LineString m = cc.getMemberN(i);
+      if (m instanceof ClothoidSegment) {
+        return null;
+      }
       Coordinate[] pts = m.getCoordinates();
       if (m instanceof CircularString) {
         if (pts.length < 3) return null;

@@ -12,7 +12,7 @@ JTS wordmark as curves plus a buffer halo (`logoLines` + `logoBuffer`: `toLinear
      not a laser. Do not caption a clothoid halo. #55 clothoidHalo is not
      this door. Do not commit mkt1_1920x1080.png as a clothoid. -->
 
-This fork treats SQL/MM ISO/IEC 13249-3 curve types 8–12 (`CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON`, `MULTICURVE`, `MULTISURFACE`) as first-class geometry. WKB/WKT ISO and EXTENDED Z/M/ZM landed in [#51](https://github.com/grootstebozewolf/jts/pull/51) (`CircularStringZ=1008`, …). Types 15–17 still unknown and throw. Core `WKBWriter` refuses to flatten 8–12. TestBuilder lives in `modules/app`.
+This fork treats SQL/MM ISO/IEC 13249-3 curve types 8–12 (`CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON`, `MULTICURVE`, `MULTISURFACE`) as first-class geometry, plus signed greenfield WKB **18–21** (`CRV-CLOTHOID`, `PRF-BEZIER`, `PRF-ELLIPSE`, `CRV-NURBS`). WKB/WKT ISO and EXTENDED Z/M/ZM landed in [#51](https://github.com/grootstebozewolf/jts/pull/51) (`CircularStringZ=1008`, …). Types 15–17 still unknown and throw. Core `WKBWriter` refuses to flatten curve types. TestBuilder lives in `modules/app`.
 
 ### User path
 
@@ -23,7 +23,7 @@ Build this tree and run TestBuilder. Load a `CIRCULARSTRING` — it must stay a 
 
 ### Developer path
 
-Working branch / source of truth: [`feature/sfa-curve-rgr`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-rgr). `mvn clean install` from the [Developing Guide](DEVELOPING.md). Curve work lives in the curve module. Do not silently flatten. Named linear fallback only if named.
+Working branch / source of truth: [`feature/sfa-curve-rgr`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-rgr). `mvn clean install` from the [Developing Guide](DEVELOPING.md). Curve work lives in the curve module. Do not silently flatten. Named linear fallback only if named. MMF Option B quality gate: [doc/MMF_OPTION_B.md](doc/MMF_OPTION_B.md) (draft [PR #61](https://github.com/grootstebozewolf/jts/pull/61)).
 
 * [Developing Guide](DEVELOPING.md)
 * [Contributing Guide](CONTRIBUTING.md)

@@ -301,16 +301,34 @@ public class DiscreteHausdorffDistance
     if (computeExactOriented(discreteGeom, geom, ptDist)) {
       return;
     }
+    // D-HF (#1195): general curve inputs densify so the vertex path
+    // samples the arc, not only control chords. Certified pairs above
+    // still own the closed form (and skip densifyFrac on that path).
+    Geometry sampled = densifyCurvePackage(discreteGeom);
     MaxPointDistanceFilter distFilter = new MaxPointDistanceFilter(geom);
-    discreteGeom.apply(distFilter);
+    sampled.apply(distFilter);
     ptDist.setMaximum(distFilter.getMaxPointDistance());
     
     if (densifyFrac > 0) {
       MaxDensifiedByFractionDistanceFilter fracFilter = new MaxDensifiedByFractionDistanceFilter(geom, densifyFrac);
-      discreteGeom.apply(fracFilter);
+      sampled.apply(fracFilter);
       ptDist.setMaximum(fracFilter.getMaxPointDistance());
       
     }
+  }
+
+  /**
+   * Densify jts-curve package geometries for the general Hausdorff path.
+   * Detection by package name so core does not import jts-curve.
+   */
+  private static Geometry densifyCurvePackage(Geometry g) {
+    if (g == null || g.getClass().getName().indexOf(".geom.curve.") < 0) {
+      return g;
+    }
+    org.locationtech.jts.geom.Envelope env = g.getEnvelopeInternal();
+    double extent = Math.max(env.getWidth(), env.getHeight());
+    double tol = (extent > 0.0 ? extent : 1.0) * 1.0e-4;
+    return org.locationtech.jts.densify.Densifier.densify(g, tol);
   }
 
   /**

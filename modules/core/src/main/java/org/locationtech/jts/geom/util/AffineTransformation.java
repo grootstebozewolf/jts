@@ -12,9 +12,11 @@
 
 package org.locationtech.jts.geom.util;
 
+import org.locationtech.jts.densify.Densifier;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFilter;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.math.MathUtil;
 import org.locationtech.jts.util.Assert;
@@ -976,17 +978,50 @@ public class AffineTransformation
   }
   
   /**
+   * True when this transform is a similarity (uniform scale + rotation
+   * + translation, possibly with reflection). Shear and non-uniform
+   * scale return false. Used so circular arcs stay circular under
+   * AT-S and densify under AT-NS (#1195).
+   *
+   * @return true if the linear part is a scalar multiple of an orthogonal matrix
+   */
+  public boolean isSimilarity()
+  {
+    double c0len2 = m00 * m00 + m10 * m10;
+    double c1len2 = m01 * m01 + m11 * m11;
+    double dot = m00 * m01 + m10 * m11;
+    double scale = Math.max(1.0, Math.max(c0len2, c1len2));
+    return Math.abs(c0len2 - c1len2) <= 1.0e-12 * scale
+        && Math.abs(dot) <= 1.0e-12 * scale;
+  }
+
+  /**
    * Creates a new {@link Geometry} which is the result
    * of this transformation applied to the input Geometry.
+   * <p>
+   * AT-NS (#1195): non-similarity transforms densify jts-curve
+   * geometries via {@link Densifier}→{@code toLinear} before applying,
+   * so a sheared CircularString does not falsely remain a CircularString.
    * 
    *@param g  a <code>Geometry</code>
    *@return a transformed Geometry
    */
   public Geometry transform(Geometry g)
   {
-    Geometry g2 = g.copy();
+    Geometry src = g;
+    if (!isSimilarity() && isCurvePackageGeometry(g)) {
+      Envelope env = g.getEnvelopeInternal();
+      double extent = Math.max(env.getWidth(), env.getHeight());
+      double tol = (extent > 0.0 ? extent : 1.0) * 1.0e-6;
+      src = Densifier.densify(g, tol);
+    }
+    Geometry g2 = src.copy();
     g2.apply(this);
     return g2;    
+  }
+
+  private static boolean isCurvePackageGeometry(Geometry g) {
+    return g != null && g.getClass().getName().indexOf(".geom.curve.") >= 0;
   }
   
   /**

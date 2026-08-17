@@ -104,6 +104,8 @@ public class JTSTestBuilderFrame extends JFrame
       enableEvents(AWTEvent.WINDOW_EVENT_MASK);
       setIconImage(AppIcons.APP.getImage());
       jbInit();
+      installCurveLinearizationWarnSink();
+      JTSTestBuilder.controller().setStatus("Curve strategy: LINEARIZED");
       testCasePanel.cbRevealTopo.addActionListener(
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -243,7 +245,24 @@ public class JTSTestBuilderFrame extends JFrame
   public InfoPanel getLogPanel() {
     return logPanel;
   }
-  
+
+  /**
+   * Phase 5 (#1195): route CurveLinearizationStrategy warnings into the
+   * Log tab so linearize is never silent in the TestBuilder UI.
+   */
+  private void installCurveLinearizationWarnSink() {
+    org.locationtech.jts.geom.curve.CurveLinearizationStrategy.setWarnSink(
+        new org.locationtech.jts.geom.curve.CurveLinearizationStrategy.WarnSink() {
+          public void warn(final String message) {
+            javax.swing.SwingUtilities.invokeLater(new Runnable() {
+              public void run() {
+                logPanel.addInfo(message);
+              }
+            });
+          }
+        });
+  }
+
   public CommandPanel getCommandPanel() {
     return commandPanel;
   }

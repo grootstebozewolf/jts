@@ -166,7 +166,8 @@ public class CurveFunctions {
   }
 
   private static Geometry linearizeAtFraction(Geometry g, double fraction) {
-    if (g == null || g.isEmpty()) return g;
+    if (g == null) return g;
+    if (g.isEmpty()) return linearize(g, 0.0);
     Envelope env = g.getEnvelopeInternal();
     double extent = Math.max(env.getWidth(), env.getHeight());
     return linearize(g, (extent > 0.0 ? extent : 1.0) * fraction);
@@ -182,8 +183,11 @@ public class CurveFunctions {
    * no operation and no writer needs to know whether the arc-awareness shim ran.
    */
   public static Geometry linearize(Geometry g, double tolerance) {
-    if (g == null || g.isEmpty()) return g;
+    if (g == null) return g;
+    // Empty Linearizable still goes through toLinear so CURVEPOLYGON EMPTY
+    // becomes POLYGON EMPTY — a named fallback, not a silent curve type.
     if (g instanceof Linearizable) return ((Linearizable) g).toLinear(tolerance);
+    if (g.isEmpty()) return g;
     if (g instanceof GeometryCollection) {
       int n = g.getNumGeometries();
       Geometry[] members = new Geometry[n];

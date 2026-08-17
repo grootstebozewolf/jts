@@ -19,6 +19,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.MultiSurface;
@@ -33,8 +34,16 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  * {@link SameOuterHoleOverlay}, {@link DifferentOuterHoleOverlay},
  * {@link HalfDiscOverlay} (complementary / sectors / collinear),
  * {@link TwoShellClip} (0 / 1 / 2 / even-n / odd-n with a tangent
- * as a degenerate NSpan), or a two-node walk vs a disc or plain
- * polygon via {@link TwoNodeClip}. A miss is {@code null}.
+ * as a degenerate NSpan), {@link BiteVsHole} (straddling hole,
+ * or a hole whose ring overlaps the other shell: new edge ⊂
+ * other.shell is a bite, not a punch),
+ * {@link TwoHoleOverlay} (two holes that cross on the same outer),
+ * or a two-node walk vs a disc or plain polygon via
+ * {@link TwoNodeClip}. A 0-node mixed shell vs a circular disc
+ * ({@code CC-NEST-ANNULUS}) is not a punch. A clothoid member is
+ * {@link ClothoidOverlay} (0-node identity / disjoint / nest) or
+ * a named Fresnel miss -- never a chord flatten. A miss is
+ * {@code null}.
  */
 final class CompoundCurveShellOverlay {
 
@@ -46,6 +55,9 @@ final class CompoundCurveShellOverlay {
    * not node.
    */
   static Geometry overlay(Geometry a, Geometry b, int opCode) {
+    if (ClothoidOverlay.hasClothoid(a) || ClothoidOverlay.hasClothoid(b)) {
+      return ClothoidOverlay.overlay(a, b, opCode);
+    }
     Geometry holeCell = SameOuterHoleOverlay.overlay(a, b, opCode);
     if (holeCell != null) {
       return holeCell;
@@ -53,6 +65,14 @@ final class CompoundCurveShellOverlay {
     Geometry differentHole = DifferentOuterHoleOverlay.overlay(a, b, opCode);
     if (differentHole != null) {
       return differentHole;
+    }
+    Geometry bite = BiteVsHole.overlay(a, b, opCode);
+    if (bite != null) {
+      return bite;
+    }
+    Geometry twoHole = TwoHoleOverlay.overlay(a, b, opCode);
+    if (twoHole != null) {
+      return twoHole;
     }
     CurvePolygon shellA = compoundCurveShell(a);
     CurvePolygon shellB = compoundCurveShell(b);
@@ -106,6 +126,9 @@ final class CompoundCurveShellOverlay {
     boolean hasLine = false;
     for (int i = 0; i < cc.getNumMembers(); i++) {
       LineString m = cc.getMemberN(i);
+      if (m instanceof ClothoidSegment) {
+        return null;
+      }
       if (m instanceof CircularString) {
         hasArc = true;
       }
@@ -130,6 +153,7 @@ final class CompoundCurveShellOverlay {
     List<TwoNodeClip.Edge> edges = TwoNodeClip.flatten(shell);
     if (edges == null) return null;
     List<TwoNodeClip.Node> nodes = other.nodes(edges);
+    // 0-node mixed-vs-disc is CC-NEST-ANNULUS, not a stadium punch.
     if (!TwoNodeClip.properPair(nodes, other.scale())) return null;
 
     TwoNodeClip.Node p = nodes.get(0);

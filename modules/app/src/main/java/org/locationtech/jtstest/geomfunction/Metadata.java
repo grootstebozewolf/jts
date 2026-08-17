@@ -21,4 +21,10 @@ public @interface Metadata
   String title() default "";
   String description() default "";
   boolean isRequired() default true;
+  /**
+   * TB-FN (#1195): curve-awareness badge for the TestBuilder function tree.
+   * Values: {@code native} (●), {@code passthrough} (◯), {@code flattens} (✕).
+   * Empty means {@code flattens}.
+   */
+  String curveAwareness() default "";
 }

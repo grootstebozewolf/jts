@@ -29,10 +29,9 @@ import junit.framework.TestSuite;
 import junit.textui.TestRunner;
 
 /**
- * Default / export WKB paths must use {@code CurveWKBWriter}, not the
- * flattening core {@code WKBWriter}. A CircularString that hits
- * {@code instanceof LineString} would emit type 2; a CurvePolygon that
- * hits Polygon would emit type 3.
+ * TestBuilder / jtsop export WKB must stay on {@code CurveWKBWriter}
+ * so types 8–12 survive. Core refuse + ISO/EXTENDED flavour are #51
+ * on #7; this file does not restack that writer.
  */
 public class CurveWKBExportHonestyTest extends TestCase {
 

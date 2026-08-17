@@ -68,6 +68,11 @@ public class TopologyPreservingSimplifier
 {
   public static Geometry simplify(Geometry geom, double distanceTolerance)
   {
+    if (geom != null
+        && "CircularString".equals(geom.getGeometryType())
+        && geom.getNumPoints() <= 3) {
+      return geom.copy();
+    }
     TopologyPreservingSimplifier tss = new TopologyPreservingSimplifier(geom);
     tss.setDistanceTolerance(distanceTolerance);
     return tss.getResultGeometry();

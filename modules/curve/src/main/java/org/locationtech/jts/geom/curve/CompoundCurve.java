@@ -16,12 +16,16 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateFilter;
 import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.CoordinateSequenceFilter;
+import org.locationtech.jts.geom.CoordinateSequences;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 
 /**
  * A connected sequence of {@link LineString} and {@link CircularString}
@@ -110,6 +114,79 @@ public class CompoundCurve extends LineString implements Linearizable {
       copies[i] = (LineString) members[i].copy();
     }
     return new CompoundCurve(copies, getFactory());
+  }
+
+  /**
+   * Applies the filter to every member, including each circular
+   * member's start.
+   * <p>
+   * The inherited {@link LineString#apply(CoordinateFilter)} walks only
+   * the concatenated sequence. {@link #concatMembers} drops each later
+   * member's start (the junction already stored as the previous member's
+   * end). Those starts are distinct {@link Coordinate} objects, so a
+   * translate moved mid and end of a {@code CIRCULARSTRING} (ISO/IEC
+   * 13249-3) and left the start behind — the arc warped. Member-first
+   * apply keeps the three-point arc and the type.
+   * <p>
+   * Affine <em>translate</em> is the signed type-honest case. This does
+   * not claim that shear or non-uniform scale still describes a circular
+   * arc. No Bézier I/O type is introduced.
+   */
+  @Override
+  public void apply(CoordinateFilter filter) {
+    if (members.length == 0) {
+      super.apply(filter);
+      return;
+    }
+    for (int i = 0; i < members.length; i++) {
+      members[i].apply(filter);
+    }
+    syncConcatenatedSequence();
+  }
+
+  /**
+   * Same member-first walk as {@link #apply(CoordinateFilter)}. The
+   * concatenated sequence is then copied from the members so
+   * {@code getCoordinates()} stays a continuous polyline. Do not apply
+   * the filter to the parent sequence as well — those points are often
+   * the same objects as the members', and a second pass would translate
+   * twice.
+   */
+  @Override
+  public void apply(CoordinateSequenceFilter filter) {
+    if (members.length == 0) {
+      super.apply(filter);
+      return;
+    }
+    for (int i = 0; i < members.length; i++) {
+      members[i].apply(filter);
+      if (filter.isDone()) {
+        break;
+      }
+    }
+    syncConcatenatedSequence();
+    if (filter.isGeometryChanged()) {
+      geometryChanged();
+    }
+  }
+
+  /**
+   * Copies member coordinates into the concatenated parent sequence,
+   * skipping each later member's start the same way
+   * {@link #concatMembers} does. In-place so a {@code CurvePolygon}
+   * flat ring that wraps this sequence stays aligned.
+   */
+  private void syncConcatenatedSequence() {
+    CoordinateSequence dest = points;
+    int k = 0;
+    for (int i = 0; i < members.length; i++) {
+      CoordinateSequence src = members[i].getCoordinateSequence();
+      int from = (i == 0) ? 0 : 1;
+      for (int j = from; j < src.size() && k < dest.size(); j++) {
+        CoordinateSequences.copyCoord(src, j, dest, k);
+        k++;
+      }
+    }
   }
 
   /**
@@ -238,6 +315,14 @@ public class CompoundCurve extends LineString implements Linearizable {
   // The jts-core implementations walk getCoordinates(), which for a curve is
   // only the control points. Route them through a densified copy instead; see
   // CurveOps for the tolerance rationale and its limits.
+
+  /**
+   * Core {@code WKTWriter} refuses to flatten arc members to untagged lines.
+   */
+  @Override
+  public String toText() {
+    return new CurveWKTWriter().write(this);
+  }
 
   @Override
   public Geometry convexHull() {

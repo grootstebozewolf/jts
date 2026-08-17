@@ -173,6 +173,34 @@ public class JTSTestBuilderMenuBar
         JTSTestBuilder.controller().changeToLines();
       }
     });
+
+    final JRadioButtonMenuItem menuCurveLinearized = new JRadioButtonMenuItem(
+        "Curve strategy: LINEARIZED (warn)");
+    final JRadioButtonMenuItem menuCurvePreserve = new JRadioButtonMenuItem(
+        "Curve strategy: PRESERVE");
+    javax.swing.ButtonGroup curveStrategyGroup = new javax.swing.ButtonGroup();
+    curveStrategyGroup.add(menuCurveLinearized);
+    curveStrategyGroup.add(menuCurvePreserve);
+    menuCurveLinearized.setSelected(true);
+    menuCurveLinearized.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent e) {
+        org.locationtech.jts.geom.curve.CurveLinearizationStrategy
+            .setDefault(org.locationtech.jts.geom.curve.CurveLinearizationStrategy.LINEARIZED);
+        String msg = "CurveLinearizationStrategy default = LINEARIZED (densify warns)";
+        tbFrame.getLogPanel().addInfo(msg);
+        JTSTestBuilder.controller().setStatus("Curve strategy: LINEARIZED");
+      }
+    });
+    menuCurvePreserve.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent e) {
+        org.locationtech.jts.geom.curve.CurveLinearizationStrategy
+            .setDefault(org.locationtech.jts.geom.curve.CurveLinearizationStrategy.PRESERVE);
+        String msg = "CurveLinearizationStrategy default = PRESERVE (no densify)";
+        tbFrame.getLogPanel().addInfo(msg);
+        JTSTestBuilder.controller().setStatus("Curve strategy: PRESERVE");
+      }
+    });
+
     jMenuFile.setText("File");
     //jMenuOptions.setText("Options");
     //jMenuTools.setText("Tools");
@@ -209,6 +237,9 @@ public class JTSTestBuilderMenuBar
     jMenuEdit.addSeparator();
     jMenuEdit.add(removeDuplicatePoints);
     jMenuEdit.add(changeToLines);
+    jMenuEdit.addSeparator();
+    jMenuEdit.add(menuCurveLinearized);
+    jMenuEdit.add(menuCurvePreserve);
     
     jMenuBar1.add(jMenuFile);
     jMenuBar1.add(jMenuView);

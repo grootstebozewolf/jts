@@ -71,6 +71,7 @@ public class HullFunctions {
     return ConcaveHull.concaveHullByLength(arcAware(geom), maxLen, true);
   }
 
+  @Metadata(curveAwareness="passthrough")
   public static Geometry concaveHullPointsByLenRatio(Geometry geom,
       @Metadata(title="Length Ratio")
       double maxLenRatio) {

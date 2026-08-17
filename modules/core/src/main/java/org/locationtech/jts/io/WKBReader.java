@@ -14,6 +14,7 @@ package org.locationtech.jts.io;
 import java.io.IOException;
 import java.util.EnumSet;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFactory;
 import org.locationtech.jts.geom.CoordinateSequences;
@@ -343,6 +344,18 @@ public class WKBReader
       case WKBConstants.wkbMultiSurface :
         geom = readMultiSurface(SRID);
         break;
+      case WKBConstants.wkbClothoid :
+        geom = readClothoid(ordinateFlags);
+        break;
+      case WKBConstants.wkbBezier :
+        geom = readBezier(ordinateFlags);
+        break;
+      case WKBConstants.wkbEllipse :
+        geom = readEllipse(ordinateFlags);
+        break;
+      case WKBConstants.wkbNurbs :
+        geom = readNurbs(ordinateFlags);
+        break;
       default:
         geom = readOtherGeometry(geometryType, ordinateFlags, SRID);
         break;
@@ -372,6 +385,88 @@ public class WKBReader
     }
     catch (UnsupportedOperationException e) {
       throw curveFactoryRequired(WKBConstants.wkbCircularString, e);
+    }
+  }
+
+  /**
+   * CRV-CLOTHOID (WKB 18). Greenfield fork layout:
+   * {@code startXY[ZM] + startTangent + startKappa + endKappa + length}.
+   * No nested Point header. End pose is recovered analytically.
+   */
+  private Geometry readClothoid(EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    CoordinateSequence startSeq = readCoordinateSequence(1, ordinateFlags);
+    double startTangent = dis.readDouble();
+    double startKappa = dis.readDouble();
+    double endKappa = dis.readDouble();
+    double length = dis.readDouble();
+    try {
+      return factory.createClothoid(startSeq.getCoordinate(0),
+          startTangent, startKappa, endKappa, length);
+    }
+    catch (UnsupportedOperationException e) {
+      throw curveFactoryRequired(WKBConstants.wkbClothoid, e);
+    }
+  }
+
+  /** PRF-BEZIER (WKB 19): count + control coordinates ({@code 3k+1}). */
+  private Geometry readBezier(EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    LineString ls = readLineString(ordinateFlags);
+    try {
+      return factory.createBezierCurve(ls.getCoordinateSequence());
+    }
+    catch (UnsupportedOperationException e) {
+      throw curveFactoryRequired(WKBConstants.wkbBezier, e);
+    }
+  }
+
+  /**
+   * PRF-ELLIPSE (WKB 20): centre point ordinates (no size) then
+   * {@code a, b, rotation, startAngle, endAngle}.
+   */
+  private Geometry readEllipse(EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    CoordinateSequence centre = readCoordinateSequence(1, ordinateFlags);
+    Coordinate c = centre.getCoordinate(0);
+    double a = dis.readDouble();
+    double b = dis.readDouble();
+    double rot = dis.readDouble();
+    double a0 = dis.readDouble();
+    double a1 = dis.readDouble();
+    double z = Double.isNaN(c.getZ()) ? Double.NaN : c.getZ();
+    try {
+      return factory.createEllipseCurve(c.x, c.y, z, a, b, rot, a0, a1);
+    }
+    catch (UnsupportedOperationException e) {
+      throw curveFactoryRequired(WKBConstants.wkbEllipse, e);
+    }
+  }
+
+  /**
+   * CRV-NURBS (WKB 21): {@code degree}, control count + coords,
+   * weights[count], knot count + knots[].
+   */
+  private Geometry readNurbs(EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    int degree = dis.readInt();
+    LineString controls = readLineString(ordinateFlags);
+    int n = controls.getNumPoints();
+    double[] weights = new double[n];
+    for (int i = 0; i < n; i++) {
+      weights[i] = dis.readDouble();
+    }
+    int nKnots = dis.readInt();
+    double[] knots = new double[nKnots];
+    for (int i = 0; i < nKnots; i++) {
+      knots[i] = dis.readDouble();
+    }
+    try {
+      return factory.createNurbsCurve(controls.getCoordinateSequence(),
+          degree, weights, knots);
+    }
+    catch (UnsupportedOperationException e) {
+      throw curveFactoryRequired(WKBConstants.wkbNurbs, e);
     }
   }
 

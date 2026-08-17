@@ -66,6 +66,10 @@ public class CoverageUnion
    * @throws TopologyException in some cases if the coverage is invalid
    */
   public static Geometry union(Geometry coverage) {
+    Geometry curveUnion = tryCurveCoverageUnion(coverage);
+    if (curveUnion != null) {
+      return curveUnion;
+    }
     Noder noder = new BoundaryChainNoder();
     //-- these are less performant
     //Noder noder = new SegmentExtractingNoder();
@@ -83,6 +87,29 @@ public class CoverageUnion
     catch (TopologyException ex) {
       throw new TopologyException("Input coverage is invalid due to incorrect noding");
     }
+  }
+
+  /**
+   * COV (#1195): dissolve CurvePolygon coverages via curve module when
+   * present, preserving exterior CIRCULARSTRING members.
+   */
+  private static Geometry tryCurveCoverageUnion(Geometry coverage) {
+    if (coverage == null) {
+      return null;
+    }
+    try {
+      Class<?> cls = Class.forName(
+          "org.locationtech.jts.geom.curve.CurveCoverageUnion");
+      java.lang.reflect.Method m = cls.getMethod("union", Geometry.class);
+      Object out = m.invoke(null, coverage);
+      if (out instanceof Geometry) {
+        return (Geometry) out;
+      }
+    }
+    catch (ReflectiveOperationException ex) {
+      return null;
+    }
+    return null;
   }
 
   private CoverageUnion() {

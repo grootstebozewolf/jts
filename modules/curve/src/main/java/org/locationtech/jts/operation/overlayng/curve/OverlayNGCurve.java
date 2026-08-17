@@ -279,6 +279,9 @@ public class OverlayNGCurve {
     Geometry arcClip = CircularArcOverlay.overlay(a, b, opCode); // R-AA
     if (arcClip != null) return arcClip;
 
+    Geometry ovCircles = OverlayNGCircle.overlay(a, b, opCode); // R-OV Option B
+    if (ovCircles != null) return ovCircles;
+
     // R2. The chord baseline: densify at the ops tolerance and run core.
     // Approximate only if something was actually densified: for operands with
     // no arc, linearise returns them unchanged and core's answer is exact, so

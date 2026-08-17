@@ -17,6 +17,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.locationtech.jts.densify.Densifier;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateArrays;
 import org.locationtech.jts.geom.CoordinateList;
@@ -52,9 +53,23 @@ public class DelaunayTriangulationBuilder
 	{
 		if (geom == null)
 			return new CoordinateList();
+
+		Geometry src = geom;
+		// TRI-DT / TRI-VR (#1195): curve inputs densify via Densifier→toLinear
+		// so sites lie on the arc, not the control chord.
+		if (isCurvePackageGeometry(geom)) {
+			Envelope env = geom.getEnvelopeInternal();
+			double extent = Math.max(env.getWidth(), env.getHeight());
+			double tol = (extent > 0.0 ? extent : 1.0) * 1.0e-6;
+			src = Densifier.densify(geom, tol);
+		}
 		
-		Coordinate[] coords = geom.getCoordinates();
+		Coordinate[] coords = src.getCoordinates();
 		return unique(coords);
+	}
+
+	private static boolean isCurvePackageGeometry(Geometry geom) {
+		return geom.getClass().getName().indexOf(".geom.curve.") >= 0;
 	}
 	
 	/**

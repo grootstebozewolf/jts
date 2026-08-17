@@ -52,6 +52,7 @@ public class VariableBuffer {
    */
   public static Geometry buffer(Geometry line, double startDistance,
       double endDistance) {
+    line = densifyCurveInput(line);
     double[] distance = interpolate((LineString) line,
         startDistance, endDistance);
     VariableBuffer vb = new VariableBuffer(line, distance);
@@ -75,6 +76,7 @@ public class VariableBuffer {
   public static Geometry buffer(Geometry line, double startDistance,
       double midDistance,
       double endDistance) {
+    line = densifyCurveInput(line);
     double[] distance = interpolate((LineString) line,
         startDistance, midDistance, endDistance);
     VariableBuffer vb = new VariableBuffer(line, distance);
@@ -92,6 +94,32 @@ public class VariableBuffer {
   public static Geometry buffer(Geometry line, double[] distance) {
     VariableBuffer vb = new VariableBuffer(line, distance);
     return vb.getResult();
+  }
+
+  /**
+   * VBF (#1195): densify curve-package inputs via arc-length sampling so
+   * distance interpolation follows arc parameter, not control-chord length.
+   * Uses reflection so core does not import jts-curve; strategy+warn lives in
+   * {@code CurveOps.lineariseArcLength}.
+   */
+  private static Geometry densifyCurveInput(Geometry g) {
+    if (g == null || g.getClass().getName().indexOf(".geom.curve.") < 0) {
+      return g;
+    }
+    try {
+      Class<?> ops = Class.forName(
+          "org.locationtech.jts.geom.curve.CurveOps");
+      java.lang.reflect.Method m = ops.getMethod("lineariseArcLength",
+          Geometry.class, int.class);
+      Object out = m.invoke(null, g, Integer.valueOf(16));
+      if (out instanceof Geometry) {
+        return (Geometry) out;
+      }
+    }
+    catch (ReflectiveOperationException ex) {
+      return g;
+    }
+    return g;
   }
 
   /**

@@ -98,5 +98,12 @@ public interface GeometryFunction
   boolean isBinary();
   
   boolean isRequiredB();
+
+  /**
+   * TB-FN (#1195): {@code native}, {@code passthrough}, or {@code flattens}.
+   */
+  default String getCurveAwareness() {
+    return "flattens";
+  }
 	
 }

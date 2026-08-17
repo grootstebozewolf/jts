@@ -12,7 +12,10 @@
 package org.locationtech.jts.geom.curve;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateFilter;
 import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.CoordinateSequenceFilter;
+import org.locationtech.jts.geom.CoordinateSequences;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.IntersectionMatrix;
@@ -20,6 +23,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 
 /**
  * A polygon whose rings may be straight, circular, or compound curves.
@@ -127,6 +131,24 @@ public class CurvePolygon extends Polygon implements Linearizable {
   }
 
   /**
+   * V-CP (#1195): validity uses densified rings so arc self-intersections
+   * that are invisible on the control polygon are still detected. Chainsaw
+   * densify is maintainable here; analytical arc/arc self-intersection can
+   * replace this later without changing the public contract.
+   */
+  @Override
+  public boolean isValid() {
+    if (isEmpty()) {
+      return true;
+    }
+    Envelope env = getEnvelopeInternal();
+    double extent = Math.max(env.getWidth(), env.getHeight());
+    double tol = (extent > 0.0 ? extent : 1.0) * 1.0e-4;
+    Geometry flat = toLinear(tol);
+    return flat.isValid();
+  }
+
+  /**
    * Option-A structural accessor for interior rings, the counterpart to
    * {@link #getExteriorCurve()}. Returns the hole as supplied by the caller,
    * which may be a {@code CircularString}, {@code CompoundCurve},
@@ -206,6 +228,114 @@ public class CurvePolygon extends Polygon implements Linearizable {
 
   private static boolean isCurve(LineString ring) {
     return ring instanceof CircularString || ring instanceof CompoundCurve;
+  }
+
+  /**
+   * Applies the filter to structural rings when they are not the same
+   * object as the flat {@link LinearRing} views.
+   * <p>
+   * Inherited {@link Polygon#apply(CoordinateFilter)} visits only the
+   * flat rings. A {@code CIRCULARSTRING} shell often shares Coordinate
+   * objects with that view, so a translate already reached it. A
+   * {@code COMPOUNDCURVE} shell (ISO/IEC 13249-3) does not: the flat
+   * ring is the concatenated sequence, which omits each later member's
+   * start. Applying here lets {@link CompoundCurve#apply} move every
+   * control point, including those starts. Do not also apply to the
+   * flat rings — shared coordinates would translate twice.
+   * <p>
+   * Affine translate is the signed type-honest case. Shear /
+   * non-uniform scale is not signed as keeping a circular arc.
+   */
+  @Override
+  public void apply(CoordinateFilter filter) {
+    if (!applyToStructuralRings()) {
+      super.apply(filter);
+      return;
+    }
+    applyStructural(filter);
+    syncFlatRingsFromStructural();
+  }
+
+  /**
+   * Same structural-first walk as {@link #apply(CoordinateFilter)}.
+   */
+  @Override
+  public void apply(CoordinateSequenceFilter filter) {
+    if (!applyToStructuralRings()) {
+      super.apply(filter);
+      return;
+    }
+    if (structuralShell != null) {
+      structuralShell.apply(filter);
+    }
+    if (!filter.isDone()) {
+      for (int i = 0; i < structuralHoles.length; i++) {
+        if (structuralHoles[i] != null) {
+          structuralHoles[i].apply(filter);
+          if (filter.isDone()) {
+            break;
+          }
+        }
+      }
+    }
+    syncFlatRingsFromStructural();
+    if (filter.isGeometryChanged()) {
+      geometryChanged();
+    }
+  }
+
+  private void applyStructural(CoordinateFilter filter) {
+    if (structuralShell != null) {
+      structuralShell.apply(filter);
+    }
+    for (int i = 0; i < structuralHoles.length; i++) {
+      if (structuralHoles[i] != null) {
+        structuralHoles[i].apply(filter);
+      }
+    }
+  }
+
+  /**
+   * True when a structural ring is a distinct object from the legacy
+   * flat view ({@code CircularString} / {@code CompoundCurve}).
+   */
+  private boolean applyToStructuralRings() {
+    if (structuralShell != null && structuralShell != getExteriorRing()) {
+      return true;
+    }
+    for (int i = 0; i < structuralHoles.length; i++) {
+      if (structuralHoles[i] != null
+          && structuralHoles[i] != getInteriorRingN(i)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Copies structural control points onto the flat rings when those
+   * sequences are not the same objects. Default-factory CircularString
+   * shells already share Coordinates, so this is a no-op there.
+   */
+  private void syncFlatRingsFromStructural() {
+    if (structuralShell != null && structuralShell != getExteriorRing()) {
+      syncSequence(structuralShell.getCoordinateSequence(),
+          getExteriorRing().getCoordinateSequence());
+    }
+    for (int i = 0; i < structuralHoles.length; i++) {
+      if (structuralHoles[i] != null
+          && structuralHoles[i] != getInteriorRingN(i)) {
+        syncSequence(structuralHoles[i].getCoordinateSequence(),
+            getInteriorRingN(i).getCoordinateSequence());
+      }
+    }
+  }
+
+  private static void syncSequence(CoordinateSequence src, CoordinateSequence dest) {
+    int n = Math.min(src.size(), dest.size());
+    for (int i = 0; i < n; i++) {
+      CoordinateSequences.copyCoord(src, i, dest, i);
+    }
   }
 
   /**
@@ -386,6 +516,14 @@ public class CurvePolygon extends Polygon implements Linearizable {
   // The jts-core implementations walk getCoordinates(), which for a curve is
   // only the control points. Route them through a densified copy instead; see
   // CurveOps for the tolerance rationale and its limits.
+
+  /**
+   * Core {@code WKTWriter} refuses to flatten curved rings to untagged polygons.
+   */
+  @Override
+  public String toText() {
+    return new CurveWKTWriter().write(this);
+  }
 
   @Override
   public Geometry convexHull() {
