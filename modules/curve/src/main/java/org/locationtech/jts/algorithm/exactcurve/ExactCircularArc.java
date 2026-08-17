@@ -105,6 +105,16 @@ public final class ExactCircularArc implements ExactCurve {
     return r;
   }
 
+  /** Centre x; {@link Double#NaN} on a chord fallback. */
+  public double centerX() {
+    return cx;
+  }
+
+  /** Centre y; {@link Double#NaN} on a chord fallback. */
+  public double centerY() {
+    return cy;
+  }
+
   public Coordinate center() {
     return arc ? new Coordinate(cx, cy) : null;
   }
@@ -112,6 +122,24 @@ public final class ExactCircularArc implements ExactCurve {
   /** Central angle in {@code (0, 2π]}; {@code 0} on a chord fallback. */
   public double sweep() {
     return sweep;
+  }
+
+  /**
+   * Whether {@code p}'s central angle lies on this directed window.
+   * Chord fallback is always {@code false}.
+   */
+  public boolean isOnSweep(Coordinate p) {
+    return onSweep(p);
+  }
+
+  /** Allocation-free sweep test at Cartesian {@code (x, y)}. */
+  public boolean isOnSweep(double x, double y) {
+    if (!arc) {
+      return false;
+    }
+    double travelled = AngleBetween.travelled(ccw,
+        start.x - cx, start.y - cy, x - cx, y - cy);
+    return travelled <= sweep + Math.ulp(sweep);
   }
 
   public double length() {

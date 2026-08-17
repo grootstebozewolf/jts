@@ -13,12 +13,13 @@ package org.locationtech.jts.algorithm.orientable;
 
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.algorithm.RobustLineIntersector;
+import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.curve.ArcGeometry;
 
 /**
- * Densify-chord reference for B-team statistical trials only.
- * Never production — never flagged exact.
+ * Densify / sample reference for B-team trials. Samples via A's
+ * {@link ExactCircularArc#pointAt(double)} — not a second sweep owner.
+ * Never production; never flagged exact.
  */
 final class OrientableDensifyReference {
 
@@ -26,8 +27,8 @@ final class OrientableDensifyReference {
 
   static int orientationIndex(ArcOrientableSegment arc, Coordinate q,
       int nChord) {
-    Coordinate[] pts = ArcGeometry.sampleArc(
-        arc.getStart(), arc.getMid(), arc.getEnd(), nChord);
+    ExactCircularArc exact = arc.exactArc();
+    Coordinate[] pts = sample(exact, nChord);
     double best = Double.POSITIVE_INFINITY;
     int bestOri = Orientation.COLLINEAR;
     for (int i = 1; i < pts.length; i++) {
@@ -45,8 +46,7 @@ final class OrientableDensifyReference {
 
   static boolean intersectsStraight(ArcOrientableSegment arc,
       StraightOrientableSegment seg, int nChord) {
-    Coordinate[] pts = ArcGeometry.sampleArc(
-        arc.getStart(), arc.getMid(), arc.getEnd(), nChord);
+    Coordinate[] pts = sample(arc.exactArc(), nChord);
     RobustLineIntersector li = new RobustLineIntersector();
     for (int i = 1; i < pts.length; i++) {
       li.computeIntersection(pts[i - 1], pts[i], seg.getStart(), seg.getEnd());
@@ -55,6 +55,17 @@ final class OrientableDensifyReference {
       }
     }
     return false;
+  }
+
+  private static Coordinate[] sample(ExactCircularArc exact, int nChord) {
+    if (nChord < 1) {
+      return new Coordinate[] { exact.getStart().copy(), exact.getEnd().copy() };
+    }
+    Coordinate[] pts = new Coordinate[nChord + 1];
+    for (int i = 0; i <= nChord; i++) {
+      pts[i] = exact.pointAt((double) i / (double) nChord);
+    }
+    return pts;
   }
 
   private static Coordinate closestOnSeg(Coordinate p, Coordinate a,

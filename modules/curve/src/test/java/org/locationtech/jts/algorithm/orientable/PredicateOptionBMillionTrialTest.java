@@ -19,7 +19,7 @@ import java.util.Random;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.algorithm.RobustLineIntersector;
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.curve.ArcGeometry;
+import org.locationtech.jts.geom.curve.CircularArcDensifier;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
@@ -160,7 +160,7 @@ public class PredicateOptionBMillionTrialTest extends GeometryTestCase {
       int exp = OrientableDensifyReference.orientationIndex(arc, q, N_CHORD);
       r.tried++;
       if (got != exp) {
-        double d = ArcGeometry.distancePointToArc(
+        double d = CircularArcDensifier.distancePointToArc(
             q, arc.getStart(), arc.getMid(), arc.getEnd());
         if (d <= ON_CURVE_EPS
             || got == Orientation.COLLINEAR

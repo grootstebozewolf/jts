@@ -14,19 +14,13 @@ package org.locationtech.jts.algorithm.orientable;
 import org.locationtech.jts.algorithm.CGAlgorithmsDD;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.algorithm.RobustLineIntersector;
-import org.locationtech.jts.algorithm.exactcurve.AngleBetween;
 import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.curve.ArcGeometry;
+import org.locationtech.jts.geom.curve.ArcIntersects;
 
 /**
- * Lightweight Proofs Option B arc carrier on top of A's
- * {@link ExactCircularArc}. Owns only side + intersect; length / sweep /
- * area / centroid stay on the A front-end.
- * <p>
- * Hot path snapshots public A getters once (no second circumcircle).
- * Side: filter → {@link CGAlgorithmsDD#signOfDet2x2}. Sweep tests use
- * {@link AngleBetween#travelled}.
+ * Lightweight Option B arc predicate on A's {@link ExactCircularArc}.
+ * Side + intersect only — no length/area/centroid copy.
  */
 public final class ArcOrientableSegment implements OrientableSegment {
 
@@ -34,45 +28,16 @@ public final class ArcOrientableSegment implements OrientableSegment {
 
   private final ExactCircularArc exact;
   private final StraightOrientableSegment straight;
-  /** Snapshot of A public geometry for allocation-light side tests. */
-  private final double cx;
-  private final double cy;
-  private final double r;
-  private final boolean ccw;
-  private final double sweep;
-  private final double startUx;
-  private final double startUy;
 
   public ArcOrientableSegment(Coordinate start, Coordinate mid, Coordinate end) {
     this(new ExactCircularArc(start, mid, end));
   }
 
-  /**
-   * Wrap an existing A-team arc (preferred when the caller already has one).
-   */
   public ArcOrientableSegment(ExactCircularArc exact) {
     this.exact = exact;
-    if (!exact.isArc()) {
-      this.straight = new StraightOrientableSegment(exact.getStart(), exact.getEnd());
-      this.cx = Double.NaN;
-      this.cy = Double.NaN;
-      this.r = 0.0;
-      this.ccw = true;
-      this.sweep = 0.0;
-      this.startUx = 0.0;
-      this.startUy = 0.0;
-      return;
-    }
-    this.straight = null;
-    Coordinate c = exact.center();
-    this.cx = c.x;
-    this.cy = c.y;
-    this.r = exact.radius();
-    this.ccw = exact.isCcw();
-    this.sweep = exact.sweep();
-    Coordinate s = exact.getStart();
-    this.startUx = s.x - cx;
-    this.startUy = s.y - cy;
+    this.straight = exact.isArc()
+        ? null
+        : new StraightOrientableSegment(exact.getStart(), exact.getEnd());
   }
 
   public ExactCircularArc exactArc() {
@@ -99,6 +64,9 @@ public final class ArcOrientableSegment implements OrientableSegment {
     if (!exact.isArc()) {
       return straight.orientationIndex(q);
     }
+    double cx = exact.centerX();
+    double cy = exact.centerY();
+    double r = exact.radius();
     double dx = q.x - cx;
     double dy = q.y - cy;
     double dist = Math.hypot(dx, dy);
@@ -111,7 +79,7 @@ public final class ArcOrientableSegment implements OrientableSegment {
     else {
       ox = cx + r * dx / dist;
       oy = cy + r * dy / dist;
-      if (!onSweep(ox - cx, oy - cy)) {
+      if (!exact.isOnSweep(ox, oy)) {
         Coordinate s = exact.getStart();
         Coordinate e = exact.getEnd();
         if (q.distance(s) <= q.distance(e)) {
@@ -126,12 +94,40 @@ public final class ArcOrientableSegment implements OrientableSegment {
     }
     double tx = -(oy - cy);
     double ty = ox - cx;
-    if (!ccw) {
+    if (!exact.isCcw()) {
       tx = -tx;
       ty = -ty;
     }
-    double qx = q.x - ox;
-    double qy = q.y - oy;
+    return signCross(tx, ty, q.x - ox, q.y - oy);
+  }
+
+  public boolean intersects(OrientableSegment other) {
+    if (!exact.isArc()) {
+      return straight.intersects(other);
+    }
+    if (other instanceof StraightOrientableSegment) {
+      StraightOrientableSegment s = (StraightOrientableSegment) other;
+      return intersectsStraight(s) || endpointOnSegment(s);
+    }
+    if (other instanceof ArcOrientableSegment) {
+      ArcOrientableSegment a = (ArcOrientableSegment) other;
+      if (!a.exact.isArc()) {
+        return intersects(a.straight);
+      }
+      return intersectsArc(a) || endpointOnArc(a);
+    }
+    return other.intersects(this);
+  }
+
+  private boolean intersectsStraight(StraightOrientableSegment s) {
+    return ArcIntersects.segment(exact, s.getStart(), s.getEnd());
+  }
+
+  private boolean intersectsArc(ArcOrientableSegment a) {
+    return ArcIntersects.arcs(exact, a.exact);
+  }
+
+  private static int signCross(double tx, double ty, double qx, double qy) {
     double cross = tx * qy - ty * qx;
     if (cross > FILTER_EPS) {
       return Orientation.COUNTERCLOCKWISE;
@@ -147,37 +143,6 @@ public final class ArcOrientableSegment implements OrientableSegment {
       return Orientation.CLOCKWISE;
     }
     return Orientation.COLLINEAR;
-  }
-
-  public boolean intersects(OrientableSegment other) {
-    if (!exact.isArc()) {
-      return straight.intersects(other);
-    }
-    if (other instanceof StraightOrientableSegment) {
-      StraightOrientableSegment s = (StraightOrientableSegment) other;
-      if (ArcGeometry.intersectsSegment(
-          exact.getStart(), exact.getMid(), exact.getEnd(),
-          s.getStart(), s.getEnd())) {
-        return true;
-      }
-      return endpointOnSegment(s);
-    }
-    if (other instanceof ArcOrientableSegment) {
-      ArcOrientableSegment a = (ArcOrientableSegment) other;
-      if (!a.exact.isArc()) {
-        return intersects(a.straight);
-      }
-      return ArcGeometry.intersectsArc(
-          exact.getStart(), exact.getMid(), exact.getEnd(),
-          a.exact.getStart(), a.exact.getMid(), a.exact.getEnd())
-          || endpointOnArc(a);
-    }
-    return other.intersects(this);
-  }
-
-  private boolean onSweep(double ux, double uy) {
-    double travelled = AngleBetween.travelled(ccw, startUx, startUy, ux, uy);
-    return travelled <= sweep + Math.ulp(sweep);
   }
 
   private boolean endpointOnSegment(StraightOrientableSegment s) {
