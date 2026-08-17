@@ -205,6 +205,11 @@ final class CircularDiscOverlay {
       if (g.getNumGeometries() != 1) return null;
       return circularDisc(g.getGeometryN(0));
     }
+    // H-DISC route: a closed full-circle CircularString is a disc shell.
+    // Open arcs stay null here and take lineal R-AA instead.
+    if (g instanceof CircularString) {
+      return fullCircle((CircularString) g);
+    }
     if (!(g instanceof CurvePolygon)) return null;
     CurvePolygon cp = (CurvePolygon) g;
     if (cp.isEmpty() || cp.getNumInteriorRing() > 0) return null;

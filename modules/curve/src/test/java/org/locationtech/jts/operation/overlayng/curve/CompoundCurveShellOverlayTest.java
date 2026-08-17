@@ -812,9 +812,9 @@ public class CompoundCurveShellOverlayTest extends GeometryTestCase {
         CompoundCurveShellOverlay.overlay(disc, other, OverlayNG.INTERSECTION));
     assertNull("plain vs plain",
         CompoundCurveShellOverlay.overlay(square, square, OverlayNG.UNION));
-    // Collinear overlap is not a discrete node set; no cheap closed
-    // form without a noder.
-    assertNull("H-SHELL-N-MIXED: collinear overlap stays refused",
+    // Collinear overlap: R1.7 kit refuses; public OverlayNGCurve takes
+    // OverlayNGCircle (R-OV / P2.5.5 Option B first slice).
+    assertNull("H-SHELL-N-MIXED: R1.7 kit stays refused",
         CompoundCurveShellOverlay.overlay(half, onDiameter, OverlayNG.INTERSECTION));
     assertNull("line-only shell",
         CompoundCurveShellOverlay.overlay(chords, square, OverlayNG.INTERSECTION));

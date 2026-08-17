@@ -175,19 +175,40 @@ public class CircularArcOverlayTest extends GeometryTestCase {
   }
 
   /**
-   * H-DISC: treating two CircularStrings as two filled discs (R1.5) is
-   * false -- lineal CAP is points, not a lens.
+   * H-DISC: treating two <em>open</em> CircularStrings as two filled discs
+   * (R1.5) is false -- lineal CAP is points, not a lens. Closed full-circle
+   * CircularStrings route to {@link CircularDiscOverlay} instead.
    */
   public void testHDiscTwoArcsAreNotFilledDiscs() throws Exception {
     Geometry a = readCurve(ARC_A);
     Geometry b = readCurve(ARC_B);
-    assertNull("H-DISC: CircularDiscOverlay does not fill two arcs",
+    assertNull("H-DISC: CircularDiscOverlay does not fill two open arcs",
         CircularDiscOverlay.overlay(a, b, OverlayNG.INTERSECTION));
     Geometry cap = CircularArcOverlay.overlay(a, b, OverlayNG.INTERSECTION);
     assertNotNull(cap);
     assertFalse("H-DISC: lineal CAP is not a CurvePolygon lens",
         cap instanceof CurvePolygon);
     assertEquals(2, cap.getNumPoints());
+  }
+
+  /**
+   * H-DISC route: two closed full-circle CircularStrings are discs — CAP is
+   * the lens CurvePolygon, not lineal points.
+   */
+  public void testClosedCircularStringDiscsRouteToDiscOverlay() throws Exception {
+    String cs5 = "CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0)";
+    String csCross = "CIRCULARSTRING (2 0, 7 5, 12 0, 7 -5, 2 0)";
+    Geometry a = readCurve(cs5);
+    Geometry b = readCurve(csCross);
+    Geometry cap = CircularDiscOverlay.overlay(a, b, OverlayNG.INTERSECTION);
+    assertNotNull("closed CircularString discs take R1.5", cap);
+    assertTrue(cap instanceof CurvePolygon);
+    assertFalse(cap.isEmpty());
+
+    OverlayNGCurve pub = new OverlayNGCurve(a, b);
+    Geometry via = pub.getResult(OverlayNG.INTERSECTION);
+    assertFalse("H-DISC route is exact", pub.isApproximate());
+    assertTrue(via instanceof CurvePolygon);
   }
 
   /**

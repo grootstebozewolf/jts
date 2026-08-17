@@ -26,10 +26,12 @@ import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
 
 /**
- * P2.5.5 OverlayNG-for-circles first slice. H-SHELL-N-MIXED is
- * noded on core {@link CircularNodedSegmentString} and overlaid
- * without densify. The P2.1–P2.5.4 kits stay refused. The P2.5.4
- * tangent stamp is unchanged.
+ * P2.5.5 OverlayNG-for-circles first slice under Draft v6 MMF Option B
+ * ({@link org.locationtech.jts.noding.SegmentKind} ARC / CERTIFIED /
+ * LINEARIZED). H-SHELL-N-MIXED is noded on core
+ * {@link CircularNodedSegmentString} and overlaid without densify.
+ * The P2.1–P2.5.4 kits stay refused. The P2.5.4 tangent stamp is unchanged.
+ * Full public N-SS hierarchy remains deferred — this is the deliberate start.
  */
 public class OverlayNGCircleTest extends GeometryTestCase {
 
