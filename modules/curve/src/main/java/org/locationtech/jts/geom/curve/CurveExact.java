@@ -126,7 +126,94 @@ final class CurveExact {
     if (g instanceof CircularString && isSingleArc((CircularString) g)) {
       return bufferOpenArc((CircularString) g, distance);
     }
+    if (g instanceof CompoundCurve) {
+      CompoundCurve cc = (CompoundCurve) g;
+      if (cc.isClosed()) {
+        CurvePolygon wrap = new CurvePolygon(cc, null, g.getFactory());
+        Geometry stadiumFromCc = bufferStadium(wrap, distance);
+        if (stadiumFromCc != null) {
+          return stadiumFromCc;
+        }
+      }
+    }
+    Geometry stadiumBuf = bufferStadium(g, distance);
+    if (stadiumBuf != null) {
+      return stadiumBuf;
+    }
     return null;
+  }
+
+  /**
+   * BUF-N subset: certified stadium {@link CurvePolygon} dilates to a
+   * larger stadium (caps at {@code r+d}, sides re-joined). Erosion and
+   * non-stadium CompoundCurves stay on the chainsaw.
+   */
+  private static Geometry bufferStadium(Geometry g, double d) {
+    if (!(d > 0.0)) {
+      return null;
+    }
+    if (!(g instanceof CurvePolygon)) {
+      return null;
+    }
+    CircularArcDensifier.Circle mic = stadiumMic(g);
+    if (mic == null) {
+      return null;
+    }
+    CurvePolygon cp = (CurvePolygon) g;
+    CompoundCurve cc = (CompoundCurve) cp.getExteriorCurve();
+    GeometryFactory f = g.getFactory();
+    LineString[] scaled = new LineString[4];
+    for (int i = 0; i < 4; i++) {
+      LineString m = cc.getMemberN(i);
+      if (m instanceof CircularString) {
+        scaled[i] = scaleArcOut((CircularString) m, d);
+        if (scaled[i] == null) {
+          return null;
+        }
+      }
+    }
+    for (int i = 0; i < 4; i++) {
+      if (scaled[i] != null) {
+        continue;
+      }
+      LineString prev = scaled[(i + 3) % 4];
+      LineString next = scaled[(i + 1) % 4];
+      if (prev == null || next == null) {
+        return null;
+      }
+      Coordinate a = prev.getCoordinateN(prev.getNumPoints() - 1);
+      Coordinate b = next.getCoordinateN(0);
+      scaled[i] = f.createLineString(new Coordinate[] {
+          new Coordinate(a), new Coordinate(b)
+      });
+    }
+    CompoundCurve shell = new CompoundCurve(scaled, f);
+    return new CurvePolygon(shell, null, f);
+  }
+
+  private static CircularString scaleArcOut(CircularString cs, double d) {
+    Coordinate p0 = cs.getCoordinateN(0);
+    Coordinate p1 = cs.getCoordinateN(1);
+    Coordinate p2 = cs.getCoordinateN(2);
+    CircularArcDensifier.Circle c = CircularArcDensifier.Circle.fromThreePoints(
+        p0, p1, p2);
+    if (c == null || !(c.r > 0.0)) {
+      return null;
+    }
+    double k = (c.r + d) / c.r;
+    Coordinate[] pts = new Coordinate[] {
+        scalePt(p0, c.cx, c.cy, k),
+        scalePt(p1, c.cx, c.cy, k),
+        scalePt(p2, c.cx, c.cy, k)
+    };
+    return new CircularString(
+        cs.getFactory().getCoordinateSequenceFactory().create(pts),
+        cs.getFactory());
+  }
+
+  private static Coordinate scalePt(Coordinate p, double cx, double cy,
+      double k) {
+    return new Coordinate(cx + (p.x - cx) * k, cy + (p.y - cy) * k);
   }
 
   /**

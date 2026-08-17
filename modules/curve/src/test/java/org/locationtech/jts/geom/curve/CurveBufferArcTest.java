@@ -60,4 +60,19 @@ public class CurveBufferArcTest extends TestCase {
     assertTrue(buf instanceof CurvePolygon);
     assertEquals(36.0 * Math.PI, buf.getArea(), 1.0e-6);
   }
+
+  public void testStadiumBufferPreservesCompoundCurve() throws Exception {
+    Geometry stadium = new CurveWKTReader().read(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, 0 -2, 1 -1), (1 -1, 1 6), CIRCULARSTRING (1 6, 0 7, -1 6), (-1 6, -1 -1)))");
+    Geometry buf = stadium.buffer(1.0);
+    assertTrue(buf instanceof CurvePolygon);
+    assertTrue(((CurvePolygon) buf).getExteriorCurve() instanceof CompoundCurve);
+    CompoundCurve shell = (CompoundCurve) ((CurvePolygon) buf).getExteriorCurve();
+    assertEquals(4, shell.getNumMembers());
+    assertTrue(shell.getMemberN(0) instanceof CircularString);
+    // MIC radius was 1; after +1 buffer MIC radius is 2
+    CircularArcDensifier.Circle mic = CurveExact.stadiumMic(buf);
+    assertNotNull(mic);
+    assertEquals(2.0, mic.r, 1.0e-9);
+  }
 }
