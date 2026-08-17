@@ -19,6 +19,8 @@ import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
@@ -166,6 +168,9 @@ extends JPanel implements FunctionPanel
     txtDistance.setPreferredSize(new Dimension(25, 17));
     txtDistance.setText(PARAM_DEFAULT[0]);
     txtDistance.setHorizontalAlignment(SwingConstants.RIGHT);
+    pinParamFocus(txtDistance);
+    pinParamFocus(txtQuadrantSegs);
+    pinParamFocus(txtMitreLimit);
 
     lblQuadSegs.setText("Quadrant Segs");
     txtQuadrantSegs.setHorizontalAlignment(SwingConstants.RIGHT);
@@ -317,7 +322,14 @@ extends JPanel implements FunctionPanel
   }
 
   GeometryFunction getMetaFunction() {
-    GeometryFunction funToRun = geomFuncPanel.getFunction();
+    // Prefer the function the UI last selected (currentFunc) over the
+    // tree's live selection. Clicking a param field must not re-bind
+    // Exec to a different tree node (TB-FN #60: dX focus must not
+    // silently run Buffer.buffer).
+    GeometryFunction funToRun = currentFunc;
+    if (funToRun == null) {
+      funToRun = geomFuncPanel.getFunction();
+    }
     if (! isMetaFunctionEnabled()) return funToRun;
     
     if (isFunctionRepeated()) {
@@ -372,6 +384,9 @@ extends JPanel implements FunctionPanel
 
   private void functionChanged(GeometryFunction func)
   {
+    if (func == null) {
+      return;
+    }
     saveParameter(currentFunc);
     currentFunc = func;
     lblFunctionName.setText(func.getName());
@@ -382,7 +397,22 @@ extends JPanel implements FunctionPanel
 
     execButton.setEnabled(true);
     execToNewButton.setEnabled(true); 
+    // Selecting a new function must not inherit Live Exec from a prior
+    // Buffer run (TB-FN #60: focus into dX must not auto-fire Buffer).
     cbExecAuto.setSelected(false);
+  }
+
+  /**
+   * TB-FN #60: a click on a scalar param field must focus that field and
+   * must not be interpreted as a Geometry-function tree selection (which
+   * previously could re-bind Exec to Buffer.buffer / Distance).
+   */
+  private static void pinParamFocus(final JTextField field) {
+    field.addMouseListener(new MouseAdapter() {
+      public void mousePressed(MouseEvent e) {
+        field.requestFocusInWindow();
+      }
+    });
   }
 
   private void recallParameter(GeometryFunction func) {
