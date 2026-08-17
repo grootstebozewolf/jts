@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.locationtech.jts.algorithm.exactarc.ExactCircularArc;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequences;
@@ -180,7 +181,7 @@ public class CircularString extends LineString implements Linearizable {
     if (n < 3) return super.getLength();
     double total = 0.0;
     for (int i = 0; i + 2 < n; i += 2) {
-      total += CircularArcDensifier.arcLength(
+      total += ExactCircularArc.length(
           seq.getCoordinate(i), seq.getCoordinate(i + 1), seq.getCoordinate(i + 2));
     }
     return total;

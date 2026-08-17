@@ -19,6 +19,7 @@ import java.util.List;
 import org.locationtech.jts.algorithm.LineIntersector;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.algorithm.RobustLineIntersector;
+import org.locationtech.jts.algorithm.exactarc.ExactCircularArc;
 import org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
@@ -327,13 +328,7 @@ public final class CircularArcDensifier {
    * @return the arc length, never negative
    */
   public static double arcLength(Coordinate start, Coordinate mid, Coordinate end) {
-    Circle c = Circle.fromThreePoints(start, mid, end);
-    if (c == null) return start.distance(end);
-    double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
-    double aMid = Math.atan2(mid.y - c.cy, mid.x - c.cx);
-    double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
-    boolean ccw = isMidInCcwSweep(a0, aMid, a1);
-    return c.r * signedSweep(a0, a1, ccw);
+    return ExactCircularArc.length(start, mid, end);
   }
 
   /**
