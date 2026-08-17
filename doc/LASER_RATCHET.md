@@ -1,11 +1,11 @@
 # Laser ratchet
 
-Tip `c293fe97` · PR #7 · `feature/sfa-curve-rgr`  
-Prior pin: `47c0f33e` (M.1/M.2)
+Tip `c956b50d` · PR #7 session · `feature/sfa-curve-rgr` lineage  
+Prior: `1cd9f498` (Sync→M.3→R.2→ML.4 stop)
 
 **Contract:** `t_laser ≤ 1.15 × t_chainsaw` · OverlayNGCurve never *Curved* · Draft v6 MMF Option B
 
-## Scoreboard (user 2026-08-17 @ `cf6e2b58`)
+## Scoreboard (user board pin)
 
 | metric | count |
 |--------|------:|
@@ -13,15 +13,14 @@ Prior pin: `47c0f33e` (M.1/M.2)
 | chainsaw-only | 3 |
 | measured | 11 (11 hold) |
 
-Sequence **Sync → M.3 → R.2 → ML.4 → stop** landed @ `c293fe97`. Program: [CHAINSAW_LASER_PROGRAM.md](CHAINSAW_LASER_PROGRAM.md).
+**Sequence M.5 → ML.2 → HP.4 → N-SS expand → stop** landed @ `c956b50d`.
 
 ## Related
 
 - Program: [CHAINSAW_LASER_PROGRAM.md](CHAINSAW_LASER_PROGRAM.md)
-- Seams board: [OVERLAYNGCURVE_P2_SEAMS.md](OVERLAYNGCURVE_P2_SEAMS.md)
-- Option B: [MMF_OPTION_B.md](MMF_OPTION_B.md)
-- Metric kit: [METRIC_KIT_MX.md](METRIC_KIT_MX.md)
+- Seams: [OVERLAYNGCURVE_P2_SEAMS.md](OVERLAYNGCURVE_P2_SEAMS.md)
+- Metric: [METRIC_KIT_MX.md](METRIC_KIT_MX.md)
 
-## Re-verify @ `c293fe97` (post Sync/M.3/R.2/ML.4)
+## Re-verify @ `c956b50d`
 
-User scoreboard pin unchanged (green 16 · chainsaw-only 3 · measured 11 hold). Landed: M.3 IWD · R.2 half-disc relate · ML.4 filled shell assembly.
+M.5 concentric Frechet · ML.2 half-disc MIC · HP.4 SHARED_SNAPPED_RAY stamp · N-SS Option-B two-shell crossing expand. Holds: M.4 · R.3 · ML.3 catalog · HP.5 · 74-file N-SS · full D-HF TAG.

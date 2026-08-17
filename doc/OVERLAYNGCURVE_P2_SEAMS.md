@@ -4,9 +4,9 @@ A seam is where a kit returns null and the chordsaw takes over.
 
 **Scoreboard (user 2026-08-17):** sewn 28 · stamped 6 · open 1 · named-miss 5 · total 35
 
-Synced onto SoT `feature/sfa-curve-rgr` @ `47c0f33e`. Contract: Draft v6 MMF Option B — `SegmentKind`, no silent linearize, name **OverlayNGCurve** never *Curved*, slack 15%.
+Synced onto SoT session @ `c956b50d`. Contract: Draft v6 MMF Option B — `SegmentKind`, no silent linearize, name **OverlayNGCurve** never *Curved*, slack 15%.
 
-**Named-miss leftover (honest, after B/C/D/E + R.2):** 3 primary open leftovers — H-ANNULUS-TANGENT refuse · open-arc H-DISC lineal · N-SS full hierarchy deferred. R-PR-HALF sewn.
+**Named-miss leftover (honest):** H-ANNULUS-TANGENT refuse · open-arc H-DISC lineal · N-SS full hierarchy deferred. R-PR-HALF sewn. HP.4 stamped `SHARED_SNAPPED_RAY` (not a walk).
 
 ## Updates from B/C/D/E work
 
@@ -53,9 +53,9 @@ Synced onto SoT `feature/sfa-curve-rgr` @ `47c0f33e`. Contract: Draft v6 MMF Opt
 | **P2.5.2** | CurveSegmentNoder.nodes(N) | union | All-pairs. | sewn | done · jts#23 |
 | **P2.5.3** | CurveSegmentFaces | faces | Leave-angle walk. | sewn | done · jts#24 |
 | **P2.5.4** | coincident leave | (±1,0)+(0,5) | Named stamp. | stamped | done · jts#25 |
-| **HP** | CurveHotPixel | arc ∩ pixel | SHARED_SNAPPED_RAY. | stamped | Option-B pin · not M.1/ML.2 |
-| **R-PR-HALF** | CurveExact relate | — | Half-disc / open CircularString R.2 cell. | sewn | done · R.2 |
-| **N-SS / P2.5.5** | OverlayNGCircle + SegmentKind | N | **Started** (circles first slice). Full 74-file hierarchy deferred. | open / started | expand only deliberately |
+| **HP** | CurveHotPixel | arc ∩ pixel | HP.4: faces after snap → `SHARED_SNAPPED_RAY` stamp. | stamped | done · not a walk · not HP.5 |
+| **R-PR-HALF** | CurveExact.relate + HalfDisc | — | Sewn by R.2. | sewn | done |
+| **N-SS / P2.5.5** | OverlayNGCircle + SegmentKind | N | MIXED + **proper-crossing two-shell expand**. Full 74-file hierarchy deferred. | open / expanded | deliberate Option B only |
 
 ## Named misses / refuses (honest)
 
