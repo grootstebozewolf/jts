@@ -1,6 +1,6 @@
 # Metric kit M.X
 
-Tip on PR #7 SoT. Contract: Draft v6 MMF Option B · PERF-GATE 15% · OverlayNGCurve never *Curved*.
+Tip `c293fe97` on PR #7 SoT. Contract: Draft v6 MMF Option B · PERF-GATE 15% · OverlayNGCurve never *Curved*.
 
 | Rung | Status |
 |------|--------|
