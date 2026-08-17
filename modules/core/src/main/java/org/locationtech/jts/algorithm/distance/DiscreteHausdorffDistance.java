@@ -332,6 +332,19 @@ public class DiscreteHausdorffDistance
   }
 
   /**
+   * Closed-form oriented points for the two certified D-HF / M.1 pairs,
+   * or {@code null} when the vertex / densify path must run.
+   * Package-visible for {@link DirectedHausdorffDistance}.
+   */
+  static Coordinate[] exactOrientedPoints(Geometry from, Geometry to) {
+    PointPairDistance dest = new PointPairDistance();
+    if (!computeExactOriented(from, to, dest)) {
+      return null;
+    }
+    return dest.getCoordinates();
+  }
+
+  /**
    * Closed form for the two certified pairs. Returns {@code true} when
    * {@code ptDist} was updated and the vertex / chord path must be skipped.
    */

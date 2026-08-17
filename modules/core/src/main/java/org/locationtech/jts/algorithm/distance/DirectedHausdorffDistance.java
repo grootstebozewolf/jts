@@ -95,6 +95,10 @@ public class DirectedHausdorffDistance {
    */
   public static double distance(Geometry a, Geometry b)
   {
+    Coordinate[] exact = DiscreteHausdorffDistance.exactOrientedPoints(a, b);
+    if (exact != null) {
+      return distance(exact);
+    }
     DirectedHausdorffDistance hd = new DirectedHausdorffDistance(b);
     return distance(hd.farthestPoints(a));
   }
@@ -112,6 +116,10 @@ public class DirectedHausdorffDistance {
    */
   public static double distance(Geometry a, Geometry b, double tolerance)
   {
+    Coordinate[] exact = DiscreteHausdorffDistance.exactOrientedPoints(a, b);
+    if (exact != null) {
+      return distance(exact);
+    }
     DirectedHausdorffDistance hd = new DirectedHausdorffDistance(b);
     return distance(hd.farthestPoints(a, tolerance));
   }
@@ -122,12 +130,15 @@ public class DirectedHausdorffDistance {
    * 
    * @param a the query geometry  
    * @param b the target geometry
-   * @param tolerance the accuracy distance tolerance
    * @return a pair of points [ptA, ptB] demonstrating the distance,
    * or null if an input is empty
    */
   public static Coordinate[] distancePoints(Geometry a, Geometry b)
   {
+    Coordinate[] exact = DiscreteHausdorffDistance.exactOrientedPoints(a, b);
+    if (exact != null) {
+      return exact;
+    }
     DirectedHausdorffDistance dhd = new DirectedHausdorffDistance(b);
     return dhd.farthestPoints(a);
   }
@@ -144,6 +155,10 @@ public class DirectedHausdorffDistance {
    */
   public static Coordinate[] distancePoints(Geometry a, Geometry b, double tolerance)
   {
+    Coordinate[] exact = DiscreteHausdorffDistance.exactOrientedPoints(a, b);
+    if (exact != null) {
+      return exact;
+    }
     DirectedHausdorffDistance dhd = new DirectedHausdorffDistance(b);
     return dhd.farthestPoints(a, tolerance);
   }
@@ -350,6 +365,10 @@ public class DirectedHausdorffDistance {
    * or null if an input is empty
    */
   public Coordinate[] farthestPoints(Geometry geom) {
+    Coordinate[] exact = DiscreteHausdorffDistance.exactOrientedPoints(geom, target);
+    if (exact != null) {
+      return exact;
+    }
     double tolerance = computeTolerance(geom);
     return farthestPoints(geom, tolerance);
   }
@@ -366,7 +385,28 @@ public class DirectedHausdorffDistance {
    * or null if an input is empty
    */
   public Coordinate[] farthestPoints(Geometry geom, double tolerance) {
-    return computeDistancePoints(geom, tolerance, -1.0);
+    Coordinate[] exact = DiscreteHausdorffDistance.exactOrientedPoints(geom, target);
+    if (exact != null) {
+      return exact;
+    }
+    // M.1 / D-HF: sample densified curve package inputs so the engine
+    // sees the arc, not only control chords (certified pairs above skip).
+    Geometry sampled = densifyCurvePackage(geom);
+    return computeDistancePoints(sampled, tolerance, -1.0);
+  }
+
+  /**
+   * Densify jts-curve package geometries for the general DHD path.
+   * Detection by package name so core does not import jts-curve.
+   */
+  private static Geometry densifyCurvePackage(Geometry g) {
+    if (g == null || g.getClass().getName().indexOf(".geom.curve.") < 0) {
+      return g;
+    }
+    Envelope env = g.getEnvelopeInternal();
+    double extent = Math.max(env.getWidth(), env.getHeight());
+    double tol = (extent > 0.0 ? extent : 1.0) * 1.0e-4;
+    return org.locationtech.jts.densify.Densifier.densify(g, tol);
   }
 
   private Coordinate[] computeDistancePoints(Geometry geom, double tolerance, double maxDistanceLimit) {
