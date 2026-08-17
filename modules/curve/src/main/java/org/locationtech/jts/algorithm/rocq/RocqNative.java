@@ -1,8 +1,4 @@
 /*
- * jts-curve copy of NetTopologySuite.Proofs oracle/java/.../RocqNative.java
- * (Phase 5 FFI). Keep in sync with that file. Greenfield on fork PR #7
- * ({@code feature/sfa-curve-rgr}); locationtech/jts is not a gate.
- *
  * Copyright (c) 2026 grootstebozewolf
  *
  * All rights reserved. This program and the accompanying materials
@@ -33,6 +29,10 @@ import com.sun.jna.ptr.DoubleByReference;
  * <p>
  * This class is the ABI twin of {@code oracle/csharp/RocqNative.cs} and
  * {@code oracle/cpp/RocqNative.hpp}. If they disagree, one of them is wrong.
+ * Keep in sync with {@code oracle/java/.../RocqNative.java} in
+ * {@code grootstebozewolf/NetTopologySuite.Proofs}. The Java consumer
+ * lands on fork PR #7 ({@code feature/sfa-curve-rgr}); locationtech/jts
+ * is not a gate.
  * <p>
  * AI disclosure: authored with AI assistance (see CONTRIBUTING.md).
  */
