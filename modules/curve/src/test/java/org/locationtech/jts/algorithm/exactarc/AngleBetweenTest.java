@@ -72,7 +72,11 @@ public class AngleBetweenTest extends TestCase {
     double a0 = Math.atan2(start.y, start.x);
     double a1 = Math.atan2(end.y, end.x);
     double collapsed = AngleBetween.normalizePositive(a1 - a0);
-    assertEquals(0.0, collapsed, 0.0);
+    // Subtracting two atan2s near ±π yields ~0 (or ~2π), not the true
+    // complementary long arc that through() returns.
+    assertTrue(collapsed < 1.0e-12
+        || Math.abs(collapsed - AngleBetween.TWO_PI) < 1.0e-12);
+    assertTrue(Math.abs(sw.radians() - collapsed) > 6.0);
   }
 
   public void testThroughMatchesDirectedSweep() {
