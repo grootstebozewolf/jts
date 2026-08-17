@@ -81,6 +81,13 @@ public final class SqlMmTypes {
       if (geom.getClass() == Polygon.class) {
         return;
       }
+      // HOLD GEO-TIN 15–17: Triangle / PolyhedralSurface / TIN are not
+      // SQL/MM 8–12 flatten targets; core WKTWriter may emit their keywords.
+      String t = geom.getGeometryType();
+      if ("Triangle".equals(t) || "PolyhedralSurface".equals(t)
+          || "Tin".equals(t) || "TIN".equals(t)) {
+        return;
+      }
       throw flattenRefused(geom, site);
     }
     if (geom instanceof MultiLineString) {
@@ -91,6 +98,11 @@ public final class SqlMmTypes {
     }
     if (geom instanceof MultiPolygon) {
       if (geom.getClass() == MultiPolygon.class) {
+        return;
+      }
+      // HOLD GEO-TIN 15–17: PolyhedralSurface / TIN are not 8–12.
+      String t = geom.getGeometryType();
+      if ("PolyhedralSurface".equals(t) || "Tin".equals(t) || "TIN".equals(t)) {
         return;
       }
       throw flattenRefused(geom, site);

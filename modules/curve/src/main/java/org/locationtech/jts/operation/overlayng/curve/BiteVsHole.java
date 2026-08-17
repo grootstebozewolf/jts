@@ -23,6 +23,7 @@ import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.MultiSurface;
 import org.locationtech.jts.operation.overlayng.OverlayNG;
@@ -53,6 +54,29 @@ final class BiteVsHole {
   private BiteVsHole() { }
 
   /**
+   * True when a polygonal result still carries a curve shell (not a
+   * densified control polygon). Used to refuse bite certification when
+   * the outer CAP has already fallen to chords.
+   */
+  private static boolean keepsCurveShell(Geometry g) {
+    if (g == null || g.isEmpty()) {
+      return false;
+    }
+    if (g instanceof CurvePolygon) {
+      LineString shell = ((CurvePolygon) g).getExteriorCurve();
+      return shell instanceof CircularString || shell instanceof CompoundCurve;
+    }
+    if (g instanceof MultiSurface) {
+      for (int i = 0; i < g.getNumGeometries(); i++) {
+        if (keepsCurveShell(g.getGeometryN(i))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
    * Exact overlay, or {@code null} if the walk cannot certify bite
    * versus hole. Same-outer and strictly-inside / strictly-outside
    * different-outer cells stay on those kits.
@@ -68,6 +92,11 @@ final class BiteVsHole {
     if (opCode == OverlayNG.INTERSECTION) {
       Geometry cap = CompoundCurveShellOverlay.overlay(
           firstOuter, secondOuter, OverlayNG.INTERSECTION);
+      // Refuse when the outer CAP densifies: cannot certify an arc-honest
+      // bite (H-SHELL-HOLE-OUTER on a complementary diameter stays a miss).
+      if (!keepsCurveShell(cap)) {
+        return null;
+      }
       return splice(cap, walk.holeIn, walk.p, walk.q, f, walk.scale);
     }
     if (opCode == OverlayNG.UNION) {

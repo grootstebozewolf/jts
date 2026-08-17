@@ -82,7 +82,9 @@ public class CurveWKTWriter extends WKTWriter {
           (CompoundCurve) geometry, outputOrdinates, useFormatting, level, writer, formatter);
       return true;
     }
-    if (geometry instanceof CurvePolygon && hasCurveRing((CurvePolygon) geometry)) {
+    // Always own CurvePolygon (incl. EMPTY / all-linear). Falling through
+    // to core WKTWriter refuses CurvePolygon under SqlMmTypes honesty.
+    if (geometry instanceof CurvePolygon) {
       appendCurvePolygonTaggedText(
           (CurvePolygon) geometry, outputOrdinates, useFormatting, level, writer, formatter);
       return true;
@@ -226,6 +228,10 @@ public class CurveWKTWriter extends WKTWriter {
     writer.write(cp.getGeometryType().toUpperCase(Locale.ROOT));
     writer.write(" ");
     appendOrdinateText(outputOrdinates, writer);
+    if (cp.isEmpty()) {
+      writer.write(WKTConstants.EMPTY);
+      return;
+    }
     writer.write("(");
     appendRingText(cp.getExteriorCurve(), outputOrdinates, useFormatting, level, writer, formatter);
     for (int i = 0; i < cp.getNumInteriorRing(); i++) {
