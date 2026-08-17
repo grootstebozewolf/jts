@@ -1,0 +1,55 @@
+{
+  "id": "Coverage.union.polygon.upstream",
+  "claimId": "TB-AP-COVERAGE-UNION",
+  "category": "Coverage",
+  "function": "union",
+  "branch": "upstream",
+  "tags": [
+    "tb-appium",
+    "Coverage",
+    "union",
+    "polygon"
+  ],
+  "golden": true,
+  "skipped": false,
+  "fixtureFile": "_fixtures/upstream-polygon.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "Coverage",
+        "union"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "union",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "resultWktContainsAny": [
+      "POLYGON",
+      "MULTIPOLYGON",
+      "GEOMETRYCOLLECTION"
+    ]
+  },
+  "notes": "Coverage.union unary"
+}

@@ -1,0 +1,52 @@
+{
+  "id": "Conversion.pointsToLine.half-moon.pr7",
+  "claimId": "TB-AP-CONVERSION-POINTSTOLINE",
+  "category": "Conversion",
+  "function": "pointsToLine",
+  "branch": "pr7",
+  "tags": [
+    "tb-appium",
+    "Conversion",
+    "pointsToLine",
+    "half-moon"
+  ],
+  "golden": false,
+  "skipped": false,
+  "playbackOf": "Conversion.pointsToLine.polygon.upstream",
+  "fixtureFile": "_fixtures/pr7-half-moon.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "Conversion",
+        "pointsToLine"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "pointsToLine",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "preserveCurveAware": true
+  },
+  "notes": "pointsToLine \u00b7 pr7 half-moon"
+}

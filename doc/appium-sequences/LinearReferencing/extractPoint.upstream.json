@@ -1,0 +1,60 @@
+{
+  "id": "LinearReferencing.extractPoint.polygon.upstream",
+  "claimId": "TB-AP-LINEARREFERENCING-EXTRACTPOINT",
+  "category": "LinearReferencing",
+  "function": "extractPoint",
+  "branch": "upstream",
+  "tags": [
+    "tb-appium",
+    "LinearReferencing",
+    "extractPoint",
+    "polygon"
+  ],
+  "golden": true,
+  "skipped": false,
+  "fixtureFile": "_fixtures/upstream-linestring.wkt",
+  "params": [
+    "0.5"
+  ],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "LinearReferencing",
+        "extractPoint"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.param.0",
+      "action": "setText",
+      "value": "0.5"
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "extractPoint",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "resultWktContainsAny": [
+      "POINT"
+    ]
+  },
+  "notes": "extractPoint 0.5"
+}

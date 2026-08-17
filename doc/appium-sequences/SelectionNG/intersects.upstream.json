@@ -1,0 +1,65 @@
+{
+  "id": "SelectionNG.intersects.polygon.upstream",
+  "claimId": "TB-AP-SELECTIONNG-INTERSECTS",
+  "category": "SelectionNG",
+  "function": "intersects",
+  "branch": "upstream",
+  "tags": [
+    "tb-appium",
+    "SelectionNG",
+    "intersects",
+    "polygon"
+  ],
+  "golden": true,
+  "skipped": false,
+  "fixtureFile": "_fixtures/upstream-polygon.wkt",
+  "fixtureFileB": "_fixtures/upstream-polygon.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.b",
+      "action": "setText",
+      "valueFromFixture": "b"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "SelectionNG",
+        "intersects"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "intersects",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "resultWktContainsAny": [
+      "POLYGON",
+      "GEOMETRYCOLLECTION",
+      "MULTIPOLYGON"
+    ]
+  },
+  "notes": "intersects mask=self"
+}

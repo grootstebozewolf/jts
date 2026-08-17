@@ -1,0 +1,62 @@
+{
+  "id": "CreateFractalShape.kochSnowflake.polygon.upstream",
+  "claimId": "TB-AP-CREATEFRACTALSHAPE-KOCHSNOWFLAKE",
+  "category": "CreateFractalShape",
+  "function": "kochSnowflake",
+  "branch": "upstream",
+  "tags": [
+    "tb-appium",
+    "CreateFractalShape",
+    "kochSnowflake",
+    "polygon"
+  ],
+  "golden": true,
+  "skipped": false,
+  "fixtureFile": "_fixtures/upstream-polygon.wkt",
+  "params": [
+    "2"
+  ],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "CreateFractalShape",
+        "kochSnowflake"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.param.0",
+      "action": "setText",
+      "value": "2"
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "kochSnowflake",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "resultWktContainsAny": [
+      "LINESTRING",
+      "POLYGON",
+      "MULTILINESTRING"
+    ]
+  },
+  "notes": "kochSnowflake n=2"
+}

@@ -1,0 +1,52 @@
+{
+  "id": "LineHandling.mergeLines.circle.pr7",
+  "claimId": "TB-AP-LINEHANDLING-MERGELINES",
+  "category": "LineHandling",
+  "function": "mergeLines",
+  "branch": "pr7",
+  "tags": [
+    "tb-appium",
+    "LineHandling",
+    "mergeLines",
+    "circle"
+  ],
+  "golden": false,
+  "skipped": false,
+  "playbackOf": "LineHandling.mergeLines.polygon.upstream",
+  "fixtureFile": "_fixtures/pr7-circle.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "LineHandling",
+        "mergeLines"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "mergeLines",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "preserveCurveAware": true
+  },
+  "notes": "mergeLines \u00b7 pr7 circle"
+}

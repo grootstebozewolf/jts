@@ -1,0 +1,62 @@
+{
+  "id": "Selection.lengthGreaterThan.polygon.upstream",
+  "claimId": "TB-AP-SELECTION-LENGTHGREATERTHAN",
+  "category": "Selection",
+  "function": "lengthGreaterThan",
+  "branch": "upstream",
+  "tags": [
+    "tb-appium",
+    "Selection",
+    "lengthGreaterThan",
+    "polygon"
+  ],
+  "golden": true,
+  "skipped": false,
+  "fixtureFile": "_fixtures/upstream-linestring.wkt",
+  "params": [
+    "0"
+  ],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "Selection",
+        "lengthGreaterThan"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.param.0",
+      "action": "setText",
+      "value": "0"
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "lengthGreaterThan",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "resultWktContainsAny": [
+      "LINESTRING",
+      "MULTILINESTRING",
+      "GEOMETRYCOLLECTION"
+    ]
+  },
+  "notes": "lengthGreaterThan 0"
+}

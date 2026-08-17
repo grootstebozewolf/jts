@@ -1,0 +1,52 @@
+{
+  "id": "Coverage.union.circle.pr7",
+  "claimId": "TB-AP-COVERAGE-UNION",
+  "category": "Coverage",
+  "function": "union",
+  "branch": "pr7",
+  "tags": [
+    "tb-appium",
+    "Coverage",
+    "union",
+    "circle"
+  ],
+  "golden": false,
+  "skipped": false,
+  "playbackOf": "Coverage.union.polygon.upstream",
+  "fixtureFile": "_fixtures/pr7-circle.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "Coverage",
+        "union"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "union",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "preserveCurveAware": true
+  },
+  "notes": "Coverage.union unary \u00b7 pr7 circle"
+}

@@ -1,0 +1,52 @@
+{
+  "id": "Geometry.reverse.circle.pr7",
+  "claimId": "TB-AP-GEOMETRY-REVERSE",
+  "category": "Geometry",
+  "function": "reverse",
+  "branch": "pr7",
+  "tags": [
+    "tb-appium",
+    "Geometry",
+    "reverse",
+    "circle"
+  ],
+  "golden": false,
+  "skipped": false,
+  "playbackOf": "Geometry.reverse.polygon.upstream",
+  "fixtureFile": "_fixtures/pr7-circle.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "Geometry",
+        "reverse"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "reverse",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "preserveCurveAware": true
+  },
+  "notes": "reverse \u00b7 pr7 circle"
+}

@@ -1,0 +1,59 @@
+{
+  "id": "Selection.lengthGreaterThan.circle.pr7",
+  "claimId": "TB-AP-SELECTION-LENGTHGREATERTHAN",
+  "category": "Selection",
+  "function": "lengthGreaterThan",
+  "branch": "pr7",
+  "tags": [
+    "tb-appium",
+    "Selection",
+    "lengthGreaterThan",
+    "circle"
+  ],
+  "golden": false,
+  "skipped": false,
+  "playbackOf": "Selection.lengthGreaterThan.polygon.upstream",
+  "fixtureFile": "_fixtures/pr7-circle.wkt",
+  "params": [
+    "0"
+  ],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "Selection",
+        "lengthGreaterThan"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.param.0",
+      "action": "setText",
+      "value": "0"
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "lengthGreaterThan",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "preserveCurveAware": true
+  },
+  "notes": "lengthGreaterThan 0 \u00b7 pr7 circle"
+}

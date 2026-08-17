@@ -9,3 +9,11 @@ Append-only log for full regression packs.
 - Upstream polygon translate **golden** kept (AutomationId sequence JSON).
 - pr7 playback green: disc, circle, half-moon (`TbAppiumTranslatePlaybackTest`).
 - Fixtures + contract tests under `doc/appium-sequences/` + `.../appium/`.
+
+## 2026-08-17 — A→Z loop
+
+- Generated AutomationId sequences for 46 playable categories × (upstream + disc/circle/half-moon).
+- Notion: 13 Status=skip (non-Exec categories); remaining Status=pending hypotheses filed + tagged Appium.
+- Affine.translate already pass; catalog smoke `TbAppiumCatalogPlaybackTest`.
+- Skip list mirrored in SKIP.md / `_catalog/skips.json`.
+- Full regression pack = play all `*.pr7.json` where upstream `golden:true` (or pr7-only).

@@ -1,0 +1,59 @@
+{
+  "id": "OffsetCurve.offsetCurve.circle.pr7",
+  "claimId": "TB-AP-OFFSETCURVE-OFFSETCURVE",
+  "category": "OffsetCurve",
+  "function": "offsetCurve",
+  "branch": "pr7",
+  "tags": [
+    "tb-appium",
+    "OffsetCurve",
+    "offsetCurve",
+    "circle"
+  ],
+  "golden": false,
+  "skipped": false,
+  "playbackOf": "OffsetCurve.offsetCurve.polygon.upstream",
+  "fixtureFile": "_fixtures/pr7-circle.wkt",
+  "params": [
+    "1"
+  ],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "OffsetCurve",
+        "offsetCurve"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.param.0",
+      "action": "setText",
+      "value": "1"
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "offsetCurve",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "preserveCurveAware": true
+  },
+  "notes": "offsetCurve 1 \u00b7 pr7 circle"
+}

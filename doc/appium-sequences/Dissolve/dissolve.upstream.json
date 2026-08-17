@@ -1,0 +1,55 @@
+{
+  "id": "Dissolve.dissolve.polygon.upstream",
+  "claimId": "TB-AP-DISSOLVE-DISSOLVE",
+  "category": "Dissolve",
+  "function": "dissolve",
+  "branch": "upstream",
+  "tags": [
+    "tb-appium",
+    "Dissolve",
+    "dissolve",
+    "polygon"
+  ],
+  "golden": true,
+  "skipped": false,
+  "fixtureFile": "_fixtures/upstream-linestring.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "Dissolve",
+        "dissolve"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "dissolve",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "resultWktContainsAny": [
+      "LINESTRING",
+      "MULTILINESTRING",
+      "GEOMETRYCOLLECTION"
+    ]
+  },
+  "notes": "dissolve"
+}
