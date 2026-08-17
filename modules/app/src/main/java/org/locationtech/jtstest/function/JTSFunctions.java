@@ -73,19 +73,23 @@ public class JTSFunctions
   }
   
   /**
-   * Buffers the logo the same way as before ({@link BufferOp} + square
-   * caps). The curve result is linearised first so the buffer sees the
-   * arcs rather than their control-point chords; that densify is not
-   * claimed exact.
+   * Buffers the logo with {@link BufferOp}: CAP_SQUARE + JOIN_MITRE at
+   * {@link BufferParameters#DEFAULT_MITRE_LIMIT}. Densify is
+   * {@code toLinear(0.0)} (CircularArcDensifier 1% of radius) — named
+   * CHORD-PATH / NAMED-APPROX, not a laser. Not clothoid.
    */
   public static Geometry logoBuffer(Geometry g, double distance)
   {
     Geometry lines = logoLines(g);
+    // NAMED-APPROX / CHORD-PATH: 0.0 is CircularArcDensifier 1% of
+    // radius, not "no densify".
     if (lines instanceof Linearizable) {
       lines = ((Linearizable) lines).toLinear(0.0);
     }
     BufferParameters bufParams = new BufferParameters();
-    bufParams.setEndCapStyle(BufferParameters.CAP_SQUARE);   
+    bufParams.setEndCapStyle(BufferParameters.CAP_SQUARE);
+    bufParams.setJoinStyle(BufferParameters.JOIN_MITRE);
+    bufParams.setMitreLimit(BufferParameters.DEFAULT_MITRE_LIMIT);
     return BufferOp.bufferOp(lines, distance, bufParams);
   }
 
