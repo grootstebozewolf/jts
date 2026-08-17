@@ -78,4 +78,35 @@ public class SegmentStringContractTest extends GeometryTestCase {
     assertTrue(lin.mayCollapseToChord(0));
     assertFalse(lin.isExact(0));
   }
+
+  /**
+   * Option B allowed lie: PrecisionModel may snap coordinate values for
+   * index / HotPixel queries, but {@link SegmentKind} stays ARC — the
+   * index envelope may expand under PM scale without renaming the segment.
+   */
+  public void testPrecisionModelSnapDoesNotChangeSegmentKind() {
+    Coordinate start = new Coordinate(0.12, 0.08);
+    Coordinate mid = new Coordinate(5.07, 5.03);
+    Coordinate end = new Coordinate(10.11, 0.09);
+    CircularNodedSegmentString arc = CircularNodedSegmentString.arc(
+        start, mid, end, null);
+    assertEquals(SegmentKind.ARC, arc.getSegmentKind(0));
+    assertFalse(arc.mayCollapseToChord(0));
+
+    org.locationtech.jts.geom.PrecisionModel pm =
+        new org.locationtech.jts.geom.PrecisionModel(1.0);
+    Coordinate[] ends = arc.getCoordinates();
+    for (int i = 0; i < ends.length; i++) {
+      pm.makePrecise(ends[i]);
+    }
+    Coordinate snappedMid = mid.copy();
+    pm.makePrecise(snappedMid);
+
+    // Kind is metadata on the segment string, not derived from coordinates.
+    assertEquals(SegmentKind.ARC, arc.getSegmentKind(0));
+    assertFalse(arc.mayCollapseToChord(0));
+    assertTrue(arc.isExact(0));
+    // Midpoint metadata is still the original arc mid (not collapsed to chord).
+    assertNotNull(arc.getArcMidpoint(0));
+  }
 }

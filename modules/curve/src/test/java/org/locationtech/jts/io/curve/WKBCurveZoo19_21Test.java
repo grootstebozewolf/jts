@@ -63,7 +63,41 @@ public class WKBCurveZoo19_21Test extends TestCase {
     BezierCurve bz = gf.createBezierCurve(seq);
     CurveWKBWriter w = new CurveWKBWriter(3);
     w.setFlavor(WKBConstants.wkbIso);
-    assertEquals(1019, typeWord(w.write(bz)));
+    byte[] wkb = w.write(bz);
+    assertEquals(1019, typeWord(wkb));
+    Geometry back = new CurveWKBReader().read(wkb);
+    assertTrue(back instanceof BezierCurve);
+    assertEquals(1.0, back.getCoordinate().getZ(), EPS);
+    assertEquals(4.0, ((BezierCurve) back).getCoordinateN(3).getZ(), EPS);
+  }
+
+  public void testEllipseIsoZ() throws Exception {
+    CurveGeometryFactory gf = new CurveGeometryFactory();
+    EllipseCurve el = gf.createEllipseCurve(1, 2, 9, 5, 3, 0.0, 0.0, Math.PI);
+    CurveWKBWriter w = new CurveWKBWriter(3);
+    w.setFlavor(WKBConstants.wkbIso);
+    byte[] wkb = w.write(el);
+    assertEquals(1020, typeWord(wkb));
+    Geometry back = new CurveWKBReader().read(wkb);
+    assertTrue(back instanceof EllipseCurve);
+    assertEquals(9.0, ((EllipseCurve) back).getCentreZ(), EPS);
+  }
+
+  public void testNurbsIsoZ() throws Exception {
+    CurveGeometryFactory gf = new CurveGeometryFactory();
+    CoordinateArraySequence seq = new CoordinateArraySequence(new Coordinate[] {
+        new Coordinate(0, 0, 5), new Coordinate(1, 1, 6),
+        new Coordinate(2, 1, 7), new Coordinate(3, 0, 8)
+    });
+    NurbsCurve nu = gf.createNurbsCurve(seq, 3, new double[] { 1, 1, 1, 1 },
+        new double[] { 0, 0, 0, 0, 1, 1, 1, 1 });
+    CurveWKBWriter w = new CurveWKBWriter(3);
+    w.setFlavor(WKBConstants.wkbIso);
+    byte[] wkb = w.write(nu);
+    assertEquals(1021, typeWord(wkb));
+    Geometry back = new CurveWKBReader().read(wkb);
+    assertTrue(back instanceof NurbsCurve);
+    assertEquals(5.0, back.getCoordinate().getZ(), EPS);
   }
 
   public void testEllipseRoundTrip() throws Exception {
