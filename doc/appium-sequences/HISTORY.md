@@ -27,3 +27,9 @@ Semantic promote on polygon + disc + circle + half-moon (Function registry invok
 - Category skips (non-Exec): 13 unchanged
 - No upstream bugs fixed; skip reasons recorded in SKIP.md
 - Artifact: `/opt/cursor/artifacts/appium-promote-results.tsv`
+
+## 2026-08-17 — PR #7 full playback
+
+- `TbAppiumPr7PlaybackTest`: all non-skipped `*.pr7.json` played on disc/circle/half-moon fixtures via Function registry (Exec apply path).
+- Result: **BUILD SUCCESS** (1/1, ≥100 sequences played, skipped JSON excluded).
+- Log: `/opt/cursor/artifacts/pr7-playback.log`
