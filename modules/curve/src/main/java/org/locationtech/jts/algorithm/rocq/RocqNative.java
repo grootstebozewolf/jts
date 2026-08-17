@@ -1,7 +1,7 @@
 /*
  * jts-curve copy of NetTopologySuite.Proofs oracle/java/.../RocqNative.java
- * (Phase 5 FFI). Keep in sync with that file. Greenfield on fork PR #7;
- * locationtech/jts is not the alignment target.
+ * (Phase 5 FFI). Keep in sync with that file. Greenfield on fork PR #7
+ * ({@code feature/sfa-curve-rgr}); locationtech/jts is not a gate.
  *
  * Copyright (c) 2026 grootstebozewolf
  *
