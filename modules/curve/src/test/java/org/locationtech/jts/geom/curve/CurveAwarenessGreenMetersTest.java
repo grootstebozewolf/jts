@@ -308,4 +308,24 @@ public class CurveAwarenessGreenMetersTest extends TestCase {
     assertFalse(buf.isEmpty());
     assertTrue(buf.getArea() > 0);
   }
+
+  public void test_H_CC() throws Exception {
+    Geometry arc = read("CIRCULARSTRING (0 0, 5 5, 10 0)");
+    Geometry hull = org.locationtech.jts.algorithm.hull.ConcaveHull
+        .concaveHullByLengthRatio(arc, 1.0);
+    assertNotNull(hull);
+    // length ratio 1.0 → convex hull of densified sites; apex near (5,5)
+    assertTrue(hull.getEnvelopeInternal().getMaxY() > 4.5);
+  }
+
+  public void test_PLG() throws Exception {
+    Geometry cc = read(
+        "COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, 5 -5, -5 -5, -5 0))");
+    org.locationtech.jts.operation.polygonize.Polygonizer p =
+        new org.locationtech.jts.operation.polygonize.Polygonizer();
+    p.add(cc);
+    assertEquals(1, p.getPolygons().size());
+    Geometry face = (Geometry) p.getPolygons().iterator().next();
+    assertTrue(face.getArea() > 40.0); // densified arc, not control triangle
+  }
 }

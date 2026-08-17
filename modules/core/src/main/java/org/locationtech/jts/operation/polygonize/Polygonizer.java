@@ -17,6 +17,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import org.locationtech.jts.densify.Densifier;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryComponentFilter;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -134,7 +136,24 @@ public class Polygonizer
    */
   public void add(Geometry g)
   {
-    g.apply(lineStringAdder);
+    Geometry src = densifyCurveLinework(g);
+    src.apply(lineStringAdder);
+  }
+
+  /**
+   * PLG (#1195): densify curve-package linework before graph insert so
+   * CompoundCurve / CircularString edges contribute arc samples, not only
+   * control chords. Faces remain {@link Polygon} (CurvePolygon emission
+   * is a separate laser).
+   */
+  private static Geometry densifyCurveLinework(Geometry g) {
+    if (g == null || g.getClass().getName().indexOf(".geom.curve.") < 0) {
+      return g;
+    }
+    Envelope env = g.getEnvelopeInternal();
+    double extent = Math.max(env.getWidth(), env.getHeight());
+    double tol = (extent > 0.0 ? extent : 1.0) * 1.0e-4;
+    return Densifier.densify(g, tol);
   }
 
   /**

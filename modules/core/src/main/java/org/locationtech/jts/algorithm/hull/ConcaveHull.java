@@ -15,6 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.PriorityQueue;
 
+import org.locationtech.jts.densify.Densifier;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
@@ -182,8 +184,24 @@ public class ConcaveHull
    * @param geom the input geometry
    */
   public ConcaveHull(Geometry geom) {
-    this.inputGeometry = geom;
+    this.inputGeometry = densifyCurveSites(geom);
     this.geomFactory = geom.getFactory();
+  }
+
+  /**
+   * H-CC (#1195): densify curve-package inputs so sites lie on the arc,
+   * not only on control points. Hull fraction is coarser than generic
+   * densify (1e-4 of extent) to avoid ribbon collapse of point-set
+   * concave hulls (see HullFunctions / H-CC-PINCH).
+   */
+  private static Geometry densifyCurveSites(Geometry geom) {
+    if (geom == null || geom.getClass().getName().indexOf(".geom.curve.") < 0) {
+      return geom;
+    }
+    Envelope env = geom.getEnvelopeInternal();
+    double extent = Math.max(env.getWidth(), env.getHeight());
+    double tol = (extent > 0.0 ? extent : 1.0) * 1.0e-4;
+    return Densifier.densify(geom, tol);
   }
   
   /**

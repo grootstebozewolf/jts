@@ -207,12 +207,9 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
 
   // test_H_CV_convexHullOfArcUsesExtremePoints shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
-  /** H-CC: ConcaveHull arc-aware. */
-  public void test_H_CC_concaveHullArcAware() throws Exception {
-    fail("H-CC: ConcaveHull treats curved input as densified; concave-hull edges "
-        + "drawn between chord vertices may differ from edges drawn against the "
-        + "actual arc surface.");
-  }
+  // test_H_CC_concaveHullArcAware shipped — see CurveAwarenessGreenMetersTest
+  // (densify sites at hull fraction; arc-surface edge laser still open)
+
 
   // ============================================================
   // Simplification
@@ -256,12 +253,8 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Polygonizer / Coverage
   // ============================================================
 
-  /** PLG: Polygonizer accepts CompoundCurve input. */
-  public void test_PLG_polygonizerAcceptsCompoundCurve() throws Exception {
-    fail("PLG: org.locationtech.jts.operation.polygonize.Polygonizer must accept "
-        + "CompoundCurve edges and emit CurvePolygon faces; today it only sees "
-        + "the densified chord polyline.");
-  }
+  // test_PLG_polygonizerAcceptsCompoundCurve shipped — see CurveAwarenessGreenMetersTest
+  // (densify on add; faces are Polygon — CurvePolygon emission laser still open)
 
   /** COV: CoverageUnion arc-aware. */
   public void test_COV_coverageUnionArcAware() throws Exception {
