@@ -24,6 +24,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 
 /**
  * A connected sequence of circular arcs, where each consecutive triple of
@@ -248,6 +249,14 @@ public class CircularString extends LineString implements Linearizable {
   // The jts-core implementations walk getCoordinates(), which for a curve is
   // only the control points. Route them through a densified copy instead; see
   // CurveOps for the tolerance rationale and its limits.
+
+  /**
+   * Core {@code WKTWriter} refuses to flatten arcs to untagged lines.
+   */
+  @Override
+  public String toText() {
+    return new CurveWKTWriter().write(this);
+  }
 
   @Override
   public Geometry convexHull() {

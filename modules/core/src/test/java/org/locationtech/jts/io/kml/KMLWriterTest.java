@@ -158,6 +158,29 @@ public class KMLWriterTest extends TestCase
    * @param expectedKML
    * @return
    */
+  /**
+   * KML cannot carry SQL/MM ISO/IEC 13249-3 arcs. An unexpected
+   * LineString subclass must not flatten to a KML LineString.
+   */
+  public void testUnexpectedLineStringSubclassRefused() {
+    GeometryFactory gf = new GeometryFactory();
+    Geometry fake = new org.locationtech.jts.geom.LineString(
+        gf.getCoordinateSequenceFactory().create(new org.locationtech.jts.geom.Coordinate[] {
+            new org.locationtech.jts.geom.Coordinate(0, 0),
+            new org.locationtech.jts.geom.Coordinate(1, 1)
+        }), gf) {
+      private static final long serialVersionUID = 1L;
+      public String getGeometryType() { return "FakeCurve"; }
+    };
+    try {
+      new KMLWriter().write(fake);
+      fail("KMLWriter must not flatten an unexpected LineString subclass");
+    }
+    catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().indexOf("ISO/IEC 13249-3") >= 0);
+    }
+  }
+
   private String normalizeKML(String kml) {
     String condenseSpace = kml.replaceAll("\\s+", " ").trim();
     String removeRedundantSpace = condenseSpace.replaceAll("> <", "><");

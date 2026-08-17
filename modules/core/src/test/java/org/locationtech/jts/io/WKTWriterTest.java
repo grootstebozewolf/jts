@@ -199,4 +199,41 @@ public class WKTWriterTest extends TestCase {
       assertEquals(7.0, lineZM.getPointN(1).getCoordinate().getZ());
       assertEquals(8.0, lineZM.getPointN(1).getCoordinate().getM());
   }
+
+  /**
+   * CIRCULARSTRING keyword is OK. An unexpected LineString subclass
+   * (COMPOUNDCURVE-shaped flatten) must not collapse members.
+   * SQL/MM ISO/IEC 13249-3 types 8–12 use appendOtherGeometryTaggedText.
+   */
+  public void testUnexpectedLineStringSubclassRefused() {
+    GeometryFactory gf = new GeometryFactory();
+    LineString fake = new LineString(
+        gf.getCoordinateSequenceFactory().create(new Coordinate[] {
+            new Coordinate(0, 0), new Coordinate(1, 1)
+        }), gf) {
+      private static final long serialVersionUID = 1L;
+      public String getGeometryType() { return "FakeCurve"; }
+    };
+    try {
+      new WKTWriter().write(fake);
+      fail("core WKTWriter must not flatten an unexpected LineString subclass");
+    }
+    catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().indexOf("ISO/IEC 13249-3") >= 0);
+    }
+  }
+
+  public void testCircularStringKeywordAllowed() {
+    GeometryFactory gf = new GeometryFactory();
+    LineString cs = new LineString(
+        gf.getCoordinateSequenceFactory().create(new Coordinate[] {
+            new Coordinate(0, 0), new Coordinate(1, 1), new Coordinate(2, 0)
+        }), gf) {
+      private static final long serialVersionUID = 1L;
+      public String getGeometryType() { return "CircularString"; }
+    };
+    String wkt = new WKTWriter().write(cs);
+    assertTrue("CS keyword OK, was: " + wkt,
+        wkt.toUpperCase().startsWith("CIRCULARSTRING"));
+  }
 }

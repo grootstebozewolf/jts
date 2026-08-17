@@ -25,6 +25,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 
 /**
  * A connected sequence of {@link LineString} and {@link CircularString}
@@ -314,6 +315,14 @@ public class CompoundCurve extends LineString implements Linearizable {
   // The jts-core implementations walk getCoordinates(), which for a curve is
   // only the control points. Route them through a densified copy instead; see
   // CurveOps for the tolerance rationale and its limits.
+
+  /**
+   * Core {@code WKTWriter} refuses to flatten arc members to untagged lines.
+   */
+  @Override
+  public String toText() {
+    return new CurveWKTWriter().write(this);
+  }
 
   @Override
   public Geometry convexHull() {

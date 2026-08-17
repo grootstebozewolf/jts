@@ -30,6 +30,7 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.SqlMmTypes;
 import org.locationtech.jts.util.Assert;
 
 /**
@@ -459,11 +460,16 @@ public class WKTWriter
   {
     indent(useFormatting, level, writer);
 
-    // Extension hook for SFA / ISO 19125-2 geometries (curve, surface, etc.)
+    // Extension hook for SQL/MM ISO/IEC 13249-3 types 8–12.
     if (appendOtherGeometryTaggedText(geometry, outputOrdinates, useFormatting,
             level, writer, formatter)) {
       return;
     }
+
+    // CIRCULARSTRING keyword via getGeometryType() is OK. CompoundCurve
+    // members must not collapse to one seq tagged COMPOUNDCURVE.
+    // Refuse this geometry only — collections dispatch members themselves.
+    SqlMmTypes.refuseOne(geometry, "WKTWriter", true);
 
     if (geometry instanceof Point) {
       appendPointTaggedText((Point) geometry, outputOrdinates, useFormatting,

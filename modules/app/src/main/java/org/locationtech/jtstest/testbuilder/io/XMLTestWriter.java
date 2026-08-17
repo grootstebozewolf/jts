@@ -23,6 +23,7 @@ import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.io.WKBWriter;
 import org.locationtech.jts.io.WKTWriter;
 import org.locationtech.jts.io.curve.CurveWKBWriter;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 import org.locationtech.jts.util.Assert;
 import org.locationtech.jtstest.test.TestCase;
 import org.locationtech.jtstest.test.TestCaseList;
@@ -46,7 +47,7 @@ public class XMLTestWriter
          + precisionModel.getScale() + "\"/>";
   }
 
-  private WKTWriter wktWriter = new WKTWriter();
+  private WKTWriter wktWriter = new CurveWKTWriter();
   private WKBWriter wkbWriter = new CurveWKBWriter();
 
   public XMLTestWriter() {

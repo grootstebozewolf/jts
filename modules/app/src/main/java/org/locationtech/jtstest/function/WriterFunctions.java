@@ -55,8 +55,11 @@ public class WriterFunctions
    * becomes about 1570 vertices. Callers who want a coarser export should
    * linearise deliberately with {@code Curve -> toLinear} at a tolerance of their
    * choosing and write the result.
+   * <p>
+   * This is a <b>named linear fallback</b>, not a claim the curve survived.
+   * GML2 / KML / GeoJSON / SVG have no SQL/MM ISO/IEC 13249-3 arc encoding.
    */
-  private static Geometry exportable(Geometry geom) {
+  private static Geometry namedLinearFallback(Geometry geom) {
     return CurveFunctions.linearizeForOps(geom);
   }
 
@@ -64,17 +67,17 @@ public class WriterFunctions
   {
     if (geom == null) return "";
     KMLWriter writer = new KMLWriter();
-    return writer.write(exportable(geom));
+    return writer.write(namedLinearFallback(geom));
   }
 
   public static String writeGML(Geometry geom)
   {
     if (geom == null) return "";
-    return (new GMLWriter()).write(exportable(geom));
+    return (new GMLWriter()).write(namedLinearFallback(geom));
   }
 
   /**
-   * Deliberately not routed through {@link #exportable}. Oracle SDO_GEOMETRY
+   * Deliberately not routed through {@link #namedLinearFallback}. Oracle SDO_GEOMETRY
    * does represent circular arcs (element type 1005/2005 with interpretation 2),
    * so densifying here would discard something the target format can carry --
    * the same argument that makes densifying WKB a stopgap rather than a fix. The
@@ -115,7 +118,7 @@ public class WriterFunctions
   public static String writeGeoJSON(Geometry g)
   {
     if (g == null) return "";
-    return (new GeoJsonWriter().write(exportable(g)));
+    return (new GeoJsonWriter().write(namedLinearFallback(g)));
   }
 
   public static String writeGeoJSONFixDecimal(Geometry g,
@@ -123,10 +126,10 @@ public class WriterFunctions
       int numDecimals)
   {
     if (g == null) return "";
-    return (new GeoJsonWriter(numDecimals).write(exportable(g)));
+    return (new GeoJsonWriter(numDecimals).write(namedLinearFallback(g)));
   }
 
   public static String writeSVG(Geometry a, Geometry b) {
-    return SVGTestWriter.writeSVG(exportable(a), exportable(b));
+    return SVGTestWriter.writeSVG(namedLinearFallback(a), namedLinearFallback(b));
   }
 }

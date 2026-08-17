@@ -22,6 +22,7 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.SqlMmTypes;
 import org.locationtech.jts.util.Assert;
 
 import java.io.IOException;
@@ -134,6 +135,7 @@ public class GeoJsonWriter {
   }
 
   private Map<String, Object> create(Geometry geometry, boolean encodeCRS) {
+    SqlMmTypes.refuseFlatten(geometry, "GeoJsonWriter");
 
     Map<String, Object> result = new LinkedHashMap<String, Object>();
     result.put(GeoJsonConstants.NAME_TYPE, geometry.getGeometryType());
