@@ -20,10 +20,12 @@ Folded pins onto tip: **#55** `logoClothoid`, **#52** write-flatten honesty, **#
 
 ## Verify (smoke)
 
+See also [MMF_WALKTHROUGH.md](MMF_WALKTHROUGH.md).
+
 ```bash
 bash dev/check-no-curved.sh
 mvn -pl modules/core,modules/curve,modules/app -am test \
-  -Dtest=SegmentStringContractTest,WKBClothoidTest,WKBCurveZoo19_21Test,CurveOffsetCurveTest,CurveBufferArcTest,OverlayNGCircleTest,CurveHotPixelTest,CurveSegmentDcelTest,CurveLinearizationStrategyTest,CurveAwarenessGreenMetersTest,CurveAwarenessBadgeTest,CurvePolygonToolTest,SpatialFunctionPanelFocusTest \
+  -Dtest=SegmentStringContractTest,WKBClothoidTest,WKBCurveZoo19_21Test,CurveOffsetCurveTest,CurveBufferArcTest,OverlayNGCircleTest,CurveHotPixelTest,CurveSegmentDcelTest,CurveLinearizationStrategyTest,CurveAwarenessGreenMetersTest,CurveAwarenessBadgeTest,ClothoidOverlayTest,GeometryLocationsWriterCurveZooTest \
   -DfailIfNoTests=false -Dcheckstyle.skip=true -Dpmd.skip=true
 ```
 

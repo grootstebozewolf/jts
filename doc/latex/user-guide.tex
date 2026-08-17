@@ -259,15 +259,21 @@ TestBuilder can draw \texttt{logoLines} as curves.
 \subsection{Saving}
 File / Save As XML writes the current cases. Default / export WKB
 paths route through \texttt{CurveWKBWriter}, so a saved curve keeps
-ISO codes 8--12. Read those codes with \texttt{CurveWKBReader} (or
-\texttt{WKBReader} plus a curve-capable factory). A bare
-\texttt{WKBWriter.write} call still emits type 2 or 3.
+ISO codes 8--12 and 18--21. Read those codes with
+\texttt{CurveWKBReader} (or \texttt{WKBReader} plus a curve-capable
+factory). A bare \texttt{WKBWriter.write} call still emits type 2 or
+3 for 8--12 parents and refuses to flatten 18--21.
 
 \section{Curves in TestBuilder}
 TestBuilder can draw \texttt{CircularString}, \texttt{CompoundCurve},
 and \texttt{CurvePolygon} (toolbar tools plus WKT via
-\texttt{CurveWKTReader}). It also exposes OverlayNGCurve and the
-distance functions.
+\texttt{CurveWKTReader}). Clothoid members can be added on a
+CompoundCurve; WKB 19--21 types are inspectable (Bezier / Ellipse /
+NURBS labels). Function-tree entries show curve-awareness badges
+(\textbullet{} native / $\bigcirc$ passthrough / $\times$ flattens).
+Edit $\rightarrow$ Curve strategy toggles
+\texttt{LINEARIZED} (warn) vs \texttt{PRESERVE}; densify warnings
+appear on the Log tab and the status strip.
 
 On this tree the concrete SQL/MM Spatial (ISO/IEC 13249-3) curve
 types live in the
@@ -275,21 +281,31 @@ types live in the
 (\texttt{org.locationtech.jts.geom.curve}). Construction is opt-in:
 the default \texttt{GeometryFactory} throws on the curve
 \texttt{create*} methods. Use \texttt{CurveGeometryFactory}.
-Constructors do not linearise.
+Constructors do not linearise silently ---
+\texttt{CurveLinearizationStrategy} defaults to \texttt{LINEARIZED}
+and warns.
+
+\textbf{Option B.} Public \texttt{SegmentString} names each span as
+\texttt{LINEARIZED} / \texttt{ARC} / \texttt{CERTIFIED}. Exact
+consumers ask \texttt{mayCollapseToChord}. Indexes may lie under
+\texttt{PrecisionModel} without renaming the kind.
 
 Core \texttt{WKTReader} still rejects \texttt{CIRCULARSTRING} and the
 other SQL/MM keywords. Read them with \texttt{CurveWKTReader}. Write
 structured members with \texttt{CurveWKTWriter}.
 
-WKB type codes 8--12 are first-class in core \texttt{WKBReader}.
-Construction still requires a curve-capable factory; otherwise the
-reader throws. \texttt{CurveWKBReader} succeeds.
-\texttt{CurveWKBWriter} emits codes 8--12. A bare \texttt{WKBWriter}
-still emits type 2 (CircularString / CompoundCurve) or 3
-(CurvePolygon).
+WKB type codes 8--12 and 18--21 are first-class in core
+\texttt{WKBReader}. Construction still requires a curve-capable
+factory; otherwise the reader throws. \texttt{CurveWKBReader}
+succeeds. \texttt{CurveWKBWriter} emits those codes. A bare
+\texttt{WKBWriter} still emits type 2/3 for 8--12 parents and
+refuses to flatten 18--21. ISO flavour adds $+1000/+2000/+3000$ for
+Z/M/ZM.
 
 The curve overlay type is \texttt{OverlayNGCurve}. There is no public
-noder. Closed-form overlay answers are limited to certified discs.
+noder that treats every chord as an arc. Closed-form overlay answers
+include certified discs and the clothoid 0-node kit (identity /
+disjoint / nest); Fresnel crossings are a named miss.
 
 Public \texttt{DiscreteHausdorffDistance} (commit \texttt{0ca71b})
 has a closed form for two pairs only: (1)~a single-arc
