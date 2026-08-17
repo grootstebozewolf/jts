@@ -256,11 +256,8 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // test_PLG_polygonizerAcceptsCompoundCurve shipped — see CurveAwarenessGreenMetersTest
   // (densify on add; faces are Polygon — CurvePolygon emission laser still open)
 
-  /** COV: CoverageUnion arc-aware. */
-  public void test_COV_coverageUnionArcAware() throws Exception {
-    fail("COV: CoverageUnion / CoverageBoundary on a coverage of CurvePolygons "
-        + "must keep the shared arc edges as CIRCULARSTRINGs in the union output.");
-  }
+  // test_COV_coverageUnionArcAware shipped — see CurveAwarenessGreenMetersTest
+  // (CurveCoverageUnion dissolves shared members; exterior CIRCULARSTRINGs kept)
 
   // ============================================================
   // Snapping / Precision

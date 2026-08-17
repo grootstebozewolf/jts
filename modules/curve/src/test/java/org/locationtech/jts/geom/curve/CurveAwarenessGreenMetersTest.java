@@ -328,4 +328,21 @@ public class CurveAwarenessGreenMetersTest extends TestCase {
     Geometry face = (Geometry) p.getPolygons().iterator().next();
     assertTrue(face.getArea() > 40.0); // densified arc, not control triangle
   }
+
+  public void test_COV() throws Exception {
+    Geometry upper = read(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 5, 5 0), (5 0, -5 0)))");
+    Geometry lower = read(
+        "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-5 0, 0 -5, 5 0), (5 0, -5 0)))");
+    Geometry coll = upper.getFactory().createGeometryCollection(
+        new Geometry[] { upper, lower });
+    Geometry u = org.locationtech.jts.operation.overlayng.CoverageUnion.union(coll);
+    assertTrue(u instanceof CurvePolygon);
+    LineString shell = ((CurvePolygon) u).getExteriorCurve();
+    assertTrue(shell instanceof CompoundCurve);
+    CompoundCurve cc = (CompoundCurve) shell;
+    assertEquals(2, cc.getNumMembers());
+    assertTrue(cc.getMemberN(0) instanceof CircularString);
+    assertTrue(cc.getMemberN(1) instanceof CircularString);
+  }
 }
