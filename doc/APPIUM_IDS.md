@@ -56,6 +56,19 @@ Wired via `AutomationIds.set` → `Component.name` + `AccessibleContext.accessib
 ## Wired in Phase A
 Toolbar + WKT panel on this tree (includes curve draw tools).
 
+## Seed: basics — 3-pt CircularString + Move (MMF)
+
+Curve analogue of upstream `draw.polygon` / `draw.lineString` then `mode.move`.
+Headless lock: `CircularStringMoveToolBasicsTest`.
+
+1. `jts.tb.toolbar.draw.circularString`
+2. Three canvas clicks (start / mid / end), e.g. `(-5,0)`, `(0,5)`, `(5,0)`
+3. Finish the stream draw (same finish as other stream tools)
+4. `jts.tb.toolbar.mode.move` → drag the geometry
+5. Inspect `jts.tb.wkt.a`: still `CIRCULARSTRING (...)`, not `LINESTRING`, not empty
+
+Pass: typed arc survives MoveTool. Do not lead demos with Buffer / function-panel SIGNs.
+
 ## Function panel (Phase B)
 
 | ID | Control |
@@ -68,8 +81,9 @@ Toolbar + WKT panel on this tree (includes curve draw tools).
 ## Verification
 
 ```bash
-# Headless-safe:
-mvn -pl modules/app -am test -Dtest=AutomationIdsTest,AutomationIdsWiringTest \
+# Headless-safe (IDs + MMF basics seed):
+mvn -pl modules/app -am test \
+  -Dtest=AutomationIdsTest,AutomationIdsWiringTest,CircularStringMoveToolBasicsTest \
   -Djava.awt.headless=true -Dcheckstyle.skip=true -Dpmd.skip=true
 
 # Full WKT panel IDs (needs display):
