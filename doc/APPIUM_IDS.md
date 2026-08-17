@@ -69,6 +69,19 @@ Headless lock: `CircularStringMoveToolBasicsTest`.
 
 Pass: typed arc survives MoveTool. Do not lead demos with Buffer / function-panel SIGNs.
 
+## Seed: U-shape almost-touch + CAP·CUP·SUB·XOR (canonical TOUCH)
+
+U-shaped `CURVEPOLYGON` whose arms almost touch **past** OverlayNGCurve decide
+tolerance. Topology wins over densify — **no donut**. Linearized matches native
+on this witness. Headless lock: `OverlayNGCurveUShapeTouchBasicsTest`.
+
+1. Paste U WKT into `jts.tb.wkt.a` → load (fixture in the test class)
+2. Inspect: simply connected, no interior ring
+3. Optional: load left/right lobes into A/B with tip gap `0.001`
+4. Function tree **OverlayNGCurve**: CAP / CUP / SUB / XOR (+ `exactness`)
+5. Pass: no donut; two lobes → CUP stays two bodies (`FF2FF1212`), not a sealed annulus
+6. Never an OverlayNGCurve **TOUCH** button (DE-9IM / `touches` only)
+
 ## Function panel (Phase B)
 
 | ID | Control |
