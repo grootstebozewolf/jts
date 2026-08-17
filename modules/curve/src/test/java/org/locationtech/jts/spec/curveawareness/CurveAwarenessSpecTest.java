@@ -94,12 +94,9 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Buffer / Offset
   // ============================================================
 
-  /** VBF: VariableBuffer arc-aware. */
-  public void test_VBF_variableBufferOnArcInterpolatesAlongArcLength() throws Exception {
-    fail("VBF: org.locationtech.jts.operation.buffer.VariableBuffer on a CircularString "
-        + "should interpolate the per-vertex distance along arc-length parameter, not "
-        + "chord-cumulative length, and emit arc-segment offsets where possible.");
-  }
+  /** VBF: VariableBuffer arc-aware (arc-length densify; arc offsets still open). */
+  // test_VBF_variableBufferOnArcInterpolatesAlongArcLength shipped — see CurveAwarenessGreenMetersTest
+
 
   // ============================================================
   // Distance

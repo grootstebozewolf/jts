@@ -299,4 +299,13 @@ public class CurveAwarenessGreenMetersTest extends TestCase {
     assertTrue(ss.isExact(0));
     assertFalse(ss.mayCollapseToChord(0));
   }
+
+  public void test_VBF() throws Exception {
+    Geometry arc = read("CIRCULARSTRING (-5 0, 0 5, 5 0)");
+    Geometry buf = org.locationtech.jts.operation.buffer.VariableBuffer
+        .buffer(arc, 1.0, 2.0);
+    assertNotNull(buf);
+    assertFalse(buf.isEmpty());
+    assertTrue(buf.getArea() > 0);
+  }
 }
