@@ -41,8 +41,8 @@ import test.jts.GeometryTestCase;
  * prints a list of every <em>full</em> TAG that still needs work.
  * All remaining {@code fail()} methods stay. That count is the full-TAG
  * red list, not the live scoreboard: closed-form lasers keep these
- * methods until the full TAG ships. OFF shipped (single-arc concentric
- * OffsetCurve). Delete a method only when the full TAG ships; do not
+ * methods until the full TAG ships. OFF, BUF-1, and BUF-NEG shipped.
+ * Delete a method only when the full TAG ships; do not
  * edit it green. Live progress is the green tests next to
  * production code on #7 / MMF and the epic §4.1 table.
  *
