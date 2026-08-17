@@ -14,12 +14,13 @@ That writes:
 - `doc/JTS Technical Specs.pdf`
 
 Chapter plans follow the 2003–2005 Amyuni conversions. Prose SoT
-is #7 HEAD `b2861a08` (leftover javadoc tip). Public DHD two-pair
-lock via `0ca71b` (APEX 3.967640600249787; two circular discs). Guide JAR
-pin stays `61eb3377`. Later commits after the JAR pin are
-docs-only. Do not claim the TestBuilder JAR is from `b2861a08`.
-CircularString / CompoundCurve / CurvePolygon are SQL/MM Spatial
-(ISO/IEC 13249-3). No 13249-3 DOI; no JTS DOI.
+tracks MMF draft [#61](https://github.com/grootstebozewolf/jts/pull/61)
+on fork [#7](https://github.com/grootstebozewolf/jts/pull/7)
+(`feature/sfa-curve-rgr`). Public DHD two-pair lock via `0ca71b`
+(APEX 3.967640600249787; two circular discs). Guide JAR pin stays
+`61eb3377` for figure rasters. CircularString / CompoundCurve /
+CurvePolygon / WKB 18–21 are SQL/MM Spatial (ISO/IEC 13249-3) plus
+fork SIGN greenfield. No 13249-3 DOI; no JTS DOI.
 
 Figure-slot frame lock:
 
