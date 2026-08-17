@@ -75,4 +75,25 @@ public class CurveBufferArcTest extends TestCase {
     assertNotNull(mic);
     assertEquals(2.0, mic.r, 1.0e-9);
   }
+
+  public void testOpenMixedLineArcCorridor() throws Exception {
+    Geometry g = new CurveWKTReader().read(
+        "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
+    Geometry buf = g.buffer(2.0);
+    assertTrue(buf instanceof CurvePolygon);
+    CurvePolygon cp = (CurvePolygon) buf;
+    assertTrue(cp.getExteriorCurve() instanceof CompoundCurve);
+    CompoundCurve shell = (CompoundCurve) cp.getExteriorCurve();
+    assertTrue(shell.getNumMembers() >= 4);
+    boolean sawArc = false;
+    for (int i = 0; i < shell.getNumMembers(); i++) {
+      if (shell.getMemberN(i) instanceof CircularString) {
+        sawArc = true;
+      }
+    }
+    assertTrue("corridor must keep circular parallels/caps", sawArc);
+    assertTrue(buf.getArea() > 0.0);
+    assertFalse(buf instanceof org.locationtech.jts.geom.Polygon
+        && !(buf instanceof CurvePolygon));
+  }
 }

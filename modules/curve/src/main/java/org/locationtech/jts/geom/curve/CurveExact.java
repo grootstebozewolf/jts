@@ -135,12 +135,229 @@ final class CurveExact {
           return stadiumFromCc;
         }
       }
+      Geometry openCc = bufferOpenCompound(cc, distance);
+      if (openCc != null) {
+        return openCc;
+      }
     }
     Geometry stadiumBuf = bufferStadium(g, distance);
     if (stadiumBuf != null) {
       return stadiumBuf;
     }
     return null;
+  }
+
+  /**
+   * BUF-N open mixed corridor: exactly two members, each a single
+   * segment or single circular arc, {@code d > 0}. Builds left/right
+   * parallels with round joins at the junction and round caps at the
+   * ends. A collapsed inward arc radius returns {@code null}.
+   */
+  private static Geometry bufferOpenCompound(CompoundCurve cc, double d) {
+    if (!(d > 0.0) || cc.getNumMembers() != 2) {
+      return null;
+    }
+    LineString m0 = cc.getMemberN(0);
+    LineString m1 = cc.getMemberN(1);
+    if (!isBufferablePiece(m0) || !isBufferablePiece(m1)) {
+      return null;
+    }
+    Coordinate junction = m0.getCoordinateN(m0.getNumPoints() - 1);
+    if (junction.distance(m1.getCoordinateN(0)) > 1.0e-9) {
+      return null;
+    }
+    Parallel left0 = parallelPiece(m0, d, true);
+    Parallel left1 = parallelPiece(m1, d, true);
+    Parallel right0 = parallelPiece(m0, d, false);
+    Parallel right1 = parallelPiece(m1, d, false);
+    if (left0 == null || left1 == null || right0 == null || right1 == null) {
+      return null;
+    }
+    GeometryFactory f = cc.getFactory();
+    java.util.ArrayList<LineString> shell = new java.util.ArrayList<LineString>();
+    shell.add(left0.geom);
+    LineString leftJoin = roundJoin(f, junction, left0.end, left1.start, d, true);
+    if (leftJoin != null) {
+      shell.add(leftJoin);
+    }
+    shell.add(left1.geom);
+    shell.add(endCap(f, m1, left1.end, right1.end, d, true));
+    shell.add(reversePiece(right1.geom));
+    LineString rightJoin = roundJoin(f, junction, right1.start, right0.end, d, false);
+    if (rightJoin != null) {
+      shell.add(rightJoin);
+    }
+    shell.add(reversePiece(right0.geom));
+    shell.add(endCap(f, m0, right0.start, left0.start, d, false));
+    return new CurvePolygon(
+        new CompoundCurve(shell.toArray(new LineString[0]), f), null, f);
+  }
+
+  private static boolean isBufferablePiece(LineString m) {
+    if (m instanceof CircularString) {
+      return isSingleArc((CircularString) m);
+    }
+    return !(m instanceof CircularString) && m.getNumPoints() == 2
+        && !m.getCoordinateN(0).equals2D(m.getCoordinateN(1));
+  }
+
+  /** One side of a buffered piece. */
+  private static final class Parallel {
+    final LineString geom;
+    final Coordinate start;
+    final Coordinate end;
+    Parallel(LineString geom, Coordinate start, Coordinate end) {
+      this.geom = geom;
+      this.start = start;
+      this.end = end;
+    }
+  }
+
+  private static Parallel parallelPiece(LineString m, double d, boolean left) {
+    if (m instanceof CircularString) {
+      return parallelArc((CircularString) m, d, left);
+    }
+    return parallelSeg(m, d, left);
+  }
+
+  private static Parallel parallelSeg(LineString seg, double d, boolean left) {
+    Coordinate a = seg.getCoordinateN(0);
+    Coordinate b = seg.getCoordinateN(1);
+    double dx = b.x - a.x;
+    double dy = b.y - a.y;
+    double len = Math.hypot(dx, dy);
+    if (!(len > 0.0)) {
+      return null;
+    }
+    double nx = -dy / len;
+    double ny = dx / len;
+    if (!left) {
+      nx = -nx;
+      ny = -ny;
+    }
+    Coordinate a2 = new Coordinate(a.x + d * nx, a.y + d * ny);
+    Coordinate b2 = new Coordinate(b.x + d * nx, b.y + d * ny);
+    LineString g = seg.getFactory().createLineString(new Coordinate[] { a2, b2 });
+    return new Parallel(g, a2, b2);
+  }
+
+  private static Parallel parallelArc(CircularString arc, double d, boolean left) {
+    Coordinate p0 = arc.getCoordinateN(0);
+    Coordinate p1 = arc.getCoordinateN(1);
+    Coordinate p2 = arc.getCoordinateN(2);
+    CircularArcDensifier.Circle c = CircularArcDensifier.Circle.fromThreePoints(
+        p0, p1, p2);
+    if (c == null || !(c.r > 0.0)) {
+      return null;
+    }
+    double a0 = Math.atan2(p0.y - c.cy, p0.x - c.cx);
+    double a1 = Math.atan2(p1.y - c.cy, p1.x - c.cx);
+    double a2 = Math.atan2(p2.y - c.cy, p2.x - c.cx);
+    boolean ccw = midInCcw(a0, a1, a2);
+    // Left of CCW is inward (smaller radius).
+    boolean inward = left == ccw;
+    double rn = inward ? c.r - d : c.r + d;
+    if (!(rn > 0.0)) {
+      return null;
+    }
+    Coordinate q0 = radial(c, a0, rn);
+    Coordinate q1 = radial(c, a1, rn);
+    Coordinate q2 = radial(c, a2, rn);
+    CircularString g = circ(arc.getFactory(), q0, q1, q2);
+    return new Parallel(g, q0, q2);
+  }
+
+  private static LineString reversePiece(LineString g) {
+    if (g instanceof CircularString) {
+      return (LineString) g.reverse();
+    }
+    Coordinate[] pts = g.getCoordinates();
+    Coordinate[] rev = new Coordinate[pts.length];
+    for (int i = 0; i < pts.length; i++) {
+      rev[i] = new Coordinate(pts[pts.length - 1 - i]);
+    }
+    return g.getFactory().createLineString(rev);
+  }
+
+  /**
+   * Round join of radius {@code d} at {@code vertex} from {@code from}
+   * to {@code to}. Returns {@code null} when the points already meet
+   * (G1 / collinear offset).
+   */
+  private static LineString roundJoin(GeometryFactory f, Coordinate vertex,
+      Coordinate from, Coordinate to, double d, boolean preferCcw) {
+    if (from.distance(to) <= 1.0e-9) {
+      return null;
+    }
+    Coordinate mid = joinMid(vertex, from, to, d, preferCcw);
+    return circ(f, from, mid, to);
+  }
+
+  private static Coordinate joinMid(Coordinate v, Coordinate from, Coordinate to,
+      double d, boolean preferCcw) {
+    double ax = from.x - v.x;
+    double ay = from.y - v.y;
+    double bx = to.x - v.x;
+    double by = to.y - v.y;
+    double al = Math.hypot(ax, ay);
+    double bl = Math.hypot(bx, by);
+    if (al < 1.0e-12 || bl < 1.0e-12) {
+      return new Coordinate(v.x + d, v.y);
+    }
+    ax /= al;
+    ay /= al;
+    bx /= bl;
+    by /= bl;
+    double cross = ax * by - ay * bx;
+    double mx = ax + bx;
+    double my = ay + by;
+    boolean ccwShort = cross >= 0.0;
+    if (preferCcw != ccwShort) {
+      mx = -mx;
+      my = -my;
+    }
+    double ml = Math.hypot(mx, my);
+    if (ml < 1.0e-12) {
+      mx = -ay;
+      my = ax;
+      ml = 1.0;
+    }
+    return new Coordinate(v.x + d * mx / ml, v.y + d * my / ml);
+  }
+
+  private static CircularString endCap(GeometryFactory f, LineString piece,
+      Coordinate from, Coordinate to, double d, boolean atEnd) {
+    Coordinate tip = capTip(piece, d, atEnd);
+    return circ(f, from, tip, to);
+  }
+
+  private static Coordinate capTip(LineString piece, double d, boolean atEnd) {
+    if (piece instanceof CircularString) {
+      CircularString arc = (CircularString) piece;
+      Coordinate p0 = arc.getCoordinateN(0);
+      Coordinate p1 = arc.getCoordinateN(1);
+      Coordinate p2 = arc.getCoordinateN(2);
+      CircularArcDensifier.Circle c = CircularArcDensifier.Circle.fromThreePoints(
+          p0, p1, p2);
+      double a0 = Math.atan2(p0.y - c.cy, p0.x - c.cx);
+      double a1 = Math.atan2(p1.y - c.cy, p1.x - c.cx);
+      double a2 = Math.atan2(p2.y - c.cy, p2.x - c.cx);
+      boolean ccw = midInCcw(a0, a1, a2);
+      return tangentTip(c, atEnd ? a2 : a0, ccw, d, atEnd);
+    }
+    Coordinate a = piece.getCoordinateN(0);
+    Coordinate b = piece.getCoordinateN(1);
+    double dx = b.x - a.x;
+    double dy = b.y - a.y;
+    double len = Math.hypot(dx, dy);
+    double ux = dx / len;
+    double uy = dy / len;
+    Coordinate tipAt = atEnd ? b : a;
+    if (!atEnd) {
+      ux = -ux;
+      uy = -uy;
+    }
+    return new Coordinate(tipAt.x + d * ux, tipAt.y + d * uy);
   }
 
   /**

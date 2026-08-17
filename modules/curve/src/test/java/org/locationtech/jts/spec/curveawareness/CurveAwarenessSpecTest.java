@@ -180,15 +180,6 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Buffer / Offset
   // ============================================================
 
-  /** BUF-N: multi-arc / mixed CompoundCurve buffer preserves arcs. */
-  public void test_BUF_N_compoundCurveBufferPreservesArcs() throws Exception {
-    Geometry g = read(
-        "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
-    Geometry buf = g.buffer(2.0);
-    fail("BUF-N: CompoundCurve buffer should produce CurvePolygon-bearing output "
-        + "with arc-preserving offsets; got " + buf.getGeometryType() + ".");
-  }
-
   /** VBF: VariableBuffer arc-aware. */
   public void test_VBF_variableBufferOnArcInterpolatesAlongArcLength() throws Exception {
     fail("VBF: org.locationtech.jts.operation.buffer.VariableBuffer on a CircularString "
