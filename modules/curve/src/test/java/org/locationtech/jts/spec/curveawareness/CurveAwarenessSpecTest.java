@@ -141,8 +141,9 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
     double densifyCall =
         DiscreteHausdorffDistance.orientedDistance(arc, baseline, 0.05);
 
-    // Full-TAG ratchet: always fail. Exact path owns APEX; densify is skipped
-    // on this pair, not the laser. Stale h=3 retired. Keep this fail().
+    // Full-TAG ratchet: always fail. Exact path owns APEX; densifyFrac is
+    // skipped on this pair, not the laser. General pairs densify curve-package
+    // inputs before the vertex path. Stale h=3 retired. Keep this fail().
     fail("D-HF: full TAG still open. Public DiscreteHausdorffDistance still sees chords in general. "
         + "DiscreteHausdorffDistance on #7 via 0ca71b has closed-form for two pairs only: "
         + "single-arc CircularString → single-segment LineString "
