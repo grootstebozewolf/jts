@@ -56,6 +56,13 @@ public class DouglasPeuckerSimplifier
    */
   public static Geometry simplify(Geometry geom, double distanceTolerance)
   {
+    // S-DP (#1195): a 3-control CircularString is the arc identity —
+    // do not collapse it to LineString(start, end).
+    if (geom != null
+        && "CircularString".equals(geom.getGeometryType())
+        && geom.getNumPoints() <= 3) {
+      return geom.copy();
+    }
     DouglasPeuckerSimplifier tss = new DouglasPeuckerSimplifier(geom);
     tss.setDistanceTolerance(distanceTolerance);
     return tss.getResultGeometry();

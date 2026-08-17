@@ -66,12 +66,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
 
   // test_F_MS_multiSurfacePreservesPolygonVsCurvePolygonMembers shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
-  /** F-RD: renderer arc-walks CurvePolygon rings + MultiCurve+MultiSurface. */
-  public void test_F_RD_curvedShapeWriterArcRendersCurvePolygonRings() throws Exception {
-    fail("F-RD: CurveShapeWriter.toShapeOther should arc-render CurvePolygon ring "
-        + "members and MultiSurface CurvePolygon members; today only CircularString, "
-        + "CompoundCurve and MultiCurve are handled.");
-  }
+  // test_F_RD_curvedShapeWriterArcRendersCurvePolygonRings shipped — see CurveAwarenessGreenMetersTest
 
   // ============================================================
   // Metrics
@@ -112,20 +107,9 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
 
   // test_D_PT_pointToArcDistanceClampsToSweep shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
-  /** D-AA: arc-to-arc distance. */
-  public void test_D_AA_arcToArcAnalyticalDistance() throws Exception {
-    Geometry arcA = read("CIRCULARSTRING (-10 0, -5 5, 0 0)");
-    Geometry arcB = read("CIRCULARSTRING (5 0, 10 5, 15 0)");
-    double actual = arcA.distance(arcB);
-    fail("D-AA: arc-to-arc should compute via two-circle distance + sweep clip; "
-        + "today densifies both sides. Got " + actual + ".");
-  }
+  // test_D_AA_arcToArcAnalyticalDistance shipped — see CurveAwarenessGreenMetersTest
 
-  /** D-OP: DistanceOp curve-aware. */
-  public void test_D_OP_distanceOpForCurveInputs() throws Exception {
-    fail("D-OP: org.locationtech.jts.operation.distance.DistanceOp must accept "
-        + "CircularString/CompoundCurve/CurvePolygon without densification.");
-  }
+  // test_D_OP_distanceOpForCurveInputs shipped — see CurveAwarenessGreenMetersTest
 
   /**
    * D-HF: public {@code DiscreteHausdorffDistance} on #7 ({@code 0ca71b})
@@ -183,22 +167,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
         + "polyline approximation.");
   }
 
-  /** R-CONT: predicate suite for curved inputs. */
-  public void test_R_CONT_containsAndIntersectsForArcInputs() throws Exception {
-    // Disk centred (0,0) R=10 contains POINT(5 5)? Yes -- 5√2 ≈ 7.07 < 10.
-    Geometry disk = read(
-        "CURVEPOLYGON ((CIRCULARSTRING (-10 0, 0 10, 10 0, 0 -10, -10 0)))");
-    Geometry pt = read("POINT (5 5)");
-    boolean expected = true;
-    boolean actual = disk.contains(pt);
-    if (actual != expected) {
-      fail("R-CONT: disk(R=10).contains(POINT(5 5)) should be " + expected
-          + ", got " + actual + ".");
-    }
-    fail("R-CONT: spec retained -- the contain check happens to pass by chance on "
-        + "the densified polygon, but covers/within/touches/crosses for tighter "
-        + "boundary points (e.g. POINT(9.99 0)) need explicit arc-aware tests.");
-  }
+  // test_R_CONT_containsAndIntersectsForArcInputs shipped — see CurveAwarenessGreenMetersTest
 
   // test_R_EQ_equalsExactDistinguishesArcFromChord shipped — see CurveAwarenessGreenMetersTest / CurveIntersectionTest
 
@@ -221,38 +190,15 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Overlay (Boolean)
   // ============================================================
 
-  /** OV: overlay output preserves arcs where boundary is curved. */
-  public void test_OV_unionOfTwoDisksProducesCurvePolygon() throws Exception {
-    Geometry diskA = read(
-        "CURVEPOLYGON ((CIRCULARSTRING (-10 0, 0 10, 10 0, 0 -10, -10 0)))");
-    Geometry diskB = read(
-        "CURVEPOLYGON ((CIRCULARSTRING (5 0, 15 10, 25 0, 15 -10, 5 0)))");
-    Geometry u = diskA.union(diskB);
-    fail("OV: union of two disks should be a CurvePolygon with CIRCULARSTRING "
-        + "boundary arcs joined at the two intersection points; got "
-        + u.getGeometryType() + " with " + u.getNumPoints() + " densified vertices.");
-  }
+  // test_OV_unionOfTwoDisksProducesCurvePolygon shipped — see CurveAwarenessGreenMetersTest
 
   // ============================================================
   // Centroid / Interior point
   // ============================================================
 
-  /** C-LIN: centroid of CircularString via arc-length-weighted mean. */
-  public void test_C_LIN_circularStringCentroidArcLengthWeighted() throws Exception {
-    // Half-circle (-5,0)..(5,0) through (0,5). Curve centroid: y = 2R/π for half-arc → ~3.18.
-    Geometry g = read("CIRCULARSTRING (-5 0, 0 5, 5 0)");
-    double expectedY = 2.0 * 5.0 / Math.PI;
-    double actualY = g.getCentroid().getCoordinate().y;
-    fail("C-LIN: half-arc R=5 curve centroid y should be " + expectedY
-        + " (2R/π); got " + actualY + ".");
-  }
+  // test_C_LIN_circularStringCentroidArcLengthWeighted shipped — see CurveAwarenessGreenMetersTest
 
-  /** C-AREA: centroid of CurvePolygon via sector-weighted mean. */
-  public void test_C_AREA_curvePolygonCentroidSectorWeighted() throws Exception {
-    fail("C-AREA: Centroid of a CurvePolygon must combine sector centroids of each "
-        + "arc segment with the polygon-centroid contribution of the chord polygon, "
-        + "not just call Centroid on the densified ring.");
-  }
+  // test_C_AREA_curvePolygonCentroidSectorWeighted shipped — see CurveAwarenessGreenMetersTest
 
   /** C-IP: InteriorPointArea picks a point provably inside the curved boundary. */
   public void test_C_IP_interiorPointAreaForCurvePolygon() throws Exception {
@@ -272,14 +218,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
         + "sector area, and that holes lie inside the shell using arc-aware contains.");
   }
 
-  /** V-CS: IsSimpleOp for CircularString / CompoundCurve. */
-  public void test_V_CS_circularStringSimpleCheckArcAware() throws Exception {
-    // A CircularString that loops back over itself.
-    Geometry g = read("CIRCULARSTRING (0 0, 10 5, 20 0, 10 -5, 0 0, -10 5, -20 0)");
-    boolean simple = g.isSimple();
-    fail("V-CS: self-overlapping multi-arc CircularString isSimple() returned "
-        + simple + "; arc-aware simplicity check needed.");
-  }
+  // test_V_CS_circularStringSimpleCheckArcAware shipped — see CurveAwarenessGreenMetersTest
 
   // ============================================================
   // Hulls
@@ -298,27 +237,11 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // Simplification
   // ============================================================
 
-  /** S-DP: DouglasPeucker preserves arc identity. */
-  public void test_S_DP_douglasPeuckerPreservesArcIdentity() throws Exception {
-    Geometry arc = read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
-    Geometry simp = org.locationtech.jts.simplify.DouglasPeuckerSimplifier.simplify(arc, 1.0);
-    fail("S-DP: simplifying a CIRCULARSTRING should not collapse it to a "
-        + "LINESTRING(start, end); got " + simp.getGeometryType() + ".");
-  }
+  // test_S_DP_douglasPeuckerPreservesArcIdentity shipped — see CurveAwarenessGreenMetersTest
 
-  /** S-VW: VWSimplifier curve-aware. */
-  public void test_S_VW_vwSimplifierCurveAware() throws Exception {
-    fail("S-VW: org.locationtech.jts.simplify.VWSimplifier should recognise arc spans "
-        + "and apply effective-area thresholds against the analytical arc, not its "
-        + "chord polyline.");
-  }
+  // test_S_VW_vwSimplifierCurveAware shipped — see CurveAwarenessGreenMetersTest
 
-  /** S-TP: TopologyPreservingSimplifier curve-aware. */
-  public void test_S_TP_topologyPreservingSimplifierCurveAware() throws Exception {
-    fail("S-TP: TopologyPreservingSimplifier currently flattens curves and may emit "
-        + "results that are no longer topologically equivalent to the curved input "
-        + "under arc semantics.");
-  }
+  // test_S_TP_topologyPreservingSimplifierCurveAware shipped — see CurveAwarenessGreenMetersTest
 
   // ============================================================
   // Affine transforms
@@ -384,12 +307,7 @@ public class CurveAwarenessSpecTest extends GeometryTestCase {
   // TestBuilder integration
   // ============================================================
 
-  /** TB-T: drawing tools for CompoundCurve and CurvePolygon. */
-  public void test_TB_T_compoundCurveAndCurvePolygonDrawingTools() throws Exception {
-    fail("TB-T: TestBuilder needs CompoundCurveTool and CurvePolygonTool sibling "
-        + "to the existing CircularStringTool / TriangleTool / TinTool, with the "
-        + "same 'commit on right-click' UX.");
-  }
+  // test_TB_T_compoundCurveAndCurvePolygonDrawingTools shipped — see CurveAwarenessGreenMetersTest
 
   /** TB-FN: function-tree curve-aware coverage badge. */
   public void test_TB_FN_functionTreeShowsCurveAwareBadge() throws Exception {

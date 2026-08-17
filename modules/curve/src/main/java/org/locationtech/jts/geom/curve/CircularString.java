@@ -20,9 +20,10 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequences;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Point;
 
 /**
  * A connected sequence of circular arcs, where each consecutive triple of
@@ -39,6 +40,82 @@ public class CircularString extends LineString implements Linearizable {
 
   public CircularString(CoordinateSequence points, GeometryFactory factory) {
     super(points, factory);
+  }
+
+  @Override
+  public Point getCentroid() {
+    Coordinate c = arcLengthCentroid();
+    if (c != null) {
+      return getFactory().createPoint(c);
+    }
+    return super.getCentroid();
+  }
+
+  /**
+   * Wire (arc-length) centroid of the CircularString, or {@code null}
+   * if empty / too short. C-LIN (#1195).
+   */
+  Coordinate arcLengthCentroid() {
+    CoordinateSequence seq = getCoordinateSequence();
+    int n = seq.size();
+    if (n < 3) {
+      return null;
+    }
+    double sx = 0, sy = 0, total = 0;
+    for (int i = 0; i + 2 < n; i += 2) {
+      Coordinate a = seq.getCoordinate(i);
+      Coordinate mid = seq.getCoordinate(i + 1);
+      Coordinate b = seq.getCoordinate(i + 2);
+      CircularArcDensifier.Circle cir = CircularArcDensifier.Circle.fromThreePoints(
+          a, mid, b);
+      double len = CircularArcDensifier.arcLength(a, mid, b);
+      if (len <= 0.0) {
+        continue;
+      }
+      if (cir == null) {
+        sx += len * 0.5 * (a.x + b.x);
+        sy += len * 0.5 * (a.y + b.y);
+        total += len;
+        continue;
+      }
+      double a0 = Math.atan2(a.y - cir.cy, a.x - cir.cx);
+      double aMid = Math.atan2(mid.y - cir.cy, mid.x - cir.cx);
+      double a1 = Math.atan2(b.y - cir.cy, b.x - cir.cx);
+      boolean ccw = midInCcw(a0, aMid, a1);
+      double sweep = ccw ? normPos(a1 - a0) : -normPos(a0 - a1);
+      if (sweep == 0.0) {
+        sweep = ccw ? 2 * Math.PI : -2 * Math.PI;
+      }
+      // ∫ r cos φ · r dφ / L  with L = r|θ|, dφ along direction of travel
+      double cx;
+      double cy;
+      if (ccw) {
+        cx = cir.cx + (cir.r / sweep) * (Math.sin(a1) - Math.sin(a0));
+        cy = cir.cy + (cir.r / sweep) * (-Math.cos(a1) + Math.cos(a0));
+      } else {
+        cx = cir.cx + (cir.r / (-sweep)) * (Math.sin(a0) - Math.sin(a1));
+        cy = cir.cy + (cir.r / (-sweep)) * (-Math.cos(a0) + Math.cos(a1));
+      }
+      sx += len * cx;
+      sy += len * cy;
+      total += len;
+    }
+    if (total <= 0.0) {
+      return null;
+    }
+    return new Coordinate(sx / total, sy / total);
+  }
+
+  private static boolean midInCcw(double a0, double aMid, double a1) {
+    return normPos(aMid - a0) <= normPos(a1 - a0) + 1.0e-15;
+  }
+
+  private static double normPos(double a) {
+    double t = a % (2 * Math.PI);
+    if (t < 0) {
+      t += 2 * Math.PI;
+    }
+    return t;
   }
 
   @Override

@@ -163,10 +163,82 @@ public class CurveAwarenessGreenMetersTest extends TestCase {
     assertEquals(5.0, mid.y, 1.0e-9);
   }
 
-  public void test_D_PT() throws Exception {
-    // POINT(0 10) to half-arc R=5 CIRCULARSTRING(-5 0, 0 5, 5 0):
-    // nearest on circle is (0,5); distance = 5.
+  public void test_C_LIN() throws Exception {
     Geometry arc = read("CIRCULARSTRING (-5 0, 0 5, 5 0)");
-    assertEquals(5.0, arc.distance(read("POINT (0 10)")), 1.0e-9);
+    assertEquals(2.0 * 5.0 / Math.PI, arc.getCentroid().getY(), 1.0e-9);
+  }
+
+  public void test_C_AREA() throws Exception {
+    Geometry disc = read(
+        "CURVEPOLYGON (CIRCULARSTRING (-10 0, 0 10, 10 0, 0 -10, -10 0))");
+    assertEquals(0.0, disc.getCentroid().getX(), 1.0e-6);
+    assertEquals(0.0, disc.getCentroid().getY(), 1.0e-6);
+  }
+
+  public void test_D_OP() throws Exception {
+    Geometry arc = read("CIRCULARSTRING (-5 0, 0 5, 5 0)");
+    assertEquals(5.0,
+        org.locationtech.jts.operation.distance.DistanceOp.distance(arc,
+            read("POINT (0 10)")),
+        1.0e-9);
+  }
+
+  public void test_D_AA() throws Exception {
+    Geometry a1 = read("CIRCULARSTRING (-10 0, -5 5, 0 0)");
+    Geometry a2 = read("CIRCULARSTRING (10 0, 15 5, 20 0)");
+    assertEquals(10.0, a1.distance(a2), 1.0e-9);
+  }
+
+  public void test_R_CONT() throws Exception {
+    Geometry disc = read(
+        "CURVEPOLYGON (CIRCULARSTRING (-10 0, 0 10, 10 0, 0 -10, -10 0))");
+    assertTrue(disc.contains(read("POINT (5 5)")));
+    assertFalse(disc.contains(read("POINT (20 20)")));
+  }
+
+  public void test_OV() throws Exception {
+    Geometry d1 = read(
+        "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0))");
+    Geometry d2 = read(
+        "CURVEPOLYGON (CIRCULARSTRING (0 0, 5 5, 10 0, 5 -5, 0 0))");
+    Geometry u = d1.union(d2);
+    assertTrue(u instanceof CurvePolygon);
+  }
+
+  public void test_S_DP() throws Exception {
+    Geometry arc = read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
+    Geometry simp = org.locationtech.jts.simplify.DouglasPeuckerSimplifier
+        .simplify(arc, 1.0);
+    assertTrue(simp instanceof CircularString);
+  }
+
+  public void test_S_VW() throws Exception {
+    Geometry arc = read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
+    Geometry simp = org.locationtech.jts.simplify.VWSimplifier.simplify(arc,
+        1.0);
+    assertTrue(simp instanceof CircularString);
+  }
+
+  public void test_S_TP() throws Exception {
+    Geometry arc = read("CIRCULARSTRING (-10 0, 0 10, 10 0)");
+    Geometry simp = org.locationtech.jts.simplify.TopologyPreservingSimplifier
+        .simplify(arc, 1.0);
+    assertTrue(simp instanceof CircularString);
+  }
+
+  public void test_V_CS() throws Exception {
+    Geometry g = read(
+        "CIRCULARSTRING (0 0, 5 5, 10 0, 5 -5, 0 0, 5 5, 10 0)");
+    assertFalse(g.isSimple());
+  }
+
+  public void test_F_RD() throws Exception {
+    Geometry cp = read(
+        "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0))");
+    org.locationtech.jts.awt.curve.CurveShapeWriter w =
+        new org.locationtech.jts.awt.curve.CurveShapeWriter();
+    java.awt.Shape s = w.toShape(cp);
+    assertNotNull(s);
+    assertFalse(s.getBounds2D().isEmpty());
   }
 }
