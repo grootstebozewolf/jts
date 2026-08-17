@@ -19,7 +19,7 @@ import java.util.Random;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.algorithm.RobustLineIntersector;
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.curve.ArcOrientableSegment;
+import org.locationtech.jts.geom.curve.ArcGeometry;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
@@ -157,12 +157,12 @@ public class PredicateOptionBMillionTrialTest extends GeometryTestCase {
       ArcOrientableSegment arc = randomMinorArc(rnd);
       Coordinate q = randPt(rnd);
       int got = arc.orientationIndex(q);
-      int exp = arc.densifyOrientationIndex(q, N_CHORD);
+      int exp = OrientableDensifyReference.orientationIndex(arc, q, N_CHORD);
       r.tried++;
       if (got != exp) {
-        Coordinate on = org.locationtech.jts.geom.curve.CircularArcDensifier
-            .nearestPointOnArc(q, arc.getStart(), arc.getMid(), arc.getEnd());
-        if (q.distance(on) <= ON_CURVE_EPS
+        double d = ArcGeometry.distancePointToArc(
+            q, arc.getStart(), arc.getMid(), arc.getEnd());
+        if (d <= ON_CURVE_EPS
             || got == Orientation.COLLINEAR
             || exp == Orientation.COLLINEAR) {
           r.softAgree++;
@@ -188,7 +188,7 @@ public class PredicateOptionBMillionTrialTest extends GeometryTestCase {
       }
       StraightOrientableSegment seg = new StraightOrientableSegment(s0, s1);
       boolean got = arc.intersects(seg);
-      boolean exp = arc.densifyIntersectsStraight(seg, N_CHORD);
+      boolean exp = OrientableDensifyReference.intersectsStraight(arc, seg, N_CHORD);
       r.tried++;
       if (got != exp) {
         r.disagree++;
@@ -208,7 +208,7 @@ public class PredicateOptionBMillionTrialTest extends GeometryTestCase {
     }
     for (int w = 0; w < 50_000; w++) {
       arcs[w & 4095].orientationIndex(qs[w & 4095]);
-      arcs[w & 4095].densifyOrientationIndex(qs[w & 4095], N_CHORD);
+      OrientableDensifyReference.orientationIndex(arcs[w & 4095], qs[w & 4095], N_CHORD);
     }
     long[] bSamples = new long[21];
     long[] dSamples = new long[21];
@@ -220,7 +220,7 @@ public class PredicateOptionBMillionTrialTest extends GeometryTestCase {
       bSamples[s] = System.nanoTime() - t0;
       long t1 = System.nanoTime();
       for (int i = 0; i < 50_000; i++) {
-        arcs[i & 4095].densifyOrientationIndex(qs[i & 4095], N_CHORD);
+        OrientableDensifyReference.orientationIndex(arcs[i & 4095], qs[i & 4095], N_CHORD);
       }
       dSamples[s] = System.nanoTime() - t1;
     }

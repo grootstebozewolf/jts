@@ -13,13 +13,14 @@ package org.locationtech.jts.algorithm.orientable;
 
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.curve.ArcOrientableSegment;
+import org.locationtech.jts.geom.curve.ArcGeometry;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
 
 /**
- * Small correctness pins for Proofs Option B carriers (not the 1M suite).
+ * Correctness pins for Proofs Option B carriers after maintainability
+ * refactor (ArcGeometry + CGAlgorithmsDD side).
  */
 public class OrientableSegmentTest extends GeometryTestCase {
 
@@ -51,13 +52,24 @@ public class OrientableSegmentTest extends GeometryTestCase {
     assertTrue(a.intersects(b));
   }
 
-  public void testArcIsNotChordLie() {
+  public void testArcUsesRobustTangentFrame() {
     ArcOrientableSegment arc = new ArcOrientableSegment(
         new Coordinate(0, 0), new Coordinate(2, 3), new Coordinate(10, 0));
-    assertTrue(arc.isArc());
-    // Apex region is left of directed arc; chord mid-control side differs
-    // from a naïve chord-only story for some queries — densify agrees with arc.
+    assertTrue(arc.isCircular());
     Coordinate q = new Coordinate(5, 8);
-    assertEquals(arc.densifyOrientationIndex(q, 64), arc.orientationIndex(q));
+    assertEquals(
+        OrientableDensifyReference.orientationIndex(arc, q, 64),
+        arc.orientationIndex(q));
+  }
+
+  public void testArcSegmentHit() {
+    ArcOrientableSegment arc = new ArcOrientableSegment(
+        new Coordinate(-5, 0), new Coordinate(0, 5), new Coordinate(5, 0));
+    StraightOrientableSegment chord = new StraightOrientableSegment(
+        new Coordinate(0, -1), new Coordinate(0, 6));
+    assertTrue(arc.intersects(chord));
+    assertTrue(ArcGeometry.intersectsSegment(
+        arc.getStart(), arc.getMid(), arc.getEnd(),
+        chord.getStart(), chord.getEnd()));
   }
 }

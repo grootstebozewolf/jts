@@ -16,9 +16,11 @@ import org.locationtech.jts.algorithm.RobustLineIntersector;
 import org.locationtech.jts.geom.Coordinate;
 
 /**
- * Straight directed segment — Proofs Option B carrier that must stay
- * bit-identical to core {@link Orientation} / {@link RobustLineIntersector}
- * on the point and segment predicates.
+ * Straight directed segment — Proofs Option B.
+ * Bit-identical to {@link Orientation#index} /
+ * {@link RobustLineIntersector#hasIntersection} on the straight×straight
+ * predicates. Reuses one intersector instance per call site pattern
+ * via thread-confined locals (no shared mutable state).
  */
 public final class StraightOrientableSegment implements OrientableSegment {
 
@@ -49,10 +51,7 @@ public final class StraightOrientableSegment implements OrientableSegment {
       li.computeIntersection(p0, p1, s.p0, s.p1);
       return li.hasIntersection();
     }
+    // Arc (and future) carriers own the mixed case.
     return other.intersects(this);
-  }
-
-  public Coordinate[] densifyControls(int nChord) {
-    return new Coordinate[] { p0.copy(), p1.copy() };
   }
 }

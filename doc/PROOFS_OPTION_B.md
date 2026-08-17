@@ -1,19 +1,23 @@
 # Proofs Option B — predicate seam (B team)
 
-Sister of Proofs Option A (exact closed-form cells). Phase-4 audit: abstract straight vs arc at the **predicate** layer; heavy noding/OverlayNG/snap stay concrete.
+Sister of Proofs Option A (exact-arc laser). Phase-4 audit: abstract straight vs arc at the **predicate** layer; heavy noding/OverlayNG/snap stay concrete.
 
-## Types
+## Maintainability layout
 
-- `OrientableSegment` — directed piece (straight or arc window)
-- `StraightOrientableSegment` — parity with `Orientation` / segment×segment
-- `ArcOrientableSegment` — circular 3-control window; side + intersect vs densify reference
+| Type | Role |
+|------|------|
+| `OrientableSegment` | Slim interface (no densify on API) |
+| `StraightOrientableSegment` | Core `Orientation` / RLI parity |
+| `ArcOrientableSegment` | Robust tangent-frame side (`CGAlgorithmsDD.signOfDet2x2`) |
+| `ArcGeometry` | Single home for circle/sweep/intersect math |
+| `OrientableDensifyReference` | **Test-only** densify-chord oracle |
 
-## Never
+## Precision
 
-- Silent linearise flagged exact
-- 74-file `SegmentString` rewrite
-- Premature OverlayNG rewrite from this package
+- Straight: bit-identical to core.
+- Arc side: DD determinant on directed unit tangent × `(q−on)`.
+- Arc∩seg / arc∩arc: densifier quadratic + sweep (one implementation via `ArcGeometry`).
 
 ## Handover
 
-`PredicateOptionBMillionTrialTest` — N=1e6 suites; report under `doc/PROOFS_OPTION_B_HANDOVER.md` + artifacts.
+`PredicateOptionBMillionTrialTest` — N=1e6 · `doc/PROOFS_OPTION_B_HANDOVER.md`.

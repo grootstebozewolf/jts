@@ -14,9 +14,9 @@ package org.locationtech.jts.algorithm.orientable;
 import org.locationtech.jts.geom.Coordinate;
 
 /**
- * Proofs Option B — directed piece that can answer orientation and
+ * Proofs Option B — directed piece answering orientation and
  * intersection without forcing a single linear representation.
- * Package-private API surface for the B-team seam; not a public Noder.
+ * Densify references live in tests only — not on this interface.
  */
 public interface OrientableSegment {
 
@@ -25,20 +25,11 @@ public interface OrientableSegment {
   Coordinate getEnd();
 
   /**
-   * {@link org.locationtech.jts.algorithm.Orientation} codes:
-   * clockwise / collinear / counterclockwise of {@code q} relative to
-   * this directed piece (infinite supporting line for straight;
-   * tangent frame at nearest point for arcs).
+   * {@link org.locationtech.jts.algorithm.Orientation} codes for
+   * {@code q} relative to this directed piece.
    */
   int orientationIndex(Coordinate q);
 
-  /**
-   * True when this piece and {@code other} have a point in common
-   * (including endpoints). Straight×straight matches RobustLineIntersector
-   * "hasIntersection". Arc cases use circle–segment closed form + sweep.
-   */
+  /** True when this piece and {@code other} share a point. */
   boolean intersects(OrientableSegment other);
-
-  /** Straight chord control polyline for densify-reference trials. */
-  Coordinate[] densifyControls(int nChord);
 }

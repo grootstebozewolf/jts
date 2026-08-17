@@ -12,7 +12,6 @@
 package org.locationtech.jts.algorithm.orientable;
 
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.curve.ArcOrientableSegment;
 
 /**
  * Factories for Proofs Option B carriers.
