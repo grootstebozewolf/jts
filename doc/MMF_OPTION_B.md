@@ -32,6 +32,16 @@ mvn -pl modules/core,modules/curve,modules/app -am test \
 - Log tab receives `CurveLinearizationStrategy` densify warnings via `WarnSink`.
 - Edit menu: **Curve strategy: LINEARIZED (warn)** / **PRESERVE**.
 
+## Guides (Phase 6)
+
+LaTeX sources live under `doc/latex/` (from draft [#47](https://github.com/grootstebozewolf/jts/pull/47), cherry-picked without force-merging the conflicting binary PDFs). Rebuild with TeX Live:
+
+```
+cd doc/latex && make
+```
+
+In-tree `doc/*.pdf` stubs remain until a clean `make` is signed off.
+
 ## HOLD
 
 - Issue [#56](https://github.com/grootstebozewolf/jts/issues/56): tip locks `CurvePolygonToolTest` (16/16); leave open until PO UX SIGN on pin JAR.

@@ -1,0 +1,7 @@
+*.aux
+*.log
+*.out
+*.toc
+developer-guide.pdf
+user-guide.pdf
+technical-specs.pdf
