@@ -17,8 +17,8 @@
 > Assisted-by: Cursor Grok (grok-4.6)
 > ```
 
-**Status:** Draft v6 MMF Option B (2026-08-17).
-**Source:** Parent epic [locationtech/jts#1195](https://github.com/locationtech/jts/issues/1195). Fork SoT [grootstebozewolf/jts#7](https://github.com/grootstebozewolf/jts/pull/7) `feature/sfa-curve-rgr`. MMF draft [grootstebozewolf/jts#61](https://github.com/grootstebozewolf/jts/pull/61) `cursor/jts-issue-1195-c5d1` — Option B `SegmentKind`, no-silent-linearize strategy, WKB 18–21 greenfield, OFF + BUF-1/NEG, OverlayNG-for-circles R-OV, HP.2/HP.3. Slack still 15%. No upstream locationtech PR until dr-jts engages.
+**Status:** Draft v6 MMF Option B (2026-08-17). Tip `8d766ae7` on [#61](https://github.com/grootstebozewolf/jts/pull/61).
+**Source:** Parent epic [locationtech/jts#1195](https://github.com/locationtech/jts/issues/1195). Fork SoT [grootstebozewolf/jts#7](https://github.com/grootstebozewolf/jts/pull/7) `feature/sfa-curve-rgr`. MMF draft [grootstebozewolf/jts#61](https://github.com/grootstebozewolf/jts/pull/61) `cursor/jts-issue-1195-c5d1` — Option B `SegmentKind`, no-silent-linearize strategy, WKB 18–21 greenfield, OFF/BUF/VBF/COV/H-CC/PLG + TB-FN badges. Slack still 15%. No upstream locationtech PR until dr-jts engages.
 **Origin (historical):** [`feature/sfa-curve-buffer-spike`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-buffer-spike) — Draft v3 of this epic and the 49-method spec class. Draft v5 (2026-08-16) described #7 @ `210f1b16` with OV-P1 kits; Bar 2 stayed off #7 until this MMF fold.
 **Audience:** locationtech/jts maintainers and contributors. Lift verbatim into a GitHub Epic / Discussion.
 
@@ -68,10 +68,10 @@ Draft off #7. SoT stays the fork; no upstream PR.
 | `feat:` | **BUF-1 / BUF-NEG** shipped: open-arc corridor `CurvePolygon`; `|d|≥R` empty. **BUF-N** shipped: stadium dilation + open two-member line+arc corridor with round joins/caps. | Multi-arc (>2) CompoundCurve corridors still chainsaw. |
 | `feat:` | **R-OV** OverlayNG-for-circles: H-SHELL-N-MIXED via `OverlayNGCircle` + `CurveSegmentString` bridge; BiteVsHole / TwoHoleOverlay folded. | Named R2 leftovers shrink; full OV still not green. |
 | `feat:` | **HP.2 / HP.3** `CurveHotPixel` + `CurveHotPixelSnap` (PM-scale arc∩pixel; shared snapped ray stamp). | Not HP.4 faces; not core HotPixel rewrite. |
-| `arch:` | **`CurveSegmentDcel`** (P2.5.7) package-private for PLG/COV consumers. | PLG/COV TAGs still open. |
-| `fix:` | **TB-FN #60**: Exec prefers `currentFunc`; param focus cannot re-bind to `Buffer.buffer`. | Await UX SIGN on pin JAR. |
-| `fix:` | **VBF honesty**: TestBuilder `variableBuffer*` densifies via equal-arc-length `CurveOps.lineariseArcLength` (warn). | Full arc-preserving variable offsets meter stays. |
-| `feat:` | **DSF** shipped: `Densifier.densify` routes jts-curve types through `toLinear`. **TRI-DT / TRI-VR** shipped: `setSites` densifies curve-package geometries the same way. | Meters deleted. |
+| `arch:` | **`CurveSegmentDcel`** (P2.5.7) package-private; **COV** `CurveCoverageUnion` dissolves shared shell members and keeps exterior `CIRCULARSTRING`s (hooked from `CoverageUnion`). **PLG** densifies on add (faces remain Polygon). | D-HF full TAG still red (apex closed-form exists). |
+| `fix:` | **TB-FN #60**: Exec prefers `currentFunc`; param focus cannot re-bind to `Buffer.buffer`. **TB-FN badges** ●/◯/✕ via `Metadata.curveAwareness`. **Strategy picker** Edit menu LINEARIZED/PRESERVE; warn sink → Log tab. | Await UX SIGN on pin JAR. |
+| `fix:` | **VBF honesty**: `VariableBuffer` + TestBuilder densify via equal-arc-length `CurveOps.lineariseArcLength` (warn). | Full arc-preserving variable offsets still optional laser. |
+| `feat:` | **DSF / TRI / H-CC / LRF-LOC / C-IP / PRC-SN / V-CP / N-SS / R-PR** densify or Option B honesty paths shipped (see `CurveAwarenessGreenMetersTest`). | Meters deleted from red suite. |
 | `test:` | **#56 locks**: `CurvePolygonToolTest` 16/16 — non-closing finish auto-closes to `CURVEPOLYGON`, Escape cancels with status, never silent empty / never `POLYGON` flatten. | HOLD issue close until PO UX SIGN. |
 
 ### 4.1 On #7 since the spike (historical tip `210f1b16`, still accurate for OV-P1 kits)

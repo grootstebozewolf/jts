@@ -45,6 +45,25 @@ public enum CurveLinearizationStrategy {
   private static final Logger LOG = Logger.getLogger(
       CurveLinearizationStrategy.class.getName());
 
+  /**
+   * Optional sink for TestBuilder / host UI log panels. JUL remains the
+   * default; sinks receive every warn regardless of JUL level.
+   */
+  public interface WarnSink {
+    void warn(String message);
+  }
+
+  private static volatile WarnSink warnSink;
+
+  /**
+   * Registers a UI / host warn sink (e.g. TestBuilder Log tab).
+   *
+   * @param sink the sink, or {@code null} to clear
+   */
+  public static void setWarnSink(WarnSink sink) {
+    warnSink = sink;
+  }
+
   private static final ThreadLocal<CurveLinearizationStrategy> OVERRIDE =
       new ThreadLocal<CurveLinearizationStrategy>();
 
@@ -109,12 +128,16 @@ public enum CurveLinearizationStrategy {
     if (g == null) {
       return;
     }
-    if (!LOG.isLoggable(Level.WARNING)) {
-      return;
-    }
     String type = g.getGeometryType();
-    LOG.warning(op + ": linearizing " + type
+    String msg = op + ": linearizing " + type
         + " under CurveLinearizationStrategy." + current()
-        + " (explicit strategy; not a silent flatten)");
+        + " (explicit strategy; not a silent flatten)";
+    if (LOG.isLoggable(Level.WARNING)) {
+      LOG.warning(msg);
+    }
+    WarnSink sink = warnSink;
+    if (sink != null) {
+      sink.warn(msg);
+    }
   }
 }
