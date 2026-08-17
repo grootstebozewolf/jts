@@ -49,13 +49,30 @@ public class AutomationIdsWiringTest extends TestCase {
     assertTrue(names.contains(AutomationIds.TOOLBAR_DRAW_LINESTRING));
     assertTrue(names.contains(AutomationIds.TOOLBAR_DRAW_POINT));
     assertTrue(names.contains(AutomationIds.TOOLBAR_ZOOM_MODE));
+    assertTrue(names.contains(AutomationIds.TOOLBAR_MODE_MOVE));
     assertTrue(names.contains(AutomationIds.WKT_A) == false); // not on toolbar
+  }
+
+  /**
+   * PR #7 MMF basics: CircularString draw + Move must be wired (curve
+   * analogue of upstream polygon draw + move). CompoundCurve / CurvePolygon
+   * ride along when CircularString is present.
+   */
+  public void testToolbarHasBasicsCurveDrawAndMoveIds() {
+    JTSTestBuilderToolBar bar = new JTSTestBuilderToolBar(null);
+    Set<String> names = collectNames(bar.getToolBar());
+    assertTrue("MMF basics requires draw.circularString",
+        names.contains(AutomationIds.TOOLBAR_DRAW_CIRCULARSTRING));
+    assertTrue("MMF basics requires mode.move",
+        names.contains(AutomationIds.TOOLBAR_MODE_MOVE));
+    assertTrue(names.contains(AutomationIds.TOOLBAR_DRAW_COMPOUNDCURVE));
+    assertTrue(names.contains(AutomationIds.TOOLBAR_DRAW_CURVEPOLYGON));
   }
 
   public void testToolbarHasCurveIdsWhenPresent() {
     JTSTestBuilderToolBar bar = new JTSTestBuilderToolBar(null);
     Set<String> names = collectNames(bar.getToolBar());
-    // Curve tools exist on PR #7 builds; skip soft-fail if absent (upstream).
+    // Kept for twin-doc parity; PR #7 requires CS via testToolbarHasBasicsCurveDrawAndMoveIds.
     if (names.contains(AutomationIds.TOOLBAR_DRAW_CIRCULARSTRING)) {
       assertTrue(names.contains(AutomationIds.TOOLBAR_DRAW_COMPOUNDCURVE));
       assertTrue(names.contains(AutomationIds.TOOLBAR_DRAW_CURVEPOLYGON));
