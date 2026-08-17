@@ -148,47 +148,67 @@ final class CurveExact {
   }
 
   /**
-   * BUF-N open mixed corridor: exactly two members, each a single
+   * BUF-N open mixed corridor: one or more members, each a single
    * segment or single circular arc, {@code d > 0}. Builds left/right
-   * parallels with round joins at the junction and round caps at the
+   * parallels with round joins at junctions and round caps at the
    * ends. A collapsed inward arc radius returns {@code null}.
    */
   private static Geometry bufferOpenCompound(CompoundCurve cc, double d) {
-    if (!(d > 0.0) || cc.getNumMembers() != 2) {
+    int n = cc.getNumMembers();
+    if (!(d > 0.0) || n < 1) {
       return null;
     }
-    LineString m0 = cc.getMemberN(0);
-    LineString m1 = cc.getMemberN(1);
-    if (!isBufferablePiece(m0) || !isBufferablePiece(m1)) {
-      return null;
+    LineString[] members = new LineString[n];
+    for (int i = 0; i < n; i++) {
+      members[i] = cc.getMemberN(i);
+      if (!isBufferablePiece(members[i])) {
+        return null;
+      }
+      if (i > 0) {
+        Coordinate a = members[i - 1].getCoordinateN(
+            members[i - 1].getNumPoints() - 1);
+        Coordinate b = members[i].getCoordinateN(0);
+        if (a.distance(b) > 1.0e-9) {
+          return null;
+        }
+      }
     }
-    Coordinate junction = m0.getCoordinateN(m0.getNumPoints() - 1);
-    if (junction.distance(m1.getCoordinateN(0)) > 1.0e-9) {
-      return null;
-    }
-    Parallel left0 = parallelPiece(m0, d, true);
-    Parallel left1 = parallelPiece(m1, d, true);
-    Parallel right0 = parallelPiece(m0, d, false);
-    Parallel right1 = parallelPiece(m1, d, false);
-    if (left0 == null || left1 == null || right0 == null || right1 == null) {
-      return null;
+    Parallel[] left = new Parallel[n];
+    Parallel[] right = new Parallel[n];
+    for (int i = 0; i < n; i++) {
+      left[i] = parallelPiece(members[i], d, true);
+      right[i] = parallelPiece(members[i], d, false);
+      if (left[i] == null || right[i] == null) {
+        return null;
+      }
     }
     GeometryFactory f = cc.getFactory();
     java.util.ArrayList<LineString> shell = new java.util.ArrayList<LineString>();
-    shell.add(left0.geom);
-    LineString leftJoin = roundJoin(f, junction, left0.end, left1.start, d, true);
-    if (leftJoin != null) {
-      shell.add(leftJoin);
+    for (int i = 0; i < n; i++) {
+      if (i > 0) {
+        Coordinate junction = members[i].getCoordinateN(0);
+        LineString join = roundJoin(f, junction, left[i - 1].end, left[i].start,
+            d, true);
+        if (join != null) {
+          shell.add(join);
+        }
+      }
+      shell.add(left[i].geom);
     }
-    shell.add(left1.geom);
-    shell.add(endCap(f, m1, left1.end, right1.end, d, true));
-    shell.add(reversePiece(right1.geom));
-    LineString rightJoin = roundJoin(f, junction, right1.start, right0.end, d, false);
-    if (rightJoin != null) {
-      shell.add(rightJoin);
+    shell.add(endCap(f, members[n - 1], left[n - 1].end, right[n - 1].end, d,
+        true));
+    for (int i = n - 1; i >= 0; i--) {
+      if (i < n - 1) {
+        Coordinate junction = members[i + 1].getCoordinateN(0);
+        LineString join = roundJoin(f, junction, right[i + 1].start, right[i].end,
+            d, false);
+        if (join != null) {
+          shell.add(join);
+        }
+      }
+      shell.add(reversePiece(right[i].geom));
     }
-    shell.add(reversePiece(right0.geom));
-    shell.add(endCap(f, m0, right0.start, left0.start, d, false));
+    shell.add(endCap(f, members[0], right[0].start, left[0].start, d, false));
     return new CurvePolygon(
         new CompoundCurve(shell.toArray(new LineString[0]), f), null, f);
   }

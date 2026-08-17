@@ -65,7 +65,7 @@ Draft off #7. SoT stays the fork; no upstream PR.
 | `arch:` | **`CurveLinearizationStrategy`**: default `LINEARIZED` always logs a warning; `PRESERVE` keeps type. Wired through `CurveOps.linearise`. | No silent flatten. |
 | `feat:` | **WKB 18–21** SIGN greenfield: `CRV-CLOTHOID` / `PRF-BEZIER` / `PRF-ELLIPSE` / `CRV-NURBS` (+ ISO `+1000/+2000/+3000`). Factory stubs; `CurveWKBWriter`; core writer refuses flatten. 15–17 still Architect-gated. | I/O zoo partial–full for 18–21 types; ops still mostly chordsaw. |
 | `feat:` | **OFF** shipped: public `OffsetCurve.getCurve` concentric single-arc (left-of-direction). | Full OFF TAG for 3-pt CS. Multi-arc still chordsaw. |
-| `feat:` | **BUF-1 / BUF-NEG** shipped: open-arc corridor `CurvePolygon`; `|d|≥R` empty. **BUF-N** stadium subset (certified four-member stadium dilates at `r+d`). | Open mixed line+arc CompoundCurve corridor still meter. |
+| `feat:` | **BUF-1 / BUF-NEG** shipped: open-arc corridor `CurvePolygon`; `|d|≥R` empty. **BUF-N** shipped: stadium dilation + open two-member line+arc corridor with round joins/caps. | Multi-arc (>2) CompoundCurve corridors still chainsaw. |
 | `feat:` | **R-OV** OverlayNG-for-circles: H-SHELL-N-MIXED via `OverlayNGCircle` + `CurveSegmentString` bridge; BiteVsHole / TwoHoleOverlay folded. | Named R2 leftovers shrink; full OV still not green. |
 | `feat:` | **HP.2 / HP.3** `CurveHotPixel` + `CurveHotPixelSnap` (PM-scale arc∩pixel; shared snapped ray stamp). | Not HP.4 faces; not core HotPixel rewrite. |
 | `arch:` | **`CurveSegmentDcel`** (P2.5.7) package-private for PLG/COV consumers. | PLG/COV TAGs still open. |
@@ -94,7 +94,7 @@ These closed-form subsets of **OV** and **R-PR** did **not** wait for N-SS. Line
 
 - Full **OV** TAG — OV-P1 + R-OV MIXED / hole kits; `H-ANNULUS-TANGENT` named miss; general arrangement still Option B unfinished.
 - Public arc-arc / arc-line utilities (N-AA, N-AL) as standalone API
-- Open mixed **BUF-N** corridors (line+arc CompoundCurve); full **VBF** arc-length parameterisation
+- Open mixed **BUF-N** corridors for >2 members; full **VBF** arc-length parameterisation
 - Public `DiscreteHausdorffDistance` in general (D-HF); Fréchet
 - Full LEC TAG
 - RocqRefRunner SQL/MM suite for public Curve predicates
