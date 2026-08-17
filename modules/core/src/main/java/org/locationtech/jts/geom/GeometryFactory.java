@@ -723,6 +723,33 @@ public class GeometryFactory
     throw unsupportedCurve();
   }
 
+  /**
+   * Creates a PRF-BEZIER (WKB 19) from cubic control points ({@code 3k+1}).
+   * Default factory cannot construct; {@code CurveGeometryFactory} overrides.
+   */
+  public LineString createBezierCurve(CoordinateSequence controls) {
+    throw unsupportedCurve();
+  }
+
+  /**
+   * Creates a PRF-ELLIPSE (WKB 20). Default factory cannot construct;
+   * {@code CurveGeometryFactory} overrides.
+   */
+  public LineString createEllipseCurve(double centreX, double centreY,
+      double centreZ, double semiMajor, double semiMinor, double rotation,
+      double startAngle, double endAngle) {
+    throw unsupportedCurve();
+  }
+
+  /**
+   * Creates a CRV-NURBS (WKB 21). Default factory cannot construct;
+   * {@code CurveGeometryFactory} overrides.
+   */
+  public LineString createNurbsCurve(CoordinateSequence controls, int degree,
+      double[] weights, double[] knots) {
+    throw unsupportedCurve();
+  }
+
   private static UnsupportedOperationException unsupportedCurve() {
     return new UnsupportedOperationException(
         "requires a GeometryFactory that can construct curve types (CurveGeometryFactory).");

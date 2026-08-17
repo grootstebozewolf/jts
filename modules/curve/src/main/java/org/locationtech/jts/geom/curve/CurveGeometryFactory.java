@@ -99,6 +99,25 @@ public class CurveGeometryFactory extends GeometryFactory {
         length, this);
   }
 
+  @Override
+  public BezierCurve createBezierCurve(CoordinateSequence controls) {
+    return new BezierCurve(controls, this);
+  }
+
+  @Override
+  public EllipseCurve createEllipseCurve(double centreX, double centreY,
+      double centreZ, double semiMajor, double semiMinor, double rotation,
+      double startAngle, double endAngle) {
+    return new EllipseCurve(centreX, centreY, centreZ, semiMajor, semiMinor,
+        rotation, startAngle, endAngle, this);
+  }
+
+  @Override
+  public NurbsCurve createNurbsCurve(CoordinateSequence controls, int degree,
+      double[] weights, double[] knots) {
+    return new NurbsCurve(controls, degree, weights, knots, this);
+  }
+
   /**
    * Returns a {@link MultiCurve} when any member carries an arc, otherwise the
    * plain {@code MultiLineString} core would build.

@@ -496,7 +496,13 @@ public class WKBWriter
         || WKTConstants.MULTICURVE.equalsIgnoreCase(type)
         || WKTConstants.MULTISURFACE.equalsIgnoreCase(type)
         || WKTConstants.CLOTHOID.equalsIgnoreCase(type)
-        || "ClothoidSegment".equalsIgnoreCase(type);
+        || "ClothoidSegment".equalsIgnoreCase(type)
+        || WKTConstants.BEZIER.equalsIgnoreCase(type)
+        || "BezierCurve".equalsIgnoreCase(type)
+        || WKTConstants.ELLIPSE.equalsIgnoreCase(type)
+        || "EllipseCurve".equalsIgnoreCase(type)
+        || WKTConstants.NURBS.equalsIgnoreCase(type)
+        || "NurbsCurve".equalsIgnoreCase(type);
   }
 
   private void writePoint(Point pt, EnumSet<Ordinate> outputOrdinates, OutStream os) throws IOException
