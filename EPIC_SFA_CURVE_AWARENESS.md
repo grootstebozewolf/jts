@@ -22,7 +22,7 @@
 **Origin (historical):** [`feature/sfa-curve-buffer-spike`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-buffer-spike) — Draft v3 of this epic and the 49-method spec class. Draft v5 (2026-08-16) described #7 @ `210f1b16` with OV-P1 kits; Bar 2 stayed off #7 until this MMF fold.
 **Audience:** locationtech/jts maintainers and contributors. Lift verbatim into a GitHub Epic / Discussion.
 
-**Field contract (PERF-GATE):** Maintainable → Reliable → Faster. Take the curve path only if `t_laser ≤ 1.15 × t_chainsaw`. Do not loosen 15%. The overlay name is **OverlayNGCurve**, never *Curved*.
+**Field contract (PERF-GATE):** Maintainable → Reliable → Faster. Take the curve path only if `t_laser ≤ 1.15 × t_chainsaw`. Do not loosen 15%. The overlay name is **OverlayNGCurve**, never *Curved*. **Noder = Option B** (`SegmentKind` LINEARIZED / ARC / CERTIFIED); index may lie under `PrecisionModel`. **No silent linearization** — `CurveLinearizationStrategy` default LINEARIZED always warns.
 
 ## 1. Goal
 
