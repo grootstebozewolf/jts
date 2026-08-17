@@ -213,11 +213,11 @@ public class CurveExactRelateDiscTest extends GeometryTestCase {
     assertTrue("node (3.5, -√12.75)", minus);
   }
 
-  public void testHalfDiscReturnsNull() throws Exception {
+  public void testHalfDiscSameCircleIsCoveredByForm() throws Exception {
     Geometry half = readCurve(HALF_DISC);
     Geometry disc = readCurve(CIRCLE_5);
-    assertNull(CurveExact.relate(half, disc));
-    assertNull(CurveExact.relate(disc, half));
+    assertEquals("2FF11F212", CurveExact.relate(half, disc).toString());
+    assertEquals("212F11FF2", CurveExact.relate(disc, half).toString());
   }
 
   /**
