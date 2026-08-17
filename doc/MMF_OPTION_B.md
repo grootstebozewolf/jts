@@ -25,6 +25,11 @@ mvn -pl modules/core,modules/curve,modules/app -am test \
   -DfailIfNoTests=false -Dcheckstyle.skip=true -Dpmd.skip=true
 ```
 
+## TestBuilder (Phase 5)
+
+- Log tab receives `CurveLinearizationStrategy` densify warnings via `WarnSink`.
+- Edit menu: **Curve strategy: LINEARIZED (warn)** / **PRESERVE**.
+
 ## HOLD
 
 - Issue [#56](https://github.com/grootstebozewolf/jts/issues/56): tip locks `CurvePolygonToolTest` (16/16); leave open until PO UX SIGN on pin JAR.
