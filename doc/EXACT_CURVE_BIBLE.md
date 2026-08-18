@@ -157,3 +157,7 @@ This document supersedes all previous Proofs option discussions, temporary STOP 
   true (closed form). `isArc()` is the circular-vs-chord discriminator and
   is **not** on the thin protocol.
 - `toLinear(tolerance)` is the only densify path and is named as such.
+- Optional adapter: `OrientableSegment` / `OrientableSegments` (Bible §3) —
+  public surface is start/end/length/orientationIndex/intersects only;
+  implementations are package-private and compose `ExactCircularArc`.
+  See `doc/ORIENTABLE_SEGMENT_ADAPTER.md`.
