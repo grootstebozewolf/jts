@@ -34,6 +34,13 @@ public class RocqRefRunnerTest extends TestCase {
   private static final String PROOF_VECTORS_RESOURCE =
       "/org/locationtech/jts/algorithm/rocqref/orientation_proof_vectors.txt";
 
+  /**
+   * Shared JTS ↔ NTS RocqRefRunner corpus from
+   * {@code NetTopologySuite.Proofs/oracle/rocqref/jts_nts_equiv_vectors.txt}.
+   */
+  private static final String JTS_NTS_EQUIV_RESOURCE =
+      "/org/locationtech/jts/algorithm/rocqref/jts_nts_equiv_vectors.txt";
+
   public static void main(String[] args) {
     TestRunner.run(RocqRefRunnerTest.class);
   }
@@ -104,6 +111,24 @@ public class RocqRefRunnerTest extends TestCase {
       assertTrue("proof vector resource is present but empty", cases.size() > 0);
       RocqRefRunner.Result r = RocqRefRunner.run(cases);
       assertTrue("orientation unsound on exported proof vectors:\n" + r, r.isSound());
+    } finally {
+      in.close();
+    }
+  }
+
+  /**
+   * The catalyst port-equivalence gate: Java {@link RocqRefRunner#refSign}
+   * must match the Coq {@code rocqref_refSign} signs shipped in the shared
+   * Proofs corpus (the same file NTS loads).
+   */
+  public void testJtsNtsEquivVectors() throws Exception {
+    InputStream in = getClass().getResourceAsStream(JTS_NTS_EQUIV_RESOURCE);
+    assertNotNull("shared JTS↔NTS RocqRefRunner vectors missing", in);
+    try {
+      List<RocqRefRunner.RefCase> cases = RocqRefRunner.loadProofCases(in);
+      assertTrue("shared equiv corpus is empty", cases.size() > 0);
+      RocqRefRunner.Result r = RocqRefRunner.run(cases);
+      assertTrue("JTS disagrees with RocqRefRunner JTS↔NTS vectors:\n" + r, r.isSound());
     } finally {
       in.close();
     }
