@@ -22,6 +22,9 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jts.geom.curve.CurvePolygon;
 
 
 /**
@@ -111,6 +114,33 @@ public class GeometryElementLocater {
   			path.push(i);
         findElements(path, subGeom, elements);
         path.pop();
+      }
+      return;
+    }
+    if (geom instanceof CompoundCurve) {
+      CompoundCurve cc = (CompoundCurve) geom;
+      for (int i = 0; i < cc.getNumMembers(); i++) {
+        path.push(i);
+        findElements(path, cc.getMemberN(i), elements);
+        path.pop();
+      }
+      return;
+    }
+    if (geom instanceof CurvePolygon) {
+      CurvePolygon cp = (CurvePolygon) geom;
+      LineString shell = cp.getExteriorCurve();
+      if (shell != null) {
+        path.push(0);
+        findElements(path, shell, elements);
+        path.pop();
+      }
+      for (int i = 0; i < cp.getNumInteriorRing(); i++) {
+        LineString hole = cp.getInteriorCurveN(i);
+        if (hole != null) {
+          path.push(i + 1);
+          findElements(path, hole, elements);
+          path.pop();
+        }
       }
       return;
     }
