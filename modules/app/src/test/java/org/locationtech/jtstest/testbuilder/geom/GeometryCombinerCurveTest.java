@@ -218,12 +218,23 @@ public class GeometryCombinerCurveTest extends TestCase {
     assertNull(combiner().addCurvePolygon(null, new Coordinate[][] { UPPER }));
   }
 
-  public void testEvenLeftoverAbortsCurvePolygon() {
-    Coordinate[] evenClosed = new Coordinate[] {
+  public void testFourPointClosedCircleIsCurvePolygon() {
+    Coordinate[] closedFour = new Coordinate[] {
         new Coordinate(-5, 0), new Coordinate(0, 5),
         new Coordinate(5, 0), new Coordinate(-5, 0)
     };
-    assertNull(combiner().addCurvePolygon(null, evenClosed));
+    Geometry g = combiner().addCurvePolygon(null, closedFour);
+    assertTrue("4-pt closed (A,B,C,A) is a circumcircle CurvePolygon, got "
+        + (g == null ? "null" : wkt(g)), g instanceof CurvePolygon);
+    assertTrue(wkt(g).startsWith("CURVEPOLYGON (CIRCULARSTRING"));
+  }
+
+  public void testEvenLeftoverAbortsCurvePolygon() {
+    Coordinate[] evenOpen = new Coordinate[] {
+        new Coordinate(-5, 0), new Coordinate(0, 5),
+        new Coordinate(5, 0), new Coordinate(0, -5)
+    };
+    assertNull(combiner().addCurvePolygon(null, evenOpen));
   }
 
   public void testToolbarStreamSplitsIntoJoiningCircularStringMembers() {
