@@ -142,7 +142,11 @@ extends IndicatorTool
       return null;
     }
     Geometry g = geomModel().getGeometry();
-    if (g == null || !"CircularString".equals(g.getGeometryType())) {
+    if (g == null) {
+      return null;
+    }
+    String type = g.getGeometryType();
+    if (!"CircularString".equals(type) && !"CompoundCurve".equals(type)) {
       return null;
     }
     Geometry preview = GeometryVertexMover.move(g, selectedVertexLocation, currentVertexLoc);
