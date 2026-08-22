@@ -458,6 +458,11 @@ public class CurvePolygon extends Polygon implements Linearizable {
         area += CircularArcDensifier.arcAreaContribution(
             seq.getCoordinate(i), seq.getCoordinate(i + 1), seq.getCoordinate(i + 2));
       }
+      Coordinate closeMid = CircularArcDensifier.threePointCircleCloseMid(seq);
+      if (closeMid != null) {
+        area += CircularArcDensifier.arcAreaContribution(
+            seq.getCoordinate(seq.size() - 2), closeMid, seq.getCoordinate(0));
+      }
       return area;
     }
     return shoelace(seq);

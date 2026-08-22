@@ -24,6 +24,7 @@ import org.locationtech.jts.algorithm.exactcurve.AngleBetween.DirectedSweep;
 import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
 import org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
 
 /**
@@ -363,9 +364,45 @@ public final class CircularArcDensifier {
   }
 
   /**
-   * Circumcircle of three points as {@code {cx, cy, r}}, or {@code null} if
-   * the triple is colinear or coincident.
+   * Mid control of the complementary arc from {@code from} to {@code to}
+   * on the circumcircle of {@code (from, hint, to)} — the point opposite
+   * {@code hint}. Null if the triple is colinear.
    */
+  public static Coordinate complementaryArcMid(Coordinate from, Coordinate hint,
+      Coordinate to) {
+    if (from == null || hint == null || to == null) {
+      return null;
+    }
+    Circle c = Circle.fromThreePoints(from, hint, to);
+    if (c == null) {
+      return null;
+    }
+    Coordinate mid = new Coordinate(2.0 * c.cx - hint.x, 2.0 * c.cy - hint.y);
+    if (!Double.isFinite(mid.x) || !Double.isFinite(mid.y)
+        || mid.equals2D(from) || mid.equals2D(to)) {
+      return null;
+    }
+    return mid;
+  }
+
+  /**
+   * Implicit complementary-close mid of a 4-control closed CircularString
+   * {@code (A, B, C, A)}. Null unless that shape.
+   */
+  public static Coordinate threePointCircleCloseMid(CoordinateSequence seq) {
+    if (seq == null || seq.size() != 4) {
+      return null;
+    }
+    Coordinate a = seq.getCoordinate(0);
+    Coordinate b = seq.getCoordinate(1);
+    Coordinate c = seq.getCoordinate(2);
+    Coordinate a2 = seq.getCoordinate(3);
+    if (!a.equals2D(a2)) {
+      return null;
+    }
+    return complementaryArcMid(c, b, a);
+  }
+
   public static double[] circumcircle(Coordinate a, Coordinate b, Coordinate c) {
     Circle circle = Circle.fromThreePoints(a, b, c);
     if (circle == null) return null;

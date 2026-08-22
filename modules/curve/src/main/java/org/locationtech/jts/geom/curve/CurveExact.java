@@ -1370,7 +1370,15 @@ final class CurveExact {
   }
 
   private static CircularArcDensifier.Circle fullCircle(CircularString cs) {
-    if (cs.isEmpty() || !cs.isClosed() || cs.getNumPoints() < 5) return null;
+    if (cs.isEmpty() || !cs.isClosed() || cs.getNumPoints() < 3) return null;
+    int n = cs.getNumPoints();
+    if (n == 4) {
+      if (CircularArcDensifier.threePointCircleCloseMid(cs.getCoordinateSequence()) == null) {
+        return null;
+      }
+    } else if (n != 3 && (n < 5 || n % 2 == 0)) {
+      return null;
+    }
     CircularArcDensifier.Circle c = sameCircle(cs, null);
     if (c == null) return null;
     if (Math.abs(Math.abs(totalSweep(cs)) - TWO_PI) > SWEEP_EPS) return null;
@@ -1415,6 +1423,22 @@ final class CurveExact {
       double sweep = ccw ? normPos(a1 - a0) : -normPos(a0 - a1);
       if (sweep == 0.0) sweep = ccw ? TWO_PI : -TWO_PI;
       total += sweep;
+    }
+    Coordinate closeMid = CircularArcDensifier.threePointCircleCloseMid(seq);
+    if (closeMid != null) {
+      Coordinate start = seq.getCoordinate(n - 2);
+      Coordinate end = seq.getCoordinate(0);
+      CircularArcDensifier.Circle c = CircularArcDensifier.Circle.fromThreePoints(
+          start, closeMid, end);
+      if (c != null) {
+        double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
+        double aMid = Math.atan2(closeMid.y - c.cy, closeMid.x - c.cx);
+        double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
+        boolean ccw = midInCcw(a0, aMid, a1);
+        double sweep = ccw ? normPos(a1 - a0) : -normPos(a0 - a1);
+        if (sweep == 0.0) sweep = ccw ? TWO_PI : -TWO_PI;
+        total += sweep;
+      }
     }
     return total;
   }

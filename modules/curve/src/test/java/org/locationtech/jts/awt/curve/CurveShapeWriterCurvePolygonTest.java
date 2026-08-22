@@ -54,6 +54,20 @@ public class CurveShapeWriterCurvePolygonTest extends GeometryTestCase {
     return SegCounts.of(new CurveShapeWriter().toShape(g));
   }
 
+  /**
+   * UX #86: CIRCULARSTRING (A, B, C, A) is a full circumcircle, not arc ABC
+   * plus a closePath chord. Complementary-side interior must be inside.
+   */
+  public void testThreePointClosedCircleIsFullDiskNotChord() throws Exception {
+    Geometry g = new CurveWKTReader().read(
+        "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, -5 0))");
+    Shape s = new CurveShapeWriter().toShape(g);
+    assertTrue("specified-arc side is interior", s.contains(0, 2.5));
+    assertTrue("complementary close must be an arc, not a chord: (0,-2.5) missed",
+        s.contains(0, -2.5));
+    assertEquals(2.0 * Math.PI * 5.0, g.getLength(), 1e-8);
+  }
+
   /** An arc shell renders as bezier curves, not straight chords. */
   public void testArcShellRendersAsBezier() throws Exception {
     SegCounts c = shapeOf(ARC_SHELL);

@@ -26,6 +26,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.curve.CircularArcDensifier;
 import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
@@ -224,6 +225,14 @@ public class CurveShapeWriter extends ShapeWriter {
           seq.getCoordinate(i),
           seq.getCoordinate(i + 1),
           seq.getCoordinate(i + 2),
+          transformer);
+    }
+    Coordinate closeMid = CircularArcDensifier.threePointCircleCloseMid(seq);
+    if (closeMid != null) {
+      CircularArcRenderer.appendArc(path,
+          seq.getCoordinate(n - 2),
+          closeMid,
+          seq.getCoordinate(0),
           transformer);
     }
   }
