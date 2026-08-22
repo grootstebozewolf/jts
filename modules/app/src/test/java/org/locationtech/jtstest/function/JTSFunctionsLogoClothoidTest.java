@@ -14,14 +14,10 @@ package org.locationtech.jtstest.function;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.MultiPolygon;
-import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.curve.CircularString;
-import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.Linearizable;
 import org.locationtech.jts.geom.curve.MultiCurve;
-import org.locationtech.jts.io.WKTWriter;
 import org.locationtech.jtstest.geomfunction.GeometryFunction;
 import org.locationtech.jtstest.geomfunction.GeometryFunctionRegistry;
 
@@ -31,10 +27,9 @@ import junit.framework.TestSuite;
 import junit.textui.TestRunner;
 
 /**
- * Pins TestBuilder {@code logoClothoid} / {@code clothoidHalo} as a named
- * linear fallback around {@link JTSFunctions#logoLines}: LINESTRING or
- * POLYGON (or MultiPolygon) of chords, stamped CHORD-PATH or NAMED-APPROX.
- * Not a CIRCULARSTRING Qed, not a laser, not {@link JTSFunctions#logoBuffer}.
+ * Pins TestBuilder {@code logoClothoid} / {@code clothoidHalo} as a
+ * clothoid-fillet frame around {@link JTSFunctions#logoLines}: CompoundCurve
+ * / CurvePolygon of ClothoidSegment members, not densified LINESTRING.
  */
 public class JTSFunctionsLogoClothoidTest extends TestCase {
 
@@ -42,19 +37,19 @@ public class JTSFunctionsLogoClothoidTest extends TestCase {
   public static Test suite() { return new TestSuite(JTSFunctionsLogoClothoidTest.class); }
   public JTSFunctionsLogoClothoidTest(String name) { super(name); }
 
-  public void testLogoClothoidIsNamedLinearFallback() {
+  public void testLogoClothoidIsClothoidFrame() {
     Geometry halo = JTSFunctions.logoClothoid(null);
-    assertNamedLinearFallback("logoClothoid", halo);
+    assertClothoidFrame("logoClothoid", halo);
   }
 
-  public void testClothoidHaloIsNamedLinearFallback() {
+  public void testClothoidHaloIsClothoidFrame() {
     Geometry halo = JTSFunctions.clothoidHalo(null);
-    assertNamedLinearFallback("clothoidHalo", halo);
+    assertClothoidFrame("clothoidHalo", halo);
   }
 
-  public void testClothoidHaloDistanceOverloadIsNamedLinearFallback() {
+  public void testClothoidHaloDistanceOverloadIsClothoidFrame() {
     Geometry halo = JTSFunctions.clothoidHalo(null, 18.0);
-    assertNamedLinearFallback("clothoidHalo(distance)", halo);
+    assertClothoidFrame("clothoidHalo(distance)", halo);
   }
 
   public void testLogoClothoidAndClothoidHaloMatchAtDefault() {
@@ -65,31 +60,16 @@ public class JTSFunctionsLogoClothoidTest extends TestCase {
     assertEquals(a.getUserData(), b.getUserData());
   }
 
-  public void testHaloIsNotCircularStringQed() {
+  public void testHaloIsNotDensifiedLineString() {
     Geometry halo = JTSFunctions.logoClothoid(null);
-    assertFalse(halo instanceof CircularString);
-    assertFalse(halo instanceof CompoundCurve);
-    assertFalse(halo instanceof ClothoidSegment);
-    assertFalse("result must not stay Linearizable / curve-typed",
-        halo instanceof Linearizable);
-    String type = halo.getGeometryType();
-    assertFalse("getGeometryType stays linear, got " + type,
-        type.equalsIgnoreCase("CircularString")
-            || type.equalsIgnoreCase("CompoundCurve")
-            || type.equalsIgnoreCase("ClothoidSegment")
-            || type.equalsIgnoreCase("MultiCurve"));
-    String wkt = new WKTWriter().write(halo);
-    assertFalse("WKT must not claim CIRCULARSTRING Qed: " + wkt,
-        wkt.startsWith("CIRCULARSTRING") || wkt.startsWith("COMPOUNDCURVE"));
-  }
-
-  public void testPathIsNamed() {
-    Geometry halo = JTSFunctions.logoClothoid(null);
-    Object stamp = halo.getUserData();
-    assertNotNull("halo must carry a named-fallback stamp", stamp);
-    assertTrue("stamp must be NAMED-APPROX or CHORD-PATH, got " + stamp,
-        JTSFunctions.CLOTHOID_HALO_STAMP_NAMED_APPROX.equals(stamp)
-            || JTSFunctions.CLOTHOID_HALO_STAMP_CHORD_PATH.equals(stamp));
+    assertFalse(halo.getClass().equals(LineString.class));
+    assertTrue("halo is curve-typed, got " + halo.getClass().getName(),
+        halo instanceof CompoundCurve || halo instanceof CurvePolygon
+            || halo instanceof Linearizable);
+    String wkt = new org.locationtech.jts.io.curve.CurveWKTWriter().write(halo);
+    assertTrue("WKT must name CLOTHOID, got " + wkt, wkt.indexOf("CLOTHOID") >= 0);
+    assertFalse("WKT must not be a chord LINESTRING: " + wkt,
+        wkt.startsWith("LINESTRING"));
   }
 
   public void testHaloFramesTheWordmarkWithoutFlatteningLogoLines() {
@@ -131,26 +111,17 @@ public class JTSFunctionsLogoClothoidTest extends TestCase {
     assertEquals("logo as curves plus a clothoid halo.", halo.getDescription());
   }
 
-  private static void assertNamedLinearFallback(String label, Geometry halo) {
+  private static void assertClothoidFrame(String label, Geometry halo) {
     assertNotNull(label + " must return a geometry", halo);
     assertFalse(label + " must not be empty", halo.isEmpty());
-    assertTrue(label + " must be LineString / Polygon / MultiPolygon, got "
+    assertFalse(label + " must not be densified LINESTRING, got "
         + halo.getClass().getName(),
-        halo instanceof LineString
-            || halo instanceof Polygon
-            || halo instanceof MultiPolygon);
-    assertFalse(label + " must not be a CircularString",
-        halo instanceof CircularString);
-    Object stamp = halo.getUserData();
-    assertTrue(label + " stamp must be NAMED-APPROX or CHORD-PATH, got " + stamp,
-        JTSFunctions.CLOTHOID_HALO_STAMP_NAMED_APPROX.equals(stamp)
-            || JTSFunctions.CLOTHOID_HALO_STAMP_CHORD_PATH.equals(stamp));
-    if (halo instanceof LineString) {
-      assertTrue(label + " path should be closed", ((LineString) halo).isClosed());
-    }
-    if (halo instanceof Polygon) {
-      assertTrue(label + " polygonal halo should be valid", halo.isValid());
-      assertTrue(label + " polygonal halo should have area", halo.getArea() > 0.0);
-    }
+        halo.getClass().equals(LineString.class));
+    assertTrue(label + " must be CompoundCurve or CurvePolygon, got "
+        + halo.getClass().getName(),
+        halo instanceof CompoundCurve || halo instanceof CurvePolygon);
+    String wkt = new org.locationtech.jts.io.curve.CurveWKTWriter().write(halo);
+    assertTrue(label + " WKT must name CLOTHOID, got " + wkt,
+        wkt.indexOf("CLOTHOID") >= 0);
   }
 }

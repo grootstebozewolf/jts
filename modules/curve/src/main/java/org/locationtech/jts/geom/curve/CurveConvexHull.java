@@ -14,7 +14,10 @@ package org.locationtech.jts.geom.curve;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.locationtech.jts.algorithm.ConvexHull;
+import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateArrays;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -54,9 +57,16 @@ final class CurveConvexHull {
     List<Site> arcs = new ArrayList<Site>();
     if (!collect(g, points, arcs)) return null;
     if (arcs.isEmpty()) return null;
+    GeometryFactory f = g.getFactory();
     List<Member> ring = wrap(points, arcs);
-    if (ring == null || ring.isEmpty()) return null;
-    return build(ring, g.getFactory(), arcs);
+    Geometry built = (ring == null || ring.isEmpty()) ? null : build(ring, f, arcs);
+    if (built == null) {
+      ring = wrapFromPointHull(points, arcs, f);
+      if (ring != null && !ring.isEmpty()) {
+        built = build(ring, f, arcs);
+      }
+    }
+    return built;
   }
 
   private static boolean collect(Geometry g, List<Site> points, List<Site> arcs) {
@@ -188,6 +198,92 @@ final class CurveConvexHull {
       }
     }
     return null;
+  }
+
+  /**
+   * Fallback when gift-wrap cannot close (S-bowls, interior stems).
+   * Convex hull of vertices plus on-arc extrema, then rebuild any hull
+   * edge whose bulge is an exposed source arc as a CircularString.
+   */
+  private static List<Member> wrapFromPointHull(List<Site> points, List<Site> arcs,
+      GeometryFactory f) {
+    List<Coordinate> cand = new ArrayList<Coordinate>();
+    for (int i = 0; i < points.size(); i++) {
+      addIfNew(cand, points.get(i).c);
+    }
+    for (int i = 0; i < arcs.size(); i++) {
+      Site a = arcs.get(i);
+      addIfNew(cand, a.at(a.a0));
+      addIfNew(cand, a.at(a.a1));
+      double span = a.ccw ? normPos(a.a1 - a.a0) : normPos(a.a0 - a.a1);
+      double mid = a.ccw ? a.a0 + 0.5 * span : a.a0 - 0.5 * span;
+      addIfNew(cand, a.at(mid));
+      addIfNew(cand, a.onArc(0.0) ? a.at(0.0) : null);
+      addIfNew(cand, a.onArc(Math.PI / 2.0) ? a.at(Math.PI / 2.0) : null);
+      addIfNew(cand, a.onArc(Math.PI) ? a.at(Math.PI) : null);
+      addIfNew(cand, a.onArc(-Math.PI / 2.0) ? a.at(-Math.PI / 2.0) : null);
+    }
+    if (cand.size() < 3) return null;
+    Geometry hull = new ConvexHull(cand.toArray(new Coordinate[0]), f)
+        .getConvexHull();
+    if (!(hull instanceof Polygon)) return null;
+    Coordinate[] ring = ((Polygon) hull).getExteriorRing().getCoordinates();
+    if (ring.length < 4) return null;
+    if (!Orientation.isCCW(ring)) {
+      CoordinateArrays.reverse(ring);
+    }
+    int arcHits = 0;
+    List<Member> members = new ArrayList<Member>();
+    for (int i = 0; i < ring.length - 1; i++) {
+      Coordinate a = ring[i];
+      Coordinate b = ring[i + 1];
+      if (a.distance(b) <= PT_EPS) continue;
+      Site arc = sharedExposedArc(a, b, arcs);
+      if (arc != null) {
+        arcHits++;
+        members.add(Member.arc(arc, arc.angleOf(a), arc.angleOf(b), a, b));
+      }
+      else {
+        members.add(Member.seg(a, b));
+      }
+    }
+    if (arcHits == 0) return null;
+    return members.isEmpty() ? null : members;
+  }
+
+  private static void addIfNew(List<Coordinate> cand, Coordinate p) {
+    if (p == null) return;
+    for (int i = 0; i < cand.size(); i++) {
+      if (cand.get(i).distance(p) <= PT_EPS) return;
+    }
+    cand.add(new Coordinate(p));
+  }
+
+  /**
+   * Hull edge A→B is an exposed arc when both ends lie on the same
+   * source arc and the CCW minor bulge is outside (to the right of
+   * the CCW hull chord; the centre sits to the left).
+   */
+  private static Site sharedExposedArc(Coordinate a, Coordinate b, List<Site> arcs) {
+    Site found = null;
+    for (int i = 0; i < arcs.size(); i++) {
+      Site s = arcs.get(i);
+      if (!nearArc(s, a) || !nearArc(s, b)) continue;
+      double angA = s.angleOf(a);
+      double angB = s.angleOf(b);
+      if (!s.ccwPathOnArc(angA, angB)) continue;
+      double sweep = normPos(angB - angA);
+      if (sweep <= ANG_EPS || sweep >= Math.PI - ANG_EPS) continue;
+      Coordinate mid = s.at(angA + 0.5 * sweep);
+      if (cross(a, b, mid) >= -CROSS_EPS) continue;
+      found = s;
+    }
+    return found;
+  }
+
+  private static boolean nearArc(Site s, Coordinate p) {
+    if (Math.abs(p.distance(s.c) - s.r) > 1.0e-6) return false;
+    return s.onArc(s.angleOf(p));
   }
 
   private static Start findStart(List<Site> points, List<Site> arcs) {
