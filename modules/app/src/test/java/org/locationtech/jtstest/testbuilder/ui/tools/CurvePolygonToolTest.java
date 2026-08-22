@@ -199,6 +199,49 @@ public class CurvePolygonToolTest extends TestCase {
     assertNull(CurvePolygonTool.closeCircularShell(null));
   }
 
+  /**
+   * UX #76: five controls, rubber-band close is a line back to start.
+   * Double-click must not invent a complementary-arc control (1370 1050)
+   * and must not emit one self-overlapping CIRCULARSTRING.
+   */
+  public void testFivePointCloseEndsWithLineStringNotHugeArc() {
+    Coordinate p0 = new Coordinate(170, 250);
+    Coordinate p1 = new Coordinate(280, 380);
+    Coordinate p2 = new Coordinate(520, 270);
+    Coordinate p3 = new Coordinate(270, 100);
+    Coordinate p4 = new Coordinate(210, 180);
+    List<Coordinate> drawn = Arrays.asList(p0, p1, p2, p3, p4);
+
+    List<Coordinate[]> pieces = CurvePolygonTool.closeShellPieces(drawn);
+    assertNotNull(pieces);
+    assertEquals("CIRCULARSTRING + LINESTRING close", 2, pieces.size());
+    assertEquals(5, pieces.get(0).length);
+    assertEquals(2, pieces.get(1).length);
+    assertTrue(pieces.get(1)[0].equals2D(p4));
+    assertTrue(pieces.get(1)[1].equals2D(p0));
+
+    Geometry g = combiner().addCurvePolygon(null,
+        pieces.toArray(new Coordinate[0][]));
+    assertNotNull("must commit, not abort on mixed shell", g);
+    assertTrue(g instanceof CurvePolygon);
+    CurvePolygon cp = (CurvePolygon) g;
+    assertTrue("shell must be COMPOUNDCURVE, got " + cp.getExteriorCurve().getClass().getName(),
+        cp.getExteriorCurve() instanceof CompoundCurve);
+    CompoundCurve shell = (CompoundCurve) cp.getExteriorCurve();
+    assertEquals(2, shell.getNumMembers());
+    assertTrue(shell.getMemberN(0) instanceof CircularString);
+    assertEquals("LineString", shell.getMemberN(1).getGeometryType());
+    assertFalse(shell.getMemberN(1) instanceof CircularString);
+
+    String wkt = new CurveWKTWriter().write(g);
+    assertTrue("got " + wkt, wkt.startsWith("CURVEPOLYGON (COMPOUNDCURVE"));
+    assertTrue("SQL/MM line member is a bare coord list, got " + wkt,
+        wkt.contains("(210 180, 170 250)"));
+    assertFalse("must not emit the huge overlapping CIRCULARSTRING: " + wkt,
+        wkt.contains("1370") || wkt.contains("1050"));
+    assertFalse(wkt.startsWith("POLYGON"));
+  }
+
   public void testEvenAfterNaiveCloseIsRepairedNotDropped() {
     List<Coordinate> naive = new ArrayList<Coordinate>(Arrays.asList(A, B, C));
     naive.add(new Coordinate(A));

@@ -23,11 +23,13 @@ import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.awt.curve.CircularArcRenderer;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Triangle;
 import org.locationtech.jtstest.testbuilder.AppConstants;
 import org.locationtech.jtstest.testbuilder.GeometryEditPanel;
 import org.locationtech.jtstest.testbuilder.JTSTestBuilder;
 import org.locationtech.jtstest.testbuilder.JTSTestBuilderFrame;
+import org.locationtech.jtstest.testbuilder.geom.GeometryCombiner;
 import org.locationtech.jtstest.testbuilder.model.GeometryType;
 
 /**
@@ -36,16 +38,20 @@ import org.locationtech.jtstest.testbuilder.model.GeometryType;
  * shell only (no holes this slice).
  *
  * <p>Double-click anywhere, or a click on the start vertex after at
- * least three captured points, auto-closes the in-progress shell and
- * commits {@code CURVEPOLYGON (CIRCULARSTRING …)}. A mid-gesture click
+ * least three captured points, auto-closes the in-progress shell.
+ * One-arc (2–3 captured points) still commits
+ * {@code CURVEPOLYGON (CIRCULARSTRING …)} with a complementary close
+ * when needed. Five or more odd captured points close the rubber-band
+ * line back to start as a LineString member:
+ * {@code CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING …, LINESTRING …))}.
+ * That must not invent a complementary-arc control. A mid-gesture click
  * that is not the start vertex only adds a point — it does not commit
  * and does not cancel, even when two points already close to a valid
  * ring. Only Escape cancels, and only Escape may write
  * {@link #CANCELLED_STATUS} on the Case/PM strip via
  * {@code setStatus}. That must not call {@code displayInfo} or
  * {@code showInfoTab} — Log auto-switch is not the lock and must not
- * steal the Input tab. This tool builds a CircularString shell only —
- * not a mixed-shell CompoundCurve editor.
+ * steal the Input tab.
  * A close that is already a CompoundCurve shell is left as
  * {@code COMPOUNDCURVE}; it is never linearized to {@code POLYGON} or
  * a chord ring.
@@ -163,10 +169,18 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
       if (panel() != null && panel().getGeomModel() != null) {
         panel().getGeomModel().setGeometryType(getGeometryType());
       }
-      List<Coordinate> shell = closeCircularShell(copyCoords());
-      if (shell == null) return;
+      List<Coordinate[]> pieces = closeShellPieces(copyCoords());
+      if (pieces == null) return;
 
-      geomModel().addComponent(shell);
+      GeometryCombiner creator =
+          new GeometryCombiner(JTSTestBuilder.getGeometryFactory());
+      Geometry orig = geomModel().getGeometry();
+      Geometry next = creator.addCurvePolygon(
+          orig, pieces.toArray(new Coordinate[0][]));
+      if (next == orig || next == null) {
+        return;
+      }
+      geomModel().setGeometry(next);
       if (panel() != null) {
         panel().updateGeom();
       }
@@ -203,6 +217,34 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
       coords.add(coords.size() - 1, mid);
     }
     return coords;
+  }
+
+  /**
+   * Finish pieces for a CurvePolygon shell.
+   * Five or more odd unclosed controls close the rubber-band line to
+   * start as a LineString member (no complementary-arc invention).
+   * One-arc (2–3 points) still uses {@link #closeCircularShell}.
+   */
+  static List<Coordinate[]> closeShellPieces(List<Coordinate> input) {
+    if (input == null || input.size() < 2) {
+      return null;
+    }
+    Coordinate start = input.get(0);
+    Coordinate last = input.get(input.size() - 1);
+    boolean closed = start.equals2D(last);
+    if (!closed && input.size() >= 5 && input.size() % 2 == 1) {
+      List<Coordinate[]> pieces = new ArrayList<Coordinate[]>();
+      pieces.add(input.toArray(new Coordinate[0]));
+      pieces.add(new Coordinate[] { new Coordinate(last), new Coordinate(start) });
+      return pieces;
+    }
+    List<Coordinate> shell = closeCircularShell(input);
+    if (shell == null) {
+      return null;
+    }
+    List<Coordinate[]> pieces = new ArrayList<Coordinate[]>();
+    pieces.add(shell.toArray(new Coordinate[0]));
+    return pieces;
   }
 
   /**
