@@ -24,6 +24,7 @@ import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 
@@ -38,6 +39,13 @@ public class SegmentExtracter {
     collect(geom, env, parts);
     if (parts.isEmpty()) {
       return geom.getFactory().createMultiLineString();
+    }
+    if (geom instanceof CompoundCurve) {
+      Geometry packed = GeometryElementLocater.packCompoundCurveExtract(
+          (CompoundCurve) geom, parts);
+      if (packed != null) {
+        return packed;
+      }
     }
     if (parts.size() == 1) {
       return parts.get(0);
@@ -70,6 +78,18 @@ public class SegmentExtracter {
     if (geom instanceof GeometryCollection) {
       for (int i = 0; i < geom.getNumGeometries(); i++) {
         collect(geom.getGeometryN(i), aoi, parts);
+      }
+      return;
+    }
+    // Whole member inside the box: keep the original object so
+    // packCompoundCurveExtract can reassemble by identity.
+    if (aoi.contains(geom.getEnvelopeInternal())) {
+      parts.add(geom);
+      return;
+    }
+    if (geom instanceof ClothoidSegment) {
+      if (aoi.intersects(geom.getEnvelopeInternal())) {
+        parts.add(geom);
       }
       return;
     }
