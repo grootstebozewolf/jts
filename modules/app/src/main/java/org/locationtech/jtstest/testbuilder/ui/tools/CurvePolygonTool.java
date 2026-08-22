@@ -87,6 +87,11 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
   }
 
   @Override
+  boolean isStreamAddOnDrag() {
+    return false;
+  }
+
+  @Override
   public void activate(GeometryEditPanel panel) {
     super.activate(panel);
     panel.setFocusable(true);

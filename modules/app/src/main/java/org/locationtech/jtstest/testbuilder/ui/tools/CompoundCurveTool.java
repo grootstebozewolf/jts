@@ -63,6 +63,11 @@ public class CompoundCurveTool extends AbstractStreamDrawTool {
   }
 
   @Override
+  boolean isStreamAddOnDrag() {
+    return false;
+  }
+
+  @Override
   protected void bandFinished() throws Exception {
     if (panel().getModel() == null) return;
     panel().getGeomModel().setGeometryType(getGeometryType());

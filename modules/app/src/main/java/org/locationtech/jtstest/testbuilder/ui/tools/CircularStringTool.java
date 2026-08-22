@@ -53,6 +53,26 @@ public class CircularStringTool extends AbstractStreamDrawTool {
     return GeometryType.CIRCULARSTRING;
   }
 
+  @Override
+  boolean isStreamAddOnDrag() {
+    return false;
+  }
+
+  /**
+   * Points consumed by complete (start, mid, end) triples in a band of
+   * size {@code n} (captured plus tentative mouse).
+   */
+  static int completeArcPointCount(int n) {
+    if (n < 3) {
+      return 0;
+    }
+    return n % 2 == 1 ? n : n - 1;
+  }
+
+  static boolean previewHasTrailingChord(int n) {
+    return n >= 2 && completeArcPointCount(n) < n;
+  }
+
   /**
    * Per OGC SFA, a CIRCULARSTRING must contain an odd number of points
    * &ge; 3 (each consecutive (start, mid, end) triple defines one arc).
@@ -102,7 +122,7 @@ public class CircularStringTool extends AbstractStreamDrawTool {
     // Number of points consumed by complete arcs: largest odd value
     // <= n that is also >= 3 (each new triple starts at an even index
     // and shares its first point with the previous triple's end).
-    int arcPts = (n >= 3) ? (n % 2 == 1 ? n : n - 1) : 0;
+    int arcPts = completeArcPointCount(n);
 
     GeneralPath path = new GeneralPath();
     PointTransformation pt = new PointTransformation() {
