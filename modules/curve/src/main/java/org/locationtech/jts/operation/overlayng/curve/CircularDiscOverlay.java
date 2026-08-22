@@ -241,7 +241,15 @@ final class CircularDiscOverlay {
   }
 
   private static Disc fullCircle(CircularString cs) {
-    if (cs.isEmpty() || !cs.isClosed() || cs.getNumPoints() < 5) return null;
+    if (cs.isEmpty() || !cs.isClosed() || cs.getNumPoints() < 3) return null;
+    int n = cs.getNumPoints();
+    if (n == 4) {
+      if (CircularArcDensifier.threePointCircleCloseMid(cs.getCoordinateSequence()) == null) {
+        return null;
+      }
+    } else if (n != 3 && (n < 5 || n % 2 == 0)) {
+      return null;
+    }
     Disc c = sameCircle(cs, null);
     if (c == null) return null;
     if (Math.abs(Math.abs(totalSweep(cs)) - TWO_PI) > SWEEP_EPS) return null;
@@ -284,6 +292,21 @@ final class CircularDiscOverlay {
       double sweep = ccw ? normPos(a1 - a0) : -normPos(a0 - a1);
       if (sweep == 0.0) sweep = ccw ? TWO_PI : -TWO_PI;
       total += sweep;
+    }
+    Coordinate closeMid = CircularArcDensifier.threePointCircleCloseMid(seq);
+    if (closeMid != null) {
+      Coordinate start = seq.getCoordinate(n - 2);
+      Coordinate end = seq.getCoordinate(0);
+      double[] c = CircularArcDensifier.circumcircle(start, closeMid, end);
+      if (c != null) {
+        double a0 = Math.atan2(start.y - c[1], start.x - c[0]);
+        double aMid = Math.atan2(closeMid.y - c[1], closeMid.x - c[0]);
+        double a1 = Math.atan2(end.y - c[1], end.x - c[0]);
+        boolean ccw = normPos(aMid - a0) < normPos(a1 - a0);
+        double sweep = ccw ? normPos(a1 - a0) : -normPos(a0 - a1);
+        if (sweep == 0.0) sweep = ccw ? TWO_PI : -TWO_PI;
+        total += sweep;
+      }
     }
     return total;
   }

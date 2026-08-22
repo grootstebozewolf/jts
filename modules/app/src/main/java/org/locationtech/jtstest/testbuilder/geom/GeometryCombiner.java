@@ -362,7 +362,13 @@ public class GeometryCombiner
 
   private static boolean isValidCircularControl(Coordinate[] pts)
   {
-    return pts != null && pts.length >= 3 && pts.length % 2 == 1;
+    if (pts == null || pts.length < 3) {
+      return false;
+    }
+    if (pts.length % 2 == 1) {
+      return true;
+    }
+    return pts.length == 4 && pts[0].equals2D(pts[3]);
   }
 
   private static boolean isClosedRing(Coordinate[] pts)

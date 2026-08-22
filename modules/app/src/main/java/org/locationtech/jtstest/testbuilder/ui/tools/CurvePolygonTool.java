@@ -190,12 +190,12 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
   }
 
   /**
-   * Auto-close an in-progress shell so it is a valid ISO/IEC 13249-3
-   * CircularString ring: closed, odd count ≥ 3. Any finish (double-click
-   * anywhere or click-start) appends the start vertex when needed. An
-   * even leftover after that gets the complementary-arc control on the
-   * last drawn circumcircle — a real closing arc, not a chord ring.
-   * Returns {@code null} when there is no shell to commit.
+   * Auto-close an in-progress shell. Double-click anywhere or click-start
+   * appends the start vertex when needed. Three captured points close to
+   * {@code (A, B, C, A)} — a 4-control circumcircle; the complementary
+   * arc is implicit (no extra mid). Other even leftovers still get an
+   * explicit complementary-arc control. Returns {@code null} when there
+   * is no shell to commit.
    */
   static List<Coordinate> closeCircularShell(List<Coordinate> input) {
     if (input == null || input.size() < 2) {
@@ -208,6 +208,10 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
     }
     if (coords.size() < 3) {
       return null;
+    }
+    // (A, B, C, A): three-click circle. Do not invent a 5th control.
+    if (coords.size() == 4) {
+      return coords;
     }
     if (coords.size() % 2 == 0) {
       Coordinate mid = circularCloseControl(coords);

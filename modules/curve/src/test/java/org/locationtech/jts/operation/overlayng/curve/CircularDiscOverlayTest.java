@@ -37,6 +37,9 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
 
   private static final String CIRCLE_5 =
       "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0))";
+  /** Three clicks + close: circumcircle, no complementary mid stored. */
+  private static final String CIRCLE_3PT =
+      "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, -5 0))";
   private static final String CIRCLE_CROSSING =
       "CURVEPOLYGON (CIRCULARSTRING (2 0, 7 5, 12 0, 7 -5, 2 0))";
   private static final String CIRCLE_3 =
@@ -120,6 +123,31 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
     Geometry sub = op.getResult(OverlayNG.DIFFERENCE);
     assertFalse("small \\ large is exact", op.isApproximate());
     assertTrue(sub.isEmpty());
+  }
+
+  /**
+   * Three-click circle {@code (A,B,C,A)} is a disc kit: laser area /
+   * circumference, and nested overlay with a concentric disc is exact
+   * (not chainsaw).
+   */
+  public void testThreePointCircleIsExactDiscKit() throws Exception {
+    Geometry g = readCurve(CIRCLE_3PT);
+    assertEquals("laser area, not shoelace", DISC, g.getArea(), EXACT);
+    assertEquals("laser circumference", 10.0 * Math.PI, g.getLength(), EXACT);
+    OverlayNGCurve op = new OverlayNGCurve(g, readCurve(CIRCLE_3));
+    Geometry laser = op.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("4-control disc nested overlay is exact", op.isApproximate());
+    assertEquals(16.0 * Math.PI, laser.getArea(), EXACT);
+  }
+
+  public void testUxThreePointCircleIsExactDisc() throws Exception {
+    Geometry g = readCurve(
+        "CURVEPOLYGON (CIRCULARSTRING (210 560, 560 700, 460 410, 210 560))");
+    OverlayNGCurve cap = new OverlayNGCurve(g, g);
+    Geometry self = cap.getResult(OverlayNG.INTERSECTION);
+    assertFalse("UX 4-control circle must be a disc kit, not chainsaw",
+        cap.isApproximate());
+    assertEquals(g.getArea(), self.getArea(), EXACT);
   }
 
   /**

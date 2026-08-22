@@ -115,15 +115,38 @@ public class CurvePolygonToolTest extends TestCase {
     List<Coordinate> shell = CurvePolygonTool.closeCircularShell(drawn);
     assertNotNull("double-click finish must auto-close, not drop", shell);
     assertTrue(shell.get(0).equals2D(shell.get(shell.size() - 1)));
-    assertEquals(5, shell.size());
-    assertTrue("closing control must be the complementary arc mid, not the chord",
-        shell.get(3).equals2D(D));
-    assertFalse("must not insert the chord midpoint",
-        shell.get(3).equals2D(new Coordinate(0, 0)));
+    assertEquals("3 clicks + close is (A,B,C,A), no invented mid", 4, shell.size());
+    assertTrue(shell.get(0).equals2D(A));
+    assertTrue(shell.get(1).equals2D(B));
+    assertTrue(shell.get(2).equals2D(C));
+    assertTrue(shell.get(3).equals2D(A));
+    assertFalse("must not insert complementary mid D", contains(shell, D));
 
     Geometry g = commit(shell);
     assertCurvePolygonCircularString(g);
+    assertEquals(4, ((CurvePolygon) g).getExteriorCurve().getNumPoints());
     assertEquals(2.0 * Math.PI * RADIUS, g.getLength(), ARC_EPS);
+    assertEquals(Math.PI * RADIUS * RADIUS, g.getArea(), ARC_EPS);
+  }
+
+  /** UX #86: three clicks (210 560, 560 700, 460 410) + double-click. */
+  public void testUxThreeClickCircleHasNoSuperfluousMid() {
+    Coordinate p0 = new Coordinate(210, 560);
+    Coordinate p1 = new Coordinate(560, 700);
+    Coordinate p2 = new Coordinate(460, 410);
+    List<Coordinate> shell = CurvePolygonTool.closeCircularShell(
+        Arrays.asList(p0, p1, p2));
+    assertNotNull(shell);
+    assertEquals(4, shell.size());
+    assertTrue(shell.get(3).equals2D(p0));
+    String wkt = new CurveWKTWriter().write(commit(shell));
+    assertTrue("got " + wkt, wkt.startsWith("CURVEPOLYGON (CIRCULARSTRING"));
+    assertFalse("must not invent complementary mid 239.6 486: " + wkt,
+        wkt.indexOf("239.6") >= 0 || wkt.indexOf("239.60000000000002") >= 0);
+    Geometry g = commit(shell);
+    double r = circumradius(p0, p1, p2);
+    assertEquals(2.0 * Math.PI * r, g.getLength(), 1e-6);
+    assertEquals("laser disc area, not chainsaw", Math.PI * r * r, g.getArea(), 1e-6);
   }
 
   public void testMidGestureFifthClickDoesNotCommit() {
@@ -245,16 +268,17 @@ public class CurvePolygonToolTest extends TestCase {
   public void testEvenAfterNaiveCloseIsRepairedNotDropped() {
     List<Coordinate> naive = new ArrayList<Coordinate>(Arrays.asList(A, B, C));
     naive.add(new Coordinate(A));
-    assertEquals("old abort condition: 3 pts + start = even leftover",
+    assertEquals("3 pts + start = 4-control closed circle",
         4, naive.size());
     assertEquals(0, naive.size() % 2);
 
     List<Coordinate> shell = CurvePolygonTool.closeCircularShell(
         Arrays.asList(A, B, C));
-    assertNotNull("even leftover after close must be repaired, not dropped",
-        shell);
-    assertEquals(1, shell.size() % 2);
-    assertFalse(shell.size() == 4);
+    assertNotNull("3-click close must commit, not drop", shell);
+    assertEquals(4, shell.size());
+    Geometry g = commit(shell);
+    assertCurvePolygonCircularString(g);
+    assertEquals(2.0 * Math.PI * RADIUS, g.getLength(), ARC_EPS);
   }
 
   public void testAddComponentKeepsCurvePolygonNotPolygon() {
@@ -282,6 +306,20 @@ public class CurvePolygonToolTest extends TestCase {
         wkt.startsWith("CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING"));
     assertFalse("must not linearize a compound shell to POLYGON: " + wkt,
         wkt.startsWith("POLYGON"));
+  }
+
+  private static boolean contains(List<Coordinate> coords, Coordinate pt) {
+    for (int i = 0; i < coords.size(); i++) {
+      if (coords.get(i).equals2D(pt)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static double circumradius(Coordinate a, Coordinate b, Coordinate c) {
+    Coordinate centre = org.locationtech.jts.geom.Triangle.circumcentre(a, b, c);
+    return a.distance(centre);
   }
 
   private static GeometryCombiner combiner() {
