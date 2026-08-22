@@ -155,6 +155,10 @@ public class GeometryEditor
       return operation.edit(geometry, factory);
     }
 
+    if (isCompoundCurve(geometry)) {
+      return editCompoundCurve(geometry, operation);
+    }
+
     if (geometry instanceof LineString) {
       return operation.edit(geometry, factory);
     }
@@ -237,6 +241,49 @@ public class GeometryEditor
   private static boolean isCircularString(Geometry geometry) {
     return geometry != null
         && "CircularString".equals(geometry.getGeometryType());
+  }
+
+  /**
+   * {@code CompoundCurve} is also a {@link LineString} subclass. Editing the
+   * concatenated control polyline and {@code createLineString} drops members.
+   */
+  private static boolean isCompoundCurve(Geometry geometry) {
+    return geometry != null
+        && "CompoundCurve".equals(geometry.getGeometryType());
+  }
+
+  /**
+   * Edit each CompoundCurve member, then rebuild via
+   * {@link GeometryFactory#createCompoundCurve(LineString[])}.
+   */
+  private Geometry editCompoundCurve(Geometry geometry,
+      GeometryEditorOperation operation) {
+    LineString[] members = compoundCurveMembers(geometry);
+    if (members == null) {
+      return operation.edit(geometry, factory);
+    }
+    LineString[] edited = new LineString[members.length];
+    for (int i = 0; i < members.length; i++) {
+      Geometry g = editInternal(members[i], operation);
+      if (g == null || !(g instanceof LineString)) {
+        return operation.edit(geometry, factory);
+      }
+      edited[i] = (LineString) g;
+    }
+    return factory.createCompoundCurve(edited);
+  }
+
+  private static LineString[] compoundCurveMembers(Geometry geometry) {
+    try {
+      Object m = geometry.getClass().getMethod("getMembers").invoke(geometry);
+      if (m instanceof LineString[]) {
+        return (LineString[]) m;
+      }
+    }
+    catch (ReflectiveOperationException ex) {
+      return null;
+    }
+    return null;
   }
 
   private static Geometry rebuildLineal(Geometry geometry, GeometryFactory factory,
