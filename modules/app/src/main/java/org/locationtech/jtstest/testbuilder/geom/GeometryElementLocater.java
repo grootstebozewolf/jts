@@ -25,6 +25,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.curve.CircularArcDensifier;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 
@@ -45,6 +46,12 @@ public class GeometryElementLocater {
     List geoms = extractLocationGeometry(locs);
     if (geoms.size() <= 0)
       return null;
+    if (parentGeom instanceof CompoundCurve) {
+      Geometry packed = packCompoundCurveExtract((CompoundCurve) parentGeom, geoms);
+      if (packed != null) {
+        return packed;
+      }
+    }
     if (geoms.size() == 1) 
       return (Geometry) geoms.get(0);
     // if parent was a GC, ensure returning a GC
@@ -170,6 +177,10 @@ public class GeometryElementLocater {
     if (geom instanceof CircularString) {
       return circularStringHits(aoiEnv, (CircularString) geom);
     }
+    if (geom instanceof ClothoidSegment) {
+      // Envelope is analytical (bow, not the 2-point chord).
+      return true;
+    }
     Coordinate[] pts = geom.getCoordinates();
     if (pts.length == 0) {
       return false;
@@ -200,6 +211,82 @@ public class GeometryElementLocater {
       }
     }
     return false;
+  }
+
+  /**
+   * CLOTHOID is a non-leading CompoundCurve member. Boxing extracted
+   * members as MULTICURVE writes a ClothoidSegment as its two-point
+   * chord. Reassemble consecutive hits as CompoundCurve, and if a
+   * clothoid is first in a run include the previous member for start
+   * pose.
+   */
+  static Geometry packCompoundCurveExtract(CompoundCurve cc, List geoms) {
+    if (cc == null || geoms == null || geoms.isEmpty()) {
+      return null;
+    }
+    int n = cc.getNumMembers();
+    boolean[] hit = new boolean[n];
+    boolean any = false;
+    for (int i = 0; i < geoms.size(); i++) {
+      int idx = indexOfMember(cc, geoms.get(i));
+      if (idx >= 0) {
+        hit[idx] = true;
+        any = true;
+      }
+    }
+    if (!any) {
+      return null;
+    }
+    for (int i = 0; i < n; i++) {
+      if (hit[i] && cc.getMemberN(i) instanceof ClothoidSegment && i > 0) {
+        hit[i - 1] = true;
+      }
+    }
+    List runs = new ArrayList();
+    int i = 0;
+    while (i < n) {
+      if (!hit[i]) {
+        i++;
+        continue;
+      }
+      int j = i;
+      while (j + 1 < n && hit[j + 1]) {
+        j++;
+      }
+      int len = j - i + 1;
+      if (len == 1 && !(cc.getMemberN(i) instanceof ClothoidSegment)) {
+        runs.add(cc.getMemberN(i));
+      }
+      else {
+        LineString[] members = new LineString[len];
+        for (int k = 0; k < len; k++) {
+          members[k] = cc.getMemberN(i + k);
+        }
+        try {
+          runs.add(cc.getFactory().createCompoundCurve(members));
+        }
+        catch (UnsupportedOperationException ex) {
+          return null;
+        }
+      }
+      i = j + 1;
+    }
+    if (runs.isEmpty()) {
+      return null;
+    }
+    if (runs.size() == 1) {
+      return (Geometry) runs.get(0);
+    }
+    return cc.getFactory().buildGeometry(runs);
+  }
+
+  private static int indexOfMember(CompoundCurve cc, Object g) {
+    for (int i = 0; i < cc.getNumMembers(); i++) {
+      if (cc.getMemberN(i) == g) {
+        return i;
+      }
+    }
+    return -1;
   }
 
 }
