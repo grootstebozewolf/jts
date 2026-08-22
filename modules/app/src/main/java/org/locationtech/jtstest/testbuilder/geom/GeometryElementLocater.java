@@ -23,6 +23,8 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.curve.CircularArcDensifier;
+import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 
@@ -144,11 +146,60 @@ public class GeometryElementLocater {
       }
       return;
     }
-    // TODO: make this robust - do not use Geometry.intersects()
-    // atomic element - check for match
-    if (aoi.intersects(geom))
+    // Do not call Geometry.intersects: CircularString densifies via
+    // CurveOps.linearise and WarnSink floods the Info/tooltip Log tab (#84).
+    if (hitsAoi(aoi, geom))
       elements.add(new GeometryLocation(parentGeom, geom, 
       		FacetLocater.toIntArray(path)));
+  }
+
+  /**
+   * True when {@code aoi} overlaps this atomic component without spatial
+   * predicates. CircularString uses per-arc envelopes (exact extrema, no
+   * densify). Other lineals use control-segment envelopes.
+   */
+  private static boolean hitsAoi(Geometry aoi, Geometry geom)
+  {
+    if (aoi == null || geom == null || aoi.isEmpty() || geom.isEmpty()) {
+      return false;
+    }
+    Envelope aoiEnv = aoi.getEnvelopeInternal();
+    if (!aoiEnv.intersects(geom.getEnvelopeInternal())) {
+      return false;
+    }
+    if (geom instanceof CircularString) {
+      return circularStringHits(aoiEnv, (CircularString) geom);
+    }
+    Coordinate[] pts = geom.getCoordinates();
+    if (pts.length == 0) {
+      return false;
+    }
+    if (pts.length == 1) {
+      return aoiEnv.contains(pts[0]);
+    }
+    Envelope segEnv = new Envelope();
+    for (int i = 0; i < pts.length - 1; i++) {
+      segEnv.init(pts[i]);
+      segEnv.expandToInclude(pts[i + 1]);
+      if (aoiEnv.intersects(segEnv)) {
+        return true;
+      }
+    }
+    return aoiEnv.contains(pts[pts.length - 1]);
+  }
+
+  private static boolean circularStringHits(Envelope aoiEnv, CircularString cs)
+  {
+    Coordinate[] pts = cs.getCoordinates();
+    Envelope arcEnv = new Envelope();
+    for (int i = 0; i + 2 < pts.length; i += 2) {
+      arcEnv.init();
+      CircularArcDensifier.expandEnvelope(pts[i], pts[i + 1], pts[i + 2], arcEnv);
+      if (aoiEnv.intersects(arcEnv)) {
+        return true;
+      }
+    }
+    return false;
   }
 
 }
