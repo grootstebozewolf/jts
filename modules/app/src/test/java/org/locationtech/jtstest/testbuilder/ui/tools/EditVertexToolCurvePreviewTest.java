@@ -57,6 +57,13 @@ public class EditVertexToolCurvePreviewTest extends TestCase {
     assertNotNull(EditVertexTool.curveDragPreviewShape(g, FROM, TO));
   }
 
+  public void testMultiCurveOfCircularStringUsesArcPreview() throws ParseException {
+    Geometry g = read("MULTICURVE (CIRCULARSTRING (0 0, 1 1, 2 0))");
+    assertTrue("MultiCurve of CIRCULARSTRING must use CurveShapeWriter preview",
+        EditVertexTool.usesCurveDragPreview(g));
+    assertNotNull(EditVertexTool.curveDragPreviewShape(g, FROM, TO));
+  }
+
   public void testLineStringKeepsChordPreview() throws ParseException {
     Geometry g = read("LINESTRING (0 0, 1 1, 2 0)");
     assertFalse("LINESTRING must keep adjacent-control chord rubber-band",

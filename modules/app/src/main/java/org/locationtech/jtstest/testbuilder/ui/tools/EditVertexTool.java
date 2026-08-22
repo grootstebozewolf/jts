@@ -188,10 +188,18 @@ extends IndicatorTool
     return false;
   }
 
+  /**
+   * Model-space curve rubber-band for tests (identity view transform).
+   */
   static Shape curveDragPreviewShape(Geometry g, Coordinate from, Coordinate to) {
     return curveDragPreviewShape(g, from, to, null);
   }
 
+  /**
+   * Same move as {@link #mouseReleased}, drawn through
+   * {@link CurveShapeWriter}. {@code null} view uses the writer's
+   * identity transform.
+   */
   static Shape curveDragPreviewShape(Geometry g, Coordinate from, Coordinate to,
       PointTransformation view) {
     if (!usesCurveDragPreview(g) || from == null || to == null) {
