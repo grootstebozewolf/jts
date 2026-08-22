@@ -11,6 +11,10 @@
  */
 package org.locationtech.jtstest.testbuilder.geom;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
@@ -18,6 +22,7 @@ import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.geom.curve.CurveLinearizationStrategy;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jts.io.curve.CurveWKTWriter;
 import org.locationtech.jtstest.function.CurveExampleFunctions;
@@ -44,11 +49,16 @@ public class ExtractClothoidHonestyTest extends TestCase {
   }
 
   public void testExtractElementsWholeBendKeepsClothoid() {
+    List reverseWarns = new ArrayList();
     Geometry g = CurveExampleFunctions.clothoidRailBend(null);
-    Geometry extracted = GeometryElementLocater.extractElements(g,
-        box(115000, 411000, 117000, 413000));
+    Geometry extracted = extractWithWarns(g,
+        box(115000, 411000, 117000, 413000), reverseWarns, false);
     assertCompoundWithClothoid(extracted, "elements whole");
     assertEquals(5, ((CompoundCurve) extracted).getNumMembers());
+    assertTrue("full extract must keep original orientation, not reverse",
+        extracted.getCoordinates()[0].equals2D(g.getCoordinates()[0]));
+    assertFalse("full extract must not log a reverse, got " + reverseWarns,
+        containsReverseLog(reverseWarns));
   }
 
   public void testExtractElementsExitRunIsCompoundCurveNotChord() {
@@ -66,13 +76,39 @@ public class ExtractClothoidHonestyTest extends TestCase {
     assertTrue(hasCircularString(out));
   }
 
-  public void testExtractElementsClothoidOnlyPrependsPredecessor() {
+  /**
+   * A box on the exit clothoid only would make CLOTHOID leading.
+   * Reverse that run onto the following straight instead of pulling in
+   * the previous circular arc.
+   */
+  public void testExtractElementsClothoidOnlyReversesOntoSuccessor() {
+    List reverseWarns = new ArrayList();
     Geometry g = CurveExampleFunctions.clothoidRailBend(null);
     CompoundCurve cc = (CompoundCurve) g;
-    Geometry extracted = GeometryElementLocater.extractElements(g,
-        cc.getFactory().toGeometry(cc.getMemberN(3).getEnvelopeInternal()));
-    assertCompoundWithClothoid(extracted, "elements clothoid-only");
-    assertFalse(((CompoundCurve) extracted).getMemberN(0) instanceof ClothoidSegment);
+    Geometry aoi = boxAroundClothoidMid((ClothoidSegment) cc.getMemberN(3));
+    Geometry extracted = extractWithWarns(g, aoi, reverseWarns, false);
+    assertCompoundWithClothoid(extracted, "elements clothoid-only reverse");
+    CompoundCurve out = (CompoundCurve) extracted;
+    assertFalse(out.getMemberN(0) instanceof ClothoidSegment);
+    assertEquals("LineString", out.getMemberN(0).getGeometryType());
+    assertFalse("must not pull the previous CIRCULARSTRING; reverse onto the exit line",
+        hasCircularString(out));
+    assertTrue("reverse must be logged, got " + reverseWarns,
+        containsReverseLog(reverseWarns));
+  }
+
+  public void testExtractSegmentsClothoidOnlyReversesOntoSuccessor() {
+    List reverseWarns = new ArrayList();
+    Geometry g = CurveExampleFunctions.clothoidRailBend(null);
+    CompoundCurve cc = (CompoundCurve) g;
+    Geometry aoi = boxAroundClothoidMid((ClothoidSegment) cc.getMemberN(3));
+    Geometry extracted = extractWithWarns(g, aoi, reverseWarns, true);
+    assertCompoundWithClothoid(extracted, "segments clothoid-only reverse");
+    CompoundCurve out = (CompoundCurve) extracted;
+    assertFalse(out.getMemberN(0) instanceof ClothoidSegment);
+    assertFalse(hasCircularString(out));
+    assertTrue("reverse must be logged, got " + reverseWarns,
+        containsReverseLog(reverseWarns));
   }
 
   public void testExtractSegmentsWholeBendKeepsClothoid() {
@@ -80,6 +116,9 @@ public class ExtractClothoidHonestyTest extends TestCase {
     Geometry extracted = SegmentExtracter.extract(g,
         box(115000, 411000, 117000, 413000));
     assertCompoundWithClothoid(extracted, "segments whole");
+    assertEquals(5, ((CompoundCurve) extracted).getNumMembers());
+    assertTrue("full extract must keep original orientation, not reverse",
+        extracted.getCoordinates()[0].equals2D(g.getCoordinates()[0]));
   }
 
   public void testExtractSegmentsExitRunKeepsClothoid() {
@@ -148,5 +187,46 @@ public class ExtractClothoidHonestyTest extends TestCase {
 
   private static Geometry box(double minx, double miny, double maxx, double maxy) {
     return new CurveGeometryFactory().toGeometry(new Envelope(minx, maxx, miny, maxy));
+  }
+
+  /** Tight box on a mid-spiral sample so the AOI does not also hit the arc. */
+  private static Geometry boxAroundClothoidMid(ClothoidSegment cl) {
+    Geometry lin = cl.toLinear(0.5);
+    Coordinate[] pts = lin.getCoordinates();
+    Coordinate mid = pts[pts.length / 2];
+    Envelope env = new Envelope(mid);
+    env.expandBy(1.0);
+    return cl.getFactory().toGeometry(env);
+  }
+
+  private static Geometry extractWithWarns(Geometry g, Geometry aoi, final List warns,
+      boolean segments) {
+    CurveLinearizationStrategy.WarnSink prev =
+        null;
+    CurveLinearizationStrategy.setWarnSink(
+        new CurveLinearizationStrategy.WarnSink() {
+          public void warn(String message) {
+            warns.add(message);
+          }
+        });
+    try {
+      if (segments) {
+        return SegmentExtracter.extract(g, aoi);
+      }
+      return GeometryElementLocater.extractElements(g, aoi);
+    }
+    finally {
+      CurveLinearizationStrategy.setWarnSink(prev);
+    }
+  }
+
+  private static boolean containsReverseLog(List warns) {
+    for (int i = 0; i < warns.size(); i++) {
+      String m = String.valueOf(warns.get(i));
+      if (m.indexOf("reversed COMPOUNDCURVE") >= 0) {
+        return true;
+      }
+    }
+    return false;
   }
 }

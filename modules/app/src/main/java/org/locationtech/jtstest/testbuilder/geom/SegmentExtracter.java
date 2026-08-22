@@ -81,6 +81,12 @@ public class SegmentExtracter {
       }
       return;
     }
+    // Whole member inside the box: keep the original object so
+    // packCompoundCurveExtract can reassemble by identity.
+    if (aoi.contains(geom.getEnvelopeInternal())) {
+      parts.add(geom);
+      return;
+    }
     if (geom instanceof ClothoidSegment) {
       if (aoi.intersects(geom.getEnvelopeInternal())) {
         parts.add(geom);

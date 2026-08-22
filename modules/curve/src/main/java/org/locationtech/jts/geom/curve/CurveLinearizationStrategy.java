@@ -129,15 +129,25 @@ public enum CurveLinearizationStrategy {
       return;
     }
     String type = g.getGeometryType();
-    String msg = op + ": linearizing " + type
+    warn(op + ": linearizing " + type
         + " under CurveLinearizationStrategy." + current()
-        + " (explicit strategy; not a silent flatten)";
+        + " (explicit strategy; not a silent flatten)");
+  }
+
+  /**
+   * Host honesty log: JUL plus the TestBuilder Log-tab {@link WarnSink}.
+   * Used for non-silent curve decisions (densify, extract reverse, …).
+   */
+  public static void warn(String message) {
+    if (message == null || message.length() == 0) {
+      return;
+    }
     if (LOG.isLoggable(Level.WARNING)) {
-      LOG.warning(msg);
+      LOG.warning(message);
     }
     WarnSink sink = warnSink;
     if (sink != null) {
-      sink.warn(msg);
+      sink.warn(message);
     }
   }
 }

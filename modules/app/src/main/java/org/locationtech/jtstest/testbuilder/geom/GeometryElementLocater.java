@@ -27,6 +27,7 @@ import org.locationtech.jts.geom.curve.CircularArcDensifier;
 import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jts.geom.curve.CurveLinearizationStrategy;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 
 
@@ -216,9 +217,9 @@ public class GeometryElementLocater {
   /**
    * CLOTHOID is a non-leading CompoundCurve member. Boxing extracted
    * members as MULTICURVE writes a ClothoidSegment as its two-point
-   * chord. Reassemble consecutive hits as CompoundCurve, and if a
-   * clothoid is first in a run include the previous member for start
-   * pose.
+   * chord. Reassemble consecutive hits as CompoundCurve. If a run
+   * would start on a clothoid, reverse it (onto the following member
+   * when needed) so CLOTHOID stays non-leading, and log that reverse.
    */
   static Geometry packCompoundCurveExtract(CompoundCurve cc, List geoms) {
     if (cc == null || geoms == null || geoms.isEmpty()) {
@@ -237,11 +238,6 @@ public class GeometryElementLocater {
     if (!any) {
       return null;
     }
-    for (int i = 0; i < n; i++) {
-      if (hit[i] && cc.getMemberN(i) instanceof ClothoidSegment && i > 0) {
-        hit[i - 1] = true;
-      }
-    }
     List runs = new ArrayList();
     int i = 0;
     while (i < n) {
@@ -253,7 +249,22 @@ public class GeometryElementLocater {
       while (j + 1 < n && hit[j + 1]) {
         j++;
       }
-      int len = j - i + 1;
+      int end = j;
+      boolean reverse = false;
+      if (cc.getMemberN(i) instanceof ClothoidSegment) {
+        if (cc.getMemberN(j) instanceof ClothoidSegment
+            && j + 1 < n
+            && !(cc.getMemberN(j + 1) instanceof ClothoidSegment)) {
+          end = j + 1;
+        }
+        if (!(cc.getMemberN(end) instanceof ClothoidSegment)) {
+          reverse = true;
+        }
+        else if (i > 0) {
+          i = i - 1;
+        }
+      }
+      int len = end - i + 1;
       if (len == 1 && !(cc.getMemberN(i) instanceof ClothoidSegment)) {
         runs.add(cc.getMemberN(i));
       }
@@ -262,14 +273,25 @@ public class GeometryElementLocater {
         for (int k = 0; k < len; k++) {
           members[k] = cc.getMemberN(i + k);
         }
+        if (reverse) {
+          members = reverseMembers(members);
+          CurveLinearizationStrategy.warn(
+              "Extract: reversed COMPOUNDCURVE fragment so CLOTHOID is not a leading member "
+                  + "(CLOTHOID is a non-leading COMPOUNDCURVE member only)");
+        }
         try {
-          runs.add(cc.getFactory().createCompoundCurve(members));
+          if (members.length == 1) {
+            runs.add(members[0]);
+          }
+          else {
+            runs.add(cc.getFactory().createCompoundCurve(members));
+          }
         }
         catch (UnsupportedOperationException ex) {
           return null;
         }
       }
-      i = j + 1;
+      i = end + 1;
     }
     if (runs.isEmpty()) {
       return null;
@@ -278,6 +300,14 @@ public class GeometryElementLocater {
       return (Geometry) runs.get(0);
     }
     return cc.getFactory().buildGeometry(runs);
+  }
+
+  private static LineString[] reverseMembers(LineString[] members) {
+    LineString[] out = new LineString[members.length];
+    for (int k = 0; k < members.length; k++) {
+      out[k] = (LineString) members[members.length - 1 - k].reverse();
+    }
+    return out;
   }
 
   private static int indexOfMember(CompoundCurve cc, Object g) {
