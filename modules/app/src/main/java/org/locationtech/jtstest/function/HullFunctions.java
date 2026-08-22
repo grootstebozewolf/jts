@@ -14,6 +14,7 @@ package org.locationtech.jtstest.function;
 import org.locationtech.jts.algorithm.hull.ConcaveHull;
 import org.locationtech.jts.algorithm.hull.ConcaveHullOfPolygons;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.curve.Linearizable;
 import org.locationtech.jtstest.geomfunction.Metadata;
 
 public class HullFunctions {
@@ -87,6 +88,9 @@ public class HullFunctions {
   public static Geometry alphaShape(Geometry geom,
       @Metadata(title="Alpha (Radius)")
       double alpha) {
+    if (geom instanceof Linearizable) {
+      return geom.convexHull();
+    }
     return ConcaveHull.alphaShape(arcAware(geom), alpha, false);
   }
 

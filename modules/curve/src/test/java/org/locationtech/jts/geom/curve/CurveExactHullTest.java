@@ -133,6 +133,59 @@ public class CurveExactHullTest extends GeometryTestCase {
     assertTrue(hasCircularMember(exact));
   }
 
+  /**
+   * S-bowl digitisation is clockwise (north through east to south).
+   * The hull must still keep that exposed arc as a CircularString.
+   */
+  public void testCwRightSemicircleHullKeepsTheArc() throws Exception {
+    Geometry g = readCurve(
+        "MULTICURVE ((0 0, 0 70, 150 70, 150 17.5), "
+            + "CIRCULARSTRING (132.5 35, 150 17.5, 132.5 0), "
+            + "(132.5 0, 0 0))");
+    Geometry exact = CurveExact.convexHull(g);
+    assertNotNull("CW right cap has a closed form, got null", exact);
+    assertTrue("got " + exact.getGeometryType(), exact instanceof CurvePolygon);
+    assertTrue(hasCircularMember(exact));
+    assertFalse(exact.getClass() == Polygon.class);
+  }
+
+  private static final String LOGO_J =
+      "COMPOUNDCURVE ((0 70, 30 70, 30 25), "
+          + "CIRCULARSTRING (30 25, 22.67766952966369 7.322330470336311, 5 0), "
+          + "(5 0, 0 0))";
+  private static final String LOGO_S =
+      "COMPOUNDCURVE ((150 70, 132.5 70), "
+          + "CIRCULARSTRING (132.5 70, 115 52.5, 132.5 35), "
+          + "CIRCULARSTRING (132.5 35, 150 17.5, 132.5 0), "
+          + "(132.5 0, 115 0))";
+
+  public void testLogoJHullKeepsTheHook() throws Exception {
+    assertLaserHull(readCurve(LOGO_J));
+  }
+
+  public void testLogoSHullKeepsTheBowls() throws Exception {
+    assertLaserHull(readCurve(LOGO_S));
+  }
+
+  /**
+   * JTS wordmark mix: J quarter + T straights + S bowls. Interior T
+   * stem must not force the densify fallback.
+   */
+  public void testLogoLikeMultiCurveHullKeepsArcs() throws Exception {
+    assertLaserHull(readCurve(
+        "MULTICURVE (" + LOGO_J + ", (30 70, 127.5 70), (72.5 70, 72.5 0), "
+            + LOGO_S + ")"));
+  }
+
+  private void assertLaserHull(Geometry g) {
+    Geometry exact = CurveExact.convexHull(g);
+    assertNotNull("closed form, got null for " + g.getGeometryType(), exact);
+    assertTrue("got " + exact.getGeometryType() + " n=" + exact.getNumPoints(),
+        exact instanceof CurvePolygon);
+    assertTrue(hasCircularMember(exact));
+    assertFalse(exact.getClass() == Polygon.class);
+  }
+
   public void testStraightCompoundCurveFallsThrough() throws Exception {
     Geometry g = readCurve(STRAIGHT);
     assertNull("all-straight is a named null; core hull is exact",

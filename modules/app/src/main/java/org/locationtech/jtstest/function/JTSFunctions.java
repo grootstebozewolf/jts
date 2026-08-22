@@ -21,12 +21,11 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.LinearRing;
-import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
+import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.Linearizable;
 import org.locationtech.jts.operation.buffer.BufferOp;
 import org.locationtech.jts.operation.buffer.BufferParameters;
@@ -93,17 +92,6 @@ public class JTSFunctions
     return BufferOp.bufferOp(lines, distance, bufParams);
   }
 
-  /**
-   * Stamp on the clothoid-halo result: a named chord path, not EXACT
-   * and not a certified clothoid offset of the letter strokes.
-   */
-  public static final String CLOTHOID_HALO_STAMP_CHORD_PATH = "CHORD-PATH";
-
-  /**
-   * Stamp when the halo is returned as a polygonal band of those chords.
-   */
-  public static final String CLOTHOID_HALO_STAMP_NAMED_APPROX = "NAMED-APPROX";
-
   /** Offset from the {@link #logoLines} envelope to the inner halo edge. */
   static final double CLOTHOID_HALO_DEFAULT_DISTANCE = 12.0;
 
@@ -111,22 +99,12 @@ public class JTSFunctions
   static final double CLOTHOID_HALO_DEFAULT_BAND = 5.0;
 
   /**
-   * Positive chord tolerance used when linearising the clothoid frame.
-   * Never passed as a claim of EXACT; {@link ClothoidSegment#toLinear}
-   * is the named fallback, not a laser.
-   */
-  static final double CLOTHOID_HALO_CHORD_TOLERANCE = 0.35;
-
-  /**
    * Logo as curves plus a clothoid halo.
    * <p>
    * {@link #logoLines} stays a MultiCurve of CircularString / CompoundCurve
-   * (ISO/IEC 13249-3). This helper does not flatten those letters. A true
-   * clothoid offset of the strokes is not certified here. The halo is a
-   * decorative G² clothoid-fillet frame around the wordmark envelope,
-   * then linearised and stamped {@link #CLOTHOID_HALO_STAMP_NAMED_APPROX}
-   * or {@link #CLOTHOID_HALO_STAMP_CHORD_PATH}. Not {@link #logoBuffer}
-   * (that is the circular MKT-1 halo). Not a CIRCULARSTRING Qed.
+   * (ISO/IEC 13249-3). The halo is a G² clothoid-fillet frame around the
+   * wordmark envelope, returned as a {@link CurvePolygon} of CompoundCurve
+   * rings (LineString + ClothoidSegment). Not a densified LINESTRING.
    */
   @Metadata(description="logo as curves plus a clothoid halo.", curveAwareness="native")
   public static Geometry logoClothoid(Geometry g)
@@ -146,8 +124,7 @@ public class JTSFunctions
   /**
    * Clothoid-fillet halo around {@link #logoLines} at {@code distance}
    * from the wordmark envelope. Distance {@code <= 0} uses the default.
-   * Result is a LINESTRING or POLYGON of chords, stamped as a named
-   * linear fallback.
+   * Result is a {@link CurvePolygon} of clothoid-fillet CompoundCurves.
    */
   @Metadata(description="logo as curves plus a clothoid halo.")
   public static Geometry clothoidHalo(Geometry g,
@@ -163,10 +140,9 @@ public class JTSFunctions
   }
 
   /**
-   * Builds the clothoid-fillet frame, linearises at
-   * {@link #CLOTHOID_HALO_CHORD_TOLERANCE}, and stamps the result.
-   * Prefers a polygonal band (NAMED-APPROX); falls back to a closed
-   * chord path (CHORD-PATH) if the band is not a valid polygon.
+   * Builds the clothoid-fillet frame as CompoundCurves (straights +
+   * CLOTHOID corners). Returns a CurvePolygon band when both rings
+   * construct; otherwise the outer CompoundCurve. Does not toLinear.
    */
   static Geometry namedClothoidHalo(CurveGeometryFactory gf, Envelope logo,
       double distance, double band)
@@ -174,16 +150,19 @@ public class JTSFunctions
     if (band <= 0.0) {
       band = CLOTHOID_HALO_DEFAULT_BAND;
     }
-    LineString outer = linearizeFilletRect(gf, expand(logo, distance + band));
-    LineString inner = linearizeFilletRect(gf, expand(logo, distance));
-    Polygon bandPoly = polygonalHalo(gf, outer, inner);
-    if (bandPoly != null) {
-      bandPoly.setUserData(CLOTHOID_HALO_STAMP_NAMED_APPROX);
-      return bandPoly;
+    CompoundCurve outer = closedFillet(gf, expand(logo, distance + band));
+    CompoundCurve inner = closedFillet(gf, expand(logo, distance));
+    try {
+      CurvePolygon bandPoly = gf.createCurvePolygon(outer,
+          new LineString[] { inner.reverse() });
+      if (bandPoly != null && !bandPoly.isEmpty()) {
+        return bandPoly;
+      }
     }
-    LineString path = closePath(gf, outer);
-    path.setUserData(CLOTHOID_HALO_STAMP_CHORD_PATH);
-    return path;
+    catch (IllegalArgumentException ex) {
+      // Control-point LinearRing rejected; keep the clothoid frame.
+    }
+    return outer;
   }
 
   private static Envelope expand(Envelope env, double d)
@@ -192,16 +171,34 @@ public class JTSFunctions
         env.getMinY() - d, env.getMaxY() + d);
   }
 
-  private static LineString linearizeFilletRect(CurveGeometryFactory gf,
-      Envelope env)
+  private static CompoundCurve closedFillet(CurveGeometryFactory gf, Envelope env)
   {
-    LineString[] members = filletRectMembers(gf, env);
-    CompoundCurve frame = gf.createCompoundCurve(members);
-    Geometry linear = frame.toLinear(CLOTHOID_HALO_CHORD_TOLERANCE);
-    if (linear instanceof LineString) {
-      return (LineString) linear;
+    return closeCompoundRing(gf, filletRectMembers(gf, env));
+  }
+
+  /**
+   * {@link CurvePolygon} derives a {@link LinearRing} from control
+   * points, which requires first.equals2D(last). Clothoid integration
+   * leaves a sub-{@code 1e-8} gap that {@link #addStraight} would drop.
+   */
+  private static CompoundCurve closeCompoundRing(CurveGeometryFactory gf,
+      LineString[] members)
+  {
+    if (members == null || members.length == 0) {
+      return gf.createCompoundCurve(members);
     }
-    return gf.createLineString(linear.getCoordinates());
+    Coordinate first = new Coordinate(members[0].getCoordinateN(0));
+    LineString lastMember = members[members.length - 1];
+    Coordinate last = lastMember.getCoordinateN(lastMember.getNumPoints() - 1);
+    if (first.equals2D(last)) {
+      return gf.createCompoundCurve(members);
+    }
+    LineString[] closed = new LineString[members.length + 1];
+    System.arraycopy(members, 0, closed, 0, members.length);
+    closed[members.length] = gf.createLineString(new Coordinate[] {
+        new Coordinate(last), first
+    });
+    return gf.createCompoundCurve(closed);
   }
 
   /**
@@ -307,74 +304,6 @@ public class JTSFunctions
     }));
   }
 
-  private static Polygon polygonalHalo(GeometryFactory gf, LineString outer,
-      LineString inner)
-  {
-    LineString outerClosed = closePath(gf, outer);
-    LineString innerClosed = closePath(gf, inner);
-    if (outerClosed.getNumPoints() < 4 || innerClosed.getNumPoints() < 4) {
-      return null;
-    }
-    LinearRing shell = ring(gf, outerClosed.getCoordinates());
-    LinearRing hole = ring(gf, reverseRing(innerClosed.getCoordinates()));
-    if (shell == null || hole == null) {
-      return null;
-    }
-    Polygon poly = gf.createPolygon(shell, new LinearRing[] { hole });
-    if (!poly.isValid() || poly.getArea() <= 0.0) {
-      return null;
-    }
-    return poly;
-  }
-
-  private static LineString closePath(GeometryFactory gf, LineString path)
-  {
-    Coordinate[] pts = path.getCoordinates();
-    if (pts.length == 0) {
-      return gf.createLineString();
-    }
-    if (pts.length >= 2 && pts[0].equals2D(pts[pts.length - 1])) {
-      return gf.createLineString(copyCoords(pts));
-    }
-    Coordinate[] closed = new Coordinate[pts.length + 1];
-    for (int i = 0; i < pts.length; i++) {
-      closed[i] = new Coordinate(pts[i]);
-    }
-    closed[pts.length] = new Coordinate(pts[0]);
-    return gf.createLineString(closed);
-  }
-
-  private static LinearRing ring(GeometryFactory gf, Coordinate[] pts)
-  {
-    if (pts == null || pts.length < 4) {
-      return null;
-    }
-    try {
-      return gf.createLinearRing(copyCoords(pts));
-    }
-    catch (IllegalArgumentException ex) {
-      return null;
-    }
-  }
-
-  private static Coordinate[] reverseRing(Coordinate[] pts)
-  {
-    Coordinate[] rev = new Coordinate[pts.length];
-    for (int i = 0; i < pts.length; i++) {
-      rev[i] = new Coordinate(pts[pts.length - 1 - i]);
-    }
-    return rev;
-  }
-
-  private static Coordinate[] copyCoords(Coordinate[] pts)
-  {
-    Coordinate[] copy = new Coordinate[pts.length];
-    for (int i = 0; i < pts.length; i++) {
-      copy[i] = new Coordinate(pts[i]);
-    }
-    return copy;
-  }
-  
   private static CompoundCurve create_J(CurveGeometryFactory gf)
   {
     LineString stem = gf.createLineString(new Coordinate[] {
