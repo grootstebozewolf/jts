@@ -155,6 +155,10 @@ public class GeometryEditor
       return operation.edit(geometry, factory);
     }
 
+    if (isCompoundCurve(geometry)) {
+      return editCompoundCurve(geometry, operation);
+    }
+
     if (geometry instanceof LineString) {
       return operation.edit(geometry, factory);
     }
@@ -239,13 +243,106 @@ public class GeometryEditor
         && "CircularString".equals(geometry.getGeometryType());
   }
 
+  /**
+   * {@code CompoundCurve} is also a {@link LineString} subclass. Editing the
+   * concatenated control polyline and {@code createLineString} drops members.
+   */
+  private static boolean isCompoundCurve(Geometry geometry) {
+    return geometry != null
+        && "CompoundCurve".equals(geometry.getGeometryType());
+  }
+
+  /**
+   * {@code ClothoidSegment} is a {@link LineString} of start+end only.
+   * {@code createLineString} drops κ₀, κ₁, L.
+   */
+  private static boolean isClothoidSegment(Geometry geometry) {
+    return geometry != null
+        && "ClothoidSegment".equals(geometry.getGeometryType());
+  }
+
+  /**
+   * Edit each CompoundCurve member, then rebuild via
+   * {@link GeometryFactory#createCompoundCurve(LineString[])}.
+   */
+  private Geometry editCompoundCurve(Geometry geometry,
+      GeometryEditorOperation operation) {
+    LineString[] members = compoundCurveMembers(geometry);
+    if (members == null) {
+      return operation.edit(geometry, factory);
+    }
+    LineString[] edited = new LineString[members.length];
+    for (int i = 0; i < members.length; i++) {
+      Geometry g = editInternal(members[i], operation);
+      if (g == null || !(g instanceof LineString)) {
+        return operation.edit(geometry, factory);
+      }
+      edited[i] = (LineString) g;
+    }
+    return factory.createCompoundCurve(edited);
+  }
+
+  private static LineString[] compoundCurveMembers(Geometry geometry) {
+    try {
+      Object m = geometry.getClass().getMethod("getMembers").invoke(geometry);
+      if (m instanceof LineString[]) {
+        return (LineString[]) m;
+      }
+    }
+    catch (ReflectiveOperationException ex) {
+      return null;
+    }
+    return null;
+  }
+
   private static Geometry rebuildLineal(Geometry geometry, GeometryFactory factory,
       Coordinate[] coordinates) {
     if (isCircularString(geometry)) {
       return factory.createCircularString(
           factory.getCoordinateSequenceFactory().create(coordinates));
     }
+    if (isClothoidSegment(geometry)) {
+      return rebuildClothoid(geometry, factory, coordinates);
+    }
     return factory.createLineString(coordinates);
+  }
+
+  /**
+   * Re-anchor a clothoid at the edited start (or translate if only the
+   * end moved). κ₀, κ₁, L and start tangent stay; the integrated end
+   * follows.
+   */
+  private static Geometry rebuildClothoid(Geometry geometry, GeometryFactory factory,
+      Coordinate[] coordinates) {
+    if (coordinates == null || coordinates.length == 0) {
+      return factory.createLineString(coordinates);
+    }
+    try {
+      Coordinate oldStart = (Coordinate) geometry.getClass()
+          .getMethod("getStartCoordinate").invoke(geometry);
+      Coordinate oldEnd = (Coordinate) geometry.getClass()
+          .getMethod("getEndCoordinate").invoke(geometry);
+      double tangent = ((Double) geometry.getClass().getMethod("getStartTangent")
+          .invoke(geometry)).doubleValue();
+      double k0 = ((Double) geometry.getClass().getMethod("getStartKappa")
+          .invoke(geometry)).doubleValue();
+      double k1 = ((Double) geometry.getClass().getMethod("getEndKappa")
+          .invoke(geometry)).doubleValue();
+      double len = ((Double) geometry.getClass().getMethod("getLength")
+          .invoke(geometry)).doubleValue();
+      Coordinate newStart = coordinates[0];
+      Coordinate newEnd = coordinates[coordinates.length - 1];
+      if (oldStart != null && newStart.equals2D(oldStart)
+          && oldEnd != null && newEnd != null && !newEnd.equals2D(oldEnd)) {
+        newStart = new Coordinate(
+            oldStart.x + (newEnd.x - oldEnd.x),
+            oldStart.y + (newEnd.y - oldEnd.y));
+      }
+      return factory.createClothoid(newStart, tangent, k0, k1, len);
+    }
+    catch (Exception ex) {
+      return factory.createLineString(coordinates);
+    }
   }
 
   /**
@@ -357,6 +454,9 @@ public class GeometryEditor
             geometry);
         if (isCircularString(geometry)) {
           return factory.createCircularString(seq);
+        }
+        if (isClothoidSegment(geometry)) {
+          return rebuildClothoid(geometry, factory, seq.toCoordinateArray());
         }
         return factory.createLineString(seq);
       }
