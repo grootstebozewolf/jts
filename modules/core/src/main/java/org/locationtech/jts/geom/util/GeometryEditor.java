@@ -230,6 +230,25 @@ public class GeometryEditor
   }
 
   /**
+   * {@code CircularString} is a {@link LineString} subclass. Rebuilding via
+   * {@link GeometryFactory#createLineString} silently flattens it to a
+   * polyline. Detect by type name so core does not depend on jts-curve.
+   */
+  private static boolean isCircularString(Geometry geometry) {
+    return geometry != null
+        && "CircularString".equals(geometry.getGeometryType());
+  }
+
+  private static Geometry rebuildLineal(Geometry geometry, GeometryFactory factory,
+      Coordinate[] coordinates) {
+    if (isCircularString(geometry)) {
+      return factory.createCircularString(
+          factory.getCoordinateSequenceFactory().create(coordinates));
+    }
+    return factory.createLineString(coordinates);
+  }
+
+  /**
    * A interface which specifies an edit operation for Geometries.
    *
    * @version 1.7
@@ -286,8 +305,9 @@ public class GeometryEditor
       }
 
       if (geometry instanceof LineString) {
-        return factory.createLineString(edit(geometry.getCoordinates(),
-            geometry));
+        Coordinate[] newCoordinates = edit(geometry.getCoordinates(),
+            geometry);
+        return rebuildLineal(geometry, factory, newCoordinates);
       }
 
       if (geometry instanceof Point) {
@@ -332,9 +352,13 @@ public class GeometryEditor
       }
 
       if (geometry instanceof LineString) {
-        return factory.createLineString(edit(
+        CoordinateSequence seq = edit(
             ((LineString)geometry).getCoordinateSequence(),
-            geometry));
+            geometry);
+        if (isCircularString(geometry)) {
+          return factory.createCircularString(seq);
+        }
+        return factory.createLineString(seq);
       }
 
       if (geometry instanceof Point) {
