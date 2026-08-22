@@ -90,6 +90,11 @@ extends IndicatorTool
   public void mouseClicked(MouseEvent e) {
     if (! SwingUtilities.isRightMouseButton(e))
       return;
+
+    clearIndicator();
+    selectedVertexLocation = null;
+    currentVertexLoc = null;
+    adjVertices = null;
     
     Coordinate mousePtModel = toModelCoordinate(e.getPoint());
     double tolModel = getModelSnapTolerance();
