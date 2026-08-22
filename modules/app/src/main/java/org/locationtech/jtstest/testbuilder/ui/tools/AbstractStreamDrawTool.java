@@ -30,14 +30,25 @@ public abstract class AbstractStreamDrawTool extends LineBandTool {
 
 	protected abstract int getGeometryType();
 
+  /**
+   * LineString (and stream polygon) tools add vertices while BUTTON1 is
+   * down. CircularString / CompoundCurve / CurvePolygon are
+   * click-to-control: a drag after the second click must not insert a
+   * ghost that completes a stub arc and turns the real third click into
+   * a leftover chord.
+   */
+  boolean isStreamAddOnDrag() {
+    return true;
+  }
+
   protected void mouseLocationChanged(MouseEvent e) {
     try {
-      if ((e.getModifiersEx() & InputEvent.BUTTON1_DOWN_MASK) 
-          == InputEvent.BUTTON1_DOWN_MASK) {
+      if (isStreamAddOnDrag()
+          && (e.getModifiersEx() & InputEvent.BUTTON1_DOWN_MASK)
+              == InputEvent.BUTTON1_DOWN_MASK) {
         Coordinate newCoord = toModelCoordinate(e.getPoint());
         if (newCoord.distance(lastCoordinate()) < gridSize())
           return;
-        //add(toModelSnapped(e.getPoint()));
         add(newCoord);
       }
 
