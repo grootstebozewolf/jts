@@ -152,13 +152,14 @@ public class GeometryCombiner
 
   /**
    * Builds a hole-free {@link CurvePolygon} from joining closed pieces.
-   * One valid closed piece becomes a {@link CircularString} shell;
-   * two or more become a {@link CompoundCurve} shell. Unclosed or
-   * degenerate input aborts.
+   * One valid closed CircularString piece becomes a {@link CircularString}
+   * shell; two or more pieces (CircularString and/or 2-point LineString)
+   * become a {@link CompoundCurve} shell. Unclosed or degenerate input
+   * aborts.
    */
   public Geometry addCurvePolygon(Geometry orig, Coordinate[][] pieces)
   {
-    LineString[] members = circularStringMembers(pieces);
+    LineString[] members = curveShellMembers(pieces);
     if (members == null) {
       return orig;
     }
@@ -327,6 +328,34 @@ public class GeometryCombiner
         return null;
       }
       members[i] = circularString(pieces[i]);
+    }
+    return members;
+  }
+
+  /**
+   * Shell members for a CurvePolygon: odd-count CircularString pieces
+   * and 2-point LineString pieces. Adjacent pieces must join.
+   */
+  private LineString[] curveShellMembers(Coordinate[][] pieces)
+  {
+    if (pieces == null || pieces.length == 0) {
+      return null;
+    }
+    LineString[] members = new LineString[pieces.length];
+    for (int i = 0; i < pieces.length; i++) {
+      Coordinate[] pts = pieces[i];
+      if (pts != null && pts.length == 2) {
+        members[i] = geomFactory.createLineString(pts);
+      }
+      else if (isValidCircularControl(pts)) {
+        members[i] = circularString(pts);
+      }
+      else {
+        return null;
+      }
+      if (i > 0 && !joins(pieces[i - 1], pts)) {
+        return null;
+      }
     }
     return members;
   }
