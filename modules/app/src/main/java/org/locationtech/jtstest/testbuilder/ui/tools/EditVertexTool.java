@@ -19,9 +19,13 @@ import java.awt.geom.Point2D;
 import javax.swing.SwingUtilities;
 
 import org.locationtech.jts.awt.GeometryCollectionShape;
+import org.locationtech.jts.awt.PointTransformation;
+import org.locationtech.jts.awt.curve.CurveShapeWriter;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jtstest.testbuilder.AppCursors;
 import org.locationtech.jtstest.testbuilder.geom.GeometryLocation;
+import org.locationtech.jtstest.testbuilder.geom.GeometryVertexMover;
 
 
 /**
@@ -112,6 +116,11 @@ extends IndicatorTool
   	GeometryCollectionShape ind = new GeometryCollectionShape();
   	Point2D currentIndicatorLoc = toView(currentVertexLoc);
   	ind.add(getIndicatorCircle(currentIndicatorLoc));
+    Shape curvePreview = circularStringPreviewShape();
+    if (curvePreview != null) {
+      ind.add(curvePreview);
+      return ind;
+    }
   	if (adjVertices != null) {
   		for (int i = 0; i < adjVertices.length; i++) {
   	    GeneralPath line = new GeneralPath();
@@ -122,8 +131,28 @@ extends IndicatorTool
   		}
   	}
   	return ind;
-  	
-//    return getIndicatorCircle(currentIndicatorLoc);
+  }
+
+  /**
+   * Rubber-band the whole CircularString as arcs (not chords to adjacent
+   * controls). Same move as {@link #mouseReleased}.
+   */
+  private Shape circularStringPreviewShape() {
+    if (selectedVertexLocation == null || currentVertexLoc == null) {
+      return null;
+    }
+    Geometry g = geomModel().getGeometry();
+    if (g == null || !"CircularString".equals(g.getGeometryType())) {
+      return null;
+    }
+    Geometry preview = GeometryVertexMover.move(g, selectedVertexLocation, currentVertexLoc);
+    CurveShapeWriter writer = new CurveShapeWriter(new PointTransformation() {
+      public void transform(Coordinate src, Point2D dest) {
+        Point2D view = toView(src);
+        dest.setLocation(view.getX(), view.getY());
+      }
+    });
+    return writer.toShape(preview);
   }
 
   private static final double IND_CIRCLE_RADIUS = 10.0;
