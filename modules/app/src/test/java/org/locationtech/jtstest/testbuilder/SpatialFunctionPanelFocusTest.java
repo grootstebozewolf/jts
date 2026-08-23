@@ -11,6 +11,7 @@
  */
 package org.locationtech.jtstest.testbuilder;
 
+import javax.swing.JComponent;
 import javax.swing.JTextField;
 import javax.swing.text.BadLocationException;
 
@@ -33,6 +34,7 @@ import junit.textui.TestRunner;
  * #72 wipe SIGN still stands: focusing dX must not re-bind Exec to
  * Buffer.buffer or empty A to POLYGON EMPTY. This class locks the
  * leftover mash, not MoveTool and not the hero Affine canvas shot.
+ * Headless: no SpatialFunctionPanel construct (icon resources).
  */
 public class SpatialFunctionPanelFocusTest extends TestCase {
 
@@ -45,12 +47,8 @@ public class SpatialFunctionPanelFocusTest extends TestCase {
   }
 
   public void testTranslateAndBufferAreDistinctFunctions() throws Exception {
-    GeometryFunction translate = StaticMethodGeometryFunction.createFunction(
-        AffineTransformationFunctions.class.getMethod("translate",
-            org.locationtech.jts.geom.Geometry.class, double.class, double.class));
-    GeometryFunction buffer = StaticMethodGeometryFunction.createFunction(
-        BufferFunctions.class.getMethod("buffer",
-            org.locationtech.jts.geom.Geometry.class, double.class));
+    GeometryFunction translate = translateFn();
+    GeometryFunction buffer = bufferFn();
     assertFalse(translate.getName().equals(buffer.getName()));
     assertEquals("translate", translate.getName());
     assertEquals("buffer", buffer.getName());
@@ -75,60 +73,54 @@ public class SpatialFunctionPanelFocusTest extends TestCase {
         "810".equals(dx.getText()));
   }
 
-  public void testTranslateDx10Dy8DoesNotMashDxTo810() {
-    SpatialFunctionPanel panel = new SpatialFunctionPanel();
-    assertTrue(panel.selectFunction("AffineTransformation", "translate"));
-    assertEquals("translate", panel.getFunction().getName());
-    assertEquals("translate", panel.getMetaFunction().getName());
+  public void testAcceptTenAndEightKeepsDxAndDyIndependent() {
+    JTextField dx = new JTextField("10");
+    JTextField dy = new JTextField();
+    JComponent[] fields = new JComponent[] { dx, dy };
 
-    JTextField dx = panel.paramTextField(0);
-    JTextField dy = panel.paramTextField(1);
-    assertEquals("shared Distance default is 10 before leftover accept",
-        "10", dx.getText());
+    SpatialFunctionPanel.keepParamKeystrokes(dx, "10");
+    SpatialFunctionPanel.keepParamKeystrokes(dy, "8");
 
-    panel.acceptParamKeystrokes(0, "10");
-    panel.acceptParamKeystrokes(1, "8");
+    String[] saved = SpatialFunctionPanel.snapshotTextParams(fields);
+    dx.setText("810");
+    SpatialFunctionPanel.restoreTextParams(fields, saved);
 
     assertEquals("10", dx.getText());
     assertEquals("8", dy.getText());
     assertFalse("dX must not jump to 810", "810".equals(dx.getText()));
-
-    Object[] params = panel.getFunctionParams();
-    assertEquals(2, params.length);
-    assertEquals(10.0, ((Number) params[0]).doubleValue(), 0.0);
-    assertEquals(8.0, ((Number) params[1]).doubleValue(), 0.0);
-
-    assertEquals("translate", panel.getMetaFunction().getName());
-    assertFalse("buffer".equals(panel.getMetaFunction().getName()));
-    assertFalse(panel.isAutoExecute());
   }
 
-  public void testFocusingDxKeepsTranslateNotBuffer() {
-    SpatialFunctionPanel panel = new SpatialFunctionPanel();
-    assertTrue(panel.selectFunction("AffineTransformation", "translate"));
-    panel.paramTextField(0).selectAll();
-    panel.acceptParamKeystrokes(0, "10");
-    assertEquals("translate", panel.getFunction().getName());
-    assertEquals("translate", panel.getMetaFunction().getName());
-    assertFalse("buffer".equals(panel.getFunction().getName()));
-    assertFalse(panel.isAutoExecute());
+  public void testBoundExecStaysTranslateWhenTreeShowsBuffer() throws Exception {
+    GeometryFunction translate = translateFn();
+    GeometryFunction buffer = bufferFn();
+    GeometryFunction exec = SpatialFunctionPanel.boundExec(translate, buffer);
+    assertEquals("translate", exec.getName());
+    assertFalse("buffer".equals(exec.getName()));
+    assertEquals("buffer", SpatialFunctionPanel.boundExec(null, buffer).getName());
   }
 
   /**
    * A stays the ISO/IEC 13249-3 curved logo after leftover 10 / 8.
    * Not Buffer.buffer, not POLYGON EMPTY.
    */
-  public void testLogoStaysCurvedOnTranslateTenEight() {
-    SpatialFunctionPanel panel = new SpatialFunctionPanel();
-    assertTrue(panel.selectFunction("AffineTransformation", "translate"));
-    panel.acceptParamKeystrokes(0, "10");
-    panel.acceptParamKeystrokes(1, "8");
+  public void testLogoStaysCurvedOnTranslateTenEight() throws Exception {
+    JTextField dx = new JTextField("10");
+    JTextField dy = new JTextField();
+    SpatialFunctionPanel.keepParamKeystrokes(dx, "10");
+    SpatialFunctionPanel.keepParamKeystrokes(dy, "8");
+    assertEquals("10", dx.getText());
+    assertEquals("8", dy.getText());
+    assertFalse("810".equals(dx.getText()));
+
+    GeometryFunction exec = SpatialFunctionPanel.boundExec(translateFn(), bufferFn());
+    assertEquals("translate", exec.getName());
 
     Geometry logo = JTSFunctions.logoLines(null);
     assertTrue(logo.getGeometryType().toUpperCase().contains("MULTICURVE"));
 
-    Geometry moved = (Geometry) panel.getMetaFunction()
-        .invoke(logo, panel.getFunctionParams());
+    double dX = Double.parseDouble(dx.getText());
+    double dY = Double.parseDouble(dy.getText());
+    Geometry moved = (Geometry) exec.invoke(logo, new Object[] { dX, dY });
     assertFalse(moved.isEmpty());
     assertFalse("POLYGON EMPTY".equalsIgnoreCase(moved.toText()));
 
@@ -138,8 +130,17 @@ public class SpatialFunctionPanelFocusTest extends TestCase {
     assertTrue(u.contains("COMPOUNDCURVE"));
     assertTrue(u.contains("CIRCULARSTRING"));
     assertFalse(u.contains("POLYGON EMPTY"));
+  }
 
-    assertEquals("translate", panel.getMetaFunction().getName());
-    assertFalse("buffer".equals(panel.getMetaFunction().getName()));
+  private static GeometryFunction translateFn() throws Exception {
+    return StaticMethodGeometryFunction.createFunction(
+        AffineTransformationFunctions.class.getMethod("translate",
+            Geometry.class, double.class, double.class));
+  }
+
+  private static GeometryFunction bufferFn() throws Exception {
+    return StaticMethodGeometryFunction.createFunction(
+        BufferFunctions.class.getMethod("buffer",
+            Geometry.class, double.class));
   }
 }

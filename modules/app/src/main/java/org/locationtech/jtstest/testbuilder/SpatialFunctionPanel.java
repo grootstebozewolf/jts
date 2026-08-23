@@ -345,10 +345,7 @@ extends JPanel implements FunctionPanel
     // tree's live selection. Clicking a param field must not re-bind
     // Exec to a different tree node (TB-FN #60: dX focus must not
     // silently run Buffer.buffer).
-    GeometryFunction funToRun = currentFunc;
-    if (funToRun == null) {
-      funToRun = geomFuncPanel.getFunction();
-    }
+    GeometryFunction funToRun = boundExec(currentFunc, geomFuncPanel.getFunction());
     if (! isMetaFunctionEnabled()) return funToRun;
     
     if (isFunctionRepeated()) {
@@ -460,29 +457,48 @@ extends JPanel implements FunctionPanel
     field.setText(typed == null ? "" : typed);
   }
 
-  private void recallParameter(GeometryFunction func) {
-    String[] vals = funcParamMap.get(func);
+  /**
+   * Wipe SIGN: Exec stays on the selected function when a param field
+   * is focused. Tree selection is used only when nothing is bound.
+   */
+  static GeometryFunction boundExec(GeometryFunction currentFunc,
+      GeometryFunction treeSelection) {
+    if (currentFunc != null) {
+      return currentFunc;
+    }
+    return treeSelection;
+  }
+
+  static String[] snapshotTextParams(JComponent[] comps) {
+    String[] vals = new String[comps.length];
+    for (int i = 0; i < comps.length; i++) {
+      if (comps[i] instanceof JTextField) {
+        vals[i] = SwingUtil.value((JTextField) comps[i]);
+      }
+    }
+    return vals;
+  }
+
+  static void restoreTextParams(JComponent[] comps, String[] vals) {
     if (vals == null) {
       return;
     }
-    for (int i = 0; i < vals.length && i < paramComp.length; i++) {
-      if (vals[i] != null && paramComp[i] instanceof JTextField) {
-        ((JTextField) paramComp[i]).setText(vals[i]);
+    for (int i = 0; i < vals.length && i < comps.length; i++) {
+      if (vals[i] != null && comps[i] instanceof JTextField) {
+        ((JTextField) comps[i]).setText(vals[i]);
       }
     }
+  }
+
+  private void recallParameter(GeometryFunction func) {
+    restoreTextParams(paramComp, funcParamMap.get(func));
   }
   
   private void saveParameter(GeometryFunction func) {
     if (func == null) {
       return;
     }
-    String[] vals = new String[paramComp.length];
-    for (int i = 0; i < paramComp.length; i++) {
-      if (paramComp[i] instanceof JTextField) {
-        vals[i] = SwingUtil.value((JTextField) paramComp[i]);
-      }
-    }
-    funcParamMap.put(func, vals);
+    funcParamMap.put(func, snapshotTextParams(paramComp));
   }
 
   boolean selectFunction(String category, String name) {
