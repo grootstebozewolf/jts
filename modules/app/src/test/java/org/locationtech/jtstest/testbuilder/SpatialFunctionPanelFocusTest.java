@@ -103,7 +103,7 @@ public class SpatialFunctionPanelFocusTest extends TestCase {
    * A stays the ISO/IEC 13249-3 curved logo after leftover 10 / 8.
    * Not Buffer.buffer, not POLYGON EMPTY.
    */
-  public void testLogoStaysCurvedOnTranslateTenEight() throws Exception {
+  public void testLogoKeepsIso13249CurveTypesOnTranslateTenEight() throws Exception {
     JTextField dx = new JTextField("10");
     JTextField dy = new JTextField();
     SpatialFunctionPanel.keepParamKeystrokes(dx, "10");
