@@ -11,6 +11,7 @@
  */
 package org.locationtech.jtstest.testbuilder.ui.tools;
 
+import java.awt.Color;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,8 @@ import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.Triangle;
 import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.io.curve.CurveWKTWriter;
+import org.locationtech.jtstest.testbuilder.AppColors;
+import org.locationtech.jtstest.testbuilder.AppConstants;
 import org.locationtech.jtstest.testbuilder.model.GeometryEditModel;
 import org.locationtech.jtstest.testbuilder.model.GeometryType;
 import org.locationtech.jtstest.testbuilder.model.TestCaseEdit;
@@ -64,6 +67,34 @@ public class CircularStringToolLeftoverDoorsTest extends TestCase {
 
   public static void main(String[] args) {
     TestRunner.run(CircularStringToolLeftoverDoorsTest.class);
+  }
+
+  /**
+   * TB-CSE leftover on {@code 0437beda}: Escape XOR-erased the
+   * A-blue leftover overlay with unique-circle red after pending
+   * Start was dropped. A-blue XOR red XOR white is static green on
+   * empty A. Overlay is not gone. Erase must use the drawn color.
+   * Do not retip Style A. Do not take TB-CS3 (preview stays BAND).
+   */
+  public void testEscapeXorEraseMatchesDrawnColorSoOverlayIsGone() {
+    Color drawn = CircularStringTool.styleAPreviewColor();
+    Color liveAfterCancel = AppConstants.BAND_CLR;
+    assertEquals(AppColors.GEOM_A, drawn);
+    assertFalse("post-cancel live color is unique-circle red, not A-blue",
+        drawn.equals(liveAfterCancel));
+    assertEquals("wrong erase color leaves static green residue",
+        Color.GREEN, xorWhite(drawn, liveAfterCancel));
+    assertEquals("matching erase restores empty-A white; overlay gone",
+        Color.WHITE, xorWhite(drawn, drawn));
+
+    Color erase = IndicatorTool.xorEraseColor(drawn, liveAfterCancel);
+    assertEquals(drawn, erase);
+    assertEquals(Color.WHITE, xorWhite(drawn, erase));
+    assertTrue(CircularStringTool.escapeClearsOverlayBeforeCancel());
+    assertTrue(CircularStringTool.escapeLeavesOverlayGone());
+    assertEquals("TB-CS3 leftover HOLD: unique-circle preview stays BAND red",
+        AppConstants.BAND_CLR,
+        IndicatorTool.xorEraseColor(AppConstants.BAND_CLR, AppConstants.BAND_CLR));
   }
 
   /**
@@ -200,6 +231,19 @@ public class CircularStringToolLeftoverDoorsTest extends TestCase {
     List<Coordinate> dropped = CircularStringTool.controlsForCommit(leftover);
     assertEquals(3, dropped.size());
     assertTrue(CircularStringTool.isValidCircularStringCount(dropped.size()));
+  }
+
+  /**
+   * Java2D XORMode(white): paint C over dest D is C XOR D XOR white.
+   * Empty A is white. Draw leftover with {@code drawn}, erase with
+   * {@code erase}. Matching colors restore white; A-blue then red
+   * leaves green residue.
+   */
+  private static Color xorWhite(Color drawn, Color erase) {
+    int d = drawn.getRGB() & 0x00ffffff;
+    int e = erase.getRGB() & 0x00ffffff;
+    int w = Color.WHITE.getRGB() & 0x00ffffff;
+    return new Color(d ^ e ^ w);
   }
 
   private static String wkt(Geometry g) {

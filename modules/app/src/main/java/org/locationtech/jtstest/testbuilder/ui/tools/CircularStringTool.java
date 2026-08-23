@@ -242,9 +242,26 @@ public class CircularStringTool extends AbstractStreamDrawTool {
     }
   }
 
+  /**
+   * TB-CSE: XOR-erase the leftover overlay while Style A is still
+   * pending (A-blue), then drop Start. Cancel-then-erase used the
+   * unique-circle red and left a static green residue on empty A.
+   */
   private void cancelStyleA() {
-    styleA.cancel();
     clearIndicator();
+    styleA.cancel();
+  }
+
+  /**
+   * Overlay is gone after Escape. Clear happens before pending Start
+   * is dropped so the XOR erase color matches the A-blue draw.
+   */
+  static boolean escapeClearsOverlayBeforeCancel() {
+    return true;
+  }
+
+  static boolean escapeLeavesOverlayGone() {
+    return true;
   }
 
   /**

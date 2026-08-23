@@ -35,6 +35,7 @@ public abstract class IndicatorTool extends BasicTool
   private Point lastLabelLoc = null;
 
   private boolean isIndicatorVisible = false;
+  private Color lastDrawnColor;
   private Color originalColor;
   private Stroke originalStroke;
   private Font originalFont;
@@ -89,7 +90,7 @@ public abstract class IndicatorTool extends BasicTool
     if (!isIndicatorVisible) {
       return;
     }
-    drawShapeXOR(graphics, lastShapeDrawn, lastLabelDrawn, lastLabelLoc);
+    drawShapeXOR(graphics, lastShapeDrawn, lastLabelDrawn, lastLabelLoc, true);
     setIndicatorVisible(false);
   }
 
@@ -102,14 +103,17 @@ public abstract class IndicatorTool extends BasicTool
   private void drawShapeXOR(Graphics2D g) throws Exception {
     Shape newShape = getShape();
     String label = getLabel();
-    drawShapeXOR(g, newShape, label, mousePoint);
+    Color drawn = indicatorColor();
+    drawShapeXOR(g, newShape, label, mousePoint, false);
     lastShapeDrawn = newShape;
     lastLabelDrawn = label;
     lastLabelLoc = mousePoint;
+    lastDrawnColor = drawn;
   }
 
-  private void drawShapeXOR(Graphics2D graphics, Shape shape, String label, Point labelLoc) {
-    setup(graphics);
+  private void drawShapeXOR(Graphics2D graphics, Shape shape, String label,
+      Point labelLoc, boolean erase) {
+    setup(graphics, erase);
     try {
       if (shape != null) {
         graphics.draw(shape);
@@ -125,13 +129,30 @@ public abstract class IndicatorTool extends BasicTool
     }
   }
 
-  private void setup(Graphics2D graphics) {
+  private void setup(Graphics2D graphics, boolean erase) {
     originalColor = graphics.getColor();
     originalStroke = graphics.getStroke();
     originalFont = graphics.getFont();
     graphics.setFont(new Font(FontGlyphReader.FONT_SANSSERIF, Font.PLAIN, 14));
-    graphics.setColor(indicatorColor());
+    graphics.setColor(xorPaintColor(erase));
     graphics.setXORMode(Color.white);
+  }
+
+  private Color xorPaintColor(boolean erase) {
+    if (erase) {
+      return xorEraseColor(lastDrawnColor, indicatorColor());
+    }
+    return indicatorColor();
+  }
+
+  /**
+   * XOR erase must use the color the overlay was drawn with. A live
+   * color change (Style A pending dropped, then BAND red) leaves a
+   * static residue — A-blue XOR red XOR white is green on empty A.
+   * TB-CSE leftover. Unique-circle stays {@link AppConstants#BAND_CLR}.
+   */
+  static Color xorEraseColor(Color drawnWith, Color currentLive) {
+    return drawnWith != null ? drawnWith : currentLive;
   }
 
   /**
