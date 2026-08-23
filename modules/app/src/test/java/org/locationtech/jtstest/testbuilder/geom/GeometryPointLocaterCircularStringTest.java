@@ -81,12 +81,14 @@ public class GeometryPointLocaterCircularStringTest extends TestCase {
     GeometryLocation loc = GeometryPointLocater.locateNonVertexPoint(g, onArc, TOL);
     assertNotNull(loc);
 
-    Geometry result = loc.insert();
+    assertSame("first click must not write A (#82)", g, loc.insert());
+    Coordinate second = new Coordinate(1.2, -0.4);
+    Geometry result = loc.insertPair(second);
     String wkt = write(result);
     assertTrue("must stay CircularString, got " + result.getClass().getName()
         + " " + wkt, result instanceof CircularString);
     assertFalse(result.getClass().equals(LineString.class));
-    assertEquals("arc split is net +2 (3 → 5), got " + result.getNumPoints()
+    assertEquals("two-click commit is net +2 (3 → 5), got " + result.getNumPoints()
         + " " + wkt, 5, result.getNumPoints());
     assertEquals(1, result.getNumPoints() % 2);
     assertNotNull(read(wkt));
@@ -98,7 +100,8 @@ public class GeometryPointLocaterCircularStringTest extends TestCase {
     GeometryLocation loc = GeometryPointLocater.locateNonVertexPoint(g, onArc, TOL);
     assertNotNull("GC of CIRCULARSTRING must hit the arc, missed " + onArc, loc);
 
-    Geometry result = loc.insert();
+    assertSame("first click must not write A (#82)", g, loc.insert());
+    Geometry result = loc.insertPair(new Coordinate(1.2, -0.4));
     assertTrue(result instanceof GeometryCollection);
     Geometry child = result.getGeometryN(0);
     assertTrue(child instanceof CircularString);

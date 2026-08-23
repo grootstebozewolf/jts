@@ -15,6 +15,7 @@ package org.locationtech.jtstest.testbuilder.geom;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.io.WKTWriter;
 
 /**
@@ -104,9 +105,36 @@ public class GeometryLocation
    *  to {@code index + 1}). */
   public int getIndex() { return index; }
   
+  /**
+   * One-click LineString insert. A CircularString first click must not
+   * write — ISO/IEC 13249-3 odd &ge; 3 WKT tokens. Returns {@code parent}
+   * unchanged for a CircularString component.
+   */
   public Geometry insert()
   {
+    if (component instanceof CircularString) {
+      return parent;
+    }
     return GeometryVertexInserter.insert(parent, (LineString) component, index, pt);
+  }
+
+  /**
+   * Second click of the CircularString pair. Commits the first-click
+   * location and {@code second} (+2). Returns {@code null} when the
+   * pair must not be written (not a CircularString, coincident
+   * consecutive, or even result).
+   */
+  public Geometry insertPair(Coordinate second)
+  {
+    if (!(component instanceof CircularString)) {
+      return null;
+    }
+    return GeometryVertexInserter.insertPair(parent, (LineString) component, index, pt, second);
+  }
+
+  public boolean isCircularStringComponent()
+  {
+    return component instanceof CircularString;
   }
   
   public Geometry delete()

@@ -12,6 +12,7 @@
 package org.locationtech.jtstest.testbuilder.ui.tools;
 
 import java.awt.Shape;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
@@ -28,6 +29,7 @@ import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jtstest.testbuilder.AppCursors;
+import org.locationtech.jtstest.testbuilder.GeometryEditPanel;
 import org.locationtech.jtstest.testbuilder.geom.GeometryLocation;
 import org.locationtech.jtstest.testbuilder.geom.GeometryVertexMover;
 
@@ -46,6 +48,9 @@ extends IndicatorTool
   private Coordinate selectedVertexLocation = null;
   private Coordinate[] adjVertices = null;
 
+  private final CircularStringInsertGesture circularStringInsert =
+      new CircularStringInsertGesture();
+
   public static EditVertexTool getInstance() {
     if (instance == null)
       instance = new EditVertexTool();
@@ -56,7 +61,43 @@ extends IndicatorTool
     super(AppCursors.EDIT_VERTEX);
   }
 
+  CircularStringInsertGesture circularStringInsertGesture() {
+    return circularStringInsert;
+  }
+
+  @Override
+  public void activate(GeometryEditPanel panel) {
+    super.activate(panel);
+    if (panel != null) {
+      panel.setFocusable(true);
+      panel.addKeyListener(this);
+      panel.requestFocusInWindow();
+    }
+  }
+
+  @Override
+  public void deactivate() {
+    cancelCircularStringInsert();
+    if (panel() != null) {
+      panel().removeKeyListener(this);
+    }
+    super.deactivate();
+  }
+
+  @Override
+  public void keyPressed(KeyEvent e) {
+    if (CircularStringInsertGesture.isCancelKey(e.getKeyCode())) {
+      e.consume();
+      cancelCircularStringInsert();
+    }
+  }
+
   public void mousePressed(MouseEvent e) {
+    if (circularStringInsert.isPending()) {
+      currentVertexLoc = toModelSnapped(e.getPoint());
+      circularStringInsert.setPreview(currentVertexLoc);
+      return;
+    }
   	currentVertexLoc = null;
     if (SwingUtilities.isRightMouseButton(e))
       return;
@@ -74,6 +115,9 @@ extends IndicatorTool
   }
 
   public void mouseReleased(MouseEvent e) {
+    if (circularStringInsert.isPending()) {
+      return;
+    }
     if (SwingUtilities.isRightMouseButton(e))
       return;
     
@@ -86,12 +130,33 @@ extends IndicatorTool
   }
 
   public void mouseDragged(MouseEvent e) {
+    if (circularStringInsert.isPending()) {
+      currentVertexLoc = toModelSnapped(e.getPoint());
+      circularStringInsert.setPreview(currentVertexLoc);
+      redrawIndicator();
+      return;
+    }
   	currentVertexLoc = toModelSnapped(e.getPoint());
     if (selectedVertexLocation != null)
       redrawIndicator();
   }
 
+  @Override
+  public void mouseMoved(MouseEvent e) {
+    super.mouseMoved(e);
+    if (circularStringInsert.isPending()) {
+      currentVertexLoc = toModelSnapped(e.getPoint());
+      circularStringInsert.setPreview(currentVertexLoc);
+      redrawIndicator();
+    }
+  }
+
   public void mouseClicked(MouseEvent e) {
+    if (circularStringInsert.isPending()) {
+      commitCircularStringInsert(toModelSnapped(e.getPoint()));
+      return;
+    }
+
     if (! SwingUtilities.isRightMouseButton(e))
       return;
 
@@ -108,6 +173,10 @@ extends IndicatorTool
       GeometryLocation geomLoc = geomModel().locateNonVertexPoint(mousePtModel, tolModel);
       //System.out.println("Testing: insert vertex at " + geomLoc);
       if (geomLoc != null) {
+        if (geomLoc.isCircularStringComponent()) {
+          startCircularStringInsert(geomLoc);
+          return;
+        }
         geomModel().setGeometry(geomLoc.insert());
       }
     }
@@ -120,8 +189,50 @@ extends IndicatorTool
     }
   }
 
+  /**
+   * First click on a CircularString: red overlay only. A stays the
+   * live odd ISO/IEC 13249-3 CS. Overlay is not written to B.
+   */
+  private void startCircularStringInsert(GeometryLocation geomLoc) {
+    if (!circularStringInsert.begin(geomLoc)) {
+      return;
+    }
+    currentVertexLoc = geomLoc.getCoordinate();
+    if (panel() != null) {
+      panel().requestFocusInWindow();
+    }
+    redrawIndicator();
+  }
+
+  private void commitCircularStringInsert(Coordinate second) {
+    Geometry edited = circularStringInsert.commit(second);
+    if (edited != null) {
+      clearIndicator();
+      geomModel().setGeometry(edited);
+      currentVertexLoc = null;
+      return;
+    }
+    if (circularStringInsert.isPending()) {
+      circularStringInsert.setPreview(second);
+      currentVertexLoc = second;
+      redrawIndicator();
+    }
+  }
+
+  private void cancelCircularStringInsert() {
+    if (!circularStringInsert.isPending()) {
+      return;
+    }
+    circularStringInsert.cancel();
+    clearIndicator();
+    currentVertexLoc = null;
+  }
+
   protected Shape getShape() 
   {
+    if (circularStringInsert.isPending()) {
+      return circularStringInsertOverlayShape();
+    }
   	GeometryCollectionShape ind = new GeometryCollectionShape();
   	Point2D currentIndicatorLoc = toView(currentVertexLoc);
   	ind.add(getIndicatorCircle(currentIndicatorLoc));
@@ -140,6 +251,30 @@ extends IndicatorTool
   		}
   	}
   	return ind;
+  }
+
+  /**
+   * Red overlay for the in-progress pair. IndicatorTool paints
+   * {@link CircularStringInsertGesture#overlayColor} (BAND red). Not B.
+   */
+  private Shape circularStringInsertOverlayShape() {
+    Coordinate first = circularStringInsert.getFirst();
+    Coordinate second = currentVertexLoc != null
+        ? currentVertexLoc
+        : circularStringInsert.getPreviewSecond();
+    if (first == null || second == null) {
+      return null;
+    }
+    GeometryCollectionShape ind = new GeometryCollectionShape();
+    Point2D a = toView(first);
+    Point2D b = toView(second);
+    ind.add(getIndicatorCircle(a));
+    ind.add(getIndicatorCircle(b));
+    GeneralPath line = new GeneralPath();
+    line.moveTo((float) a.getX(), (float) a.getY());
+    line.lineTo((float) b.getX(), (float) b.getY());
+    ind.add(line);
+    return ind;
   }
 
   /**
