@@ -15,11 +15,14 @@ import java.awt.Shape;
 import java.awt.geom.PathIterator;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.curve.CircularArcDensifier;
 import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.geom.curve.CurvePolygon;
+import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jts.io.curve.CurveWKTWriter;
 
 import junit.textui.TestRunner;
@@ -29,13 +32,10 @@ import test.jts.GeometryTestCase;
  * #114 / tb-h-1: a 3-point curve hole stays a curve and the canvas
  * paints the arc(s), not the control-point chord triangle.
  * <p>
- * No UX ring was attached. Fixtures are factory-built. ISO/IEC 13249-3:
- * an open {@code CIRCULARSTRING} is odd and at least three controls; a
- * closed CircularString ring is five tokens first=last. This class does
- * not treat four-token {@code (A,B,C,A)} as a valid CircularString ring.
- * The complementary close is paint-only and is not written into WKT.
- * <p>
- * Not FCP-H (type already stays CircularString). Not #86 3-click shell.
+ * PO attached ring (do not invent another): two 4-control
+ * CircularStrings, first=last. A pane keeps that WKT. Paint-only
+ * complementary sweep close; do not rewrite the ring.
+ * ISO/IEC 13249-3. Not FCP-H. Not #86 3-click shell.
  */
 public class CurveShapeWriterThreePointHoleTest extends GeometryTestCase {
 
@@ -165,6 +165,58 @@ public class CurveShapeWriterThreePointHoleTest extends GeometryTestCase {
     SegCounts c = segs(s);
     assertTrue(c.cubicTo >= 2);
     assertEquals(0, c.lineTo);
+  }
+
+  /**
+   * PO ring, loaded as A. Inner CircularString punches a hole.
+   * WKT is the attached 4-control first=last pair; do not rewrite it.
+   */
+  private static final String PO_RING =
+      "CURVEPOLYGON (CIRCULARSTRING (60 380, 240 440, 404 326, 60 380), CIRCULARSTRING (141 84, 270 28, 170 290, 141 84))";
+
+  private static Geometry loadPoRing() throws Exception {
+    return new CurveWKTReader().read(PO_RING);
+  }
+
+  public void testPoRingStaysTwoFourControlCircularStrings() throws Exception {
+    Geometry g = loadPoRing();
+    assertTrue(g instanceof CurvePolygon);
+    CurvePolygon cp = (CurvePolygon) g;
+    assertEquals("CurvePolygon", g.getGeometryType());
+    assertEquals(1, cp.getNumInteriorRing());
+    LineString shell = cp.getExteriorCurve();
+    LineString hole = cp.getInteriorCurveN(0);
+    assertTrue(shell instanceof CircularString);
+    assertTrue(hole instanceof CircularString);
+    assertEquals(4, shell.getNumPoints());
+    assertEquals(4, hole.getNumPoints());
+    assertTrue(shell.isClosed());
+    assertTrue(hole.isClosed());
+    String wkt = new CurveWKTWriter().write(g);
+    assertEquals("A pane must keep the attached ring WKT", PO_RING, wkt);
+  }
+
+  public void testPoRingHolePunchesInteriorNotStrokeOnDisc() throws Exception {
+    Geometry g = loadPoRing();
+    CurvePolygon cp = (CurvePolygon) g;
+    Coordinate[] hc = cp.getInteriorCurveN(0).getCoordinates();
+    Coordinate[] sc = cp.getExteriorCurve().getCoordinates();
+    double[] holeCirc = CircularArcDensifier.circumcircle(hc[0], hc[1], hc[2]);
+    double[] shellCirc = CircularArcDensifier.circumcircle(sc[0], sc[1], sc[2]);
+    Shape s = new CurveShapeWriter().toShape(g);
+    assertFalse("hole centre must be punched, not a stroke on the disc",
+        s.contains(holeCirc[0], holeCirc[1]));
+    double vx = shellCirc[0] - holeCirc[0];
+    double vy = shellCirc[1] - holeCirc[1];
+    double len = Math.hypot(vx, vy);
+    double bodyX = shellCirc[0] + 0.85 * shellCirc[2] * vx / len;
+    double bodyY = shellCirc[1] + 0.85 * shellCirc[2] * vy / len;
+    assertTrue("annulus body stays filled", s.contains(bodyX, bodyY));
+    SegCounts c = segs(s);
+    assertEquals(2, c.moveTo);
+    assertTrue("hole arcs, not the 4-point chord triangle, cubic=" + c.cubicTo,
+        c.cubicTo >= 2);
+    assertEquals("chord triangle would be lineTo", 0, c.lineTo);
   }
 
   /** Guard: a standalone open 3-point CS is one arc, not a full disc. */

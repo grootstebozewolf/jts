@@ -113,6 +113,35 @@ public final class CircularArcRenderer {
                  (float) c3.getX(), (float) c3.getY());
   }
 
+  /**
+   * Mid of the complementary sweep from {@code end} back to {@code start}
+   * that does <em>not</em> contain {@code through}. Paint-only: the
+   * antipode of {@code through} is on that sweep only when the specified
+   * arc is a semicircle. A major-arc 4-control ring (ISO/IEC 13249-3
+   * first=last kept in WKT) needs this mid so the hole path is a disc
+   * that punches, not a second stroke of the same majority.
+   */
+  public static Coordinate complementarySweepMid(Coordinate start,
+      Coordinate through, Coordinate end) {
+    Circle c = Circle.fromThreePoints(start, through, end);
+    if (c == null) return null;
+    double a0 = Math.atan2(start.y - c.cy, start.x - c.cx);
+    double aThrough = Math.atan2(through.y - c.cy, through.x - c.cx);
+    double a1 = Math.atan2(end.y - c.cy, end.x - c.cx);
+    boolean throughInCcwFromEnd = isMidInCcwSweep(a1, aThrough, a0);
+    boolean ccw = !throughInCcwFromEnd;
+    double sweep = signedSweep(a1, a0, ccw);
+    double midAngle = ccw ? a1 + sweep / 2.0 : a1 - sweep / 2.0;
+    Coordinate mid = new Coordinate(
+        c.cx + c.r * Math.cos(midAngle),
+        c.cy + c.r * Math.sin(midAngle));
+    if (!Double.isFinite(mid.x) || !Double.isFinite(mid.y)
+        || mid.equals2D(start) || mid.equals2D(end)) {
+      return null;
+    }
+    return mid;
+  }
+
   private static Point2D transform(PointTransformation pt, Coordinate model) {
     Point2D out = new Point2D.Double();
     pt.transform(model, out);

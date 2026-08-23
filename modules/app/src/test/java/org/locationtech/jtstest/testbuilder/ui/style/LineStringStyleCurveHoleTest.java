@@ -12,12 +12,15 @@
 package org.locationtech.jtstest.testbuilder.ui.style;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.geom.curve.CurvePolygon;
+import org.locationtech.jts.io.curve.CurveWKTReader;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 
 import junit.framework.TestCase;
 import junit.textui.TestRunner;
@@ -70,6 +73,22 @@ public class LineStringStyleCurveHoleTest extends TestCase {
     LineString painted = LineStringStyle.exteriorRing(cp);
     assertTrue(painted instanceof CircularString);
     assertEquals(5, painted.getNumPoints());
+  }
+
+  /**
+   * PO ring: overlay walks the attached 4-control CircularString hole.
+   * A pane WKT is unchanged.
+   */
+  public void testPoRingOverlayKeepsAttachedCircularString() throws Exception {
+    String po =
+        "CURVEPOLYGON (CIRCULARSTRING (60 380, 240 440, 404 326, 60 380), CIRCULARSTRING (141 84, 270 28, 170 290, 141 84))";
+    Geometry g = new CurveWKTReader().read(po);
+    assertEquals(po, new CurveWKTWriter().write(g));
+    CurvePolygon cp = (CurvePolygon) g;
+    LineString painted = LineStringStyle.interiorRing(cp, 0);
+    assertTrue(painted instanceof CircularString);
+    assertEquals(4, painted.getNumPoints());
+    assertFalse(painted instanceof LinearRing);
   }
 
   /** Guard: a plain polygon still uses the LinearRing views. */
