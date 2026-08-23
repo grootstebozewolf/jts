@@ -192,6 +192,23 @@ public class GeometryVertexInserterCircularStringTest extends TestCase {
     assertNull(loc.insertPair(new Coordinate(1, 1)));
   }
 
+  public void testTypeLockRefusesFlattenAndEvenCount() throws ParseException {
+    Geometry cs = read("CIRCULARSTRING (0 0, 1 1, 2 0)");
+    Geometry ls = read("LINESTRING (0 0, 1 1, 2 0)");
+    assertTrue(GeometryVertexInserter.hasCircularString(cs));
+    assertFalse(GeometryVertexInserter.hasCircularString(ls));
+    assertTrue(GeometryVertexInserter.lostCircularString(cs, ls));
+    assertFalse(GeometryVertexInserter.lostCircularString(cs, cs));
+    assertFalse(GeometryVertexInserter.hasInvalidCircularStringCount(cs));
+    CurveGeometryFactory f = new CurveGeometryFactory();
+    Geometry even = f.createCircularString(f.getCoordinateSequenceFactory().create(
+        new Coordinate[] {
+            new Coordinate(0, 0), new Coordinate(1, 1),
+            new Coordinate(2, 0), new Coordinate(3, 1)
+        }));
+    assertTrue(GeometryVertexInserter.hasInvalidCircularStringCount(even));
+  }
+
   private static boolean contains(Geometry g, Coordinate pt) {
     Coordinate[] coords = g.getCoordinates();
     for (int i = 0; i < coords.length; i++) {

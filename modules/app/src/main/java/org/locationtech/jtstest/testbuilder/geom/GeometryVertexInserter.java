@@ -58,7 +58,52 @@ public class GeometryVertexInserter
     }
     GeometryEditor editor = new GeometryEditor();
     editor.setCopyUserData(true);
-    return editor.edit(geom, new InsertPairOperation(line, segIndex, first, second));
+    Geometry edited = editor.edit(geom,
+        new InsertPairOperation(line, segIndex, first, second));
+    if (edited == null || lostCircularString(geom, edited)
+        || hasInvalidCircularStringCount(edited)) {
+      return null;
+    }
+    return edited;
+  }
+
+  /**
+   * Architect type lock: a CircularString must not become a LineString
+   * (ISO/IEC 13249-3).
+   */
+  static boolean lostCircularString(Geometry before, Geometry after) {
+    return hasCircularString(before) && !hasCircularString(after);
+  }
+
+  static boolean hasCircularString(Geometry g) {
+    if (g == null) {
+      return false;
+    }
+    if (g instanceof CircularString) {
+      return true;
+    }
+    for (int i = 0; i < g.getNumGeometries(); i++) {
+      Geometry child = g.getGeometryN(i);
+      if (child != g && hasCircularString(child)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** ISO/IEC 13249-3: WKT tokens odd and &ge; 3. */
+  static boolean hasInvalidCircularStringCount(Geometry g) {
+    if (g instanceof CircularString) {
+      int n = g.getNumPoints();
+      return n < 3 || (n % 2) == 0;
+    }
+    for (int i = 0; i < g.getNumGeometries(); i++) {
+      Geometry child = g.getGeometryN(i);
+      if (child != g && hasInvalidCircularStringCount(child)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
