@@ -365,8 +365,17 @@ public final class CircularArcDensifier {
 
   /**
    * Mid control of the complementary arc from {@code from} to {@code to}
-   * on the circumcircle of {@code (from, hint, to)} — the point opposite
-   * {@code hint}. Null if the triple is colinear.
+   * on the circumcircle of {@code (from, hint, to)} — the arc that does
+   * <em>not</em> contain {@code hint}. Null if the triple is colinear.
+   * <p>
+   * The antipode of {@code hint} lies on that complementary arc only when
+   * the specified arc through {@code hint} is at most a semicircle. A
+   * major-arc {@code CIRCULARSTRING (A, B, C, A)} (ISO/IEC 13249-3 ring
+   * closed by repeating the start) has {@code hint} spanning more than
+   * {@code π}, so the antipode sits on the specified arc. Closing through
+   * it retraces the hole: TestBuilder fills a solid disc and strokes the
+   * doubled major arc (issue #114). The angular midpoint of the
+   * complementary sweep is always on the missing arc.
    */
   public static Coordinate complementaryArcMid(Coordinate from, Coordinate hint,
       Coordinate to) {
@@ -377,7 +386,17 @@ public final class CircularArcDensifier {
     if (c == null) {
       return null;
     }
-    Coordinate mid = new Coordinate(2.0 * c.cx - hint.x, 2.0 * c.cy - hint.y);
+    DirectedSweep viaHint = AngleBetween.through(c.cx, c.cy, from, hint, to);
+    double complement = AngleBetween.TWO_PI - viaHint.radians();
+    if (!(complement > 0.0) || !Double.isFinite(complement)) {
+      return null;
+    }
+    double a0 = Math.atan2(from.y - c.cy, from.x - c.cx);
+    double half = 0.5 * complement;
+    double amid = viaHint.isCcw() ? a0 - half : a0 + half;
+    Coordinate mid = new Coordinate(
+        c.cx + c.r * Math.cos(amid),
+        c.cy + c.r * Math.sin(amid));
     if (!Double.isFinite(mid.x) || !Double.isFinite(mid.y)
         || mid.equals2D(from) || mid.equals2D(to)) {
       return null;

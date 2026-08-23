@@ -37,8 +37,15 @@ public abstract class AbstractStreamDrawTool extends LineBandTool {
    * ghost that completes a stub arc and turns the real third click into
    * a leftover chord.
    */
+  /**
+   * LineString default. CircularString overrides to {@code false}
+   * (click-to-control). Exposed as a static so headless tests can pin
+   * the contract without constructing a cursor-bearing singleton.
+   */
+  static final boolean DEFAULT_STREAM_ADD_ON_DRAG = true;
+
   boolean isStreamAddOnDrag() {
-    return true;
+    return DEFAULT_STREAM_ADD_ON_DRAG;
   }
 
   protected void mouseLocationChanged(MouseEvent e) {
