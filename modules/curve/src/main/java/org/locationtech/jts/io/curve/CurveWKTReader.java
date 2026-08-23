@@ -181,7 +181,13 @@ public class CurveWKTReader extends WKTReader {
   private CircularString readCircularStringText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
       throws IOException, ParseException {
     LineString ls = readLineStringText(tokenizer, ordinateFlags);
-    return new CircularString(ls.getCoordinateSequence(), geometryFactory);
+    CoordinateSequence seq = ls.getCoordinateSequence();
+    if (!CircularString.isValidControlCount(seq)) {
+      throw parseErrorWithLine(tokenizer,
+          "CIRCULARSTRING must have an odd number of points >= 3, "
+          + "or be the closed 4-control form CIRCULARSTRING(A,B,C,A)");
+    }
+    return new CircularString(seq, geometryFactory);
   }
 
   private CompoundCurve readCompoundCurveText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
