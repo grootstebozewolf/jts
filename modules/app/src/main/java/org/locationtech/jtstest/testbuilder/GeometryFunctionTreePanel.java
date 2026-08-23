@@ -30,6 +30,7 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeModel;
+import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 
 import org.locationtech.jtstest.function.DoubleKeyMap;
@@ -160,6 +161,33 @@ public class GeometryFunctionTreePanel extends JPanel {
 
 	public GeometryFunction getFunction() {
 		return getFunctionFromNode(tree.getLastSelectedPathComponent());
+	}
+
+	/**
+	 * Select a categorized function by tree path (e.g. AffineTransformation /
+	 * translate). Used by leftover #60 tests; a real tree click still fires
+	 * {@code functionSelected}.
+	 */
+	public boolean selectFunction(String category, String name) {
+		if (category == null || name == null) {
+			return false;
+		}
+		DefaultMutableTreeNode top = (DefaultMutableTreeNode) tree.getModel().getRoot();
+		for (int i = 0; i < top.getChildCount(); i++) {
+			DefaultMutableTreeNode catNode = (DefaultMutableTreeNode) top.getChildAt(i);
+			if (!category.equals(String.valueOf(catNode.getUserObject()))) {
+				continue;
+			}
+			for (int j = 0; j < catNode.getChildCount(); j++) {
+				DefaultMutableTreeNode leaf = (DefaultMutableTreeNode) catNode.getChildAt(j);
+				GeometryFunction fun = getFunctionFromNode(leaf);
+				if (fun != null && name.equals(fun.getName())) {
+					tree.setSelectionPath(new TreePath(leaf.getPath()));
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	public void populate(DoubleKeyMap funcs) {

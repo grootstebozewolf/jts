@@ -19,6 +19,8 @@ import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.HashMap;
@@ -129,7 +131,7 @@ extends JPanel implements FunctionPanel
   
   private GeometryFunction currentFunc = null;
   private Stopwatch timer;
-  private Map<GeometryFunction, String> funcParamMap = new HashMap<GeometryFunction, String>();
+  private Map<GeometryFunction, String[]> funcParamMap = new HashMap<GeometryFunction, String[]>();
   
   public SpatialFunctionPanel() {
     try {
@@ -343,10 +345,7 @@ extends JPanel implements FunctionPanel
     // tree's live selection. Clicking a param field must not re-bind
     // Exec to a different tree node (TB-FN #60: dX focus must not
     // silently run Buffer.buffer).
-    GeometryFunction funToRun = currentFunc;
-    if (funToRun == null) {
-      funToRun = geomFuncPanel.getFunction();
-    }
+    GeometryFunction funToRun = boundExec(currentFunc, geomFuncPanel.getFunction());
     if (! isMetaFunctionEnabled()) return funToRun;
     
     if (isFunctionRepeated()) {
@@ -404,6 +403,12 @@ extends JPanel implements FunctionPanel
     if (func == null) {
       return;
     }
+    // Re-select of the same node must not rewrite dX while 10 / 8 are
+    // being typed (leftover mash 810). Wipe SIGN is unchanged: Exec
+    // still prefers currentFunc over a leaked tree selection.
+    if (currentFunc != null && currentFunc.equals(func)) {
+      return;
+    }
     saveParameter(currentFunc);
     currentFunc = func;
     lblFunctionName.setText(func.getName());
@@ -423,24 +428,89 @@ extends JPanel implements FunctionPanel
    * TB-FN #60: a click on a scalar param field must focus that field and
    * must not be interpreted as a Geometry-function tree selection (which
    * previously could re-bind Exec to Buffer.buffer / Distance).
+   * Leftover (UX RC4): select-all so typed 10 replaces the Distance
+   * default instead of a stray 8 prepending to 10 (810).
    */
   private static void pinParamFocus(final JTextField field) {
     field.addMouseListener(new MouseAdapter() {
       public void mousePressed(MouseEvent e) {
         field.requestFocusInWindow();
+        field.selectAll();
+      }
+    });
+    field.addFocusListener(new FocusAdapter() {
+      public void focusGained(FocusEvent e) {
+        field.selectAll();
       }
     });
   }
 
+  /**
+   * Typed digits replace the field. They must not prepend to the shared
+   * Distance default {@code 10} (translate dX 10 + dY 8 must not mash
+   * dX to 810).
+   */
+  static void keepParamKeystrokes(JTextField field, String typed) {
+    if (field == null) {
+      return;
+    }
+    field.setText(typed == null ? "" : typed);
+  }
+
+  /**
+   * Wipe SIGN: Exec stays on the selected function when a param field
+   * is focused. Tree selection is used only when nothing is bound.
+   */
+  static GeometryFunction boundExec(GeometryFunction currentFunc,
+      GeometryFunction treeSelection) {
+    if (currentFunc != null) {
+      return currentFunc;
+    }
+    return treeSelection;
+  }
+
+  static String[] snapshotTextParams(JComponent[] comps) {
+    String[] vals = new String[comps.length];
+    for (int i = 0; i < comps.length; i++) {
+      if (comps[i] instanceof JTextField) {
+        vals[i] = SwingUtil.value((JTextField) comps[i]);
+      }
+    }
+    return vals;
+  }
+
+  static void restoreTextParams(JComponent[] comps, String[] vals) {
+    if (vals == null) {
+      return;
+    }
+    for (int i = 0; i < vals.length && i < comps.length; i++) {
+      if (vals[i] != null && comps[i] instanceof JTextField) {
+        ((JTextField) comps[i]).setText(vals[i]);
+      }
+    }
+  }
+
   private void recallParameter(GeometryFunction func) {
-    if (! funcParamMap.containsKey(func)) return;
-    String val = funcParamMap.get(func);
-    txtDistance.setText(val);
+    restoreTextParams(paramComp, funcParamMap.get(func));
   }
   
   private void saveParameter(GeometryFunction func) {
-    String val = SwingUtil.value(txtDistance);
-    funcParamMap.put(func, val);
+    if (func == null) {
+      return;
+    }
+    funcParamMap.put(func, snapshotTextParams(paramComp));
+  }
+
+  boolean selectFunction(String category, String name) {
+    return geomFuncPanel.selectFunction(category, name);
+  }
+
+  JTextField paramTextField(int index) {
+    return (JTextField) paramComp[index];
+  }
+
+  void acceptParamKeystrokes(int index, String typed) {
+    keepParamKeystrokes((JTextField) paramComp[index], typed);
   }
 
   static void updateParameters(GeometryFunction func, JComponent[] paramComp, JLabel[] paramLabel) {
