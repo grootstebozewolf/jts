@@ -149,16 +149,16 @@ public abstract class IndicatorTool extends BasicTool
    * XOR erase must use the color the overlay was drawn with. A live
    * color change (Style A pending dropped, then BAND red) leaves a
    * static residue — A-blue XOR red XOR white is green on empty A.
-   * TB-CSE leftover. Unique-circle stays {@link AppConstants#BAND_CLR}.
+   * TB-CSE leftover. CircularString unique-circle preview is A-blue
+   * (TB-CS3); other tools keep {@link AppConstants#BAND_CLR}.
    */
   static Color xorEraseColor(Color drawnWith, Color currentLive) {
     return drawnWith != null ? drawnWith : currentLive;
   }
 
   /**
-   * XOR indicator color. Unique-circle CircularString draw keeps
-   * {@link AppConstants#BAND_CLR}. Style A colinear draw overrides to
-   * A-blue while the second click is pending.
+   * XOR indicator color. Default is {@link AppConstants#BAND_CLR}.
+   * CircularString overrides to A-blue for Style A and unique-circle.
    */
   protected Color indicatorColor() {
     return bandColor;

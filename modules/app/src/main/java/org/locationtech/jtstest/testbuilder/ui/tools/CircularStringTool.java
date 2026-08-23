@@ -293,6 +293,14 @@ public class CircularStringTool extends AbstractStreamDrawTool {
     return CircularStringColinearDrawGesture.previewColor();
   }
 
+  /**
+   * TB-CS3: unique-circle three-click new-draw preview is A-blue,
+   * not leftover BAND red. Write on click 3 is unchanged.
+   */
+  static Color uniqueCirclePreviewColor() {
+    return CircularStringColinearDrawGesture.previewColor();
+  }
+
   static boolean styleAPreviewIsChord() {
     return CircularStringColinearDrawGesture.previewIsChord();
   }
@@ -421,12 +429,13 @@ public class CircularStringTool extends AbstractStreamDrawTool {
     panel().updateGeom();
   }
 
+  /**
+   * Style A and unique-circle new-draw both paint A-blue. Not leftover
+   * BAND red. TB-CS3. Click-3 write is unchanged.
+   */
   @Override
   protected Color indicatorColor() {
-    if (styleA.isPending()) {
-      return CircularStringColinearDrawGesture.previewColor();
-    }
-    return super.indicatorColor();
+    return uniqueCirclePreviewColor();
   }
 
   /**

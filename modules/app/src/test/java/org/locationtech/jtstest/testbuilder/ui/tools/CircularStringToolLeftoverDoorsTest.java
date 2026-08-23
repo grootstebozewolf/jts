@@ -74,14 +74,12 @@ public class CircularStringToolLeftoverDoorsTest extends TestCase {
    * A-blue leftover overlay with unique-circle red after pending
    * Start was dropped. A-blue XOR red XOR white is static green on
    * empty A. Overlay is not gone. Erase must use the drawn color.
-   * Do not retip Style A. Do not take TB-CS3 (preview stays BAND).
+   * Do not retip Style A. TB-CSE residue fix stays.
    */
   public void testEscapeXorEraseMatchesDrawnColorSoOverlayIsGone() {
     Color drawn = CircularStringTool.styleAPreviewColor();
     Color liveAfterCancel = AppConstants.BAND_CLR;
     assertEquals(AppColors.GEOM_A, drawn);
-    assertFalse("post-cancel live color is unique-circle red, not A-blue",
-        drawn.equals(liveAfterCancel));
     assertEquals("wrong erase color leaves static green residue",
         Color.GREEN, xorWhite(drawn, liveAfterCancel));
     assertEquals("matching erase restores empty-A white; overlay gone",
@@ -92,9 +90,6 @@ public class CircularStringToolLeftoverDoorsTest extends TestCase {
     assertEquals(Color.WHITE, xorWhite(drawn, erase));
     assertTrue(CircularStringTool.escapeClearsOverlayBeforeCancel());
     assertTrue(CircularStringTool.escapeLeavesOverlayGone());
-    assertEquals("TB-CS3 leftover HOLD: unique-circle preview stays BAND red",
-        AppConstants.BAND_CLR,
-        IndicatorTool.xorEraseColor(AppConstants.BAND_CLR, AppConstants.BAND_CLR));
   }
 
   /**
@@ -144,34 +139,49 @@ public class CircularStringToolLeftoverDoorsTest extends TestCase {
   }
 
   /**
-   * TB-CS3: third unique-circle click writes ISO/IEC 13249-3
-   * {@code CIRCULARSTRING}. Existing new-draw door. Not Style A.
-   * Not a leftover red overlay.
+   * TB-CS3 leftover: unique-circle three-click preview is A-blue,
+   * not leftover BAND red. Color only. Write SIGN on {@code 0437beda}
+   * stands.
+   */
+  public void testUniqueCirclePreviewIsABlueNotRed() {
+    Color preview = CircularStringTool.uniqueCirclePreviewColor();
+    assertEquals(AppColors.GEOM_A, preview);
+    assertEquals(CircularStringTool.styleAPreviewColor(), preview);
+    assertEquals(new Color(0, 0, 255), preview);
+    assertFalse("unique-circle new-draw must not be leftover red",
+        preview.equals(AppConstants.BAND_CLR));
+  }
+
+  /**
+   * TB-CS3 write SIGN on {@code 0437beda}: click 3 writes ISO/IEC
+   * 13249-3 {@code CIRCULARSTRING (90 160, 250 310, 410 160)}.
+   * Do not retip that write. Existing new-draw door. Not Style A.
    */
   public void testThreeClickUniqueCircleWritesA() {
+    Coordinate s = new Coordinate(90, 160);
+    Coordinate m = new Coordinate(250, 310);
+    Coordinate e = new Coordinate(410, 160);
+    assertTrue(Orientation.index(s, m, e) != Orientation.COLLINEAR);
+    Coordinate c = Triangle.circumcentre(s, m, e);
+    assertEquals(c.distance(s), c.distance(m), 1.0e-12);
+    assertEquals(c.distance(s), c.distance(e), 1.0e-12);
+
+    GeometryEditModel signed = newModel();
+    signed.addComponent(list(s, m, e));
+    Geometry signedG = signed.getGeometry();
+    assertTrue(signedG instanceof CircularString);
+    assertEquals("CIRCULARSTRING (90 160, 250 310, 410 160)", wkt(signedG));
+    assertFalse(wkt(signedG).startsWith("LINESTRING"));
+
     assertFalse("two clicks are still a chord leftover",
         CircularStringTool.uniqueCircleFinishesOnClick(2));
     assertTrue("click 3 writes the unique-circle CIRCULARSTRING",
         CircularStringTool.uniqueCircleFinishesOnClick(3));
     assertEquals(3, CircularStringTool.completeArcPointCount(3));
     assertFalse(CircularStringTool.previewHasTrailingChord(3));
-    assertTrue(Orientation.index(U0, U1, U2) != Orientation.COLLINEAR);
-    Coordinate c = Triangle.circumcentre(U0, U1, U2);
-    assertEquals(c.distance(U0), c.distance(U1), 1.0e-12);
-    assertEquals(c.distance(U0), c.distance(U2), 1.0e-12);
-
-    GeometryEditModel model = newModel();
-    assertNull(model.getGeometry());
-    model.addComponent(list(U0, U1, U2));
-    Geometry g = model.getGeometry();
-    assertTrue(g instanceof CircularString);
-    assertFalse(g.getClass().equals(LineString.class));
-    assertEquals(3, g.getNumPoints());
-    assertTrue(CircularStringTool.isValidCircularStringCount(g.getNumPoints()));
-    String emitted = wkt(g);
-    assertTrue("got " + emitted, emitted.startsWith("CIRCULARSTRING"));
-    assertFalse(emitted.startsWith("LINESTRING"));
-    assertTrue(U2.equals2D(g.getCoordinates()[2]));
+    assertEquals(3, signedG.getNumPoints());
+    assertTrue(CircularStringTool.isValidCircularStringCount(signedG.getNumPoints()));
+    assertFalse(signedG.getClass().equals(LineString.class));
   }
 
   /**
