@@ -24,6 +24,10 @@ import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.awt.curve.CurveShapeWriter;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
+import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jtstest.testbuilder.AppCursors;
 import org.locationtech.jtstest.testbuilder.GeometryEditPanel;
 import org.locationtech.jtstest.testbuilder.geom.GeometryLocation;
@@ -274,7 +278,7 @@ extends IndicatorTool
   }
 
   /**
-   * Rubber-band the whole CircularString as arcs (not chords to adjacent
+   * Rubber-band curve members as arcs (not chords to adjacent
    * controls). Same move as {@link #mouseReleased}.
    */
   private Shape circularStringPreviewShape() {
@@ -285,17 +289,61 @@ extends IndicatorTool
     if (g == null) {
       return null;
     }
-    String type = g.getGeometryType();
-    if (!"CircularString".equals(type) && !"CompoundCurve".equals(type)) {
+    return curveDragPreviewShape(g, selectedVertexLocation, currentVertexLoc,
+        new PointTransformation() {
+          public void transform(Coordinate src, Point2D dest) {
+            Point2D view = toView(src);
+            dest.setLocation(view.getX(), view.getY());
+          }
+        });
+  }
+
+  /**
+   * True when EditVertex rubber-band should draw arcs via
+   * {@link CurveShapeWriter} instead of chords to adjacent controls.
+   * GeometryCollection / MultiCurve of CircularString is included —
+   * a top-level type-name gate misses those (#101).
+   */
+  static boolean usesCurveDragPreview(Geometry g) {
+    if (g == null) {
+      return false;
+    }
+    if (g instanceof CircularString
+        || g instanceof CompoundCurve
+        || g instanceof ClothoidSegment) {
+      return true;
+    }
+    if (g instanceof GeometryCollection) {
+      for (int i = 0; i < g.getNumGeometries(); i++) {
+        if (usesCurveDragPreview(g.getGeometryN(i))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Model-space curve rubber-band for tests (identity view transform).
+   */
+  static Shape curveDragPreviewShape(Geometry g, Coordinate from, Coordinate to) {
+    return curveDragPreviewShape(g, from, to, null);
+  }
+
+  /**
+   * Same move as {@link #mouseReleased}, drawn through
+   * {@link CurveShapeWriter}. {@code null} view uses the writer's
+   * identity transform.
+   */
+  static Shape curveDragPreviewShape(Geometry g, Coordinate from, Coordinate to,
+      PointTransformation view) {
+    if (!usesCurveDragPreview(g) || from == null || to == null) {
       return null;
     }
-    Geometry preview = GeometryVertexMover.move(g, selectedVertexLocation, currentVertexLoc);
-    CurveShapeWriter writer = new CurveShapeWriter(new PointTransformation() {
-      public void transform(Coordinate src, Point2D dest) {
-        Point2D view = toView(src);
-        dest.setLocation(view.getX(), view.getY());
-      }
-    });
+    Geometry preview = GeometryVertexMover.move(g, from, to);
+    CurveShapeWriter writer = view == null
+        ? new CurveShapeWriter()
+        : new CurveShapeWriter(view);
     return writer.toShape(preview);
   }
 

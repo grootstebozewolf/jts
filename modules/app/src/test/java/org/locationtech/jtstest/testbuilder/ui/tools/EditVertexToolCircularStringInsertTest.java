@@ -14,6 +14,7 @@ package org.locationtech.jtstest.testbuilder.ui.tools;
 import java.awt.Color;
 import java.awt.event.KeyEvent;
 
+import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -49,7 +50,11 @@ public class EditVertexToolCircularStringInsertTest extends TestCase {
           + "330 225, 361 215, 371 221, 387 232, 395 238, 406 248, 413 256, "
           + "510 330))";
 
-  private static final Coordinate FIRST = new Coordinate(461.5, 293);
+  /** On the last painted arc, not the control-chord midpoint (#99). */
+  private static final Coordinate FIRST = new ExactCircularArc(
+      new Coordinate(406, 248),
+      new Coordinate(413, 256),
+      new Coordinate(510, 330)).pointAt(0.75);
   private static final Coordinate SECOND = new Coordinate(430, 310);
 
   public EditVertexToolCircularStringInsertTest(String name) {

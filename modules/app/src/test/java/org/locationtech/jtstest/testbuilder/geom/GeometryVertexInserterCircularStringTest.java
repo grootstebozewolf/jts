@@ -11,6 +11,7 @@
  */
 package org.locationtech.jtstest.testbuilder.geom;
 
+import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -41,8 +42,15 @@ public class GeometryVertexInserterCircularStringTest extends TestCase {
           + "330 225, 361 215, 371 221, 387 232, 395 238, 406 248, 413 256, "
           + "510 330))";
 
-  /** Midpoint of the last control chord (413 256)–(510 330). First click. */
-  private static final Coordinate FIRST = new Coordinate(461.5, 293);
+  /**
+   * First click on the last painted arc (controls 406 248, 413 256, 510 330)
+   * at arc-length fraction 0.75 — not the control-chord midpoint.
+   * Locater hits arcs, not chords (#99).
+   */
+  private static final Coordinate FIRST = new ExactCircularArc(
+      new Coordinate(406, 248),
+      new Coordinate(413, 256),
+      new Coordinate(510, 330)).pointAt(0.75);
 
   /** Second click — a distinct pair partner, not a #83 invented mid. */
   private static final Coordinate SECOND = new Coordinate(430, 310);
@@ -75,7 +83,7 @@ public class GeometryVertexInserterCircularStringTest extends TestCase {
     assertEquals(19, g.getGeometryN(0).getNumPoints());
 
     GeometryLocation loc = GeometryPointLocater.locateNonVertexPoint(g, FIRST, 5.0);
-    assertNotNull("first click locater missed chord " + FIRST, loc);
+    assertNotNull("first click locater missed last arc at " + FIRST, loc);
 
     Geometry afterFirst = loc.insert();
     assertSame(g, afterFirst);
@@ -146,7 +154,9 @@ public class GeometryVertexInserterCircularStringTest extends TestCase {
 
   public void testBareCircularStringTwoClickStaysOdd() throws ParseException {
     Geometry g = read("CIRCULARSTRING (0 0, 1 1, 2 0)");
-    Coordinate first = new Coordinate(1.5, 0.5);
+    Coordinate first = new ExactCircularArc(
+        new Coordinate(0, 0), new Coordinate(1, 1), new Coordinate(2, 0))
+        .pointAt(0.25);
     Coordinate second = new Coordinate(1.2, -0.4);
     GeometryLocation loc = GeometryPointLocater.locateNonVertexPoint(g, first, 0.2);
     assertNotNull(loc);
@@ -162,13 +172,15 @@ public class GeometryVertexInserterCircularStringTest extends TestCase {
 
   public void testRefuseCoincidentConsecutive() throws ParseException {
     Geometry g = read("CIRCULARSTRING (0 0, 1 1, 2 0)");
-    Coordinate first = new Coordinate(1.5, 0.5);
+    Coordinate first = new ExactCircularArc(
+        new Coordinate(0, 0), new Coordinate(1, 1), new Coordinate(2, 0))
+        .pointAt(0.25);
     GeometryLocation loc = GeometryPointLocater.locateNonVertexPoint(g, first, 0.2);
     assertNotNull(loc);
     assertNull("first == second is coincident consecutive",
         loc.insertPair(first));
-    assertNull("second == next control is coincident consecutive",
-        loc.insertPair(new Coordinate(2, 0)));
+    assertNull("second == next control in the locater window is coincident consecutive",
+        loc.insertPair(new Coordinate(1, 1)));
     assertEquals(3, g.getNumPoints());
     assertTrue(g instanceof CircularString);
   }
