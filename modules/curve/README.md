@@ -85,9 +85,10 @@ algorithm program. Known limitations:
   `MultiSurface[CurvePolygon]`, because the writer does not yet emit
   inner-member tags. Tests use `Linearizable.toLinear(...)` for
   structural-fidelity comparison.
-- **Validation is best-effort.** Structural rules (Triangle 4-point
-  ring, CircularString odd point count, CompoundCurve member
-  connectivity, Tin triangle-only patches) are not enforced.
+- **Validation is best-effort.** CircularString control count is
+  enforced (odd ≥ 3, or closed `CIRCULARSTRING(A,B,C,A)` — V-CS / #86).
+  Triangle 4-point ring, CompoundCurve member connectivity, and Tin
+  triangle-only patches are not enforced.
 - **No WKB support.** Defer to a follow-up phase for the SFA-MM type
   codes (8/9/10/11/12/15/16/17 with Z/M/ZM variants).
 - **`copy()` preserves the subclass** for top-level types via

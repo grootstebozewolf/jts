@@ -95,6 +95,30 @@ public class CircularString extends LineString implements Linearizable {
   }
 
   /**
+   * V-CS / #86: ISO/IEC 13249-3 wants an odd control count ≥ 3.
+   * Closed {@code CIRCULARSTRING(A,B,C,A)} is the 4-control full-circle
+   * exception (complementary close is implicit; no leftover mid stored).
+   */
+  public static boolean isValidControlCount(CoordinateSequence seq) {
+    if (seq == null || seq.size() == 0) {
+      return true;
+    }
+    int n = seq.size();
+    if (n < 3) {
+      return false;
+    }
+    if ((n & 1) == 1) {
+      return true;
+    }
+    return CircularArcDensifier.threePointCircleCloseMid(seq) != null;
+  }
+
+  @Override
+  public boolean isValid() {
+    return super.isValid() && isValidControlCount(getCoordinateSequence());
+  }
+
+  /**
    * §3.7 — type identity is required. The inherited
    * {@code LineString.isEquivalentClass} accepts any LineString subclass,
    * which would let a plain LineString with the same 3-point coord seq
