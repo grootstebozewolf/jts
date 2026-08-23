@@ -117,7 +117,19 @@ public class CurvePolygon extends Polygon implements Linearizable {
   private static LinearRing deriveLinearShell(LineString structuralShell, GeometryFactory factory) {
     if (structuralShell == null) return null;
     if (structuralShell instanceof LinearRing) return (LinearRing) structuralShell;
-    return factory.createLinearRing(structuralShell.getCoordinates());
+    Coordinate[] coords = structuralShell.getCoordinates();
+    // Legacy LinearRing must be closed. An open CircularString (odd ≥ 3,
+    // ISO/IEC 13249-3) used as a hole keeps those controls structurally;
+    // only this flat view is closed. That close is not a CircularString
+    // ring: 13249-3 closed CS is 5 tokens first=last, not (A,B,C,A).
+    if (isCurve(structuralShell) && coords.length >= 3
+        && !coords[0].equals2D(coords[coords.length - 1])) {
+      Coordinate[] closed = new Coordinate[coords.length + 1];
+      System.arraycopy(coords, 0, closed, 0, coords.length);
+      closed[coords.length] = coords[0].copy();
+      coords = closed;
+    }
+    return factory.createLinearRing(coords);
   }
 
   /**

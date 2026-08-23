@@ -159,6 +159,7 @@ public class CurveShapeWriter extends ShapeWriter {
     if (ring == null || ring.isEmpty()) return;
     if (ring instanceof CompoundCurve) {
       path.append(toShape((CompoundCurve) ring), false);
+      appendThreePointOpenComplementaryClose(path, threePointOpenArc(ring));
       path.closePath();
       return;
     }
@@ -166,12 +167,53 @@ public class CurveShapeWriter extends ShapeWriter {
     moveToView(path, seq.getCoordinate(0));
     if (ring instanceof CircularString) {
       appendCircularStringSegments(path, seq);
+      appendThreePointOpenComplementaryClose(path, threePointOpenArc(ring));
     } else {
       for (int j = 1; j < seq.size(); j++) {
         lineToView(path, seq.getCoordinate(j));
       }
     }
     path.closePath();
+  }
+
+  /**
+   * Paint-only close of an open 3-control CircularString ring.
+   * <p>
+   * ISO/IEC 13249-3: an open {@code CIRCULARSTRING} is odd and at least
+   * three controls; a closed CircularString ring is five tokens
+   * first=last. {@code (A,B,C,A)} is not a valid CircularString ring.
+   * A 3-point hole therefore stays the open triple in WKT. Closing the
+   * path with {@code closePath()} would stroke the chord triangle of
+   * those three points. The complementary arc is the unique circumcircle
+   * close, and is not written back into the geometry.
+   */
+  private void appendThreePointOpenComplementaryClose(GeneralPath path,
+      CoordinateSequence seq) {
+    if (seq == null) return;
+    Coordinate closeMid = CircularArcDensifier.complementaryArcMid(
+        seq.getCoordinate(2), seq.getCoordinate(1), seq.getCoordinate(0));
+    if (closeMid == null) return;
+    CircularArcRenderer.appendArc(path,
+        seq.getCoordinate(2), closeMid, seq.getCoordinate(0), transformer);
+  }
+
+  /**
+   * The 3-control open CircularString of a ring, or {@code null}.
+   * A single-member CompoundCurve hole is the same 3-point arc.
+   * {@code (A,B,A)} is not this: two distinct points do not determine
+   * a 13249-3 circle, and a closed CS ring is five tokens.
+   */
+  private static CoordinateSequence threePointOpenArc(LineString ring) {
+    if (ring instanceof CompoundCurve) {
+      CompoundCurve cc = (CompoundCurve) ring;
+      if (cc.getNumMembers() != 1) return null;
+      return threePointOpenArc(cc.getMemberN(0));
+    }
+    if (!(ring instanceof CircularString)) return null;
+    CoordinateSequence seq = ring.getCoordinateSequence();
+    if (seq.size() != 3) return null;
+    if (seq.getCoordinate(0).equals2D(seq.getCoordinate(2))) return null;
+    return seq;
   }
 
   private Shape toShape(MultiCurve mc) {
