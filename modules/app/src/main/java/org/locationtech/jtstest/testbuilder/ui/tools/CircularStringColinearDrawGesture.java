@@ -90,9 +90,32 @@ public class CircularStringColinearDrawGesture {
     return controls;
   }
 
-  /** Escape: drop the pending Start. A is unchanged because begin never wrote. */
+  /**
+   * Escape / New Case: drop the pending Start. Never commit the
+   * preview End. A is unchanged because begin never wrote. TB-CSE /
+   * TB-CSL. Does not invent Mid or End.
+   */
   public void cancel() {
     clear();
+  }
+
+  /**
+   * TB-CSE: Escape on a leftover Style A overlay must not commit.
+   * Dirty leftover has Start and a cursor End; still write nothing.
+   */
+  public static List<Coordinate> controlsForEscape(Coordinate startPt,
+      Coordinate previewEnd) {
+    return new ArrayList<Coordinate>();
+  }
+
+  /** TB-CSL: New Case drops pending Start. Does not fabricate End. */
+  public static boolean newCaseClearsPendingStart() {
+    return true;
+  }
+
+  /** Escape never writes A. Clean or dirty leftover. */
+  public static boolean escapeWritesA() {
+    return false;
   }
 
   private void clear() {

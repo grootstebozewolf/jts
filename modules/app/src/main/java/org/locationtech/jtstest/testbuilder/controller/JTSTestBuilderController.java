@@ -400,6 +400,7 @@ public class JTSTestBuilderController
   }
   
   public void caseCreateNew() {
+    CircularStringTool.onNewCase();
     model().cases().createNew();
     frame().showGeomsTab();
     frame().updateTestCases();

@@ -102,8 +102,7 @@ public class CircularStringTool extends AbstractStreamDrawTool {
     if (panel() != null) {
       panel().removeKeyListener(this);
     }
-    cancelling = false;
-    styleA.cancel();
+    abandonInProgress();
     super.deactivate();
   }
 
@@ -116,6 +115,14 @@ public class CircularStringTool extends AbstractStreamDrawTool {
       return;
     }
     super.mousePressed(e);
+    try {
+      if (e.getClickCount() == 1
+          && uniqueCircleFinishesOnClick(getCoordinates().size())) {
+        finishGesture();
+      }
+    } catch (Exception ignored) {
+      // Unique-circle finish is all-or-nothing. Do not flatten.
+    }
   }
 
   @Override
@@ -150,12 +157,42 @@ public class CircularStringTool extends AbstractStreamDrawTool {
   public void keyPressed(KeyEvent e) {
     if (isCancelKey(e.getKeyCode())) {
       e.consume();
-      if (styleA.isPending()) {
-        cancelStyleA();
-        return;
-      }
-      cancelInProgress();
+      abandonInProgress();
     }
+  }
+
+  /**
+   * TB-CSE / TB-CSL: drop Style A Start and any unique-circle band
+   * without {@code addComponent}. Escape and New Case share this
+   * path. Never invent Mid or End. Never write A.
+   */
+  void abandonInProgress() {
+    cancelStyleA();
+    cancelInProgress();
+    cancelling = false;
+  }
+
+  /**
+   * New Case: abandon leftover Style A / unique-circle. Does not
+   * construct the cursor-bearing singleton when the tool was never
+   * activated. TB-CSL.
+   */
+  public static void onNewCase() {
+    if (singleton != null) {
+      singleton.abandonInProgress();
+    }
+  }
+
+  /**
+   * Existing unique-circle new-draw: the third click writes A.
+   * Not a leftover red overlay. Not Style A. Not #82.
+   */
+  static boolean uniqueCircleFinishesOnClick(int capturedCount) {
+    return isValidCircularStringCount(capturedCount);
+  }
+
+  static boolean escapeWritesA() {
+    return CircularStringColinearDrawGesture.escapeWritesA();
   }
 
   /**
