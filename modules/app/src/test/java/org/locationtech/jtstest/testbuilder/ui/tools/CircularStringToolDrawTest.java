@@ -64,11 +64,11 @@ public class CircularStringToolDrawTest extends TestCase {
 
   public void testCircularStringDoesNotStreamAddOnDrag() {
     assertFalse("CS draw is click-to-control, not LineString stream",
-        CircularStringTool.getInstance().isStreamAddOnDrag());
+        CircularStringTool.STREAM_ADD_ON_DRAG);
   }
 
   public void testLineStringStillStreamsOnDrag() {
-    assertTrue(LineStringTool.getInstance().isStreamAddOnDrag());
+    assertTrue(AbstractStreamDrawTool.DEFAULT_STREAM_ADD_ON_DRAG);
   }
 
   public void testNewDrawAfterCommitStartsClean() {

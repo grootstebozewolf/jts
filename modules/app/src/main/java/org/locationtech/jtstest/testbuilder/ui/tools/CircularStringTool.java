@@ -65,9 +65,15 @@ public class CircularStringTool extends AbstractStreamDrawTool {
     return GeometryType.CIRCULARSTRING;
   }
 
+  /**
+   * Click-to-control. Not LineString stream-draw. Static so headless
+   * tests do not construct the cursor-bearing singleton.
+   */
+  static final boolean STREAM_ADD_ON_DRAG = false;
+
   @Override
   boolean isStreamAddOnDrag() {
-    return false;
+    return STREAM_ADD_ON_DRAG;
   }
 
   @Override
