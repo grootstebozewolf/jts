@@ -18,6 +18,8 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryComponentFilter;
 import org.locationtech.jts.geom.LineSegment;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.curve.CircularArcDensifier;
+import org.locationtech.jts.geom.curve.CircularString;
 
 /**
  * Finds a vertex or a point on a segment of a Geometry
@@ -113,6 +115,13 @@ public class GeometryPointLocater
 
       LineString lineStr = (LineString) geom;
       CoordinateSequence seq = lineStr.getCoordinateSequence();
+      if (lineStr instanceof CircularString) {
+        checkCircularString((CircularString) lineStr, seq);
+        if (nearestPt != null) {
+          component = lineStr;
+        }
+        return;
+      }
       for (int i = 0; i < seq.size(); i++) {
         if (i != seq.size() - 1)
           checkSegment(lineStr, seq, i);
@@ -124,6 +133,39 @@ public class GeometryPointLocater
           //  found matching location!
           component = lineStr;
           break;
+        }
+      }
+    }
+
+    /**
+     * CircularString is painted as 3-control arcs, not control chords.
+     * Hit-test the arc (and its vertices) so right-click insert lands
+     * on the drawn curve. {@code segIndex} is the even arc-start so
+     * {@link GeometryVertexInserter} still splits that window (+2).
+     */
+    private void checkCircularString(CircularString cs, CoordinateSequence seq)
+    {
+      int n = seq.size();
+      for (int i = 0; i < n; i++) {
+        checkVertex(cs, seq, i);
+        if (nearestPt != null) {
+          return;
+        }
+      }
+      if (vertexOnly) {
+        return;
+      }
+      for (int i = 0; i + 2 < n; i += 2) {
+        Coordinate start = seq.getCoordinate(i);
+        Coordinate mid = seq.getCoordinate(i + 1);
+        Coordinate end = seq.getCoordinate(i + 2);
+        Coordinate nearest = CircularArcDensifier.nearestPointOnArc(
+            testPt, start, mid, end);
+        if (nearest != null && testPt.distance(nearest) < tolerance) {
+          nearestPt = nearest;
+          segIndex = i;
+          isVertex = false;
+          return;
         }
       }
     }

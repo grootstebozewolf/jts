@@ -14,6 +14,8 @@
 package org.locationtech.jtstest.testbuilder.ui.tools;
 
 import java.awt.Shape;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -22,22 +24,32 @@ import java.util.List;
 import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.awt.curve.CircularArcRenderer;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jtstest.testbuilder.GeometryEditPanel;
 import org.locationtech.jtstest.testbuilder.model.GeometryType;
 
 /**
- * Stream-style mouse-draw tool for {@link
- * org.locationtech.jts.geom.curve.CircularString} geometries. Each
- * captured triple of points becomes one circular arc.
+ * Click-to-control mouse-draw tool for an ISO/IEC 13249-3 SQL/MM
+ * {@link org.locationtech.jts.geom.curve.CircularString}. Each captured
+ * triple of points is one circular arc (odd control count &ge; 3).
  *
- * <p>Overrides {@link #getShape()} so that the in-progress preview is
- * rendered as actual arcs — using the same {@link CircularArcRenderer}
- * that {@link org.locationtech.jts.awt.curve.CurveShapeWriter} uses
- * for finished geometry — instead of straight line segments between
- * control points.
+ * <p>Same A-blue new-draw as the first component: chord until click 3
+ * is the unique circle through the triple. Drag must not stream extra
+ * vertices (that is LineString stream-draw). After a commit, the next
+ * new-draw starts clean. Escape cancels the in-progress band; already
+ * committed {@code CIRCULARSTRING} members stay. Never even
+ * {@code CIRCULARSTRING} in A. Never flatten.
+ *
+ * <p>Overrides {@link #getShape()} so that the in-progress preview of a
+ * complete (start, mid, mouse) triple is an arc — using the same
+ * {@link CircularArcRenderer} that
+ * {@link org.locationtech.jts.awt.curve.CurveShapeWriter} uses for
+ * finished geometry — not a leftover chord.
  */
 public class CircularStringTool extends AbstractStreamDrawTool {
 
   private static CircularStringTool singleton = null;
+
+  private boolean cancelling = false;
 
   public static CircularStringTool getInstance() {
     if (singleton == null)
@@ -53,9 +65,82 @@ public class CircularStringTool extends AbstractStreamDrawTool {
     return GeometryType.CIRCULARSTRING;
   }
 
+  /**
+   * Click-to-control. Not LineString stream-draw. Static so headless
+   * tests do not construct the cursor-bearing singleton.
+   */
+  static final boolean STREAM_ADD_ON_DRAG = false;
+
   @Override
   boolean isStreamAddOnDrag() {
+    return STREAM_ADD_ON_DRAG;
+  }
+
+  @Override
+  public void activate(GeometryEditPanel panel) {
+    super.activate(panel);
+    panel.setFocusable(true);
+    panel.addKeyListener(this);
+    panel.requestFocusInWindow();
+  }
+
+  @Override
+  public void deactivate() {
+    if (panel() != null) {
+      panel().removeKeyListener(this);
+    }
+    cancelling = false;
+    super.deactivate();
+  }
+
+  @Override
+  public void mousePressed(MouseEvent e) {
+    if (panel() != null) {
+      panel().requestFocusInWindow();
+    }
+    super.mousePressed(e);
+  }
+
+  @Override
+  public void keyPressed(KeyEvent e) {
+    if (isCancelKey(e.getKeyCode())) {
+      e.consume();
+      cancelInProgress();
+    }
+  }
+
+  /** Only Escape cancels an in-progress CircularString. */
+  static boolean isCancelKey(int keyCode) {
+    return keyCode == KeyEvent.VK_ESCAPE;
+  }
+
+  /**
+   * Log auto-switch is not the lock. Cancel must not steal Input
+   * via {@code showInfoTab} / {@code displayInfo(..., true)}.
+   */
+  static boolean cancelStealsInputTab() {
     return false;
+  }
+
+  static boolean cancelCallsDisplayInfo() {
+    return false;
+  }
+
+  /**
+   * After commit or Escape, the next A-blue new-draw starts with zero
+   * captured points — same first-draw: chord until click 3 is the
+   * unique circle.
+   */
+  static int newDrawCapturedCount() {
+    return 0;
+  }
+
+  /**
+   * ISO/IEC 13249-3 SQL/MM {@code CIRCULARSTRING}: odd control count
+   * &ge; 3. Even count is invalid. Never emit even {@code CIRCULARSTRING}.
+   */
+  static boolean isValidCircularStringCount(int n) {
+    return n >= 3 && n % 2 == 1;
   }
 
   /**
@@ -74,42 +159,85 @@ public class CircularStringTool extends AbstractStreamDrawTool {
   }
 
   /**
-   * Per OGC SFA, a CIRCULARSTRING must contain an odd number of points
-   * &ge; 3 (each consecutive (start, mid, end) triple defines one arc).
-   * If the user releases on an even count, the trailing point is not
-   * anchored to a complete arc, so we drop it before committing rather
-   * than emit an invalid geometry. If fewer than 3 points were captured
-   * we abort without committing — the geometry would be degenerate.
-   *
-   * <p>This complements the rubber-band preview, which already renders
-   * a complete triple as an arc and any trailing odd point as a straight
-   * "what comes next" hint, so the visual cue and the commit semantics
-   * agree.
+   * Controls that may land in A. ISO/IEC 13249-3 forbids even
+   * {@code CIRCULARSTRING}. A trailing even leftover is dropped; fewer
+   * than 3 points abort. Never flatten.
    */
-  @Override
-  protected void bandFinished() throws Exception {
-    if (panel().getModel() == null) return;
-    panel().getGeomModel().setGeometryType(getGeometryType());
-
-    java.util.List<org.locationtech.jts.geom.Coordinate> coords =
-        new java.util.ArrayList<org.locationtech.jts.geom.Coordinate>();
-    for (Object o : getCoordinates()) {
-      coords.add((org.locationtech.jts.geom.Coordinate) o);
+  static List<Coordinate> controlsForCommit(List<?> captured) {
+    List<Coordinate> coords = new ArrayList<Coordinate>();
+    if (captured == null) {
+      return coords;
+    }
+    for (Object o : captured) {
+      coords.add((Coordinate) o);
     }
     if (coords.size() >= 3 && coords.size() % 2 == 0) {
       coords.remove(coords.size() - 1);
     }
-    if (coords.size() < 3) return;
+    if (coords.size() < 3) {
+      return new ArrayList<Coordinate>();
+    }
+    return coords;
+  }
+
+  /**
+   * Escape is the only caller. Drops the in-progress band without
+   * {@code addComponent}. Already committed A stays.
+   */
+  private void cancelInProgress() {
+    if (getCoordinates().isEmpty()) {
+      return;
+    }
+    cancelling = true;
+    try {
+      finishGesture();
+    } catch (Exception ignored) {
+      // In-progress band is dropped. Do not commit.
+    } finally {
+      cancelling = false;
+    }
+  }
+
+  /**
+   * ISO/IEC 13249-3: a {@code CIRCULARSTRING} must contain an odd
+   * number of points &ge; 3 (each consecutive (start, mid, end) triple
+   * defines one arc). If the user finishes on an even count, the
+   * trailing point is not anchored to a complete arc, so we drop it
+   * before committing rather than emit an even {@code CIRCULARSTRING}.
+   * If fewer than 3 points were captured we abort without committing.
+   *
+   * <p>After this commit, {@link LineBandTool#finishGesture} clears
+   * the band so the next new-draw starts clean — same A-blue gesture:
+   * chord until click 3 is the unique circle. Escape sets
+   * {@code cancelling} so the in-progress second is dropped and the
+   * first {@code CIRCULARSTRING} stays.
+   *
+   * <p>The rubber-band preview already renders a complete triple as an
+   * arc and any trailing leftover as a chord, so the visual cue and
+   * the commit semantics agree. Never flatten.
+   */
+  @Override
+  protected void bandFinished() throws Exception {
+    if (cancelling) {
+      return;
+    }
+    if (panel().getModel() == null) return;
+    panel().getGeomModel().setGeometryType(getGeometryType());
+
+    List<Coordinate> coords = controlsForCommit(getCoordinates());
+    if (coords.isEmpty() || !isValidCircularStringCount(coords.size())) {
+      return;
+    }
 
     geomModel().addComponent(coords);
     panel().updateGeom();
   }
 
   /**
-   * Renders the in-progress band as cubic-Bezier arcs through every
-   * complete (start, mid, end) triple of captured control points,
-   * with a straight-line "what-comes-next" hint for any trailing
-   * control point that does not yet form a complete triple.
+   * Same A-blue new-draw: a 2-point band is a chord; a complete
+   * (start, mid, mouse) triple is the unique circle through those
+   * ISO/IEC 13249-3 controls, not a leftover chord. Trailing even
+   * leftover stays a chord hint until dropped on commit.
    */
   @Override
   protected Shape getShape() {

@@ -12,6 +12,7 @@
 package org.locationtech.jtstest.testbuilder.ui.tools;
 
 import java.awt.Shape;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
@@ -23,7 +24,12 @@ import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.awt.curve.CurveShapeWriter;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.ClothoidSegment;
+import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jtstest.testbuilder.AppCursors;
+import org.locationtech.jtstest.testbuilder.GeometryEditPanel;
 import org.locationtech.jtstest.testbuilder.geom.GeometryLocation;
 import org.locationtech.jtstest.testbuilder.geom.GeometryVertexMover;
 
@@ -42,6 +48,9 @@ extends IndicatorTool
   private Coordinate selectedVertexLocation = null;
   private Coordinate[] adjVertices = null;
 
+  private final CircularStringInsertGesture circularStringInsert =
+      new CircularStringInsertGesture();
+
   public static EditVertexTool getInstance() {
     if (instance == null)
       instance = new EditVertexTool();
@@ -52,7 +61,43 @@ extends IndicatorTool
     super(AppCursors.EDIT_VERTEX);
   }
 
+  CircularStringInsertGesture circularStringInsertGesture() {
+    return circularStringInsert;
+  }
+
+  @Override
+  public void activate(GeometryEditPanel panel) {
+    super.activate(panel);
+    if (panel != null) {
+      panel.setFocusable(true);
+      panel.addKeyListener(this);
+      panel.requestFocusInWindow();
+    }
+  }
+
+  @Override
+  public void deactivate() {
+    cancelCircularStringInsert();
+    if (panel() != null) {
+      panel().removeKeyListener(this);
+    }
+    super.deactivate();
+  }
+
+  @Override
+  public void keyPressed(KeyEvent e) {
+    if (CircularStringInsertGesture.isCancelKey(e.getKeyCode())) {
+      e.consume();
+      cancelCircularStringInsert();
+    }
+  }
+
   public void mousePressed(MouseEvent e) {
+    if (circularStringInsert.isPending()) {
+      currentVertexLoc = toModelSnapped(e.getPoint());
+      circularStringInsert.setPreview(currentVertexLoc);
+      return;
+    }
   	currentVertexLoc = null;
     if (SwingUtilities.isRightMouseButton(e))
       return;
@@ -70,6 +115,9 @@ extends IndicatorTool
   }
 
   public void mouseReleased(MouseEvent e) {
+    if (circularStringInsert.isPending()) {
+      return;
+    }
     if (SwingUtilities.isRightMouseButton(e))
       return;
     
@@ -82,12 +130,33 @@ extends IndicatorTool
   }
 
   public void mouseDragged(MouseEvent e) {
+    if (circularStringInsert.isPending()) {
+      currentVertexLoc = toModelSnapped(e.getPoint());
+      circularStringInsert.setPreview(currentVertexLoc);
+      redrawIndicator();
+      return;
+    }
   	currentVertexLoc = toModelSnapped(e.getPoint());
     if (selectedVertexLocation != null)
       redrawIndicator();
   }
 
+  @Override
+  public void mouseMoved(MouseEvent e) {
+    super.mouseMoved(e);
+    if (circularStringInsert.isPending()) {
+      currentVertexLoc = toModelSnapped(e.getPoint());
+      circularStringInsert.setPreview(currentVertexLoc);
+      redrawIndicator();
+    }
+  }
+
   public void mouseClicked(MouseEvent e) {
+    if (circularStringInsert.isPending()) {
+      commitCircularStringInsert(toModelSnapped(e.getPoint()));
+      return;
+    }
+
     if (! SwingUtilities.isRightMouseButton(e))
       return;
 
@@ -104,6 +173,10 @@ extends IndicatorTool
       GeometryLocation geomLoc = geomModel().locateNonVertexPoint(mousePtModel, tolModel);
       //System.out.println("Testing: insert vertex at " + geomLoc);
       if (geomLoc != null) {
+        if (geomLoc.isCircularStringComponent()) {
+          startCircularStringInsert(geomLoc);
+          return;
+        }
         geomModel().setGeometry(geomLoc.insert());
       }
     }
@@ -116,8 +189,50 @@ extends IndicatorTool
     }
   }
 
+  /**
+   * First click on a CircularString: red overlay only. A stays the
+   * live odd ISO/IEC 13249-3 CS. Overlay is not written to B.
+   */
+  private void startCircularStringInsert(GeometryLocation geomLoc) {
+    if (!circularStringInsert.begin(geomLoc)) {
+      return;
+    }
+    currentVertexLoc = geomLoc.getCoordinate();
+    if (panel() != null) {
+      panel().requestFocusInWindow();
+    }
+    redrawIndicator();
+  }
+
+  private void commitCircularStringInsert(Coordinate second) {
+    Geometry edited = circularStringInsert.commit(second);
+    if (edited != null) {
+      clearIndicator();
+      geomModel().setGeometry(edited);
+      currentVertexLoc = null;
+      return;
+    }
+    if (circularStringInsert.isPending()) {
+      circularStringInsert.setPreview(second);
+      currentVertexLoc = second;
+      redrawIndicator();
+    }
+  }
+
+  private void cancelCircularStringInsert() {
+    if (!circularStringInsert.isPending()) {
+      return;
+    }
+    circularStringInsert.cancel();
+    clearIndicator();
+    currentVertexLoc = null;
+  }
+
   protected Shape getShape() 
   {
+    if (circularStringInsert.isPending()) {
+      return circularStringInsertOverlayShape();
+    }
   	GeometryCollectionShape ind = new GeometryCollectionShape();
   	Point2D currentIndicatorLoc = toView(currentVertexLoc);
   	ind.add(getIndicatorCircle(currentIndicatorLoc));
@@ -139,7 +254,31 @@ extends IndicatorTool
   }
 
   /**
-   * Rubber-band the whole CircularString as arcs (not chords to adjacent
+   * Red overlay for the in-progress pair. IndicatorTool paints
+   * {@link CircularStringInsertGesture#overlayColor} (BAND red). Not B.
+   */
+  private Shape circularStringInsertOverlayShape() {
+    Coordinate first = circularStringInsert.getFirst();
+    Coordinate second = currentVertexLoc != null
+        ? currentVertexLoc
+        : circularStringInsert.getPreviewSecond();
+    if (first == null || second == null) {
+      return null;
+    }
+    GeometryCollectionShape ind = new GeometryCollectionShape();
+    Point2D a = toView(first);
+    Point2D b = toView(second);
+    ind.add(getIndicatorCircle(a));
+    ind.add(getIndicatorCircle(b));
+    GeneralPath line = new GeneralPath();
+    line.moveTo((float) a.getX(), (float) a.getY());
+    line.lineTo((float) b.getX(), (float) b.getY());
+    ind.add(line);
+    return ind;
+  }
+
+  /**
+   * Rubber-band curve members as arcs (not chords to adjacent
    * controls). Same move as {@link #mouseReleased}.
    */
   private Shape circularStringPreviewShape() {
@@ -150,17 +289,61 @@ extends IndicatorTool
     if (g == null) {
       return null;
     }
-    String type = g.getGeometryType();
-    if (!"CircularString".equals(type) && !"CompoundCurve".equals(type)) {
+    return curveDragPreviewShape(g, selectedVertexLocation, currentVertexLoc,
+        new PointTransformation() {
+          public void transform(Coordinate src, Point2D dest) {
+            Point2D view = toView(src);
+            dest.setLocation(view.getX(), view.getY());
+          }
+        });
+  }
+
+  /**
+   * True when EditVertex rubber-band should draw arcs via
+   * {@link CurveShapeWriter} instead of chords to adjacent controls.
+   * GeometryCollection / MultiCurve of CircularString is included —
+   * a top-level type-name gate misses those (#101).
+   */
+  static boolean usesCurveDragPreview(Geometry g) {
+    if (g == null) {
+      return false;
+    }
+    if (g instanceof CircularString
+        || g instanceof CompoundCurve
+        || g instanceof ClothoidSegment) {
+      return true;
+    }
+    if (g instanceof GeometryCollection) {
+      for (int i = 0; i < g.getNumGeometries(); i++) {
+        if (usesCurveDragPreview(g.getGeometryN(i))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Model-space curve rubber-band for tests (identity view transform).
+   */
+  static Shape curveDragPreviewShape(Geometry g, Coordinate from, Coordinate to) {
+    return curveDragPreviewShape(g, from, to, null);
+  }
+
+  /**
+   * Same move as {@link #mouseReleased}, drawn through
+   * {@link CurveShapeWriter}. {@code null} view uses the writer's
+   * identity transform.
+   */
+  static Shape curveDragPreviewShape(Geometry g, Coordinate from, Coordinate to,
+      PointTransformation view) {
+    if (!usesCurveDragPreview(g) || from == null || to == null) {
       return null;
     }
-    Geometry preview = GeometryVertexMover.move(g, selectedVertexLocation, currentVertexLoc);
-    CurveShapeWriter writer = new CurveShapeWriter(new PointTransformation() {
-      public void transform(Coordinate src, Point2D dest) {
-        Point2D view = toView(src);
-        dest.setLocation(view.getX(), view.getY());
-      }
-    });
+    Geometry preview = GeometryVertexMover.move(g, from, to);
+    CurveShapeWriter writer = view == null
+        ? new CurveShapeWriter()
+        : new CurveShapeWriter(view);
     return writer.toShape(preview);
   }
 
