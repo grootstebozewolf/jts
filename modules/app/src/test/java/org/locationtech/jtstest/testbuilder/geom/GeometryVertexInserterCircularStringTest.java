@@ -11,6 +11,7 @@
  */
 package org.locationtech.jtstest.testbuilder.geom;
 
+import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -43,8 +44,15 @@ public class GeometryVertexInserterCircularStringTest extends TestCase {
           + "330 225, 361 215, 371 221, 387 232, 395 238, 406 248, 413 256, "
           + "510 330))";
 
-  /** Midpoint of the last control chord (413 256)–(510 330). */
-  private static final Coordinate CLICK = new Coordinate(461.5, 293);
+  /**
+   * Point on the last painted arc (controls 406 248, 413 256, 510 330)
+   * at arc-length fraction 0.75 — not the control-chord midpoint.
+   * Locater hits arcs, not chords (#99).
+   */
+  private static final Coordinate CLICK = new ExactCircularArc(
+      new Coordinate(406, 248),
+      new Coordinate(413, 256),
+      new Coordinate(510, 330)).pointAt(0.75);
 
   public GeometryVertexInserterCircularStringTest(String name) {
     super(name);
@@ -62,7 +70,7 @@ public class GeometryVertexInserterCircularStringTest extends TestCase {
     assertEquals(19, g.getGeometryN(0).getNumPoints());
 
     GeometryLocation loc = GeometryPointLocater.locateNonVertexPoint(g, CLICK, 5.0);
-    assertNotNull("right-click locater missed chord midpoint " + CLICK, loc);
+    assertNotNull("right-click locater missed last arc at " + CLICK, loc);
 
     Geometry result = loc.insert();
     String wkt = write(result);
@@ -111,7 +119,9 @@ public class GeometryVertexInserterCircularStringTest extends TestCase {
 
   public void testBareCircularStringInsertStaysOdd() throws ParseException {
     Geometry g = read("CIRCULARSTRING (0 0, 1 1, 2 0)");
-    Coordinate click = new Coordinate(1.5, 0.5);
+    Coordinate click = new ExactCircularArc(
+        new Coordinate(0, 0), new Coordinate(1, 1), new Coordinate(2, 0))
+        .pointAt(0.25);
     GeometryLocation loc = GeometryPointLocater.locateNonVertexPoint(g, click, 0.2);
     assertNotNull(loc);
     Geometry result = loc.insert();
