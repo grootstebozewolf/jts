@@ -27,13 +27,11 @@ import junit.framework.TestCase;
 import junit.textui.TestRunner;
 
 /**
- * UX issue #82: right-click add-vertex (Move/add/delete vertex) on a
- * {@code GEOMETRYCOLLECTION} of one {@code CIRCULARSTRING} must keep the
- * collection wrapper, keep the child a CircularString, and keep an odd
- * control count (split the clicked arc, net +2).
- * <p>
- * Same path as {@code EditVertexTool.mouseClicked} right-click →
- * {@link GeometryLocation#insert} → {@link GeometryVertexInserter}.
+ * UX issue #82: two-click insert on a {@code GEOMETRYCOLLECTION} of one
+ * {@code CIRCULARSTRING}. ISO/IEC 13249-3: control count (WKT tokens)
+ * stays odd and &ge; 3. First click does not write. Second click
+ * commits the two click controls (+2). Not #83 chord-mid. Never even,
+ * never flatten, never coincident consecutive.
  */
 public class GeometryVertexInserterCircularStringTest extends TestCase {
 
@@ -43,8 +41,11 @@ public class GeometryVertexInserterCircularStringTest extends TestCase {
           + "330 225, 361 215, 371 221, 387 232, 395 238, 406 248, 413 256, "
           + "510 330))";
 
-  /** Midpoint of the last control chord (413 256)–(510 330). */
-  private static final Coordinate CLICK = new Coordinate(461.5, 293);
+  /** Midpoint of the last control chord (413 256)–(510 330). First click. */
+  private static final Coordinate FIRST = new Coordinate(461.5, 293);
+
+  /** Second click — a distinct pair partner, not a #83 invented mid. */
+  private static final Coordinate SECOND = new Coordinate(430, 310);
 
   public GeometryVertexInserterCircularStringTest(String name) {
     super(name);
@@ -54,17 +55,33 @@ public class GeometryVertexInserterCircularStringTest extends TestCase {
     TestRunner.run(GeometryVertexInserterCircularStringTest.class);
   }
 
-  public void testRightClickInsertKeepsGeometryCollectionCircularString()
+  public void testOneClickInsertDoesNotWriteCircularString() throws ParseException {
+    Geometry g = read(INPUT);
+    GeometryLocation loc = GeometryPointLocater.locateNonVertexPoint(g, FIRST, 5.0);
+    assertNotNull(loc);
+    assertTrue(loc.isCircularStringComponent());
+
+    Geometry result = loc.insert();
+    assertSame("first click must not write A", g, result);
+    assertEquals(19, g.getGeometryN(0).getNumPoints());
+    assertEquals(1, g.getGeometryN(0).getNumPoints() % 2);
+  }
+
+  public void testTwoClickInsertKeepsGeometryCollectionCircularString()
       throws ParseException {
     Geometry g = read(INPUT);
     assertTrue(g instanceof GeometryCollection);
     assertTrue(g.getGeometryN(0) instanceof CircularString);
     assertEquals(19, g.getGeometryN(0).getNumPoints());
 
-    GeometryLocation loc = GeometryPointLocater.locateNonVertexPoint(g, CLICK, 5.0);
-    assertNotNull("right-click locater missed chord midpoint " + CLICK, loc);
+    GeometryLocation loc = GeometryPointLocater.locateNonVertexPoint(g, FIRST, 5.0);
+    assertNotNull("first click locater missed chord " + FIRST, loc);
 
-    Geometry result = loc.insert();
+    Geometry afterFirst = loc.insert();
+    assertSame(g, afterFirst);
+
+    Geometry result = loc.insertPair(SECOND);
+    assertNotNull(result);
     String wkt = write(result);
 
     assertFalse("must not flatten to LINESTRING, got " + wkt,
@@ -76,49 +93,103 @@ public class GeometryVertexInserterCircularStringTest extends TestCase {
     Geometry child = result.getGeometryN(0);
     assertTrue("child must stay CircularString, got " + child.getClass().getName()
         + " " + wkt, child instanceof CircularString);
-    assertEquals("arc split is net +2 (19 → 21), got " + child.getNumPoints()
+    assertEquals("two-click commit is net +2 (19 → 21), got " + child.getNumPoints()
         + " " + wkt, 21, child.getNumPoints());
-    assertEquals("CircularString control count must stay odd, got "
+    assertEquals("ISO/IEC 13249-3 WKT tokens must stay odd, got "
         + child.getNumPoints() + " " + wkt,
         1, child.getNumPoints() % 2);
-    assertTrue("inserted click point missing, got " + wkt,
-        contains(child, CLICK));
+    assertTrue("first click missing, got " + wkt, contains(child, FIRST));
+    assertTrue("second click missing, got " + wkt, contains(child, SECOND));
     assertTrue("last control must stay (510 330), got " + wkt,
         child.getCoordinates()[child.getNumPoints() - 1]
             .equals2D(new Coordinate(510, 330)));
+    assertFalse("must not invent #83 chord-mid mid(A,C)",
+        contains(child, GeometryVertexInserter.chordMidpoint(
+            new Coordinate(406, 248), FIRST)));
+    assertFalse("must not invent #83 chord-mid mid(C,B)",
+        contains(child, GeometryVertexInserter.chordMidpoint(
+            FIRST, new Coordinate(510, 330))));
 
     Geometry roundTrip = read(wkt);
     assertTrue(roundTrip instanceof GeometryCollection);
     assertTrue(roundTrip.getGeometryN(0) instanceof CircularString);
     assertEquals(21, roundTrip.getGeometryN(0).getNumPoints());
+    assertEquals(1, wktTokenCount(child) % 2);
+    assertTrue(wktTokenCount(child) >= 3);
   }
 
-  public void testGeometryEditModelRightClickInsert() throws ParseException {
+  public void testGeometryEditModelTwoClickInsertWritesAOnly() throws ParseException {
     GeometryEditModel model = new GeometryEditModel();
     model.setTestCase(new TestCaseEdit(new CurveGeometryFactory().getPrecisionModel()));
-    model.setGeometry(read(INPUT));
+    Geometry input = read(INPUT);
+    model.setGeometry(0, input);
+    model.setGeometry(1, null);
 
-    GeometryLocation loc = model.locateNonVertexPoint(CLICK, 5.0);
+    GeometryLocation loc = model.locateNonVertexPoint(FIRST, 5.0);
     assertNotNull(loc);
-    model.setGeometry(loc.insert());
+    assertSame(input, loc.insert());
+    assertEquals("first click must not write A", 19,
+        model.getGeometry(0).getGeometryN(0).getNumPoints());
+    assertNull("overlay must not write B", model.getGeometry(1));
 
-    Geometry result = model.getGeometry();
+    Geometry committed = loc.insertPair(SECOND);
+    assertNotNull(committed);
+    model.setGeometry(0, committed);
+
+    Geometry result = model.getGeometry(0);
     assertTrue(result instanceof GeometryCollection);
     assertTrue(result.getGeometryN(0) instanceof CircularString);
     assertEquals(21, result.getGeometryN(0).getNumPoints());
     assertEquals(1, result.getGeometryN(0).getNumPoints() % 2);
+    assertNull("commit writes A, not B", model.getGeometry(1));
   }
 
-  public void testBareCircularStringInsertStaysOdd() throws ParseException {
+  public void testBareCircularStringTwoClickStaysOdd() throws ParseException {
     Geometry g = read("CIRCULARSTRING (0 0, 1 1, 2 0)");
-    Coordinate click = new Coordinate(1.5, 0.5);
+    Coordinate first = new Coordinate(1.5, 0.5);
+    Coordinate second = new Coordinate(1.2, -0.4);
+    GeometryLocation loc = GeometryPointLocater.locateNonVertexPoint(g, first, 0.2);
+    assertNotNull(loc);
+    assertSame(g, loc.insert());
+    Geometry result = loc.insertPair(second);
+    assertTrue(result instanceof CircularString);
+    assertEquals(5, result.getNumPoints());
+    assertTrue(contains(result, first));
+    assertTrue(contains(result, second));
+    assertFalse(result.getClass().equals(LineString.class));
+    assertNotNull(read(write(result)));
+  }
+
+  public void testRefuseCoincidentConsecutive() throws ParseException {
+    Geometry g = read("CIRCULARSTRING (0 0, 1 1, 2 0)");
+    Coordinate first = new Coordinate(1.5, 0.5);
+    GeometryLocation loc = GeometryPointLocater.locateNonVertexPoint(g, first, 0.2);
+    assertNotNull(loc);
+    assertNull("first == second is coincident consecutive",
+        loc.insertPair(first));
+    assertNull("second == next control is coincident consecutive",
+        loc.insertPair(new Coordinate(2, 0)));
+    assertEquals(3, g.getNumPoints());
+    assertTrue(g instanceof CircularString);
+  }
+
+  public void testLineStringOneClickInsertUnchanged() throws ParseException {
+    Geometry g = read("LINESTRING (0 0, 2 0)");
+    Coordinate click = new Coordinate(1, 0);
     GeometryLocation loc = GeometryPointLocater.locateNonVertexPoint(g, click, 0.2);
     assertNotNull(loc);
     Geometry result = loc.insert();
-    assertTrue(result instanceof CircularString);
-    assertEquals(5, result.getNumPoints());
-    assertTrue(contains(result, click));
-    assertNotNull(read(write(result)));
+    assertTrue(result instanceof LineString);
+    assertFalse(result instanceof CircularString);
+    assertEquals(3, result.getNumPoints());
+  }
+
+  public void testInsertPairOnLineStringRefuses() throws ParseException {
+    Geometry g = read("LINESTRING (0 0, 2 0)");
+    Coordinate click = new Coordinate(1, 0);
+    GeometryLocation loc = GeometryPointLocater.locateNonVertexPoint(g, click, 0.2);
+    assertNotNull(loc);
+    assertNull(loc.insertPair(new Coordinate(1, 1)));
   }
 
   private static boolean contains(Geometry g, Coordinate pt) {
@@ -129,6 +200,11 @@ public class GeometryVertexInserterCircularStringTest extends TestCase {
       }
     }
     return false;
+  }
+
+  /** ISO/IEC 13249-3 odd &ge; 3 is WKT control tokens. */
+  private static int wktTokenCount(Geometry g) {
+    return g.getNumPoints();
   }
 
   private static Geometry read(String wkt) throws ParseException {
