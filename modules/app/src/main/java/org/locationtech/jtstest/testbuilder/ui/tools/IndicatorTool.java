@@ -130,8 +130,17 @@ public abstract class IndicatorTool extends BasicTool
     originalStroke = graphics.getStroke();
     originalFont = graphics.getFont();
     graphics.setFont(new Font(FontGlyphReader.FONT_SANSSERIF, Font.PLAIN, 14));
-    graphics.setColor(bandColor);
+    graphics.setColor(indicatorColor());
     graphics.setXORMode(Color.white);
+  }
+
+  /**
+   * XOR indicator color. Unique-circle CircularString draw keeps
+   * {@link AppConstants#BAND_CLR}. Style A colinear draw overrides to
+   * A-blue while the second click is pending.
+   */
+  protected Color indicatorColor() {
+    return bandColor;
   }
 
   private void teardown(Graphics2D graphics) {

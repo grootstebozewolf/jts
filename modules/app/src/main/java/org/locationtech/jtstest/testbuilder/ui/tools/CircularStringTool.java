@@ -13,6 +13,7 @@
  * (the `CIRCULARSTRING` branch). */
 package org.locationtech.jtstest.testbuilder.ui.tools;
 
+import java.awt.Color;
 import java.awt.Shape;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
@@ -20,6 +21,8 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.swing.SwingUtilities;
 
 import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.awt.curve.CircularArcRenderer;
@@ -39,6 +42,13 @@ import org.locationtech.jtstest.testbuilder.model.GeometryType;
  * committed {@code CIRCULARSTRING} members stay. Never even
  * {@code CIRCULARSTRING} in A. Never flatten.
  *
+ * <p>Style A (PO 23 Aug 2026): Ctrl+left-click, two clicks Start then
+ * End, commits {@code CIRCULARSTRING (Start, Mid(Start,End), End)}.
+ * Mid is the Euclidean midpoint. Pending preview is an A-blue chord.
+ * Escape cancels with nothing written to A. Coincident Start=End is
+ * refused. Style B {@code (Start, Start, End)} stays HOLD. Plain
+ * left-click stays the unique-circle path. Not #82. Not #83.
+ *
  * <p>Overrides {@link #getShape()} so that the in-progress preview of a
  * complete (start, mid, mouse) triple is an arc — using the same
  * {@link CircularArcRenderer} that
@@ -50,6 +60,9 @@ public class CircularStringTool extends AbstractStreamDrawTool {
   private static CircularStringTool singleton = null;
 
   private boolean cancelling = false;
+
+  private final CircularStringColinearDrawGesture styleA =
+      new CircularStringColinearDrawGesture();
 
   public static CircularStringTool getInstance() {
     if (singleton == null)
@@ -90,6 +103,7 @@ public class CircularStringTool extends AbstractStreamDrawTool {
       panel().removeKeyListener(this);
     }
     cancelling = false;
+    styleA.cancel();
     super.deactivate();
   }
 
@@ -98,15 +112,135 @@ public class CircularStringTool extends AbstractStreamDrawTool {
     if (panel() != null) {
       panel().requestFocusInWindow();
     }
+    if (handleStyleAPress(e)) {
+      return;
+    }
     super.mousePressed(e);
+  }
+
+  @Override
+  public void mouseReleased(MouseEvent e) {
+    if (styleA.isPending()) {
+      return;
+    }
+    super.mouseReleased(e);
+  }
+
+  @Override
+  public void mouseMoved(MouseEvent e) {
+    if (styleA.isPending()) {
+      styleA.setPreview(toModelSnapped(e.getPoint()));
+      redrawIndicator();
+      return;
+    }
+    super.mouseMoved(e);
+  }
+
+  @Override
+  public void mouseDragged(MouseEvent e) {
+    if (styleA.isPending()) {
+      styleA.setPreview(toModelSnapped(e.getPoint()));
+      redrawIndicator();
+      return;
+    }
+    super.mouseDragged(e);
   }
 
   @Override
   public void keyPressed(KeyEvent e) {
     if (isCancelKey(e.getKeyCode())) {
       e.consume();
+      if (styleA.isPending()) {
+        cancelStyleA();
+        return;
+      }
       cancelInProgress();
     }
+  }
+
+  /**
+   * Ctrl+left-click Style A. Does not add to the unique-circle band.
+   * Right-click and Ctrl+right-click are not this door.
+   */
+  private boolean handleStyleAPress(MouseEvent e) {
+    if (!isStyleAClick(e)) {
+      return styleA.isPending();
+    }
+    if (e.getClickCount() != 1) {
+      return true;
+    }
+    Coordinate click = toModelSnapped(e.getPoint());
+    if (!styleA.isPending()) {
+      if (!getCoordinates().isEmpty()) {
+        return false;
+      }
+      styleA.begin(click);
+      redrawIndicator();
+      return true;
+    }
+    List<Coordinate> controls = styleA.commit(click);
+    if (controls == null) {
+      styleA.setPreview(click);
+      redrawIndicator();
+      return true;
+    }
+    commitStyleA(controls);
+    return true;
+  }
+
+  private void commitStyleA(List<Coordinate> controls) {
+    try {
+      clearIndicator();
+      if (panel() == null || panel().getModel() == null) {
+        return;
+      }
+      if (controls == null || !isValidCircularStringCount(controls.size())) {
+        return;
+      }
+      panel().getGeomModel().setGeometryType(getGeometryType());
+      geomModel().addComponent(controls);
+      panel().updateGeom();
+    } catch (Exception ignored) {
+      // Style A commit is all-or-nothing. Do not flatten.
+    }
+  }
+
+  private void cancelStyleA() {
+    styleA.cancel();
+    clearIndicator();
+  }
+
+  /**
+   * Ctrl+left-click only. Static so headless tests do not construct
+   * the cursor-bearing singleton. Not Ctrl+right-click (#97). Not
+   * plain left-click (unique-circle).
+   */
+  static boolean isStyleAClick(boolean controlDown, boolean leftButton,
+      boolean rightButton) {
+    return CircularStringColinearDrawGesture.isStyleAClick(
+        controlDown, leftButton, rightButton);
+  }
+
+  static boolean isStyleAClick(MouseEvent e) {
+    if (e == null) {
+      return false;
+    }
+    return isStyleAClick(e.isControlDown(),
+        SwingUtilities.isLeftMouseButton(e),
+        SwingUtilities.isRightMouseButton(e));
+  }
+
+  /** Style B {@code (Start, Start, End)} stays HOLD. */
+  static boolean styleBIsHold() {
+    return CircularStringColinearDrawGesture.styleBIsHold();
+  }
+
+  static Color styleAPreviewColor() {
+    return CircularStringColinearDrawGesture.previewColor();
+  }
+
+  static boolean styleAPreviewIsChord() {
+    return CircularStringColinearDrawGesture.previewIsChord();
   }
 
   /** Only Escape cancels an in-progress CircularString. */
@@ -233,14 +367,26 @@ public class CircularStringTool extends AbstractStreamDrawTool {
     panel().updateGeom();
   }
 
+  @Override
+  protected Color indicatorColor() {
+    if (styleA.isPending()) {
+      return CircularStringColinearDrawGesture.previewColor();
+    }
+    return super.indicatorColor();
+  }
+
   /**
    * Same A-blue new-draw: a 2-point band is a chord; a complete
    * (start, mid, mouse) triple is the unique circle through those
    * ISO/IEC 13249-3 controls, not a leftover chord. Trailing even
-   * leftover stays a chord hint until dropped on commit.
+   * leftover stays a chord hint until dropped on commit. Style A
+   * pending preview is a Start-to-cursor chord, not this triple.
    */
   @Override
   protected Shape getShape() {
+    if (styleA.isPending()) {
+      return styleAPreviewShape();
+    }
     List<Coordinate> captured = new ArrayList<Coordinate>();
     for (Object o : getCoordinates()) captured.add((Coordinate) o);
     if (captured.isEmpty()) return null;
@@ -282,6 +428,37 @@ public class CircularStringTool extends AbstractStreamDrawTool {
     }
 
     drawVertices(path, captured);
+    return path;
+  }
+
+  /**
+   * Pending Style A preview: A-blue chord from Start to the cursor.
+   * Not the unique-circle triple. Mid is committed on the second
+   * click, not painted as a third preview control.
+   */
+  private Shape styleAPreviewShape() {
+    Coordinate start = styleA.getStart();
+    if (start == null) {
+      return null;
+    }
+    Coordinate end = styleA.getPreviewEnd();
+    if (end == null) {
+      end = tentativeCoordinate;
+    }
+    if (end == null) {
+      end = start;
+    }
+    GeneralPath path = new GeneralPath();
+    Point2D first = toView(start);
+    path.moveTo((float) first.getX(), (float) first.getY());
+    Point2D last = toView(end);
+    path.lineTo((float) last.getX(), (float) last.getY());
+    List<Coordinate> marks = new ArrayList<Coordinate>();
+    marks.add(start);
+    if (!start.equals2D(end)) {
+      marks.add(end);
+    }
+    drawVertices(path, marks);
     return path;
   }
 
