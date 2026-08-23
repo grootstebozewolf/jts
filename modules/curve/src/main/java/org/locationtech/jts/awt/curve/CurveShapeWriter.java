@@ -26,7 +26,6 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.curve.CircularArcDensifier;
 import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
@@ -159,6 +158,7 @@ public class CurveShapeWriter extends ShapeWriter {
     if (ring == null || ring.isEmpty()) return;
     if (ring instanceof CompoundCurve) {
       path.append(toShape((CompoundCurve) ring), false);
+      appendThreePointOpenComplementaryClose(path, threePointOpenArc(ring));
       path.closePath();
       return;
     }
@@ -166,12 +166,53 @@ public class CurveShapeWriter extends ShapeWriter {
     moveToView(path, seq.getCoordinate(0));
     if (ring instanceof CircularString) {
       appendCircularStringSegments(path, seq);
+      appendThreePointOpenComplementaryClose(path, threePointOpenArc(ring));
     } else {
       for (int j = 1; j < seq.size(); j++) {
         lineToView(path, seq.getCoordinate(j));
       }
     }
     path.closePath();
+  }
+
+  /**
+   * Paint-only close of an open 3-control CircularString ring.
+   * <p>
+   * ISO/IEC 13249-3: an open {@code CIRCULARSTRING} is odd and at least
+   * three controls; a closed CircularString ring is five tokens
+   * first=last. {@code (A,B,C,A)} is not a valid CircularString ring.
+   * A 3-point hole therefore stays the open triple in WKT. Closing the
+   * path with {@code closePath()} would stroke the chord triangle of
+   * those three points. The complementary arc is the unique circumcircle
+   * close, and is not written back into the geometry.
+   */
+  private void appendThreePointOpenComplementaryClose(GeneralPath path,
+      CoordinateSequence seq) {
+    if (seq == null) return;
+    Coordinate closeMid = CircularArcRenderer.complementarySweepMid(
+        seq.getCoordinate(0), seq.getCoordinate(1), seq.getCoordinate(2));
+    if (closeMid == null) return;
+    CircularArcRenderer.appendArc(path,
+        seq.getCoordinate(2), closeMid, seq.getCoordinate(0), transformer);
+  }
+
+  /**
+   * The 3-control open CircularString of a ring, or {@code null}.
+   * A single-member CompoundCurve hole is the same 3-point arc.
+   * {@code (A,B,A)} is not this: two distinct points do not determine
+   * a 13249-3 circle, and a closed CS ring is five tokens.
+   */
+  private static CoordinateSequence threePointOpenArc(LineString ring) {
+    if (ring instanceof CompoundCurve) {
+      CompoundCurve cc = (CompoundCurve) ring;
+      if (cc.getNumMembers() != 1) return null;
+      return threePointOpenArc(cc.getMemberN(0));
+    }
+    if (!(ring instanceof CircularString)) return null;
+    CoordinateSequence seq = ring.getCoordinateSequence();
+    if (seq.size() != 3) return null;
+    if (seq.getCoordinate(0).equals2D(seq.getCoordinate(2))) return null;
+    return seq;
   }
 
   private Shape toShape(MultiCurve mc) {
@@ -227,7 +268,7 @@ public class CurveShapeWriter extends ShapeWriter {
           seq.getCoordinate(i + 2),
           transformer);
     }
-    Coordinate closeMid = CircularArcDensifier.threePointCircleCloseMid(seq);
+    Coordinate closeMid = fourControlComplementarySweepMid(seq);
     if (closeMid != null) {
       CircularArcRenderer.appendArc(path,
           seq.getCoordinate(n - 2),
@@ -235,6 +276,22 @@ public class CurveShapeWriter extends ShapeWriter {
           seq.getCoordinate(0),
           transformer);
     }
+  }
+
+  /**
+   * Paint-only complementary close of a 4-control first=last
+   * CircularString. WKT stays four controls (do not rewrite). The mid
+   * is on the sweep from the last distinct control back to start that
+   * does not contain the specified interior control, so a major-arc
+   * hole is a disc that punches (ISO/IEC 13249-3 first=last kept).
+   */
+  private static Coordinate fourControlComplementarySweepMid(CoordinateSequence seq) {
+    if (seq == null || seq.size() != 4) return null;
+    Coordinate a = seq.getCoordinate(0);
+    Coordinate b = seq.getCoordinate(1);
+    Coordinate c = seq.getCoordinate(2);
+    if (!a.equals2D(seq.getCoordinate(3))) return null;
+    return CircularArcRenderer.complementarySweepMid(a, b, c);
   }
 
   private Shape toShape(CircularString cs) {

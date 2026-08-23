@@ -20,6 +20,7 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jtstest.testbuilder.ui.Viewport;
 
 
@@ -62,9 +63,9 @@ public abstract class LineStringStyle
     }
     if (geom instanceof Polygon) {
       Polygon polygon = (Polygon) geom;
-      paint(polygon.getExteriorRing(), POLY_SHELL, viewport, g);
+      paint(exteriorRing(polygon), POLY_SHELL, viewport, g);
       for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
-          paint(polygon.getInteriorRingN(i), POLY_HOLE, viewport, g);
+          paint(interiorRing(polygon, i), POLY_HOLE, viewport, g);
       }
       return;
     }
@@ -85,5 +86,28 @@ public abstract class LineStringStyle
       Viewport viewport, Graphics2D graphics)
   throws Exception;
 
+  /**
+   * Structural shell so a CircularString / CompoundCurve ring is painted
+   * as arcs ({@code CurveShapeWriter}), not the flat control-point
+   * LinearRing. ISO/IEC 13249-3: the hole stays the curve member.
+   */
+  static LineString exteriorRing(Polygon polygon) {
+    if (polygon instanceof CurvePolygon) {
+      LineString curve = ((CurvePolygon) polygon).getExteriorCurve();
+      if (curve != null) return curve;
+    }
+    return polygon.getExteriorRing();
+  }
+
+  /**
+   * Structural hole. {@code getInteriorRingN} is the chord polygon of
+   * the controls — the 3-point triangle a curve hole must not draw.
+   */
+  static LineString interiorRing(Polygon polygon, int i) {
+    if (polygon instanceof CurvePolygon) {
+      return ((CurvePolygon) polygon).getInteriorCurveN(i);
+    }
+    return polygon.getInteriorRingN(i);
+  }
 
 }
