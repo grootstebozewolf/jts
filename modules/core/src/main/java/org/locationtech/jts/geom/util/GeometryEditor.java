@@ -308,9 +308,9 @@ public class GeometryEditor
   }
 
   /**
-   * Re-anchor a clothoid at the edited start (or translate if only the
-   * end moved). κ₀, κ₁, L and start tangent stay; the integrated end
-   * follows.
+   * Re-anchor a clothoid at the edited start. κ₀, κ₁ and start tangent
+   * stay. L scales by newChord/oldChord of the edited control pair so
+   * dragging an end stretches the spiral instead of translating it.
    */
   private static Geometry rebuildClothoid(Geometry geometry, GeometryFactory factory,
       Coordinate[] coordinates) {
@@ -332,11 +332,12 @@ public class GeometryEditor
           .invoke(geometry)).doubleValue();
       Coordinate newStart = coordinates[0];
       Coordinate newEnd = coordinates[coordinates.length - 1];
-      if (oldStart != null && newStart.equals2D(oldStart)
-          && oldEnd != null && newEnd != null && !newEnd.equals2D(oldEnd)) {
-        newStart = new Coordinate(
-            oldStart.x + (newEnd.x - oldEnd.x),
-            oldStart.y + (newEnd.y - oldEnd.y));
+      if (oldStart != null && oldEnd != null && newStart != null && newEnd != null) {
+        double oldChord = oldStart.distance(oldEnd);
+        double newChord = newStart.distance(newEnd);
+        if (oldChord > 0.0 && newChord > 0.0) {
+          len = len * newChord / oldChord;
+        }
       }
       return factory.createClothoid(newStart, tangent, k0, k1, len);
     }
