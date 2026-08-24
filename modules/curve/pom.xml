@@ -46,6 +46,8 @@
               test method per TAG. CI stays green by default; contributors
               run the spec class explicitly with
                 mvn test -Dtest=CurveAwarenessSpecTest
+              #67 RelateNG unit-square / inscribed-disc lock:
+                mvn test -Dtest=RelateNGUnitSquareBoundaryRedTest
               The surviving method count is the live progress meter.
               See locationtech/jts#1195 (SFA Curve Awareness epic) section 11.
             -->
