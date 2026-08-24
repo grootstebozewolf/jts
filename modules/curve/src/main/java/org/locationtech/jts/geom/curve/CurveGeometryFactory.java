@@ -57,7 +57,9 @@ public class CurveGeometryFactory extends GeometryFactory {
 
   @Override
   public CircularString createCircularString(CoordinateSequence points) {
-    return new CircularString(points, this);
+    CoordinateSequence seq = CircularString.onAddOrRead(points,
+        getCoordinateSequenceFactory());
+    return new CircularString(seq, this);
   }
 
   public CompoundCurve createCompoundCurve(CoordinateSequence points) {

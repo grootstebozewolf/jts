@@ -18,6 +18,7 @@ import java.util.List;
 import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.CoordinateSequenceFactory;
 import org.locationtech.jts.geom.CoordinateSequences;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -95,22 +96,108 @@ public class CircularString extends LineString implements Linearizable {
   }
 
   /**
-   * V-CS / #86: ISO/IEC 13249-3 wants an odd control count ≥ 3.
-   * Closed {@code CIRCULARSTRING(A,B,C,A)} is the 4-control full-circle
-   * exception (complementary close is implicit; no leftover mid stored).
+   * ISO/IEC 13249-3: a {@code CIRCULARSTRING} has an odd control count
+   * ≥ 3. Empty is allowed. Four-item {@code (A, B, C, A)} (EX-CS-4 /
+   * ADR min ring) is rejected — that is not a valid stored list.
+   * A JTS on-ramp {@code (A, B, A)} is rewritten on add/read to the
+   * 5-token circle; after that rewrite the count is 5.
    */
   public static boolean isValidControlCount(CoordinateSequence seq) {
     if (seq == null || seq.size() == 0) {
       return true;
     }
     int n = seq.size();
-    if (n < 3) {
+    return n >= 3 && (n & 1) == 1;
+  }
+
+  /**
+   * JTS on-ramp only: {@code CIRCULARSTRING (A, B, A)} with two
+   * distinct points. This is <em>not</em> the ISO/IEC 13249-3
+   * full-circle form. Refuse {@code A = B}.
+   */
+  public static boolean isDiameterOnRamp(CoordinateSequence seq) {
+    if (seq == null || seq.size() != 3) {
       return false;
     }
-    if ((n & 1) == 1) {
-      return true;
+    Coordinate a = seq.getCoordinate(0);
+    Coordinate b = seq.getCoordinate(1);
+    Coordinate a2 = seq.getCoordinate(2);
+    return a.equals2D(a2) && !a.equals2D(b);
+  }
+
+  /**
+   * {@code CIRCULARSTRING (A, B, A)} with {@code A = B}. Refused.
+   */
+  public static boolean isRefusedDiameterOnRamp(CoordinateSequence seq) {
+    if (seq == null || seq.size() != 3) {
+      return false;
     }
-    return CircularArcDensifier.threePointCircleCloseMid(seq) != null;
+    Coordinate a = seq.getCoordinate(0);
+    Coordinate b = seq.getCoordinate(1);
+    Coordinate a2 = seq.getCoordinate(2);
+    return a.equals2D(a2) && a.equals2D(b);
+  }
+
+  /**
+   * {@code CIRCULARSTRING (A, B, A)} with {@code A = B}. Refused.
+   */
+  public static boolean isRefusedDiameterOnRamp(Coordinate[] pts) {
+    if (pts == null || pts.length != 3) {
+      return false;
+    }
+    return pts[0].equals2D(pts[2]) && pts[0].equals2D(pts[1]);
+  }
+
+  /**
+   * On add/read, rewrite JTS on-ramp {@code (A, B, A)} to
+   * {@code CIRCULARSTRING (A, C, B, D, A)}. Diameter is A–B; O is the
+   * midpoint; R is {@code |B−A|/2}; θ is the angle of A→B; C is the
+   * circle point at θ − π/2; D is the circle point at θ + π/2. Two
+   * arcs {@code (A, C, B)} and {@code (B, D, A)}. Type stays
+   * {@code CIRCULARSTRING}. Never flatten to {@code LINESTRING}.
+   * This is not the ISO/IEC 13249-3 full-circle form.
+   *
+   * @throws IllegalArgumentException if {@code A = B}
+   */
+  public static CoordinateSequence onAddOrRead(CoordinateSequence seq,
+      CoordinateSequenceFactory csf) {
+    if (isRefusedDiameterOnRamp(seq)) {
+      throw new IllegalArgumentException(refusedDiameterMessage());
+    }
+    if (isDiameterOnRamp(seq)) {
+      return expandDiameterOnRamp(seq, csf);
+    }
+    return seq;
+  }
+
+  public static String refusedDiameterMessage() {
+    return "CIRCULARSTRING (A, B, A) is a JTS on-ramp only when A and B "
+        + "are distinct; A = B is refused. Not the ISO/IEC 13249-3 "
+        + "full-circle form.";
+  }
+
+  /**
+   * Diameter A–B → five tokens {@code (A, C, B, D, A)}.
+   */
+  public static CoordinateSequence expandDiameterOnRamp(CoordinateSequence seq,
+      CoordinateSequenceFactory csf) {
+    Coordinate a = seq.getCoordinate(0);
+    Coordinate b = seq.getCoordinate(1);
+    double dx = b.x - a.x;
+    double dy = b.y - a.y;
+    double ox = (a.x + b.x) * 0.5;
+    double oy = (a.y + b.y) * 0.5;
+    double r = 0.5 * Math.hypot(dx, dy);
+    double theta = Math.atan2(dy, dx);
+    Coordinate c = a.copy();
+    c.setX(ox + r * Math.cos(theta - Math.PI / 2.0));
+    c.setY(oy + r * Math.sin(theta - Math.PI / 2.0));
+    Coordinate d = a.copy();
+    d.setX(ox + r * Math.cos(theta + Math.PI / 2.0));
+    d.setY(oy + r * Math.sin(theta + Math.PI / 2.0));
+    return csf.create(new Coordinate[] {
+        a.copy(), c, b.copy(), d, a.copy()
+    });
   }
 
   @Override

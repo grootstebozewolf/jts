@@ -118,6 +118,44 @@ public class WKTPanelLoadTest extends TestCase {
     assertFalse(WKTPanel.isApplyLoadKey(key(KeyEvent.VK_A, 0)));
   }
 
+  /**
+   * Canvas load of (A, B, A) rewrites to the 5-token CIRCULARSTRING.
+   * Not ISO/IEC 13249-3 full-circle. No GUI.
+   */
+  public void testLoadGeometryText_abaRewritesToFiveTokenCircle()
+      throws Exception {
+    TestBuilderModel model = new TestBuilderModel();
+    model.loadGeometryText("CIRCULARSTRING (0 0, 2 0, 0 0)", "");
+    Geometry g = model.getCurrentCase().getGeometry(0);
+    assertNotNull(g);
+    assertEquals("CircularString", g.getGeometryType());
+    assertEquals(5, g.getNumPoints());
+    assertEquals(1.0, g.getCoordinates()[1].x, 1e-12);
+    assertEquals(-1.0, g.getCoordinates()[1].y, 1e-12);
+  }
+
+  public void testLoadGeometryText_fourItemCircularStringRejected()
+      throws Exception {
+    TestBuilderModel model = new TestBuilderModel();
+    try {
+      model.loadGeometryText("CIRCULARSTRING (-5 0, 0 5, 5 0, -5 0)", "");
+      fail("Expected reject 4-item CIRCULARSTRING");
+    } catch (Exception e) {
+      assertTrue(e.getMessage() != null);
+    }
+  }
+
+  public void testLoadGeometryText_refuseAEqualsB() throws Exception {
+    TestBuilderModel model = new TestBuilderModel();
+    try {
+      model.loadGeometryText("CIRCULARSTRING (0 0, 0 0, 0 0)", "");
+      fail("Expected refuse A = B");
+    } catch (Exception e) {
+      assertTrue(e.getMessage().indexOf("distinct") >= 0
+          || e.getMessage().indexOf("A = B") >= 0);
+    }
+  }
+
   private static KeyEvent key(int keyCode, int modifiers) {
     return new KeyEvent(new JTextArea(), KeyEvent.KEY_PRESSED, 0L,
         modifiers, keyCode, KeyEvent.CHAR_UNDEFINED);

@@ -62,4 +62,50 @@ public class GeometryEditModelCircularStringTest extends TestCase {
         wkt.startsWith("CIRCULARSTRING"));
     assertFalse(wkt.startsWith("LINESTRING"));
   }
+
+  /**
+   * Canvas add of (A, B, A) rewrites to the 5-token circle.
+   * Not a 3-click draw door. No GUI.
+   */
+  public void testAddComponentAbaRewritesToFiveTokenCircle() {
+    GeometryEditModel model = new GeometryEditModel();
+    model.setTestCase(new TestCaseEdit(new PrecisionModel()));
+    model.setGeometryType(GeometryType.CIRCULARSTRING);
+
+    List coords = new ArrayList();
+    coords.add(new Coordinate(0, 0));
+    coords.add(new Coordinate(2, 0));
+    coords.add(new Coordinate(0, 0));
+    model.addComponent(coords);
+
+    Geometry g = model.getGeometry();
+    assertTrue(g instanceof CircularString);
+    assertEquals("CircularString", g.getGeometryType());
+    assertEquals(5, g.getNumPoints());
+    String wkt = new CurveWKTWriter().write(g);
+    assertTrue(wkt.startsWith("CIRCULARSTRING"));
+    assertFalse(wkt.startsWith("LINESTRING"));
+    Coordinate[] pts = g.getCoordinates();
+    assertEquals(1.0, pts[1].x, 1e-12);
+    assertEquals(-1.0, pts[1].y, 1e-12);
+    assertEquals(1.0, pts[3].x, 1e-12);
+    assertEquals(1.0, pts[3].y, 1e-12);
+  }
+
+  public void testAddComponentRefuseAEqualsB() {
+    GeometryEditModel model = new GeometryEditModel();
+    model.setTestCase(new TestCaseEdit(new PrecisionModel()));
+    model.setGeometryType(GeometryType.CIRCULARSTRING);
+
+    List coords = new ArrayList();
+    coords.add(new Coordinate(0, 0));
+    coords.add(new Coordinate(0, 0));
+    coords.add(new Coordinate(0, 0));
+    try {
+      model.addComponent(coords);
+      fail("Expected refuse A = B");
+    } catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().indexOf("ISO/IEC 13249-3") >= 0);
+    }
+  }
 }

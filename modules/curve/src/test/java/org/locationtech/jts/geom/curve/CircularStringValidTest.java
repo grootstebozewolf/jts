@@ -14,7 +14,7 @@ package org.locationtech.jts.geom.curve;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.framework.Test;
@@ -23,19 +23,14 @@ import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
 
 /**
- * V-CS / #86: {@code CIRCULARSTRING(A,B,C,A)} is a valid geometry.
- * A pair of those rings is a valid annulus (CurvePolygon hole).
- * Not #114 paint. Not H-CC area.
+ * #120 retip: four-item {@code CIRCULARSTRING (A, B, C, A)} is rejected.
+ * EX-CS-4 / ADR min ring is out. ISO/IEC 13249-3 wants odd ≥ 3.
+ * Not #86 / #87 draw. Not #114 paint.
  */
 public class CircularStringValidTest extends GeometryTestCase {
 
-  /** #87 three-click close: circumcircle, no complementary mid stored. */
-  private static final String RING_5 =
+  private static final String RING_4 =
       "CIRCULARSTRING (-5 0, 0 5, 5 0, -5 0)";
-  private static final String RING_3 =
-      "CIRCULARSTRING (-3 0, 0 3, 3 0, -3 0)";
-  private static final String ANNULUS =
-      "CURVEPOLYGON (" + RING_5 + ", " + RING_3 + ")";
   private static final String ODD_CLOSED =
       "CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0)";
 
@@ -47,14 +42,28 @@ public class CircularStringValidTest extends GeometryTestCase {
     return new CurveWKTReader().read(wkt);
   }
 
-  public void testClosedFourPointCircularStringIsValid() throws Exception {
-    Geometry g = readCurve(RING_5);
-    assertTrue(g instanceof CircularString);
-    assertEquals(4, g.getNumPoints());
-    assertTrue(((LineString) g).isClosed());
-    assertTrue("CIRCULARSTRING(A,B,C,A) is a valid geometry", g.isValid());
-    assertTrue(CircularString.isValidControlCount(
-        ((CircularString) g).getCoordinateSequence()));
+  public void testClosedFourPointCircularStringIsRejected() {
+    GeometryFactory gf = new CurveGeometryFactory();
+    Coordinate[] pts = {
+        new Coordinate(-5, 0),
+        new Coordinate(0, 5),
+        new Coordinate(5, 0),
+        new Coordinate(-5, 0)
+    };
+    CircularString ring4 = new CircularString(gf.getCoordinateSequenceFactory().create(pts), gf);
+    assertEquals(4, ring4.getNumPoints());
+    assertFalse("EX-CS-4 / ADR min ring (A, B, C, A) is out", ring4.isValid());
+    assertFalse(CircularString.isValidControlCount(ring4.getCoordinateSequence()));
+  }
+
+  public void testWktFourItemCircularStringIsRejected() throws Exception {
+    try {
+      readCurve(RING_4);
+      fail("Expected parse failure for 4-item CIRCULARSTRING (A, B, C, A)");
+    } catch (ParseException e) {
+      assertTrue(e.getMessage().indexOf("odd number") >= 0
+          || e.getMessage().indexOf("Four-item") >= 0);
+    }
   }
 
   public void testOpenFourPointControlIsInvalid() {
@@ -73,18 +82,6 @@ public class CircularStringValidTest extends GeometryTestCase {
   public void testOddClosedCircularStringStillValid() throws Exception {
     Geometry g = readCurve(ODD_CLOSED);
     assertTrue(g.isValid());
-  }
-
-  /** Two concentric CIRCULARSTRING(A,B,C,A) rings: valid annulus. */
-  public void testFourPointAnnulusCurvePolygonIsValid() throws Exception {
-    Geometry g = readCurve(ANNULUS);
-    assertTrue(g instanceof CurvePolygon);
-    CurvePolygon cp = (CurvePolygon) g;
-    assertEquals(1, cp.getNumInteriorRing());
-    assertTrue(cp.getExteriorCurve() instanceof CircularString);
-    assertTrue(cp.getInteriorCurveN(0) instanceof CircularString);
-    assertEquals(4, cp.getExteriorCurve().getNumPoints());
-    assertEquals(4, cp.getInteriorCurveN(0).getNumPoints());
-    assertTrue("4-pt + 4-pt CurvePolygon annulus is a valid geometry", g.isValid());
+    assertEquals(5, g.getNumPoints());
   }
 }

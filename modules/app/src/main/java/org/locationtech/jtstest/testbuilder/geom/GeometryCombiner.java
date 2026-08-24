@@ -87,6 +87,9 @@ public class GeometryCombiner
    */
   public Geometry addCircularString(Geometry orig, Coordinate[] pts)
   {
+    if (CircularString.isRefusedDiameterOnRamp(pts)) {
+      throw new IllegalArgumentException(CircularString.refusedDiameterMessage());
+    }
     if (!isValidCircularControl(pts)) {
       return orig;
     }
