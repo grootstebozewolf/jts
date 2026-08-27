@@ -60,7 +60,7 @@ This decision is final.
 org.locationtech.jts.algorithm.exactcurve
 
   ExactCircularArc          // privileged, closed-form
-  ExactQuadraticBezier
+  ExactCubicBezier          // amendment A1: was ExactQuadraticBezier
   ExactEllipticalArc
   ExactClothoid
   ExactNurbsSegment         // single-span first
@@ -97,7 +97,7 @@ All other operations (projection, curvature, intersection, offset, etc.) live on
 | Period     | Focus                                      | Status of Zoo                          |
 |------------|--------------------------------------------|----------------------------------------|
 | Year 1     | Lock ExactCircularArc                      | Circular only                          |
-| Year 2     | Introduce Zoo (siblings)                   | Quadratic Bézier → Ellipse → Clothoid → single-span NURBS |
+| Year 2     | Introduce Zoo (siblings)                   | Ellipse → Cubic Bézier → Clothoid → single-span NURBS (amendment A1) |
 | Year 3–4   | Consumers (relate, metrics, limited noding)| Stable ExactCurve protocol             |
 | Year 5–7   | Selective expansion (multi-span NURBS, etc.)| Only when clear demand exists          |
 | Year 8–10  | Maintenance & hardening                    | Minimal surface growth                 |
@@ -161,3 +161,26 @@ This document supersedes all previous Proofs option discussions, temporary STOP 
   public surface is start/end/length/orientationIndex/intersects only;
   implementations are package-private and compose `ExactCircularArc`.
   See `doc/ORIENTABLE_SEGMENT_ADAPTER.md`.
+
+## Amendments
+
+### A1 — ExactCubicBezier replaces ExactQuadraticBezier (2026-08-27)
+
+Signed off under §9 by the Architect & Sequencer during the Proofs #508
+grilling session; recorded as NetTopologySuite.Proofs ADR-0004.
+
+- **§4.1**: the zoo's Bézier member is `ExactCubicBezier`. The membership
+  criterion is wild provenance: Esri's `BezierCurveSegment` is cubic, the
+  Proofs corpus (`RelateBezier3.v`) and oracle (`B` token, 8 coordinates)
+  are cubic, ISO/IEC 13249-3:2016 defines no Bézier, and no engine ships a
+  quadratic-only segment. Quadratic remains reachable as the exact,
+  rational degree-elevation special case inside the cubic type.
+- **§5 Year 2 order re-derived**: quadratic's closed-form length was the
+  premise of "Quadratic Bézier first"; cubic arc length has no elementary
+  closed form. New order: **Ellipse → Cubic Bézier → Clothoid →
+  single-span NURBS**, with the 3-point-circular-arc ↔ `rx = ry`
+  elliptical-arc bridge theorem as the ellipse's first rung (the last
+  closed-form equality target in the zoo; the affine reduction is
+  sanctioned by §4.3).
+- All other principles, the foundational decision (§3), and the hard
+  rules (§6) are untouched.
