@@ -707,7 +707,8 @@ public class GeometryFactory
   }
 
   /**
-   * Creates a CRV-CLOTHOID (WKB 18) from start pose and spiral parameters.
+   * Creates a preview Clothoid from start pose and spiral parameters.
+   * HOLD type 18 — not SIGNED I/O, not Circle-as-18, not Clothoid-as-22.
    * Default factory cannot construct curve types; {@code CurveGeometryFactory}
    * overrides. Do not implement by densifying to a LineString.
    *
@@ -724,16 +725,17 @@ public class GeometryFactory
   }
 
   /**
-   * Creates a PRF-BEZIER (WKB 19) from cubic control points ({@code 3k+1}).
-   * Default factory cannot construct; {@code CurveGeometryFactory} overrides.
+   * Creates a named Bézier fallback from cubic control points ({@code 3k+1}).
+   * Not type 19. HOLD type 19. Default factory cannot construct;
+   * {@code CurveGeometryFactory} overrides.
    */
   public LineString createBezierCurve(CoordinateSequence controls) {
     throw unsupportedCurve();
   }
 
   /**
-   * Creates a PRF-ELLIPSE (WKB 20). Default factory cannot construct;
-   * {@code CurveGeometryFactory} overrides.
+   * Creates a preview Ellipse. HOLD type 20 — not SIGNED I/O.
+   * Default factory cannot construct; {@code CurveGeometryFactory} overrides.
    */
   public LineString createEllipseCurve(double centreX, double centreY,
       double centreZ, double semiMajor, double semiMinor, double rotation,
@@ -742,8 +744,8 @@ public class GeometryFactory
   }
 
   /**
-   * Creates a CRV-NURBS (WKB 21). Default factory cannot construct;
-   * {@code CurveGeometryFactory} overrides.
+   * Creates a preview NURBS. HOLD JTS I/O 21 — not SIGNED I/O.
+   * Default factory cannot construct; {@code CurveGeometryFactory} overrides.
    */
   public LineString createNurbsCurve(CoordinateSequence controls, int degree,
       double[] weights, double[] knots) {

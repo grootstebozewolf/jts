@@ -34,7 +34,9 @@ import test.jts.GeometryTestCase;
  * honesty. WKT CompoundCurve members, toText, GML/KML refuse.
  * Core WKB 8–12 + ISO 1008–3012 refuse is #51 on #7 — this file
  * pins throw / CurveWKBWriter, it does not reimplement flavour.
- * HOLD GEO-TIN 15–17. HOLD elliptic / Bézier. Cite 13249-3. No DOI.
+ * HOLD 13/14. HOLD GEO-TIN 15–17. HOLD type 18–20. HOLD JTS I/O 21.
+ * HOLD elliptic / Bézier (named fallback, not type 19).
+ * leftover 1000001–1000005 HOLD. Cite 13249-3 for 8–12 only. No DOI.
  */
 public class IoFlattenHonestyTest extends GeometryTestCase {
 

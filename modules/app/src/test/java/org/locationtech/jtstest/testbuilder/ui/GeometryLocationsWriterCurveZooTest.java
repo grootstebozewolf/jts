@@ -25,7 +25,7 @@ import junit.framework.TestCase;
 import junit.textui.TestRunner;
 
 /**
- * Phase 4/5 (#1195): inspect labels for WKB 18–21 greenfield types.
+ * Inspect labels for preview 18–21 types. HOLD — not SIGNED I/O.
  */
 public class GeometryLocationsWriterCurveZooTest extends TestCase {
 

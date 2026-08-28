@@ -162,7 +162,8 @@ public class CurveWKBWriter extends WKBWriter {
   }
 
   /**
-   * CRV-CLOTHOID WKB 18: start point ordinates (no size prefix) then
+   * Preview Clothoid layout (code 18). HOLD type 18 — not SIGNED I/O.
+   * Start point ordinates (no size prefix) then
    * {@code startTangent, startKappa, endKappa, length}.
    */
   private void writeClothoid(ClothoidSegment cl,

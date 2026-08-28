@@ -78,12 +78,17 @@ import org.locationtech.jts.geom.PrecisionModel;
  * is {@link WKBConstants#wkbIso}.
  * <p>
  * ISO/IEC 13249-3 SQL/MM type codes 8–12 (CircularString, CompoundCurve,
- * CurvePolygon, MultiCurve, MultiSurface) are recognised. Construction
- * is delegated to the {@link GeometryFactory}; the default factory
- * throws {@link UnsupportedOperationException}, which this reader
- * wraps as {@link ParseException}. Codes 15–17 (Triangle /
- * PolyhedralSurface / TIN) are not recognised here — GEO-TIN waits
- * Architect SIGN. Unknown types throw. Subclasses may override
+ * CurvePolygon, MultiCurve, MultiSurface) are the signed I/O set.
+ * Cite 13249-3 for 8–12 only. No DOI. DIS is not the 2016 IS.
+ * Construction is delegated to the {@link GeometryFactory}; the default
+ * factory throws {@link UnsupportedOperationException}, which this
+ * reader wraps as {@link ParseException}.
+ * HOLD 13/14. HOLD GEO-TIN 15–17 (PolyhedralSurface=15, TIN=16,
+ * Triangle=17). leftover 1000001–1000005 HOLD.
+ * Preview 18–21 exists on this tree and is not SIGNED I/O and not the
+ * curve SoT: HOLD type 18–20; HOLD JTS I/O 21; not Circle-as-18;
+ * not Clothoid-as-22; Bézier is a named fallback, not type 19.
+ * Unknown types throw. Subclasses may override
  * {@link #readOtherGeometry} for types the core reader does not
  * recognise. Helpers used to read nested geometries,
  * coordinate sequences, and field counts are {@code protected}.
@@ -389,7 +394,8 @@ public class WKBReader
   }
 
   /**
-   * CRV-CLOTHOID (WKB 18). Greenfield fork layout:
+   * Preview Clothoid layout (code 18). HOLD type 18 — not SIGNED I/O,
+   * not Circle-as-18, not Clothoid-as-22.
    * {@code startXY[ZM] + startTangent + startKappa + endKappa + length}.
    * No nested Point header. End pose is recovered analytically.
    */
@@ -409,7 +415,7 @@ public class WKBReader
     }
   }
 
-  /** PRF-BEZIER (WKB 19): count + control coordinates ({@code 3k+1}). */
+  /** Named Bézier fallback layout. Not type 19. HOLD type 19. */
   private Geometry readBezier(EnumSet<Ordinate> ordinateFlags)
       throws IOException, ParseException {
     LineString ls = readLineString(ordinateFlags);
@@ -422,7 +428,8 @@ public class WKBReader
   }
 
   /**
-   * PRF-ELLIPSE (WKB 20): centre point ordinates (no size) then
+   * Preview Ellipse layout (code 20). HOLD type 20 — not SIGNED I/O.
+   * Centre point ordinates (no size) then
    * {@code a, b, rotation, startAngle, endAngle}.
    */
   private Geometry readEllipse(EnumSet<Ordinate> ordinateFlags)
@@ -444,8 +451,9 @@ public class WKBReader
   }
 
   /**
-   * CRV-NURBS (WKB 21): {@code degree}, control count + coords,
-   * weights[count], knot count + knots[].
+   * Preview NURBS layout (code 21). HOLD JTS I/O 21 — not SIGNED I/O.
+   * {@code degree}, control count + coords, weights[count],
+   * knot count + knots[].
    */
   private Geometry readNurbs(EnumSet<Ordinate> ordinateFlags)
       throws IOException, ParseException {

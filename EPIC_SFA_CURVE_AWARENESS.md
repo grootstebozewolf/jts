@@ -18,7 +18,7 @@
 > ```
 
 **Status:** Draft v6 MMF Option B (2026-08-17). Tip `c956b50d` · M.5→ML.2→HP.4→N-SS expand **stop** · [LASER_RATCHET.md](doc/LASER_RATCHET.md) · [CHAINSAW_LASER_PROGRAM.md](doc/CHAINSAW_LASER_PROGRAM.md) · [OVERLAYNGCURVE_P2_SEAMS.md](doc/OVERLAYNGCURVE_P2_SEAMS.md).
-**Source:** Parent epic [locationtech/jts#1195](https://github.com/locationtech/jts/issues/1195). Fork SoT [grootstebozewolf/jts#7](https://github.com/grootstebozewolf/jts/pull/7) `feature/sfa-curve-rgr`. MMF draft [grootstebozewolf/jts#61](https://github.com/grootstebozewolf/jts/pull/61) `cursor/jts-issue-1195-c5d1` — Option B `SegmentKind`, no-silent-linearize strategy, WKB 18–21 greenfield, OFF/BUF/VBF/COV/H-CC/PLG + TB-FN badges. Slack still 15%. No upstream locationtech PR until dr-jts engages.
+**Source:** Parent epic [locationtech/jts#1195](https://github.com/locationtech/jts/issues/1195). Fork SoT [grootstebozewolf/jts#7](https://github.com/grootstebozewolf/jts/pull/7) `feature/sfa-curve-rgr`. MMF draft [grootstebozewolf/jts#61](https://github.com/grootstebozewolf/jts/pull/61) `cursor/jts-issue-1195-c5d1` — Option B `SegmentKind`, no-silent-linearize strategy, signed I/O 8–12 (ISO/IEC 13249-3), preview HOLD 18–21 (not SIGNED I/O, not curve SoT), OFF/BUF/VBF/COV/H-CC/PLG + TB-FN badges. Slack still 15%. No upstream locationtech PR until dr-jts engages.
 **Origin (historical):** [`feature/sfa-curve-buffer-spike`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-buffer-spike) — Draft v3 of this epic and the 49-method spec class. Draft v5 (2026-08-16) described #7 @ `210f1b16` with OV-P1 kits; Bar 2 stayed off #7 until this MMF fold.
 **Audience:** locationtech/jts maintainers and contributors. Lift verbatim into a GitHub Epic / Discussion.
 
@@ -63,7 +63,7 @@ Draft off #7. SoT stays the fork; no upstream PR.
 |---|---|---|
 | `arch:` | **Option B** `SegmentKind` (`LINEARIZED` / `ARC` / `CERTIFIED`) on core `SegmentString`; `CircularNodedSegmentString`; `IntersectionAdder.mayCollapseToChord`; OverlayNG prepared edges. Index may lie under `PrecisionModel`. | N-SS path is Option B, not the rejected 74-file Option B *lie* framing. |
 | `arch:` | **`CurveLinearizationStrategy`**: default `LINEARIZED` always logs a warning; `PRESERVE` keeps type. Wired through `CurveOps.linearise`. | No silent flatten. |
-| `feat:` | **WKB 18–21** SIGN greenfield: `CRV-CLOTHOID` / `PRF-BEZIER` / `PRF-ELLIPSE` / `CRV-NURBS` (+ ISO `+1000/+2000/+3000`). Factory stubs; `CurveWKBWriter`; core writer refuses flatten. 15–17 still Architect-gated. | I/O zoo partial–full for 18–21 types; ops still mostly chordsaw. |
+| `feat:` | Preview **18–21** layout (Clothoid / Bézier / Ellipse / NURBS) plus ISO `+1000/+2000/+3000`. Not SIGNED I/O and not the curve SoT. HOLD type 18–20; HOLD JTS I/O 21; Bézier is a named fallback, not type 19. HOLD GEO-TIN 15–17. Factory stubs; `CurveWKBWriter`; core writer refuses flatten. | Preview HOLD only; ops still mostly chordsaw. |
 | `feat:` | **OFF** shipped: public `OffsetCurve.getCurve` concentric single-arc (left-of-direction). | Full OFF TAG for 3-pt CS. Multi-arc still chordsaw. |
 | `feat:` | **BUF-1 / BUF-NEG** shipped: open-arc corridor `CurvePolygon`; `|d|≥R` empty. **BUF-N** shipped: stadium dilation + open two-member line+arc corridor with round joins/caps. | Multi-arc (>2) CompoundCurve corridors still chainsaw. |
 | `feat:` | **R-OV** OverlayNG-for-circles: H-SHELL-N-MIXED via `OverlayNGCircle` + `CurveSegmentString` bridge; BiteVsHole / TwoHoleOverlay folded. | Named R2 leftovers shrink; full OV still not green. |
@@ -321,7 +321,7 @@ Phase 1 (Foundations) — done on #7 / MMF #61
 - `jts-curve` source: `modules/curve/`.
 - Parent epic: [locationtech/jts#1195](https://github.com/locationtech/jts/issues/1195).
 - [#7](https://github.com/grootstebozewolf/jts/pull/7) `feature/sfa-curve-rgr` — SoT.
-- MMF draft [#61](https://github.com/grootstebozewolf/jts/pull/61) `cursor/jts-issue-1195-c5d1` — Option B spine + WKB 18–21 + meter ship.
+- MMF draft [#61](https://github.com/grootstebozewolf/jts/pull/61) `cursor/jts-issue-1195-c5d1` — Option B spine + signed I/O 8–12 + preview HOLD 18–21 + meter ship.
 - OverlayNGCurve (package-private overlay helpers in `org.locationtech.jts.operation.overlayng.curve`).
 - `CurveExact` (package-private in `org.locationtech.jts.geom.curve`).
 - `doc/MMF_OPTION_B.md`, `doc/MMF_WALKTHROUGH.md`, `doc/latex/`.

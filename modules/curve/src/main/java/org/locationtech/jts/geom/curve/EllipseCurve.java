@@ -22,15 +22,15 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 
 /**
- * PRF-ELLIPSE (WKB 20): an elliptic arc (or full ellipse) in the plane.
+ * Preview Ellipse: an elliptic arc (or full ellipse) in the plane.
+ * HOLD type 20 — not SIGNED I/O.
  * Parameters: centre, semi-major {@code a}, semi-minor {@code b},
  * rotation (radians), start and end angles (radians, relative to the
  * rotated major axis). A full ellipse has {@code endAngle = startAngle
  * + 2π} (stored as the pair; {@link #isFullEllipse()} detects a 2π sweep).
  * <p>
- * Greenfield fork type (#1195 MMF SIGN). Parent {@link LineString}
- * sequence holds the centre only for envelope/identity anchors; the
- * analytic parameters are authoritative.
+ * Parent {@link LineString} sequence holds the centre only for
+ * envelope/identity anchors; the analytic parameters are authoritative.
  */
 public class EllipseCurve extends LineString implements Linearizable {
   private static final long serialVersionUID = 1L;

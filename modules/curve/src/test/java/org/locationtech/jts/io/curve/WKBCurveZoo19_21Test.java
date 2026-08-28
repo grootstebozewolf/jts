@@ -25,7 +25,8 @@ import junit.framework.TestCase;
 import junit.textui.TestRunner;
 
 /**
- * WKB 19–21 greenfield round-trips (#1195 MMF SIGN).
+ * Preview 19–21 layout round-trips. HOLD type 19–20; HOLD JTS I/O 21.
+ * Bézier is a named fallback, not type 19. Not SIGNED I/O.
  */
 public class WKBCurveZoo19_21Test extends TestCase {
 

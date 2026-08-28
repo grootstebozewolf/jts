@@ -22,9 +22,8 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 
 /**
- * CRV-NURBS (WKB 21): a NURBS curve of given degree with control
- * points, weights, and knot vector. Aligns with the fork-signed type
- * code 21 (QGIS {@code NurbsCurve} claim). Greenfield (#1195 MMF SIGN).
+ * Preview NURBS: a NURBS curve of given degree with control
+ * points, weights, and knot vector. HOLD JTS I/O 21 — not SIGNED I/O.
  * <p>
  * Evaluation uses Cox–de Boor; {@link #toLinear(double)} samples in
  * parameter space. Not a silent flatten of the control polygon.

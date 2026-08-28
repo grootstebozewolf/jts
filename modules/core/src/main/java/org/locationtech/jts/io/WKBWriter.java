@@ -443,7 +443,8 @@ public class WKBWriter
       throw new IllegalArgumentException(
           "WKB type " + geom.getGeometryType()
               + " requires CurveWKBWriter; core WKBWriter must not flatten"
-              + " SQL/MM / curve-zoo types 8–12 or 18–21 to LineString or Polygon");
+              + " SQL/MM 8–12 (signed I/O) or preview HOLD 18–21"
+              + " to LineString or Polygon");
     }
 
     if (geom instanceof Point)
@@ -484,9 +485,10 @@ public class WKBWriter
   }
 
   /**
-   * SQL/MM curve types 8–12 identified by {@link Geometry#getGeometryType()}
-   * so core does not import {@code jts-curve}. LinearRing is not included;
-   * it remains the only allowed collapse (to LineString).
+   * Signed SQL/MM 8–12 plus preview HOLD 18–21, identified by
+   * {@link Geometry#getGeometryType()} so core does not import
+   * {@code jts-curve}. 18–21 are not SIGNED I/O. LinearRing is not
+   * included; it remains the only allowed collapse (to LineString).
    */
   private static boolean isSqlMmCurveType(Geometry geom) {
     String type = geom.getGeometryType();
@@ -633,7 +635,7 @@ public class WKBWriter
 
   /**
    * Writes one IEEE-754 double in the writer byte order.
-   * Used by curve zoo payloads (e.g. CRV-CLOTHOID parameters).
+   * Used by preview HOLD curve payloads (e.g. Clothoid parameters).
    */
   protected void writeDouble(double value, OutStream os) throws IOException
   {

@@ -21,7 +21,9 @@ package org.locationtech.jts.geom;
  * I/O identity is not overlay honesty. Flavour ISO/EXTENDED
  * is #51 on #7 — this helper does not reimplement it.
  * {@link LinearRing} → {@link LineString} is the only allowed
- * collapse. HOLD GEO-TIN 15–17. HOLD elliptic / Bézier. No DOI.
+ * collapse. HOLD 13/14. HOLD GEO-TIN 15–17. HOLD type 18–20.
+ * HOLD JTS I/O 21. HOLD elliptic / Bézier (named fallback, not
+ * type 19). leftover 1000001–1000005 HOLD. No DOI.
  */
 public final class SqlMmTypes {
 

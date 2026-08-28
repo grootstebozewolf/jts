@@ -11,7 +11,7 @@ mvn -pl modules/core,modules/curve,modules/app -am test \
   -DfailIfNoTests=false -Dcheckstyle.skip=true -Dpmd.skip=true
 ```
 
-Observed: **BUILD SUCCESS** — green meters 36/36; WKB 18 XY+ISO Z/M/ZM; WKB 19–21 XY+ISO Z; SegmentKind PM snap ≠ kind rename; ClothoidOverlay 5/5; zoo inspect labels 1/1.
+Observed: **BUILD SUCCESS** — green meters 36/36; signed I/O 8–12; preview HOLD 18–21 layouts (not SIGNED I/O); SegmentKind PM snap ≠ kind rename; ClothoidOverlay 5/5; zoo inspect labels 1/1.
 
 ## Phase accept checklist
 
@@ -21,7 +21,7 @@ Observed: **BUILD SUCCESS** — green meters 36/36; WKB 18 XY+ISO Z/M/ZM; WKB 19
 | 1 Option B | `SegmentStringContractTest` (incl. PM kind stability); OverlayNGCircle |
 | 2 Bar2/HP | HP.1–3, DCEL, ClothoidOverlay, BiteVsHole/TwoHole on tip |
 | 3 Ops | OFF/BUF/VBF/COV green meters |
-| 4 WKB 18–21 | `WKBClothoidTest` / `WKBCurveZoo19_21Test` (XY + ISO Z; clothoid M/ZM) |
+| 4 preview HOLD 18–21 | `WKBClothoidTest` / `WKBCurveZoo19_21Test` (preview layouts; not SIGNED I/O) |
 | 5 TB UX | badges, strategy menu+status, #56/#60 code; **await UX SIGN** |
 | 6 Docs | `doc/MMF_OPTION_B.md`, `doc/latex/` Option B prose; **PDF `make` HOLD** |
 

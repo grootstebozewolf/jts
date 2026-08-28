@@ -23,7 +23,8 @@ import junit.framework.TestCase;
 import junit.textui.TestRunner;
 
 /**
- * CRV-CLOTHOID WKB 18 greenfield round-trip (#1195 MMF SIGN).
+ * Preview Clothoid layout (code 18) round-trip. HOLD type 18 —
+ * not SIGNED I/O, not Circle-as-18, not Clothoid-as-22.
  */
 public class WKBClothoidTest extends TestCase {
 
