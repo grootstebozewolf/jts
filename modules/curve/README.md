@@ -86,7 +86,8 @@ algorithm program. Known limitations:
   inner-member tags. Tests use `Linearizable.toLinear(...)` for
   structural-fidelity comparison.
 - **Validation is best-effort.** CircularString control count is
-  enforced (odd ≥ 3, or closed `CIRCULARSTRING(A,B,C,A)` — V-CS / #86).
+  enforced (odd ≥ 3). Four-item closed `CIRCULARSTRING(A,B,C,A)` is
+  rejected — not in the PostGIS model.
   Triangle 4-point ring, CompoundCurve member connectivity, and Tin
   triangle-only patches are not enforced.
 - **No WKB support.** Defer to a follow-up phase for the SFA-MM type

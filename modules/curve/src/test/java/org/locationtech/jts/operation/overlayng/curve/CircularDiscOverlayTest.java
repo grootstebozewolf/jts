@@ -19,6 +19,7 @@ import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.geom.curve.CurveOps;
 import org.locationtech.jts.geom.curve.CurvePolygon;
+import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jts.operation.overlayng.OverlayNG;
 import org.locationtech.jts.operation.overlayng.OverlayNGRobust;
@@ -37,7 +38,7 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
 
   private static final String CIRCLE_5 =
       "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0))";
-  /** Three clicks + close: circumcircle, no complementary mid stored. */
+  /** Four-item even close. Not in the PostGIS model. Rejected. */
   private static final String CIRCLE_3PT =
       "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, -5 0))";
   private static final String CIRCLE_CROSSING =
@@ -126,28 +127,28 @@ public class CircularDiscOverlayTest extends GeometryTestCase {
   }
 
   /**
-   * Three-click circle {@code (A,B,C,A)} is a disc kit: laser area /
-   * circumference, and nested overlay with a concentric disc is exact
-   * (not chainsaw).
+   * Four-item {@code (A,B,C,A)} is not in the PostGIS model.
+   * JTS-only annulus exception reverted. Do not invent a 5th control.
    */
-  public void testThreePointCircleIsExactDiscKit() throws Exception {
-    Geometry g = readCurve(CIRCLE_3PT);
-    assertEquals("laser area, not shoelace", DISC, g.getArea(), EXACT);
-    assertEquals("laser circumference", 10.0 * Math.PI, g.getLength(), EXACT);
-    OverlayNGCurve op = new OverlayNGCurve(g, readCurve(CIRCLE_3));
-    Geometry laser = op.getResult(OverlayNG.DIFFERENCE);
-    assertFalse("4-control disc nested overlay is exact", op.isApproximate());
-    assertEquals(16.0 * Math.PI, laser.getArea(), EXACT);
+  public void testThreePointCircleFourItemIsRejected() throws Exception {
+    try {
+      readCurve(CIRCLE_3PT);
+      fail("Expected reject 4-item CIRCULARSTRING (A, B, C, A)");
+    } catch (ParseException e) {
+      assertTrue(e.getMessage().indexOf("odd") >= 0
+          || e.getMessage().indexOf("Four-item") >= 0);
+    }
   }
 
-  public void testUxThreePointCircleIsExactDisc() throws Exception {
-    Geometry g = readCurve(
-        "CURVEPOLYGON (CIRCULARSTRING (210 560, 560 700, 460 410, 210 560))");
-    OverlayNGCurve cap = new OverlayNGCurve(g, g);
-    Geometry self = cap.getResult(OverlayNG.INTERSECTION);
-    assertFalse("UX 4-control circle must be a disc kit, not chainsaw",
-        cap.isApproximate());
-    assertEquals(g.getArea(), self.getArea(), EXACT);
+  public void testUxFourItemCircleIsRejected() throws Exception {
+    try {
+      readCurve(
+          "CURVEPOLYGON (CIRCULARSTRING (210 560, 560 700, 460 410, 210 560))");
+      fail("Expected reject 4-item CIRCULARSTRING (A, B, C, A)");
+    } catch (ParseException e) {
+      assertTrue(e.getMessage().indexOf("odd") >= 0
+          || e.getMessage().indexOf("Four-item") >= 0);
+    }
   }
 
   /**

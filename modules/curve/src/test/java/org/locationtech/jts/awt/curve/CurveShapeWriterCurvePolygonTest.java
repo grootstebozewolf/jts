@@ -15,6 +15,7 @@ import java.awt.Shape;
 import java.awt.geom.PathIterator;
 
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.textui.TestRunner;
@@ -55,17 +56,19 @@ public class CurveShapeWriterCurvePolygonTest extends GeometryTestCase {
   }
 
   /**
-   * UX #86: CIRCULARSTRING (A, B, C, A) is a full circumcircle, not arc ABC
-   * plus a closePath chord. Complementary-side interior must be inside.
+   * Four-item {@code (A, B, C, A)} is rejected. Not in the PostGIS
+   * model. Full-disk paint of the odd 5-token ring is {@code ARC_SHELL}.
+   * Not #86 draw.
    */
-  public void testThreePointClosedCircleIsFullDiskNotChord() throws Exception {
-    Geometry g = new CurveWKTReader().read(
-        "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, -5 0))");
-    Shape s = new CurveShapeWriter().toShape(g);
-    assertTrue("specified-arc side is interior", s.contains(0, 2.5));
-    assertTrue("complementary close must be an arc, not a chord: (0,-2.5) missed",
-        s.contains(0, -2.5));
-    assertEquals(2.0 * Math.PI * 5.0, g.getLength(), 1e-8);
+  public void testFourItemClosedCircleIsRejected() throws Exception {
+    try {
+      new CurveWKTReader().read(
+          "CURVEPOLYGON (CIRCULARSTRING (-5 0, 0 5, 5 0, -5 0))");
+      fail("Expected reject 4-item CIRCULARSTRING (A, B, C, A)");
+    } catch (ParseException e) {
+      assertTrue(e.getMessage().indexOf("odd") >= 0
+          || e.getMessage().indexOf("Four-item") >= 0);
+    }
   }
 
   /** An arc shell renders as bezier curves, not straight chords. */

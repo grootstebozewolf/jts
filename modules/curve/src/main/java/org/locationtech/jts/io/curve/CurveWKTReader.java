@@ -182,10 +182,20 @@ public class CurveWKTReader extends WKTReader {
       throws IOException, ParseException {
     LineString ls = readLineStringText(tokenizer, ordinateFlags);
     CoordinateSequence seq = ls.getCoordinateSequence();
+    if (CircularString.isRefusedDiameterOnRamp(seq)) {
+      throw parseErrorWithLine(tokenizer, CircularString.refusedDiameterMessage());
+    }
+    try {
+      seq = CircularString.onAddOrRead(seq, csFactory);
+    }
+    catch (IllegalArgumentException e) {
+      throw parseErrorWithLine(tokenizer, e.getMessage());
+    }
     if (!CircularString.isValidControlCount(seq)) {
       throw parseErrorWithLine(tokenizer,
-          "CIRCULARSTRING must have an odd number of points >= 3, "
-          + "or be the closed 4-control form CIRCULARSTRING(A,B,C,A)");
+          "CIRCULARSTRING must have an odd number of points >= 3. "
+          + "Four-item CIRCULARSTRING (A, B, C, A) is rejected "
+          + "(EX-CS-4 / ADR min ring is out). ISO/IEC 13249-3.");
     }
     return new CircularString(seq, geometryFactory);
   }

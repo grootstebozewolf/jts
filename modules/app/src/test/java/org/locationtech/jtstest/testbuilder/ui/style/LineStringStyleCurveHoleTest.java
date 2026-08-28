@@ -12,23 +12,18 @@
 package org.locationtech.jtstest.testbuilder.ui.style;
 
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.curve.CircularString;
-import org.locationtech.jts.geom.curve.CurvePolygon;
+import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.framework.TestCase;
 import junit.textui.TestRunner;
 
 /**
- * #114: hole overlay must walk the structural curve, not the flat
- * LinearRing. {@code getInteriorRingN} is the 3-point chord triangle.
- * ISO/IEC 13249-3: the hole stays {@code CIRCULARSTRING}.
- * <p>
- * Witness is the PO-attached WKT (do not invent another).
+ * #114 witness is four-item {@code (A, B, C, A)}. Not in the PostGIS
+ * model. JTS-only annulus exception reverted. Do not invent a 5th
+ * control. Not a paint remake.
  */
 public class LineStringStyleCurveHoleTest extends TestCase {
 
@@ -42,22 +37,16 @@ public class LineStringStyleCurveHoleTest extends TestCase {
 
   public LineStringStyleCurveHoleTest(String name) { super(name); }
 
-  public void testWitnessInteriorRingIsStructuralCircularString() throws Exception {
-    Geometry g = new CurveWKTReader().read(WITNESS);
-    assertTrue(g instanceof CurvePolygon);
-    LineString painted = LineStringStyle.interiorRing((Polygon) g, 0);
-    assertTrue("canvas hole must be the CircularString, got "
-        + painted.getGeometryType(), painted instanceof CircularString);
-    assertEquals(4, painted.getNumPoints());
-    assertFalse("must not hand the style the flat chord triangle",
-        painted instanceof LinearRing);
-  }
-
-  public void testWitnessExteriorRingIsStructuralCircularString() throws Exception {
-    Geometry g = new CurveWKTReader().read(WITNESS);
-    LineString painted = LineStringStyle.exteriorRing((Polygon) g);
-    assertTrue(painted instanceof CircularString);
-    assertEquals(4, painted.getNumPoints());
+  public void testWitnessFourItemRejected() {
+    try {
+      new CurveWKTReader().read(WITNESS);
+      fail("Expected reject 4-item CIRCULARSTRING (A, B, C, A)");
+    } catch (ParseException e) {
+      assertTrue(e.getMessage().indexOf("odd") >= 0
+          || e.getMessage().indexOf("Four-item") >= 0);
+    } catch (Exception e) {
+      fail("unexpected: " + e);
+    }
   }
 
   /** Guard: a plain polygon still uses the LinearRing views. */
