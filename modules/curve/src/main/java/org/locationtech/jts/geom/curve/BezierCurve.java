@@ -22,12 +22,13 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 
 /**
- * PRF-BEZIER (WKB 19): a cubic Bézier curve (or chain of cubics)
+ * Named Bézier fallback: a cubic Bézier curve (or chain of cubics)
  * defined by control points. A single cubic uses 4 controls; a
  * chain of {@code k} cubics uses {@code 3k+1} controls (C0 join).
  * <p>
- * Not {@code shape.CubicBezierCurve} (polyline smoother) and not a
- * canvas draw path. Greenfield fork type (#1195 MMF SIGN).
+ * Not type 19. HOLD type 19 — not SIGNED I/O. Not
+ * {@code shape.CubicBezierCurve} (polyline smoother) and not a
+ * canvas draw path.
  */
 public class BezierCurve extends LineString implements Linearizable {
   private static final long serialVersionUID = 1L;

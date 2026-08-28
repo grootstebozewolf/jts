@@ -8,11 +8,11 @@ Draft companion to [PR #61](https://github.com/grootstebozewolf/jts/pull/61) on 
 2. **No silent linearization.** `CurveLinearizationStrategy` default is `LINEARIZED` and **must warn**. `PRESERVE` keeps curve identity.
 3. **Laser order:** Maintainable → soundness/precision → functionality/performance. Prefer chainsaw when faster unless (1) or (2) require a laser. PERF-GATE slack **15%**.
 4. **Overlay name:** `OverlayNGCurve`, never *Curved*.
-5. **WKB zoo SIGN:** types **18–21** (`CRV-CLOTHOID`, `PRF-BEZIER`, `PRF-ELLIPSE`, `CRV-NURBS`) plus ISO `+1000/+2000/+3000`. Types **15–17** stay Architect-gated. XY + ISO Z locked in `WKBClothoidTest` / `WKBCurveZoo19_21Test`.
+5. **WKB signed I/O is 8–12 only** (ISO/IEC 13249-3). Preview **18–21** is not SIGNED I/O and not the curve SoT. HOLD type 18–20; HOLD JTS I/O 21; Bézier is a named fallback, not type 19. ISO `+1000/+2000/+3000` stays. HOLD GEO-TIN 15–17. leftover 1000001–1000005 HOLD. Preview layouts stay locked in `WKBClothoidTest` / `WKBCurveZoo19_21Test`.
 
 ## Shipped meter clusters (green)
 
-Option B + WKB 18–21 + OFF/BUF-*/VBF + DSF/TRI + N-AA/AL/N-SS + F-*/B-* + LRF-LEN/LOC + AT-S/NS + C-LIN/AREA/IP + S-* + OV + D-AA/OP + R-CONT/PR + V-CS/CP + PRC-SN + H-CC + PLG + COV + TB-T/FN.
+Option B + signed I/O 8–12 + preview HOLD 18–21 + OFF/BUF-*/VBF + DSF/TRI + N-AA/AL/N-SS + F-*/B-* + LRF-LEN/LOC + AT-S/NS + C-LIN/AREA/IP + S-* + OV + D-AA/OP + R-CONT/PR + V-CS/CP + PRC-SN + H-CC + PLG + COV + TB-T/FN.
 
 Still red by design: **D-HF** (full TAG keep `fail()`; apex closed-form + general curve densify honesty landed).
 

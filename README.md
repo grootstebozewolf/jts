@@ -12,7 +12,7 @@ JTS wordmark as curves plus a buffer halo (`logoLines` + `logoBuffer`: `toLinear
      not a laser. Do not caption a clothoid halo. #55 clothoidHalo is not
      this door. Do not commit mkt1_1920x1080.png as a clothoid. -->
 
-This fork treats SQL/MM ISO/IEC 13249-3 curve types 8–12 (`CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON`, `MULTICURVE`, `MULTISURFACE`) as first-class geometry, plus signed greenfield WKB **18–21** (`CRV-CLOTHOID`, `PRF-BEZIER`, `PRF-ELLIPSE`, `CRV-NURBS`). WKB/WKT ISO and EXTENDED Z/M/ZM landed in [#51](https://github.com/grootstebozewolf/jts/pull/51) (`CircularStringZ=1008`, …). Types 15–17 still unknown and throw. Core `WKBWriter` refuses to flatten curve types. TestBuilder lives in `modules/app`.
+This fork treats SQL/MM ISO/IEC 13249-3 curve types 8–12 (`CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON`, `MULTICURVE`, `MULTISURFACE`) as the signed I/O set. Cite 13249-3 for 8–12 only. No DOI. DIS is not the 2016 IS. ISO Z/M/ZM is `+1000/+2000/+3000` (`CircularStringZ=1008`, …); EWKB default is not ISO ([#51](https://github.com/grootstebozewolf/jts/pull/51)). Preview fork map 18 Clothoid / 19 Bézier / 20 Ellipse / 21 NURBS is not SIGNED I/O and is not the curve SoT (HOLD type 18–20; HOLD JTS I/O 21; Bézier is a named fallback, not type 19). HOLD 13/14. HOLD GEO-TIN 15–17. leftover 1000001–1000005 HOLD. Core `WKBWriter` refuses to flatten curve types. TestBuilder lives in `modules/app`.
 
 ### User path
 

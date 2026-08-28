@@ -40,13 +40,13 @@ public class WKTConstants {
   public static final String POLYHEDRALSURFACE = "POLYHEDRALSURFACE";
   public static final String TIN = "TIN";
   public static final String TRIANGLE = "TRIANGLE";
-  /** CRV-CLOTHOID (WKB 18). */
+  /** Preview CLOTHOID keyword. HOLD type 18. Not SIGNED I/O. */
   public static final String CLOTHOID = "CLOTHOID";
-  /** PRF-BEZIER (WKB 19). */
+  /** Named Bézier fallback keyword. Not type 19. HOLD type 19. */
   public static final String BEZIER = "BEZIER";
-  /** PRF-ELLIPSE (WKB 20). */
+  /** Preview ELLIPSE keyword. HOLD type 20. Not SIGNED I/O. */
   public static final String ELLIPSE = "ELLIPSE";
-  /** CRV-NURBS (WKB 21). */
+  /** Preview NURBS keyword. HOLD JTS I/O 21. Not SIGNED I/O. */
   public static final String NURBS = "NURBS";
 
   public static final String EMPTY = "EMPTY";

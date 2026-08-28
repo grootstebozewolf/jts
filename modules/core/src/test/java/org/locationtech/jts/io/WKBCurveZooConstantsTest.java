@@ -15,7 +15,8 @@ import junit.framework.TestCase;
 import junit.textui.TestRunner;
 
 /**
- * Fork MMF (#1195): WKB 18–21 codes are SIGNED greenfield constants.
+ * Signed I/O is 8–12 only (ISO/IEC 13249-3). Preview 18–21 codes
+ * remain on the tree and are HOLD — not SIGNED I/O, not the curve SoT.
  */
 public class WKBCurveZooConstantsTest extends TestCase {
 
@@ -27,7 +28,7 @@ public class WKBCurveZooConstantsTest extends TestCase {
     super(name);
   }
 
-  public void testSignedZooCodes() {
+  public void testPreviewHoldCodesUnchanged() {
     assertEquals(8, WKBConstants.wkbCircularString);
     assertEquals(12, WKBConstants.wkbMultiSurface);
     assertEquals(18, WKBConstants.wkbClothoid);

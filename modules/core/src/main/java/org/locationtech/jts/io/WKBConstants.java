@@ -27,15 +27,21 @@ public interface WKBConstants {
   int wkbGeometryCollection = 7;
 
   /**
-   * ISO/IEC 13249-3 (SQL/MM Spatial) type codes for curve geometries.
-   * Same integers as GEOS {@code WKBConstants} for types 8–12.
-   * No {@code wkbCurve} / {@code wkbSurface}. WKB 15–17
-   * (Triangle / PolyhedralSurface / TIN) — GEO-TIN waits Architect SIGN.
+   * Signed I/O set is ISO/IEC 13249-3 (SQL/MM Spatial) types 8–12 only:
+   * CircularString=8, CompoundCurve=9, CurvePolygon=10,
+   * MultiCurve=11, MultiSurface=12. Same integers as GEOS
+   * {@code WKBConstants}. Cite 13249-3 for 8–12 only. No DOI.
+   * DIS is not the 2016 IS — do not take DIS 18–24 as JTS I/O.
    * <p>
-   * Fork MMF (#1195) greenfield zoo (SIGNED):
-   * {@link #wkbClothoid}=18, {@link #wkbBezier}=19,
-   * {@link #wkbEllipse}=20, {@link #wkbNurbs}=21.
-   * Unknown types outside the signed set throw.
+   * HOLD 13/14: no {@code wkbCurve} / {@code wkbSurface}.
+   * HOLD GEO-TIN 15–17 (PolyhedralSurface=15, TIN=16, Triangle=17).
+   * Do not add them.
+   * leftover 1000001–1000005 HOLD.
+   * <p>
+   * Preview fork map 18 Clothoid / 19 Bézier / 20 Ellipse / 21 NURBS
+   * is not SIGNED I/O and is not the curve SoT. HOLD type 18–20.
+   * HOLD JTS I/O 21. Not Circle-as-18. Not Clothoid-as-22.
+   * Bézier is a named fallback, not type 19. Unknown types throw.
    */
   int wkbCircularString = 8;
   int wkbCompoundCurve = 9;
@@ -43,13 +49,13 @@ public interface WKBConstants {
   int wkbMultiCurve = 11;
   int wkbMultiSurface = 12;
 
-  /** CRV-CLOTHOID — Euler / Cornu spiral (fork SIGN 18). */
+  /** Preview Clothoid code 18. HOLD type 18. Not SIGNED I/O. Not Circle. */
   int wkbClothoid = 18;
-  /** PRF-BEZIER — cubic Bézier curve geometry (fork SIGN 19). */
+  /** Preview Bézier code 19. Named fallback, not type 19. HOLD type 19. */
   int wkbBezier = 19;
-  /** PRF-ELLIPSE — elliptic arc / ellipse primitive (fork SIGN 20). */
+  /** Preview Ellipse code 20. HOLD type 20. Not SIGNED I/O. */
   int wkbEllipse = 20;
-  /** CRV-NURBS — NURBS curve (fork SIGN 21). */
+  /** Preview NURBS code 21. HOLD JTS I/O 21. Not SIGNED I/O. */
   int wkbNurbs = 21;
 
   /**

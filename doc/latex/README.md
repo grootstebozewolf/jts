@@ -19,8 +19,9 @@ on fork [#7](https://github.com/grootstebozewolf/jts/pull/7)
 (`feature/sfa-curve-rgr`). Public DHD two-pair lock via `0ca71b`
 (APEX 3.967640600249787; two circular discs). Guide JAR pin stays
 `61eb3377` for figure rasters. CircularString / CompoundCurve /
-CurvePolygon / WKB 18–21 are SQL/MM Spatial (ISO/IEC 13249-3) plus
-fork SIGN greenfield. No 13249-3 DOI; no JTS DOI.
+CurvePolygon. Cite ISO/IEC 13249-3 for WKB 8–12 only. Preview
+18–21 is not SIGNED I/O and not the curve SoT. No 13249-3 DOI;
+no JTS DOI. DIS is not the 2016 IS.
 
 Figure-slot frame lock:
 
