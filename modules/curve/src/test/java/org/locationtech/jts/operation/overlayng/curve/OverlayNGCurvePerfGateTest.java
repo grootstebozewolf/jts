@@ -103,6 +103,9 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
       "LINESTRING (-1 2, 11 2)";
   private static final String CHORD_ARC =
       "LINESTRING (0 0, 2 3, 10 0)";
+  /** Horizontal stadium |x|≤2, |y|≤1, strictly inside CIRCLE_5. */
+  private static final String STADIUM_NEST =
+      "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (-1 -1, -2 0, -1 1), (-1 1, 1 1), CIRCULARSTRING (1 1, 2 0, 1 -1), (1 -1, -1 -1)))";
 
   private static final int WARMUP = 15;
   private static final int SAMPLES = 31;
@@ -274,10 +277,19 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
         () -> chordOverlay(plain, far, OverlayNGCurve.DIFFERENCE));
   }
 
+  public void testOverlayMixedNestSubNotSlowerThanChord() throws Exception {
+    Geometry a = readCurve(CIRCLE_5);
+    Geometry stadium = readCurve(STADIUM_NEST);
+    assertLaserNotSlower("mixed nest SUB",
+        () -> OverlayNGCurve.difference(a, stadium),
+        () -> chordOverlay(a, stadium, OverlayNGCurve.DIFFERENCE));
+  }
+
   public void testReverseNestedSubNotSlowerThanChord() throws Exception {
     Geometry square = readCurve(PLAIN_SQUARE);
     Geometry inner = readCurve(CIRCLE_3);
     // R1 skips a covering SUB (annulus); R1.5/R1.6 miss; R2 is the answer.
+    // R1.6-honesty KEEP -- named stamp lives on CircularDiscPolygonOverlayTest.
     assertChordPath("rev nested SUB",
         () -> square.difference(inner),
         () -> chordOverlay(square, inner, OverlayNGCurve.DIFFERENCE));

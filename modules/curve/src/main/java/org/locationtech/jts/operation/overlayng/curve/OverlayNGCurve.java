@@ -75,15 +75,19 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     arcs (lens, blob, crescent) or a {@link MultiSurface} of two crescents.
  *     Nested discs (0 nodes, one strictly inside the other) are the
  *     annulus: SUB the outer with the inner as a hole, XOR the same.
- *     Closed form; no densification. 1 intersection, a tangent nest, or
- *     a non-disc, falls through without paying this path.</li>
+ *     Closed form; no densification. 1 intersection, a tangent nest,
+ *     a mixed CompoundCurve nest ({@code CC-NEST-ANNULUS}: not two
+ *     discs, so not D4), or a non-disc, falls through without paying
+ *     this path. R1.7 may still punch that mixed nest.</li>
  * <li><b>R1.6</b> -- one operand is a circular disc and the other is a
  *     plain Polygon (no curve rings, no holes), and they meet at two
  *     proper line–circle nodes. The answer is a {@link CurvePolygon}
  *     (or a {@link MultiSurface} for XOR) that keeps the surviving arcs.
  *     Closed form; no densification. An even run of 4+ alternating
- *     line–circle nodes is the same assemble with n spans. Any other
- *     pair returns {@code null} without paying this path.</li>
+ *     line–circle nodes is the same assemble with n spans. A 0-node
+ *     covering square minus a disc ({@code R1.6-honesty}) is not a
+ *     punch: public overlay stays the chordsaw. Any other pair
+ *     returns {@code null} without paying this path.</li>
  * <li><b>R1.7</b> -- one operand is a hole-free {@link CurvePolygon} whose
  *     shell is a mixed {@link org.locationtech.jts.geom.curve.CompoundCurve}
  *     (LineString + CircularString: a half-disc or stadium) and the other
@@ -98,9 +102,13 @@ import org.locationtech.jts.geom.curve.MultiSurface;
  *     half-lens, or a point-touch. Any other two hole-free
  *     CompoundCurve shells with exactly two proper nodes walk the
  *     surviving pieces; 0 / 1 node is containment or a disjoint
- *     touch. An even 4+ alternating cut of two CompoundCurve shells
- *     is the H-FOUR n-span assemble. Two crossings plus a tangent
- *     is the same assemble with the touch as a zero-length span.
+ *     touch. A 0-node mixed shell strictly inside a circular disc
+ *     is the nest punch ({@code CC-NEST-ANNULUS}: P2.3 cousin, not
+ *     a noder, not D4): CAP the inner, CUP the outer, SUB / XOR
+ *     {@code CurvePolygon(outer, [inner])}. An even 4+ alternating
+ *     cut of two CompoundCurve shells is the H-FOUR n-span assemble.
+ *     Two crossings plus a tangent is the same assemble with the
+ *     touch as a zero-length span.
  *     A same-outer hole-inside pair
  *     is the holed / unholed / hole polygon. A different-outer hole
  *     whose outers already clip composes: hole strictly inside the
@@ -235,8 +243,9 @@ public class OverlayNGCurve {
    * whose only non-alternation is a tangent (degenerate NSpan),
    * a same-outer
    * hole-inside pair, a different-outer hole composed from a
-   * certified outer clip, and an even 4+ line–circle cut of a disc
-   * by a plain polygon. In
+   * certified outer clip, an even 4+ line–circle cut of a disc
+   * by a plain polygon, and a 0-node mixed nest punch of a
+   * CompoundCurve shell strictly inside a disc. In
    * the R1 case the <em>answer</em> is exact even though the <em>decision</em>
    * to return it was made on densified copies.
    * <p>

@@ -162,13 +162,16 @@ public class OverlayNGCircleTest extends GeometryTestCase {
         CurveSegmentNoder.nodes(half, onDiameter));
   }
 
-  public void testCcNestAnnulusStaysR2() throws Exception {
+  public void testCcNestAnnulusIsR17PunchNotNoder() throws Exception {
     Geometry disc = readCurve(CIRCLE_5);
     Geometry nest = readCurve(STADIUM_NEST);
-    assertNull(OverlayNGCircle.overlay(disc, nest, OverlayNG.DIFFERENCE));
+    assertNull("Option B noder does not own this pair",
+        OverlayNGCircle.overlay(disc, nest, OverlayNG.DIFFERENCE));
     OverlayNGCurve op = new OverlayNGCurve(disc, nest);
-    op.getResult(OverlayNG.DIFFERENCE);
-    assertTrue("CC-NEST-ANNULUS stays the chordsaw", op.isApproximate());
+    Geometry punched = op.getResult(OverlayNG.DIFFERENCE);
+    assertFalse("CC-NEST-ANNULUS: R1.7 punches, not a chordsaw",
+        op.isApproximate());
+    assertEquals(25.0 * Math.PI - (4.0 + Math.PI), punched.getArea(), EXACT);
   }
 
   public void testP254TangentStampUnchanged() throws Exception {
