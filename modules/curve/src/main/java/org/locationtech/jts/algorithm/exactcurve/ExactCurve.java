@@ -23,10 +23,15 @@ import org.locationtech.jts.geom.Geometry;
  */
 public interface ExactCurve {
 
+  /** Start control of this piece. */
   Coordinate getStart();
 
+  /** End control of this piece. */
   Coordinate getEnd();
 
+  /**
+   * Closed-form length. Must not call {@link #toLinear(double)}.
+   */
   double length();
 
   /**

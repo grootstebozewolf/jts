@@ -162,6 +162,48 @@ This document supersedes all previous Proofs option discussions, temporary STOP 
   implementations are package-private and compose `ExactCircularArc`.
   See `doc/ORIENTABLE_SEGMENT_ADAPTER.md`.
 
+### Audit (`feature/sfa-curve-rgr` @ `d8c4c9b8`)
+
+Tree matches §3–§4.2 and the bullets above: `ExactCircularArc` + thin
+`ExactCurve` in `org.locationtech.jts.algorithm.exactcurve`; no extra
+protocol methods; `OrientableSegment` composes `ExactCircularArc`; no
+Year-2 `Exact*` zoo types; `exactarc.AngleBetween` remains a deprecated
+alias.
+
+Already locked on this branch:
+
+- [#63](https://github.com/grootstebozewolf/jts/pull/63) `6b1dbac1` —
+  Year-1 lock (`ExactCircularArc`, thin `ExactCurve`, `toLinear` only).
+- [#66](https://github.com/grootstebozewolf/jts/pull/66) `36ed1dce` —
+  `OrientableSegment` adapter.
+- [#125](https://github.com/grootstebozewolf/jts/pull/125) `81a16be9` —
+  amendment A1 (Year-2 zoo membership only; §2/§3 untouched).
+
+### Year-1 leftover punch
+
+- Protocol-surface pin (`ExactCurve` exactly six methods; `isArc` off
+  the interface) and colinear/coincident `toLinear` chord pins — closed
+  by the Year-1 closeout PR (tests + protocol javadoc only).
+- Core `SegmentString` already grew `SegmentKind` /
+  `CircularNodedSegmentString` (MMF Option B, pre-bible). Do not expand.
+  Do not unwind here. **HOLD**.
+- Extra 1M cells for §7 near-degenerate / full-cycle stress: existing
+  L1/L2/P1 handover stands (`doc/PROOFS_OPTION_A_HANDOVER.md`). Unit
+  pins for major-arc and coincident chord added; extra 1M cells **HOLD**.
+
+### HOLD (do not implement from this lock)
+
+- Year-2 zoo: `ExactEllipticalArc`, `ExactCubicBezier`, `ExactClothoid`,
+  `ExactNurbsSegment`
+- N-SS hierarchy, HotPixel-driven N-SS, Proofs 64-a sweep
+- `SHARED_SNAPPED_RAY` walk
+- Making `SegmentString` non-linear (or remaking the existing Option B
+  kinds)
+- Growing `ExactCurve` / a rich abstract base
+- Reminting ADR-0004
+- Renaming `OverlayNGCurve` to `*Curved*`
+- Non-circular ports
+
 ## Amendments
 
 ### A1 — ExactCubicBezier replaces ExactQuadraticBezier (2026-08-27)

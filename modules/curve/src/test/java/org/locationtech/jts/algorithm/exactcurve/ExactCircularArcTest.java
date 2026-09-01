@@ -11,6 +11,10 @@
  */
 package org.locationtech.jts.algorithm.exactcurve;
 
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.TreeSet;
+
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
@@ -162,5 +166,72 @@ public class ExactCircularArcTest extends TestCase {
     ExactCircularArc a = new ExactCircularArc(s, m, e);
     s.x = 99;
     assertEquals(5.0, a.getStart().x, 0.0);
+  }
+
+  /**
+   * Bible §4.2 + Year-1 notes: protocol is exactly these six methods.
+   * {@code isArc} is the circular-vs-chord discriminator and must stay
+   * off the thin interface.
+   */
+  public void testExactCurveProtocolSurface() throws Exception {
+    TreeSet<String> names = new TreeSet<String>();
+    Method[] declared = ExactCurve.class.getDeclaredMethods();
+    for (int i = 0; i < declared.length; i++) {
+      names.add(declared[i].getName());
+    }
+    assertEquals(
+        Arrays.asList("getEnd", "getStart", "isExact", "length", "pointAt",
+            "toLinear").toString(),
+        names.toString());
+    try {
+      ExactCurve.class.getDeclaredMethod("isArc");
+      fail("isArc must not be on ExactCurve");
+    }
+    catch (NoSuchMethodException expected) {
+      // Year-1 notes
+    }
+    ExactCircularArc a = new ExactCircularArc(
+        new Coordinate(5, 0), new Coordinate(0, 5), new Coordinate(-5, 0));
+    assertTrue(a.isArc());
+  }
+
+  /** Colinear 3-control: {@code toLinear} is the exact chord, not a densify. */
+  public void testColinearToLinearIsExactChord() {
+    ExactCircularArc a = new ExactCircularArc(
+        new Coordinate(0, 0), new Coordinate(1, 0), new Coordinate(3, 0));
+    assertTrue(a.isExact());
+    assertFalse(a.isArc());
+    Geometry lin = a.toLinear(0.01);
+    assertTrue(lin instanceof LineString);
+    assertEquals(2, lin.getNumPoints());
+    assertEquals(0.0, lin.getCoordinates()[0].x, 0.0);
+    assertEquals(3.0, lin.getCoordinates()[1].x, 0.0);
+    assertEquals(3.0, lin.getLength(), 0.0);
+  }
+
+  /** Coincident controls: exact zero-length chord. */
+  public void testCoincidentControlsAreExactZeroChord() {
+    ExactCircularArc a = new ExactCircularArc(
+        new Coordinate(2, 2), new Coordinate(2, 2), new Coordinate(2, 2));
+    assertTrue(a.isExact());
+    assertFalse(a.isArc());
+    assertEquals(0.0, a.length(), 0.0);
+    Geometry lin = a.toLinear(0.01);
+    assertEquals(2, lin.getNumPoints());
+    assertEquals(a.getStart().x, a.pointAt(0.5).x, 0.0);
+  }
+
+  /** Major (3π/2) window: closed-form length and {@code pointAt}. */
+  public void testMajorArcThreeQuarter() {
+    ExactCircularArc a = new ExactCircularArc(
+        new Coordinate(1, 0), new Coordinate(0, 1), new Coordinate(0, -1));
+    assertTrue(a.isExact());
+    assertTrue(a.isArc());
+    assertEquals(1.5 * Math.PI, a.length(), 1.0e-12);
+    Coordinate mid = a.pointAt(0.5);
+    assertEquals(-Math.sqrt(0.5), mid.x, 1.0e-12);
+    assertEquals(Math.sqrt(0.5), mid.y, 1.0e-12);
+    Geometry lin = a.toLinear(0.01);
+    assertTrue(lin.getNumPoints() > 2);
   }
 }
