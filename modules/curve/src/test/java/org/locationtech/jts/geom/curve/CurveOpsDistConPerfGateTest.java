@@ -20,6 +20,7 @@ import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
+import test.jts.perf.LaserRatchetSink;
 
 /**
  * PERF-GATE for the distance family and constructions: a curve-aware path
@@ -106,6 +107,8 @@ public class CurveOpsDistConPerfGateTest extends GeometryTestCase {
     }
     long lm = median(L);
     long cm = median(C);
+    LaserRatchetSink.recordOperation("CurveOpsDistConPerfGateTest",
+        "geom/curve", label, lm, cm, false);
     // A 0 ns chainsaw median is timer resolution, not a laser loss.
     if (cm == 0) return;
     double ratio = (double) lm / (double) cm;

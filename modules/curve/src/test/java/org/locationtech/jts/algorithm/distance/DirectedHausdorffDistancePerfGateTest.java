@@ -20,6 +20,7 @@ import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
+import test.jts.perf.LaserRatchetSink;
 
 /**
  * M.1 PERF-GATE: {@link DirectedHausdorffDistance} on the certified
@@ -110,6 +111,8 @@ public class DirectedHausdorffDistancePerfGateTest extends GeometryTestCase {
     Arrays.sort(C);
     long lm = L[L.length / 2];
     long cm = C[C.length / 2];
+    LaserRatchetSink.recordOperation("DirectedHausdorffDistancePerfGateTest",
+        "algorithm/distance", label, lm, cm, false);
     if (cm == 0) return;
     double ratio = (double) lm / (double) cm;
     if (ratio > NOISE) {

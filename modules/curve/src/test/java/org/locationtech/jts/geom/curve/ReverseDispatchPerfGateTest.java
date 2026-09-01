@@ -20,6 +20,7 @@ import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
+import test.jts.perf.LaserRatchetSink;
 
 /**
  * PERF-GATE for reverse-direction {@code plain.op(curve)}.
@@ -150,6 +151,8 @@ public class ReverseDispatchPerfGateTest extends GeometryTestCase {
     }
     long lm = median(L);
     long cm = median(C);
+    LaserRatchetSink.recordOperation("ReverseDispatchPerfGateTest",
+        "geom/curve", label, lm, cm, samePath);
     // A 0 ns chainsaw median is timer resolution, not a laser loss.
     if (cm == 0 || samePath) return;
     double ratio = (double) lm / (double) cm;

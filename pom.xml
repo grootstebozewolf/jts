@@ -298,6 +298,9 @@
                         <exclude>**/*StressTest.java</exclude>
                         <exclude>**/jts/perf/**/*.java</exclude>
                     </excludes>
+                    <systemPropertyVariables>
+                        <laser.ratchet.dir>${maven.multiModuleProjectDirectory}/target/laser-ratchet</laser.ratchet.dir>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <plugin>

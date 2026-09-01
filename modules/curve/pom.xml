@@ -55,6 +55,9 @@
                     <excludes>
                         <exclude>**/spec/curveawareness/*.java</exclude>
                     </excludes>
+                    <systemPropertyVariables>
+                        <laser.ratchet.dir>${maven.multiModuleProjectDirectory}/target/laser-ratchet</laser.ratchet.dir>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
         </plugins>
