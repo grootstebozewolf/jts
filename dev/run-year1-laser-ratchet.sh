@@ -24,9 +24,12 @@ GATES="LargestEmptyCirclePerfGateTest\
 ,ExactArcOptionAMillionTrialTest\
 ,PredicateOptionBMillionTrialTest"
 
+# -am walks build-tools / io / etc. Surefire 3.x on those modules fails
+# unless failIfNoSpecifiedTests is off (failIfNoTests is the 2.x name).
 mvn -pl modules/core,modules/curve,modules/app -am test \
   -Dtest="$GATES" \
   -DfailIfNoTests=false \
+  -Dsurefire.failIfNoSpecifiedTests=false \
   -Dcheckstyle.skip=true \
   -Dpmd.skip=true \
   -Dlaser.ratchet.dir="$LASER_RATCHET_DIR" \
