@@ -19,6 +19,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.curve.CircularArcDensifier;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jts.io.curve.CurveWKTWriter;
@@ -73,12 +74,44 @@ public class CurveShapeWriterThreePointHoleTest extends GeometryTestCase {
 
   public CurveShapeWriterThreePointHoleTest(String name) { super(name); }
 
-  private static Geometry readWitness() throws Exception {
-    return new CurveWKTReader().read(WITNESS);
+  private static CircularString fourControl(double... xy) {
+    CurveGeometryFactory gf = new CurveGeometryFactory();
+    Coordinate[] pts = new Coordinate[xy.length / 2];
+    for (int i = 0; i < pts.length; i++) {
+      pts[i] = new Coordinate(xy[2 * i], xy[2 * i + 1]);
+    }
+    return new CircularString(gf.getCoordinateSequenceFactory().create(pts), gf);
   }
 
-  private static Shape shapeOf(String wkt) throws Exception {
-    return new CurveShapeWriter().toShape(new CurveWKTReader().read(wkt));
+  private static CurvePolygon annulus(CircularString shell, CircularString hole) {
+    CurveGeometryFactory gf = new CurveGeometryFactory();
+    return new CurvePolygon(shell, new LineString[] { hole }, gf);
+  }
+
+  /**
+   * Overlay/render 4-control witness. Not SQL/MM WKT (odd count);
+   * constructed, not parsed.
+   */
+  private static Geometry readWitness() {
+    return annulus(
+        fourControl(60, 380, 240, 440, 404, 326, 60, 380),
+        fourControl(141, 84, 270, 28, 170, 290, 141, 84));
+  }
+
+  private static Geometry semicircleHole() {
+    return annulus(
+        fourControl(-10, 0, 0, 10, 10, 0, -10, 0),
+        fourControl(-3, 0, 0, 3, 3, 0, -3, 0));
+  }
+
+  private static Geometry majorArcHole() throws Exception {
+    CircularString shell = (CircularString) new CurveWKTReader().read(
+        "CIRCULARSTRING (-10 0, 0 10, 10 0, 0 -10, -10 0)");
+    return annulus(shell, fourControl(-3, 0, 0, -3, 0, 3, -3, 0));
+  }
+
+  private static Shape shapeOf(Geometry g) {
+    return new CurveShapeWriter().toShape(g);
   }
 
   private static SegCounts segs(Shape s) {
@@ -136,7 +169,7 @@ public class CurveShapeWriterThreePointHoleTest extends GeometryTestCase {
 
   /** Fill/path subtracts the hole. Complementary-side interior is punched. */
   public void testWitnessFillSubtractsHole() throws Exception {
-    Shape s = shapeOf(WITNESS);
+    Shape s = shapeOf(readWitness());
     // Hole circumcircle ~ centre (256.21, 172.82) r=145.48
     assertFalse("hole centre must not be filled", s.contains(256.21, 172.82));
     // Shell centre sits inside the hole disc, so it is also exterior.
@@ -148,7 +181,7 @@ public class CurveShapeWriterThreePointHoleTest extends GeometryTestCase {
 
   /** Canvas: bezier arcs, not the 3-point chord triangle (lineTo only). */
   public void testWitnessRendersArcsNotChordTriangle() throws Exception {
-    SegCounts c = segs(shapeOf(WITNESS));
+    SegCounts c = segs(shapeOf(readWitness()));
     assertEquals("shell + hole", 2, c.moveTo);
     assertEquals("each ring is its own closed subpath", 2, c.close);
     assertTrue("both rings must emit cubic arcs, got cubic=" + c.cubicTo
@@ -178,13 +211,14 @@ public class CurveShapeWriterThreePointHoleTest extends GeometryTestCase {
     double r = Math.hypot(closeMid.x - circ[0], closeMid.y - circ[1]);
     assertEquals(circ[2], r, 1.0e-6);
     // And length is one full hole circumference, not 2× the major arc.
-    assertEquals("hole must be one circumcircle, not a retraced major arc",
-        2.0 * Math.PI * circ[2], hole.getLength(), 1.0e-6);
+    // SQL/MM length is the stored arc only. Close mid is a render kit.
+    assertTrue("stored hole length is one arc, not an invented full circle",
+        hole.getLength() < 2.0 * Math.PI * circ[2] - 1.0e-3);
   }
 
   /** Guard: semicircle (A,B,C,A) hole from #87 still punches. */
   public void testSemicircleHoleStillPunches() throws Exception {
-    Shape s = shapeOf(SEMICIRCLE_HOLE);
+    Shape s = shapeOf(semicircleHole());
     assertFalse(s.contains(0, 0));
     assertFalse(s.contains(0, -1.5));
     assertFalse(s.contains(0, 1.5));
@@ -194,7 +228,7 @@ public class CurveShapeWriterThreePointHoleTest extends GeometryTestCase {
 
   /** Major-arc 3-point hole on the unit circle: punch, not retrace. */
   public void testMajorArcThreePointHolePunchesCircumcircle() throws Exception {
-    Shape s = shapeOf(MAJOR_ARC_HOLE);
+    Shape s = shapeOf(majorArcHole());
     assertFalse("hole centre must not be filled", s.contains(0, 0));
     // Complementary close of (-3,0)→(0,3) is the NW quadrant; (-2,2) is inside.
     assertFalse("complementary-side interior is still a hole", s.contains(-2, 2));

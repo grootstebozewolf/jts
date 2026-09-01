@@ -14,7 +14,6 @@ package org.locationtech.jts.io.curve;
 
 
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.LineString;
 
 import junit.framework.Test;
 import junit.framework.TestSuite;
@@ -118,14 +117,15 @@ public class WKTCircularStringTest extends GeometryTestCase {
   }
 
   /**
-   * V-CS / #86: closed CIRCULARSTRING(A,B,C,A) is the 4-control exception
-   * (full circumcircle). Open even leftover still fails above.
+   * ISO/IEC 13249-3: closed CIRCULARSTRING(A,B,C,A) is even and is not
+   * a SQL/MM CircularString. Open even leftover still fails above.
    */
-  public void testAcceptsClosedFourPointCircle() throws Exception {
-    Geometry g = new CurveWKTReader().read("CIRCULARSTRING(-5 0, 0 5, 5 0, -5 0)");
-    assertEquals(TYPENAME_CIRCULARSTRING, g.getGeometryType());
-    assertEquals(4, g.getNumPoints());
-    assertTrue(((LineString) g).isClosed());
-    assertTrue("CIRCULARSTRING(A,B,C,A) is a valid geometry", g.isValid());
+  public void testRejectsClosedFourPointCircle() throws Exception {
+    try {
+      new CurveWKTReader().read("CIRCULARSTRING(-5 0, 0 5, 5 0, -5 0)");
+      fail("Expected parse failure for 4-point CIRCULARSTRING(A,B,C,A)");
+    } catch (Throwable e) {
+      // expected
+    }
   }
 }

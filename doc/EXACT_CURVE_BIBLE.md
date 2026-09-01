@@ -226,3 +226,11 @@ grilling session; recorded as NetTopologySuite.Proofs ADR-0004.
   sanctioned by §4.3).
 - All other principles, the foundational decision (§3), and the hard
   rules (§6) are untouched.
+
+### Library note — SQL/MM types on `feature/zoo` (2026-09-01)
+
+ISO/IEC 13249-3 SQL/MM Spatial curve types (`CircularString`,
+`CompoundCurve`, `CurvePolygon`, `MultiCurve`, `MultiSurface`) live on
+`feature/zoo`. They are library geometry types, not Year-2 `Exact*`
+zoo members. Year-2 `ExactEllipticalArc` / `ExactCubicBezier` /
+`ExactClothoid` / `ExactNurbsSegment` remain HOLD. §2 and §3 unchanged.

@@ -385,8 +385,16 @@ public class WKBReader
   private Geometry readCircularString(EnumSet<Ordinate> ordinateFlags)
       throws IOException, ParseException {
     LineString ls = readLineString(ordinateFlags);
+    CoordinateSequence seq = ls.getCoordinateSequence();
+    int n = seq == null ? 0 : seq.size();
+    if (n != 0 && (n < 3 || (n & 1) == 0)) {
+      throw new ParseException(
+          "WKB CircularString must be empty or have an odd control count "
+          + "n > 1 (ISO/IEC 13249-3). A 4-control CIRCULARSTRING(A,B,C,A) "
+          + "is not a SQL/MM CircularString");
+    }
     try {
-      return factory.createCircularString(ls.getCoordinateSequence());
+      return factory.createCircularString(seq);
     }
     catch (UnsupportedOperationException e) {
       throw curveFactoryRequired(WKBConstants.wkbCircularString, e);
@@ -486,7 +494,24 @@ public class WKBReader
       Geometry g = readGeometry(SRID);
       if (! (g instanceof LineString))
         throw new ParseException(INVALID_GEOM_TYPE_MSG + "CompoundCurve");
+      if ("CompoundCurve".equals(g.getGeometryType())) {
+        throw new ParseException(
+            "CompoundCurve members must be LineString or CircularString "
+            + "(ISO/IEC 13249-3)");
+      }
       geoms[i] = (LineString) g;
+      if (i > 0) {
+        LineString prev = geoms[i - 1];
+        LineString cur = geoms[i];
+        if (!prev.isEmpty() && !cur.isEmpty()) {
+          Coordinate a = prev.getCoordinateN(prev.getNumPoints() - 1);
+          Coordinate b = cur.getCoordinateN(0);
+          if (a == null || b == null || !a.equals2D(b)) {
+            throw new ParseException(
+                "CompoundCurve members must be contiguous (ISO/IEC 13249-3)");
+          }
+        }
+      }
     }
     try {
       return factory.createCompoundCurve(geoms);

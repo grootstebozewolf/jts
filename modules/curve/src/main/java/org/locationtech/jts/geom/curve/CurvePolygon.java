@@ -131,15 +131,54 @@ public class CurvePolygon extends Polygon implements Linearizable {
   }
 
   /**
-   * V-CP (#1195): validity uses densified rings so arc self-intersections
-   * that are invisible on the control polygon are still detected. Chainsaw
-   * densify is maintainable here; analytical arc/arc self-intersection can
-   * replace this later without changing the public contract.
+   * ISO/IEC 13249-3 ring: {@link LineString} (including
+   * {@link LinearRing}), {@link CircularString}, or
+   * {@link CompoundCurve}. Other LineString subclasses are not
+   * SQL/MM CurvePolygon rings.
+   */
+  public static boolean isSqlMmRing(LineString ring) {
+    if (ring == null) {
+      return false;
+    }
+    if (ring instanceof CircularString || ring instanceof CompoundCurve) {
+      return true;
+    }
+    return ring.getClass() == LineString.class || ring instanceof LinearRing;
+  }
+
+  /**
+   * Structural ISO/IEC 13249-3 checks first (ring types, closed rings,
+   * CircularString control count, CompoundCurve continuity). Topological
+   * self-intersection still uses {@link #toLinear(double)} — that path
+   * is the named ST_IsValid approximation, not an exactness claim.
+   * HOLD: analytical arc/arc self-intersection (ISO 13249-3 ST_IsValid
+   * topology) is not closed-form here.
    */
   @Override
   public boolean isValid() {
     if (isEmpty()) {
       return true;
+    }
+    if (structuralShell == null || !isSqlMmRing(structuralShell)) {
+      return false;
+    }
+    if (!structuralShell.isEmpty() && !structuralShell.isClosed()) {
+      return false;
+    }
+    if (!structuralShell.isValid()) {
+      return false;
+    }
+    for (int i = 0; i < structuralHoles.length; i++) {
+      LineString hole = structuralHoles[i];
+      if (!isSqlMmRing(hole)) {
+        return false;
+      }
+      if (!hole.isEmpty() && !hole.isClosed()) {
+        return false;
+      }
+      if (!hole.isValid()) {
+        return false;
+      }
     }
     Envelope env = getEnvelopeInternal();
     double extent = Math.max(env.getWidth(), env.getHeight());
@@ -457,11 +496,6 @@ public class CurvePolygon extends Polygon implements Linearizable {
       for (int i = 0; i + 2 < seq.size(); i += 2) {
         area += CircularArcDensifier.arcAreaContribution(
             seq.getCoordinate(i), seq.getCoordinate(i + 1), seq.getCoordinate(i + 2));
-      }
-      Coordinate closeMid = CircularArcDensifier.threePointCircleCloseMid(seq);
-      if (closeMid != null) {
-        area += CircularArcDensifier.arcAreaContribution(
-            seq.getCoordinate(seq.size() - 2), closeMid, seq.getCoordinate(0));
       }
       return area;
     }

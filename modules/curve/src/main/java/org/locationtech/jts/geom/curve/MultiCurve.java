@@ -34,6 +34,39 @@ public class MultiCurve extends MultiLineString implements Linearizable {
     return "MultiCurve";
   }
 
+  /**
+   * ISO/IEC 13249-3 MultiCurve member: {@link LineString},
+   * {@link CircularString}, or {@link CompoundCurve}. There is no
+   * MultiCircularString / MultiCompoundString type.
+   */
+  public static boolean isSqlMmCurve(LineString member) {
+    if (member == null) {
+      return false;
+    }
+    if (member instanceof CircularString || member instanceof CompoundCurve) {
+      return true;
+    }
+    return member.getClass() == LineString.class
+        || member instanceof org.locationtech.jts.geom.LinearRing;
+  }
+
+  @Override
+  public boolean isValid() {
+    if (isEmpty()) {
+      return true;
+    }
+    for (int i = 0; i < getNumGeometries(); i++) {
+      Geometry m = getGeometryN(i);
+      if (!(m instanceof LineString) || !isSqlMmCurve((LineString) m)) {
+        return false;
+      }
+      if (!m.isValid()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   @Override
   protected MultiCurve copyInternal() {
     int n = getNumGeometries();

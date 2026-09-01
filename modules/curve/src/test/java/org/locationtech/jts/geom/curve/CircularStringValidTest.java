@@ -13,8 +13,8 @@ package org.locationtech.jts.geom.curve;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.framework.Test;
@@ -23,21 +23,18 @@ import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
 
 /**
- * V-CS / #86: {@code CIRCULARSTRING(A,B,C,A)} is a valid geometry.
- * A pair of those rings is a valid annulus (CurvePolygon hole).
- * Not #114 paint. Not H-CC area.
+ * ISO/IEC 13249-3 CircularString validity. Empty or odd control count
+ * {@code n > 1}. A complete circle is five controls. Four-control
+ * {@code CIRCULARSTRING(A,B,C,A)} is not a SQL/MM CircularString.
  */
 public class CircularStringValidTest extends GeometryTestCase {
 
-  /** #87 three-click close: circumcircle, no complementary mid stored. */
   private static final String RING_5 =
-      "CIRCULARSTRING (-5 0, 0 5, 5 0, -5 0)";
+      "CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0)";
   private static final String RING_3 =
-      "CIRCULARSTRING (-3 0, 0 3, 3 0, -3 0)";
+      "CIRCULARSTRING (-3 0, 0 3, 3 0, 0 -3, -3 0)";
   private static final String ANNULUS =
       "CURVEPOLYGON (" + RING_5 + ", " + RING_3 + ")";
-  private static final String ODD_CLOSED =
-      "CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0)";
 
   public static void main(String[] args) { TestRunner.run(suite()); }
   public static Test suite() { return new TestSuite(CircularStringValidTest.class); }
@@ -47,18 +44,42 @@ public class CircularStringValidTest extends GeometryTestCase {
     return new CurveWKTReader().read(wkt);
   }
 
-  public void testClosedFourPointCircularStringIsValid() throws Exception {
+  public void testFiveControlCircleIsValid() throws Exception {
     Geometry g = readCurve(RING_5);
     assertTrue(g instanceof CircularString);
-    assertEquals(4, g.getNumPoints());
+    assertEquals(5, g.getNumPoints());
     assertTrue(((LineString) g).isClosed());
-    assertTrue("CIRCULARSTRING(A,B,C,A) is a valid geometry", g.isValid());
-    assertTrue(CircularString.isValidControlCount(
-        ((CircularString) g).getCoordinateSequence()));
+    assertTrue("ISO/IEC 13249-3 complete circle is 5 controls", g.isValid());
+  }
+
+  public void testFourPointClosedCircleIsNotSqlMmValid() {
+    CurveGeometryFactory gf = new CurveGeometryFactory();
+    Coordinate[] pts = {
+        new Coordinate(-5, 0),
+        new Coordinate(0, 5),
+        new Coordinate(5, 0),
+        new Coordinate(-5, 0)
+    };
+    CircularString closedEven = new CircularString(
+        gf.getCoordinateSequenceFactory().create(pts), gf);
+    assertEquals(4, closedEven.getNumPoints());
+    assertTrue(closedEven.isClosed());
+    assertFalse("CIRCULARSTRING(A,B,C,A) is even; not ISO/IEC 13249-3",
+        closedEven.isValid());
+    assertFalse(CircularString.isValidControlCount(closedEven.getCoordinateSequence()));
+  }
+
+  public void testFourPointWktIsRejected() throws Exception {
+    try {
+      readCurve("CIRCULARSTRING (-5 0, 0 5, 5 0, -5 0)");
+      fail("4-control CIRCULARSTRING must not parse");
+    } catch (ParseException e) {
+      assertTrue(e.getMessage(), e.getMessage().indexOf("13249-3") >= 0);
+    }
   }
 
   public void testOpenFourPointControlIsInvalid() {
-    GeometryFactory gf = new CurveGeometryFactory();
+    CurveGeometryFactory gf = new CurveGeometryFactory();
     Coordinate[] pts = {
         new Coordinate(0, 0),
         new Coordinate(1, 1),
@@ -71,20 +92,20 @@ public class CircularStringValidTest extends GeometryTestCase {
   }
 
   public void testOddClosedCircularStringStillValid() throws Exception {
-    Geometry g = readCurve(ODD_CLOSED);
+    Geometry g = readCurve(RING_5);
     assertTrue(g.isValid());
   }
 
-  /** Two concentric CIRCULARSTRING(A,B,C,A) rings: valid annulus. */
-  public void testFourPointAnnulusCurvePolygonIsValid() throws Exception {
+  /** Two concentric 5-control rings: valid SQL/MM annulus. */
+  public void testFivePointAnnulusCurvePolygonIsValid() throws Exception {
     Geometry g = readCurve(ANNULUS);
     assertTrue(g instanceof CurvePolygon);
     CurvePolygon cp = (CurvePolygon) g;
     assertEquals(1, cp.getNumInteriorRing());
     assertTrue(cp.getExteriorCurve() instanceof CircularString);
     assertTrue(cp.getInteriorCurveN(0) instanceof CircularString);
-    assertEquals(4, cp.getExteriorCurve().getNumPoints());
-    assertEquals(4, cp.getInteriorCurveN(0).getNumPoints());
-    assertTrue("4-pt + 4-pt CurvePolygon annulus is a valid geometry", g.isValid());
+    assertEquals(5, cp.getExteriorCurve().getNumPoints());
+    assertEquals(5, cp.getInteriorCurveN(0).getNumPoints());
+    assertTrue("5-pt + 5-pt CurvePolygon annulus is a valid geometry", g.isValid());
   }
 }

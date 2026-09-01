@@ -95,22 +95,22 @@ public class CircularString extends LineString implements Linearizable {
   }
 
   /**
-   * V-CS / #86: ISO/IEC 13249-3 wants an odd control count ≥ 3.
-   * Closed {@code CIRCULARSTRING(A,B,C,A)} is the 4-control full-circle
-   * exception (complementary close is implicit; no leftover mid stored).
+   * ISO/IEC 13249-3 CircularString: empty, or an odd control count
+   * {@code n > 1} (minimum one 3-point arc). Consecutive arcs share the
+   * previous end as the next start, so {@code n = 2k+1} for {@code k ≥ 1}
+   * arcs.
+   * <p>
+   * A complete circle is two arcs (5 controls, first = last).
+   * {@code CIRCULARSTRING(A,B,A)} meets the odd-count rule but is not a
+   * full circle. {@code CIRCULARSTRING(A,B,C,A)} is even and is not a
+   * SQL/MM CircularString — this method does not invent a fifth control.
    */
   public static boolean isValidControlCount(CoordinateSequence seq) {
     if (seq == null || seq.size() == 0) {
       return true;
     }
     int n = seq.size();
-    if (n < 3) {
-      return false;
-    }
-    if ((n & 1) == 1) {
-      return true;
-    }
-    return CircularArcDensifier.threePointCircleCloseMid(seq) != null;
+    return n >= 3 && (n & 1) == 1;
   }
 
   @Override
@@ -150,11 +150,6 @@ public class CircularString extends LineString implements Linearizable {
       CircularArcDensifier.expandEnvelope(
           seq.getCoordinate(i), seq.getCoordinate(i + 1), seq.getCoordinate(i + 2), env);
     }
-    Coordinate closeMid = CircularArcDensifier.threePointCircleCloseMid(seq);
-    if (closeMid != null) {
-      CircularArcDensifier.expandEnvelope(
-          seq.getCoordinate(n - 2), closeMid, seq.getCoordinate(0), env);
-    }
     return env;
   }
 
@@ -176,11 +171,6 @@ public class CircularString extends LineString implements Linearizable {
     for (int i = 0; i + 2 < n; i += 2) {
       total += ExactCircularArc.length(
           seq.getCoordinate(i), seq.getCoordinate(i + 1), seq.getCoordinate(i + 2));
-    }
-    Coordinate closeMid = CircularArcDensifier.threePointCircleCloseMid(seq);
-    if (closeMid != null) {
-      total += ExactCircularArc.length(
-          seq.getCoordinate(n - 2), closeMid, seq.getCoordinate(0));
     }
     return total;
   }
@@ -239,19 +229,6 @@ public class CircularString extends LineString implements Linearizable {
       int from = out.isEmpty() ? 0 : 1;
       for (int k = from; k < chord.size(); k++) {
         out.add(chord.get(k));
-      }
-    }
-    Coordinate closeMid = CircularArcDensifier.threePointCircleCloseMid(seq);
-    if (closeMid != null) {
-      List<Coordinate> closeAnchors = new ArrayList<Coordinate>(include.size() + 1);
-      closeAnchors.addAll(include);
-      closeAnchors.add(closeMid);
-      List<Coordinate> closeChord = CircularArcDensifier.densifyArc(
-          seq.getCoordinate(n - 2), closeMid, seq.getCoordinate(0),
-          tolerance, closeAnchors);
-      int from = out.isEmpty() ? 0 : 1;
-      for (int k = from; k < closeChord.size(); k++) {
-        out.add(closeChord.get(k));
       }
     }
     return getFactory().createLineString(out.toArray(new Coordinate[0]));

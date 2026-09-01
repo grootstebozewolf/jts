@@ -89,12 +89,14 @@ public class CurveWKTWriter extends WKTWriter {
           (CurvePolygon) geometry, outputOrdinates, useFormatting, level, writer, formatter);
       return true;
     }
-    if (geometry instanceof MultiCurve && hasCurveMember((MultiCurve) geometry)) {
+    // Always own MultiCurve / MultiSurface (incl. EMPTY / all-linear).
+    // Falling through to core WKTWriter refuses them under SqlMmTypes.
+    if (geometry instanceof MultiCurve) {
       appendMultiCurveTaggedText(
           (MultiCurve) geometry, outputOrdinates, useFormatting, level, writer, formatter);
       return true;
     }
-    if (geometry instanceof MultiSurface && hasCurveMember((MultiSurface) geometry)) {
+    if (geometry instanceof MultiSurface) {
       appendMultiSurfaceTaggedText(
           (MultiSurface) geometry, outputOrdinates, useFormatting, level, writer, formatter);
       return true;
@@ -114,15 +116,6 @@ public class CurveWKTWriter extends WKTWriter {
     if (outputOrdinates.contains(Ordinate.Z) || outputOrdinates.contains(Ordinate.M)) {
       writer.write(" ");
     }
-  }
-
-  private static boolean hasCurveMember(MultiCurve mc) {
-    for (int i = 0; i < mc.getNumGeometries(); i++) {
-      Geometry m = mc.getGeometryN(i);
-      if (m instanceof CircularString || m instanceof CompoundCurve
-          || m instanceof ClothoidSegment) return true;
-    }
-    return false;
   }
 
   /**
@@ -164,14 +157,6 @@ public class CurveWKTWriter extends WKTWriter {
     writer.write(")");
   }
 
-  private static boolean hasCurveMember(MultiSurface ms) {
-    for (int i = 0; i < ms.getNumGeometries(); i++) {
-      Geometry m = ms.getGeometryN(i);
-      if (m instanceof CurvePolygon && hasCurveRing((CurvePolygon) m)) return true;
-    }
-    return false;
-  }
-
   /**
    * Emits {@code MULTISURFACE (CURVEPOLYGON (…), (…))} -- curved members carry
    * their {@code CURVEPOLYGON} tag so their rings survive, plain members stay
@@ -184,6 +169,10 @@ public class CurveWKTWriter extends WKTWriter {
     writer.write(ms.getGeometryType().toUpperCase(Locale.ROOT));
     writer.write(" ");
     appendOrdinateText(outputOrdinates, writer);
+    if (ms.isEmpty()) {
+      writer.write(WKTConstants.EMPTY);
+      return;
+    }
     writer.write("(");
     for (int i = 0; i < ms.getNumGeometries(); i++) {
       if (i > 0) writer.write(", ");
