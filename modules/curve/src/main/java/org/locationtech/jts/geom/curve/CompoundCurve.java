@@ -104,9 +104,12 @@ public class CompoundCurve extends LineString implements Linearizable {
   }
 
   /**
-   * True when consecutive members share an endpoint in XY
-   * (ISO/IEC 13249-3 CompoundCurve continuity). Empty members are
+   * True when consecutive SQL/MM SimpleCurve members share an endpoint
+   * in XY (ISO/IEC 13249-3 CompoundCurve continuity). Empty members are
    * skipped. A single-member or empty chain is contiguous.
+   * <p>
+   * Non-SQL/MM members (clothoid extension) are not a SimpleCurve pair;
+   * their junction is the grammars-v4 drift warning, not this check.
    */
   public static boolean areMembersContiguous(LineString[] members) {
     if (members == null || members.length <= 1) {
@@ -118,7 +121,7 @@ public class CompoundCurve extends LineString implements Linearizable {
       if (m == null || m.isEmpty()) {
         continue;
       }
-      if (prev != null) {
+      if (prev != null && isSqlMmSimpleCurve(prev) && isSqlMmSimpleCurve(m)) {
         Coordinate end = prev.getCoordinateN(prev.getNumPoints() - 1);
         Coordinate start = m.getCoordinateN(0);
         if (end == null || start == null || !end.equals2D(start)) {
