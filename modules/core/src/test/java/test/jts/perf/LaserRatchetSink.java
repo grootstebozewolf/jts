@@ -201,6 +201,38 @@ public final class LaserRatchetSink {
         + " tip=" + tip);
   }
 
+  static String prop(String key, String fallback) {
+    String v = System.getProperty(key);
+    if (v != null && v.length() > 0) {
+      return v;
+    }
+    String env = System.getenv(key.toUpperCase().replace('.', '_'));
+    if (env != null && env.length() > 0) {
+      return env;
+    }
+    return fallback;
+  }
+
+  static String prJson() {
+    String pr = prop("laser.ratchet.pr", "");
+    if (pr == null || pr.length() == 0 || "null".equals(pr)) {
+      return "null";
+    }
+    for (int i = 0; i < pr.length(); i++) {
+      if (pr.charAt(i) < '0' || pr.charAt(i) > '9') {
+        return "null";
+      }
+    }
+    return pr;
+  }
+
+  static String utcDate() {
+    // Java 8: keep the feed date machine-written.
+    java.text.SimpleDateFormat f = new java.text.SimpleDateFormat("yyyy-MM-dd");
+    f.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+    return f.format(new java.util.Date());
+  }
+
   public static String tip() {
     String prop = System.getProperty("laser.ratchet.tip");
     if (prop != null && prop.length() > 0) {
@@ -289,10 +321,12 @@ public final class LaserRatchetSink {
       w.println();
       w.println("  \"provenance\": {");
       w.println("    \"source_repo\": \"grootstebozewolf/jts\",");
-      w.println("    \"branch\": \"feature/sfa-curve-rgr\",");
-      w.println("    \"pr\": null,");
+      w.println("    \"branch\": \"" + escape(prop("laser.ratchet.branch",
+          "feature/sfa-curve-rgr")) + "\",");
+      w.println("    \"pr\": " + prJson() + ",");
       w.println("    \"tip\": \"" + escape(tip) + "\",");
-      w.println("    \"imported\": \"2026-09-01\",");
+      w.println("    \"imported\": \"" + escape(prop("laser.ratchet.imported",
+          utcDate())) + "\",");
       w.println("    \"method\": \"nanoTime, median of 31 samples after 15 warmups (WARMUP=15, SAMPLES=31, NOISE=1.15), OpenJDK "
           + escape(javaRt) + ", single machine; primitive gates use their harness stat\",");
       w.println("    \"caveats\": [");

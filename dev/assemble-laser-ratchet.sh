@@ -17,5 +17,11 @@ if [[ ! -d "$CP" ]]; then
   echo "compile jts-core tests first (mvn -pl modules/core test-compile)" >&2
   exit 1
 fi
+IMPORTED="${LASER_RATCHET_IMPORTED:-$(date -u +%Y-%m-%d)}"
+BRANCH="${LASER_RATCHET_BRANCH:-feature/sfa-curve-rgr}"
+PR="${LASER_RATCHET_PR:-}"
 exec java -Dlaser.ratchet.tip="$TIP" -Dlaser.ratchet.dir="$DIR" \
+  -Dlaser.ratchet.imported="$IMPORTED" \
+  -Dlaser.ratchet.branch="$BRANCH" \
+  -Dlaser.ratchet.pr="$PR" \
   -cp "$CP" test.jts.perf.LaserRatchetSink assemble "$OUT" "$ROWS"

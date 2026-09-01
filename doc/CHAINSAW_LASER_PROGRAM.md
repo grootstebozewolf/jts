@@ -30,7 +30,8 @@ Contract: parity or named densify-shim · `t_laser ≤ 1.15 × t_chainsaw` · no
 
 ## Year-1 circular re-verify (this pin)
 
-Gates emit JSONL (`target/laser-ratchet/rows.jsonl`); `dev/assemble-laser-ratchet.sh` writes the Proofs-schema feed. Stdout-only is the discarded-timing bug.
+Gates emit JSONL (`target/laser-ratchet/rows.jsonl`); `dev/run-year1-laser-ratchet.sh` / `dev/assemble-laser-ratchet.sh` write the Proofs-schema feed.  
+CI: `.github/workflows/laser-ratchet.yml` (not `build-and-test.yml`). Version history is `git log -- doc/laser-ratchet.json`. Stdout-only is the discarded-timing bug.
 
 Cell scoreboard this run: **green 119 · chainsaw-only 13 · HOLD named**.  
 Previously ungauged observatory harnesses (WKB, DHD, Discrete Hausdorff/Fréchet, LEC, MultiCurve) now have `now_*`. ReverseDispatch has no red column.

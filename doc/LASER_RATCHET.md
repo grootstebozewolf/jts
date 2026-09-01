@@ -3,6 +3,8 @@
 Tip measured `29b5d169` on `feature/sfa-curve-rgr` (base `316258a8` = merge of PR #128).  
 Feed: [`laser-ratchet.json`](laser-ratchet.json) — Proofs vendors this file for day-zero reading.  
 Gates emit `target/laser-ratchet/rows.jsonl`; assemble with `dev/assemble-laser-ratchet.sh`.  
+CI: [`.github/workflows/laser-ratchet.yml`](../.github/workflows/laser-ratchet.yml) runs Year-1 circular gates and writes this file.  
+Version history: `git log -- doc/laser-ratchet.json`. On push to `feature/sfa-curve-rgr` a bot commit `chore(laser): retip doc/laser-ratchet.json [skip ci]` lands when numbers change.  
 Prior pin: `c956b50d` (user-board 16 / 3 / 11 hold — kit grain, stale vs cell feed).
 
 **Contract:** `t_laser ≤ 1.15 × t_chainsaw` · OverlayNGCurve never *Curved* · Year-1 circular only

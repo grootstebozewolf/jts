@@ -165,7 +165,8 @@ This document supersedes all previous Proofs option discussions, temporary STOP 
 Day-zero performance feed: [`LASER_RATCHET.md`](LASER_RATCHET.md) /
 [`laser-ratchet.json`](laser-ratchet.json). Year-1 PerfGates write
 `target/laser-ratchet/rows.jsonl` via `LaserRatchetSink` (not stdout-only).
-Proofs vendors that JSON. Year-2 zoo types stay unimplemented.
+CI: `.github/workflows/laser-ratchet.yml`. Proofs vendors that JSON.
+Year-2 zoo types stay unimplemented.
 
 ### Audit (`feature/sfa-curve-rgr` @ `d8c4c9b8`)
 
