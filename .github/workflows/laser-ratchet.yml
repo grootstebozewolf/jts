@@ -1,0 +1,148 @@
+# Year-1 circular laser vs chainsaw feed.
+#
+# JTS SoT path is doc/laser-ratchet.json (this repo uses doc/, not docs/).
+# Proofs observatory vendors grootstebozewolf/NetTopologySuite.Proofs
+# docs/laser-ratchet.json (Pages rebuilds on that path). This workflow is
+# the JTS side of that feed. Stdout-only timings are the discarded-timing bug.
+#
+# Version history is git log -- doc/laser-ratchet.json. On push to
+# feature/sfa-curve-rgr the job commits a retip when the JSON changed.
+# That bot commit uses a skip-ci token so GitHub does not loop (the JSON
+# path is also a trigger). Do not put that token in human commit bodies
+# or this workflow will not run.
+#
+# HOLD — do not add these as reasons to expand work:
+#   ClothoidHalley / Year-2 zoo, N-SS hierarchy, SHARED_SNAPPED_RAY walk,
+#   64-a Proofs sweep, OverlayNGCurve rename, non-linear SegmentString.
+#
+# Optional Proofs Pages ping: repository_dispatch type laser-ratchet.
+# GITHUB_TOKEN cannot cross-repo. Set secret PROOFS_DISPATCH_TOKEN (PAT)
+# only if you want automatic vendor. Unset = skip; never fail the jts job.
+
+name: Laser ratchet
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/sfa-curve-rgr
+    paths:
+      - 'modules/curve/**/*PerfGate*'
+      - 'modules/curve/**/exactcurve/**'
+      - 'modules/curve/**/overlayng/curve/**'
+      - 'modules/app/**/DistanceConstructionPerfGate*'
+      - 'modules/curve/**/ExactArcOptionAMillionTrialTest*'
+      - 'modules/curve/**/PredicateOptionBMillionTrialTest*'
+      - 'modules/core/**/LaserRatchetSink.java'
+      - 'doc/LASER_RATCHET.md'
+      - 'doc/CHAINSAW_LASER_PROGRAM.md'
+      - 'doc/laser-ratchet.json'
+      - 'doc/EXACT_CURVE_BIBLE.md'
+      - 'dev/run-year1-laser-ratchet.sh'
+      - 'dev/assemble-laser-ratchet.sh'
+      - '.github/workflows/laser-ratchet.yml'
+  pull_request:
+    paths:
+      - 'modules/curve/**/*PerfGate*'
+      - 'modules/curve/**/exactcurve/**'
+      - 'modules/curve/**/overlayng/curve/**'
+      - 'modules/app/**/DistanceConstructionPerfGate*'
+      - 'modules/curve/**/ExactArcOptionAMillionTrialTest*'
+      - 'modules/curve/**/PredicateOptionBMillionTrialTest*'
+      - 'modules/core/**/LaserRatchetSink.java'
+      - 'doc/LASER_RATCHET.md'
+      - 'doc/CHAINSAW_LASER_PROGRAM.md'
+      - 'doc/laser-ratchet.json'
+      - 'doc/EXACT_CURVE_BIBLE.md'
+      - 'dev/run-year1-laser-ratchet.sh'
+      - 'dev/assemble-laser-ratchet.sh'
+      - '.github/workflows/laser-ratchet.yml'
+
+# contents: write = same-branch retip push. actions: write = upload-artifact.
+# Setting permissions replaces the default token scopes; both are required.
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  year1-circular:
+    runs-on: ubuntu-latest
+    steps:
+      # Branch ref (not detached SHA) so the retip step can commit + push.
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          persist-credentials: true
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+                ${{ runner.os }}-maven-
+
+      - name: Run Year-1 circular PerfGates and write doc/laser-ratchet.json
+        env:
+          LASER_RATCHET_TIP: ${{ github.sha }}
+          LASER_RATCHET_BRANCH: feature/sfa-curve-rgr
+          LASER_RATCHET_PR: ${{ github.event.pull_request.number }}
+        run: bash dev/run-year1-laser-ratchet.sh
+
+      - name: Upload laser-ratchet JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laser-ratchet-json
+          path: |
+            doc/laser-ratchet.json
+            target/laser-ratchet/rows.jsonl
+          if-no-files-found: warn
+
+      - name: Remove JTS artifacts from cache
+        if: always()
+        run: |
+          find . -name '*.tar.gz' -exec rm {} \;
+          rm -rf $HOME/.m2/repository/org/locationtech/jts
+
+      # Same-branch retip only. Not on pull_request, not on forks.
+      - name: Commit doc/laser-ratchet.json
+        if: >-
+          github.repository == 'grootstebozewolf/jts'
+          && github.ref == 'refs/heads/feature/sfa-curve-rgr'
+          && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B feature/sfa-curve-rgr
+          git add -- doc/laser-ratchet.json
+          if git diff --cached --quiet; then
+            echo "no doc/laser-ratchet.json diff"
+            exit 0
+          fi
+          git commit -m "chore(laser): retip doc/laser-ratchet.json [skip ci]"
+          git push origin HEAD:refs/heads/feature/sfa-curve-rgr
+
+      # GITHUB_TOKEN cannot dispatch into NetTopologySuite.Proofs.
+      - name: Optional Proofs repository_dispatch
+        if: >-
+          github.repository == 'grootstebozewolf/jts'
+          && github.ref == 'refs/heads/feature/sfa-curve-rgr'
+          && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        continue-on-error: true
+        env:
+          PROOFS_DISPATCH_TOKEN: ${{ secrets.PROOFS_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "${PROOFS_DISPATCH_TOKEN:-}" ]; then
+            echo "PROOFS_DISPATCH_TOKEN unset; GITHUB_TOKEN cannot cross-repo — skip"
+            exit 0
+          fi
+          curl -fsS -X POST \
+            -H "Authorization: token ${PROOFS_DISPATCH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/grootstebozewolf/NetTopologySuite.Proofs/dispatches \
+            -d "{\"event_type\":\"laser-ratchet\",\"client_payload\":{\"source_repo\":\"grootstebozewolf/jts\",\"tip\":\"${GITHUB_SHA}\"}}"

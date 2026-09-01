@@ -21,6 +21,7 @@ import org.locationtech.jts.io.WKBWriter;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
+import test.jts.perf.LaserRatchetSink;
 
 /**
  * PERF-GATE: first-class curve WKB (write+read) may run only when it is
@@ -78,6 +79,8 @@ public class CurveWKBPerfGateTest extends GeometryTestCase {
     Arrays.sort(cs);
     long lm = ls[ls.length / 2];
     long cm = cs[cs.length / 2];
+    LaserRatchetSink.recordOperation("CurveWKBPerfGateTest",
+        "io/curve", label, lm, cm, samePath);
     if (cm == 0 || samePath) return;
     double ratio = (double) lm / (double) cm;
     if (ratio > NOISE) {

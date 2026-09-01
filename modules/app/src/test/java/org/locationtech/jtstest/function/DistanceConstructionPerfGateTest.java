@@ -26,6 +26,7 @@ import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
 import junit.textui.TestRunner;
+import test.jts.perf.LaserRatchetSink;
 
 /**
  * PERF-GATE for the TestBuilder distance family and MIC/LEC: a curve-aware
@@ -106,6 +107,8 @@ public class DistanceConstructionPerfGateTest extends TestCase {
     }
     long lm = median(L);
     long cm = median(C);
+    LaserRatchetSink.recordOperation("DistanceConstructionPerfGateTest",
+        "app (jtstest.function)", label, lm, cm, false);
     // A 0 ns chainsaw median is timer resolution, not a laser loss.
     if (cm == 0) return;
     double ratio = (double) lm / (double) cm;

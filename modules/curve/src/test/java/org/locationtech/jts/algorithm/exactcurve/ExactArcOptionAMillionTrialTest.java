@@ -19,6 +19,7 @@ import org.locationtech.jts.geom.curve.CircularArcDensifier;
 
 import junit.framework.TestCase;
 import junit.textui.TestRunner;
+import test.jts.perf.LaserRatchetSink;
 
 /**
  * 1M-trial handover for Proofs Option A. L1 is the analytic n-gon
@@ -71,7 +72,10 @@ public class ExactArcOptionAMillionTrialTest extends TestCase {
     long aNs = timeLength(sample);
     long dNs = timeDensify(sample);
     double ratio = (double) aNs / (double) dNs;
-    System.out.println("P1 A_ns=" + aNs + " densify_ns=" + dNs + " ratio=" + ratio);
+    LaserRatchetSink.recordPrimitive("P1-A", "ExactCircularArc",
+        "static length vs densified polyline", aNs, dNs, 50000, "total",
+        "ExactArcOptionAMillionTrialTest.java",
+        "seed 0xa7ea0001, N=1000000, box [-100,100]², nChord=64");
     assertTrue("P1 A/densify " + ratio + " > 1.15", ratio <= 1.15);
   }
 
