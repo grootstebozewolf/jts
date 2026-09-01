@@ -26,6 +26,7 @@ import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.curve.CircularArcDensifier;
 import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.ClothoidSegment;
 import org.locationtech.jts.geom.curve.CompoundCurve;
@@ -33,6 +34,7 @@ import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.Tin;
 import org.locationtech.jts.geom.curve.Triangle;
+import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 
 public class GeometryCombiner 
 {
@@ -137,7 +139,9 @@ public class GeometryCombiner
    * Builds a hole-free {@link CurvePolygon} whose shell is a closed
    * {@link CircularString} through {@code pts}. Unclosed or even leftover
    * input aborts; this does not emit a linearized {@link Polygon}.
-   * Uses {@code createCurvePolygon(shell, null)}, not a CircularString-only
+   * A 4-control closed {@code (A,B,C,A)} is construct-only expanded to
+   * the ISO 5-token first=last circle. Uses
+   * {@code createCurvePolygon(shell, null)}, not a CircularString-only
    * factory overload.
    */
   public Geometry addCurvePolygon(Geometry orig, Coordinate[] pts)
@@ -218,20 +222,53 @@ public class GeometryCombiner
    * Splits an odd-length CircularString control stream into consecutive
    * 3-point arc pieces (shared join). Returns {@code null} when the
    * stream is not a valid CircularString control sequence.
+   * A 4-control closed {@code (A,B,C,A)} is expanded to five tokens
+   * first (construct-only; WKT/WKB read never does this).
    */
   public static Coordinate[][] circularStringPieces(Coordinate[] pts)
   {
-    if (!isValidCircularControl(pts)) {
+    Coordinate[] legal = constructCircularControls(pts);
+    if (legal == null) {
       return null;
     }
-    int n = (pts.length - 1) / 2;
+    int n = (legal.length - 1) / 2;
     Coordinate[][] pieces = new Coordinate[n][];
     for (int i = 0; i < n; i++) {
       pieces[i] = new Coordinate[] {
-          pts[2 * i], pts[2 * i + 1], pts[2 * i + 2]
+          legal[2 * i], legal[2 * i + 1], legal[2 * i + 2]
       };
     }
     return pieces;
+  }
+
+  /**
+   * Construct-only: a 4-control closed {@code (A,B,C,A)} becomes the
+   * ISO/IEC 13249-3 5-token first=last circle via
+   * {@link CircularArcDensifier#threePointCircleCloseMid}. WKT/WKB
+   * parse must not call this — {@code CIRCULARSTRING(A,B,C,A)} stays
+   * rejected on I/O, and {@code CIRCULARSTRING(A,B,A)} stays a
+   * 3-control window, not 2πr.
+   *
+   * @return five controls, the original array when it is not a
+   *         4-control close, or {@code null} when the complementary
+   *         mid cannot be formed
+   */
+  public static Coordinate[] expandConstructCircle(Coordinate[] pts)
+  {
+    if (pts == null || pts.length != 4) {
+      return pts;
+    }
+    if (!pts[0].equals2D(pts[3])) {
+      return pts;
+    }
+    Coordinate mid = CircularArcDensifier.threePointCircleCloseMid(
+        new CoordinateArraySequence(pts));
+    if (mid == null) {
+      return null;
+    }
+    return new Coordinate[] {
+        pts[0], pts[1], pts[2], new Coordinate(mid), new Coordinate(pts[3])
+    };
   }
 
   /**
@@ -306,8 +343,9 @@ public class GeometryCombiner
 
   private CircularString circularString(Coordinate[] pts)
   {
+    Coordinate[] legal = constructCircularControls(pts);
     return curveFactory().createCircularString(
-        geomFactory.getCoordinateSequenceFactory().create(pts));
+        geomFactory.getCoordinateSequenceFactory().create(legal));
   }
 
   /**
@@ -362,13 +400,21 @@ public class GeometryCombiner
 
   private static boolean isValidCircularControl(Coordinate[] pts)
   {
-    if (pts == null || pts.length < 3) {
-      return false;
+    return constructCircularControls(pts) != null;
+  }
+
+  /**
+   * Honest SQL/MM control count after construct-only 4→5 expansion.
+   * Even leftovers (other than a closed 4-control circle that expands)
+   * stay rejected.
+   */
+  private static Coordinate[] constructCircularControls(Coordinate[] pts)
+  {
+    Coordinate[] expanded = expandConstructCircle(pts);
+    if (expanded == null || expanded.length < 3 || (expanded.length & 1) == 0) {
+      return null;
     }
-    if (pts.length % 2 == 1) {
-      return true;
-    }
-    return pts.length == 4 && pts[0].equals2D(pts[3]);
+    return expanded;
   }
 
   private static boolean isClosedRing(Coordinate[] pts)

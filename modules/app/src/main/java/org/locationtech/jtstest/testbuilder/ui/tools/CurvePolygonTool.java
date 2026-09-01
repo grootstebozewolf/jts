@@ -40,8 +40,10 @@ import org.locationtech.jtstest.testbuilder.model.GeometryType;
  * <p>Double-click anywhere, or a click on the start vertex after at
  * least three captured points, auto-closes the in-progress shell.
  * One-arc (2–3 captured points) still commits
- * {@code CURVEPOLYGON (CIRCULARSTRING …)} with a complementary close
- * when needed. Five or more odd captured points close the rubber-band
+ * {@code CURVEPOLYGON (CIRCULARSTRING …)}. Three-click close emits a
+ * construct-only 5-token first=last circle (ISO/IEC 13249-3); WKT/WKB
+ * parse of {@code CIRCULARSTRING(A,B,C,A)} stays rejected. Five or more
+ * odd captured points close the rubber-band
  * line back to start as a LineString member:
  * {@code CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING …, LINESTRING …))}.
  * That must not invent a complementary-arc control. A mid-gesture click
@@ -197,10 +199,11 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
   /**
    * Auto-close an in-progress shell. Double-click anywhere or click-start
    * appends the start vertex when needed. Three captured points close to
-   * {@code (A, B, C, A)} — a 4-control circumcircle; the complementary
-   * arc is implicit (no extra mid). Other even leftovers still get an
-   * explicit complementary-arc control. Returns {@code null} when there
-   * is no shell to commit.
+   * a construct-only 5-token first=last {@code CIRCULARSTRING} (same
+   * complementary mid as
+   * {@link org.locationtech.jts.geom.curve.CircularArcDensifier#threePointCircleCloseMid}).
+   * Other even leftovers still get an explicit complementary-arc control.
+   * Returns {@code null} when there is no shell to commit.
    */
   static List<Coordinate> closeCircularShell(List<Coordinate> input) {
     if (input == null || input.size() < 2) {
@@ -214,9 +217,19 @@ public class CurvePolygonTool extends AbstractStreamDrawTool {
     if (coords.size() < 3) {
       return null;
     }
-    // (A, B, C, A): three-click circle. Do not invent a 5th control.
+    // Three-click (A, B, C, A): construct-only 5-token first=last circle.
+    // Do not leave 4 controls — I/O rejects CIRCULARSTRING(A,B,C,A).
     if (coords.size() == 4) {
-      return coords;
+      Coordinate[] expanded = GeometryCombiner.expandConstructCircle(
+          coords.toArray(new Coordinate[0]));
+      if (expanded == null) {
+        return null;
+      }
+      List<Coordinate> five = new ArrayList<Coordinate>(expanded.length);
+      for (int i = 0; i < expanded.length; i++) {
+        five.add(expanded[i]);
+      }
+      return five;
     }
     if (coords.size() % 2 == 0) {
       Coordinate mid = circularCloseControl(coords);
