@@ -120,7 +120,12 @@ public class CurvePolygonToolTest extends TestCase {
     assertTrue(shell.get(0).equals2D(A));
     assertTrue(shell.get(1).equals2D(B));
     assertTrue(shell.get(2).equals2D(C));
-    assertTrue("construct mid is complementary close D, not a chord", contains(shell, D));
+    Coordinate closeMid = GeometryCombiner.expandConstructCircle(
+        new Coordinate[] { A, B, C, new Coordinate(A) })[3];
+    assertTrue("construct mid is threePointCircleCloseMid, not a chord",
+        shell.get(3).equals2D(closeMid));
+    assertEquals("complementary south pole (angle mid may be slightly off integer D)",
+        0.0, shell.get(3).distance(D), 1e-9);
     assertTrue(shell.get(4).equals2D(A));
 
     Geometry g = commit(shell);
@@ -310,15 +315,6 @@ public class CurvePolygonToolTest extends TestCase {
         wkt.startsWith("CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING"));
     assertFalse("must not linearize a compound shell to POLYGON: " + wkt,
         wkt.startsWith("POLYGON"));
-  }
-
-  private static boolean contains(List<Coordinate> coords, Coordinate pt) {
-    for (int i = 0; i < coords.size(); i++) {
-      if (coords.get(i).equals2D(pt)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   private static double circumradius(Coordinate a, Coordinate b, Coordinate c) {
