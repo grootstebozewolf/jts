@@ -41,8 +41,8 @@ Sequence M.5 → ML.2 → HP.4 → N-SS expand remains **STOPPED**. Not resumed.
 
 ## HOLD (refused)
 
-- Year-2 zoo: ExactEllipticalArc, ExactCubicBezier, ExactClothoid, ExactNurbsSegment
-- ClothoidHalleyPerfGateTest (Year-2)
+- Year-2 zoo is library work, not a JTS PR #7 leftover: ExactEllipticalArc, ExactCubicBezier, ExactClothoid, ExactNurbsSegment
+- ClothoidHalleyPerfGateTest: library / not PR #7; not a circular Exact* laser on this fork
 - Full D-HF TAG green (`fail()` kept)
 - M.4 / R.3 / ML.3 / HP.5
 - 74-file N-SS · `SHARED_SNAPPED_RAY` walk (stamp may exist; not walked)

@@ -333,7 +333,7 @@ public final class LaserRatchetSink {
       w.println("      \"Numbers are written by LaserRatchetSink during the PerfGate JVM run (target/laser-ratchet/rows.jsonl) and assembled into this file. Not hand-transcribed from stdout.\",");
       w.println("      \"One measurement run on this tip. Ratios are comparable within a harness, not across machines or JDKs.\",");
       w.println("      \"red_* columns are historical javadoc baselines from the gate-opening run (c956b50d-era tables). now_* are this tip. ReverseDispatch and newly gauged harnesses have no red column.\",");
-      w.println("      \"Year-2 zoo types and ClothoidHalleyPerfGateTest stay HOLD / ungauged. 64-a Proofs sweep, N-SS expand, and SHARED_SNAPPED_RAY walk are not started from this feed.\"");
+      w.println("      \"Year-2 zoo types and ClothoidHalleyPerfGateTest stay unimplemented / ungauged: library work, not JTS PR #7. 64-a Proofs sweep, N-SS expand, and SHARED_SNAPPED_RAY walk are not started from this feed.\"");
       w.println("    ]");
       w.println("  },");
       w.println();
@@ -341,13 +341,13 @@ public final class LaserRatchetSink {
       w.println("    { \"name\": \"ExactCircularArc\", \"implemented\": true, \"measured\": true,");
       w.println("      \"note\": \"algorithm/exactcurve/ExactCircularArc.java — Year-1 privileged primitive\" },");
       w.println("    { \"name\": \"ExactEllipticalArc\", \"implemented\": false, \"measured\": false,");
-      w.println("      \"note\": \"HOLD Year-2 zoo; no source file\" },");
+      w.println("      \"note\": \"library work, not JTS PR #7; unimplemented on this fork\" },");
       w.println("    { \"name\": \"ExactCubicBezier\", \"implemented\": false, \"measured\": false,");
-      w.println("      \"note\": \"HOLD Year-2 zoo; Bible A1 / ADR-0004 membership only\" },");
+      w.println("      \"note\": \"library work, not JTS PR #7; unimplemented on this fork\" },");
       w.println("    { \"name\": \"ExactClothoid\", \"implemented\": false, \"measured\": false,");
-      w.println("      \"note\": \"HOLD Year-2 zoo; ClothoidHalley is not an Exact* type\" },");
+      w.println("      \"note\": \"library work, not JTS PR #7; unimplemented on this fork\" },");
       w.println("    { \"name\": \"ExactNurbsSegment\", \"implemented\": false, \"measured\": false,");
-      w.println("      \"note\": \"HOLD Year-2 zoo; Bible §5 places single-span NURBS last\" }");
+      w.println("      \"note\": \"library work, not JTS PR #7; unimplemented on this fork\" }");
       w.println("  ],");
       w.println();
       w.println("  \"primitive_gates\": [");
@@ -359,7 +359,7 @@ public final class LaserRatchetSink {
       w.println("  ],");
       w.println();
       w.println("  \"ungauged_gates\": [");
-      w.println("    { \"harness\": \"ClothoidHalleyPerfGateTest\", \"note\": \"HOLD Year-2 zoo — not a circular Exact* laser\" }");
+      w.println("    { \"harness\": \"ClothoidHalleyPerfGateTest\", \"note\": \"library / not PR #7; not a circular Exact* laser on this fork\" }");
       w.println("  ]");
       w.println("}");
     }

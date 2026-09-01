@@ -24,7 +24,7 @@ Contract: parity or named densify-shim · `t_laser ≤ 1.15 × t_chainsaw` · no
 - Full **D-HF TAG** green (`fail()` kept)
 - **M.4** / **R.3** / **ML.3** / **HP.5**
 - 74-file N-SS lie · curvature-order on `SHARED_SNAPPED_RAY`
-- Year-2 zoo + `ClothoidHalleyPerfGateTest`
+- Year-2 zoo + `ClothoidHalleyPerfGateTest`: library work, not a JTS PR #7 leftover
 - Extra 1M §7 near-degenerate cells
 - 64-a Proofs campaign
 

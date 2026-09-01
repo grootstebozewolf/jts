@@ -166,15 +166,15 @@ Day-zero performance feed: [`LASER_RATCHET.md`](LASER_RATCHET.md) /
 [`laser-ratchet.json`](laser-ratchet.json). Year-1 PerfGates write
 `target/laser-ratchet/rows.jsonl` via `LaserRatchetSink` (not stdout-only).
 CI: `.github/workflows/laser-ratchet.yml`. Proofs vendors that JSON.
-Year-2 zoo types stay unimplemented.
+Year-2 zoo types stay unimplemented — library work, not JTS PR #7.
 
 ### Audit (`feature/sfa-curve-rgr` @ `d8c4c9b8`)
 
 Tree matches §3–§4.2 and the bullets above: `ExactCircularArc` + thin
 `ExactCurve` in `org.locationtech.jts.algorithm.exactcurve`; no extra
 protocol methods; `OrientableSegment` composes `ExactCircularArc`; no
-Year-2 `Exact*` zoo types; `exactarc.AngleBetween` remains a deprecated
-alias.
+Year-2 `Exact*` zoo types (library work, not JTS PR #7);
+  `exactarc.AngleBetween` remains a deprecated alias.
 
 Already locked on this branch:
 
@@ -199,8 +199,8 @@ Already locked on this branch:
 
 ### HOLD (do not implement from this lock)
 
-- Year-2 zoo: `ExactEllipticalArc`, `ExactCubicBezier`, `ExactClothoid`,
-  `ExactNurbsSegment`
+- Year-2 zoo (`ExactEllipticalArc`, `ExactCubicBezier`, `ExactClothoid`,
+  `ExactNurbsSegment`): library work, not a JTS PR #7 leftover
 - N-SS hierarchy, HotPixel-driven N-SS, Proofs 64-a sweep
 - `SHARED_SNAPPED_RAY` walk
 - Making `SegmentString` non-linear (or remaking the existing Option B
