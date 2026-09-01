@@ -59,11 +59,11 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
     super(name);
   }
 
-  private static Geometry read(String wkt) throws Exception {
+  private static Geometry readSqlMm(String wkt) throws Exception {
     return new CurveWKTReader().read(wkt);
   }
 
-  private static String write(Geometry g) {
+  private static String writeSqlMm(Geometry g) {
     return new CurveWKTWriter().write(g);
   }
 
@@ -75,7 +75,7 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
   // -- CircularString control count (ISO/IEC 13249-3) --------------------
 
   public void testEmptyCircularStringIsValid() throws Exception {
-    Geometry g = read("CIRCULARSTRING EMPTY");
+    Geometry g = readSqlMm("CIRCULARSTRING EMPTY");
     assertTrue(g instanceof CircularString);
     assertTrue(g.isEmpty());
     assertTrue("ISO/IEC 13249-3 empty CircularString is valid", g.isValid());
@@ -83,7 +83,7 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
   }
 
   public void testOddThreeControlCircularStringIsValid() throws Exception {
-    Geometry g = read(ARC_3);
+    Geometry g = readSqlMm(ARC_3);
     assertTrue(g instanceof CircularString);
     assertEquals(3, g.getNumPoints());
     assertTrue(g.isValid());
@@ -92,21 +92,21 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
   }
 
   public void testFiveControlCircleIsTheSqlMmFullCircle() throws Exception {
-    Geometry g = read(CIRCLE_5);
+    Geometry g = readSqlMm(CIRCLE_5);
     assertTrue(g instanceof CircularString);
     assertEquals("ISO/IEC 13249-3 complete circle is two arcs (5 controls)",
         5, g.getNumPoints());
     assertTrue(((LineString) g).isClosed());
     assertTrue(g.isValid());
     assertEquals(10.0 * Math.PI, g.getLength(), 1.0e-9);
-    String emitted = write(g);
+    String emitted = writeSqlMm(g);
     assertTrue(emitted.toUpperCase().contains(WKTConstants.CIRCULARSTRING));
-    assertEquals(5, read(emitted).getNumPoints());
+    assertEquals(5, readSqlMm(emitted).getNumPoints());
   }
 
   public void testFourControlClosedCircleIsRejected() throws Exception {
     try {
-      read("CIRCULARSTRING (-5 0, 0 5, 5 0, -5 0)");
+      readSqlMm("CIRCULARSTRING (-5 0, 0 5, 5 0, -5 0)");
       fail("ISO/IEC 13249-3: CIRCULARSTRING(A,B,C,A) is even and must not parse");
     } catch (ParseException e) {
       assertTrue(e.getMessage(), e.getMessage().indexOf("13249-3") >= 0);
@@ -129,21 +129,21 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
   }
 
   public void testCircularStringAbaIsNotAFullCircle() throws Exception {
-    Geometry g = read(ABA);
+    Geometry g = readSqlMm(ABA);
     assertTrue(g instanceof CircularString);
     assertEquals(3, g.getNumPoints());
     assertTrue(((LineString) g).isClosed());
     assertEquals("CIRCULARSTRING(A,B,A) is a degenerate window, not 2πr",
         0.0, g.getLength(), 0.0);
-    String emitted = write(g);
-    assertEquals(3, read(emitted).getNumPoints());
+    String emitted = writeSqlMm(g);
+    assertEquals(3, readSqlMm(emitted).getNumPoints());
     assertFalse("must not rewrite ABA as a 5-control circle",
         emitted.replaceAll("\\s+", "").matches("(?i).*0 0,1 1,0 0,.*0 0.*"));
   }
 
   public void testEvenOpenControlCountIsRejected() throws Exception {
     try {
-      read("CIRCULARSTRING (0 0, 1 1, 2 0, 3 1)");
+      readSqlMm("CIRCULARSTRING (0 0, 1 1, 2 0, 3 1)");
       fail("even leftover CircularString must not parse");
     } catch (ParseException e) {
       assertTrue(e.getMessage(), e.getMessage().indexOf("13249-3") >= 0);
@@ -152,7 +152,7 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
 
   public void testTwoPointCircularStringIsRejected() throws Exception {
     try {
-      read("CIRCULARSTRING (0 0, 1 1)");
+      readSqlMm("CIRCULARSTRING (0 0, 1 1)");
       fail("n=2 is not n>1 odd");
     } catch (ParseException e) {
       // expected
@@ -160,7 +160,7 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
   }
 
   public void testCollinearTripleIsExactChordNotFakeArc() throws Exception {
-    Geometry g = read(COLLINEAR);
+    Geometry g = readSqlMm(COLLINEAR);
     assertTrue(g instanceof CircularString);
     assertTrue(g.isValid());
     assertEquals("collinear 3-controls are the chord length",
@@ -180,7 +180,7 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
   // -- CompoundCurve -----------------------------------------------------
 
   public void testCompoundCurveContiguousMembersAreValid() throws Exception {
-    Geometry g = read(
+    Geometry g = readSqlMm(
         "COMPOUNDCURVE ((0 0, 10 0), CIRCULARSTRING (10 0, 15 5, 20 0))");
     assertTrue(g instanceof CompoundCurve);
     CompoundCurve cc = (CompoundCurve) g;
@@ -193,7 +193,7 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
 
   public void testCompoundCurveRejectsDisconnectedMembers() throws Exception {
     try {
-      read("COMPOUNDCURVE ((0 0, 1 1), (2 2, 3 3))");
+      readSqlMm("COMPOUNDCURVE ((0 0, 1 1), (2 2, 3 3))");
       fail("ISO/IEC 13249-3 CompoundCurve must be contiguous");
     } catch (ParseException e) {
       assertTrue(e.getMessage(), e.getMessage().indexOf("contiguous") >= 0);
@@ -211,7 +211,7 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
 
   public void testCompoundCurveRejectsNestedCompoundCurve() throws Exception {
     try {
-      read("COMPOUNDCURVE (COMPOUNDCURVE ((0 0, 1 0)), (1 0, 2 0))");
+      readSqlMm("COMPOUNDCURVE (COMPOUNDCURVE ((0 0, 1 0)), (1 0, 2 0))");
       fail("nested CompoundCurve is not a SQL/MM SimpleCurve member");
     } catch (ParseException e) {
       assertTrue(e.getMessage(), e.getMessage().indexOf("SimpleCurve") >= 0
@@ -220,7 +220,7 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
   }
 
   public void testEmptyCompoundCurveIsValid() throws Exception {
-    Geometry g = read("COMPOUNDCURVE EMPTY");
+    Geometry g = readSqlMm("COMPOUNDCURVE EMPTY");
     assertTrue(g instanceof CompoundCurve);
     assertTrue(g.isEmpty());
     assertTrue(g.isValid());
@@ -230,7 +230,7 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
 
   public void testCurvePolygonAcceptsLineCircularAndCompoundRings()
       throws Exception {
-    Geometry g = read(
+    Geometry g = readSqlMm(
         "CURVEPOLYGON (CIRCULARSTRING (0 0, 4 0, 4 4, 0 4, 0 0), "
             + "(1 1, 3 1, 3 3, 1 3, 1 1))");
     assertTrue(g instanceof CurvePolygon);
@@ -239,7 +239,7 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
     assertTrue(CurvePolygon.isSqlMmRing(cp.getInteriorCurveN(0)));
     assertTrue(g.isValid());
 
-    Geometry compoundRing = read(
+    Geometry compoundRing = readSqlMm(
         "CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING (0 0, 1 1, 2 0), (2 0, 0 0)))");
     assertTrue(compoundRing instanceof CurvePolygon);
     assertTrue(((CurvePolygon) compoundRing).getExteriorCurve() instanceof CompoundCurve);
@@ -248,13 +248,13 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
 
   public void testCurvePolygonRejectsUnclosedRing() throws Exception {
     try {
-      read("CURVEPOLYGON ((0 0, 1 0, 1 1, 0 1))");
+      readSqlMm("CURVEPOLYGON ((0 0, 1 0, 1 1, 0 1))");
       fail("ISO/IEC 13249-3 CurvePolygon ring must be closed");
     } catch (Throwable e) {
       // ParseException or LinearRing construction
     }
     try {
-      read("CURVEPOLYGON (CIRCULARSTRING (0 0, 4 0, 4 4))");
+      readSqlMm("CURVEPOLYGON (CIRCULARSTRING (0 0, 4 0, 4 4))");
       fail("open CircularString is not a closed CurvePolygon ring");
     } catch (ParseException e) {
       assertTrue(e.getMessage(), e.getMessage().indexOf("closed") >= 0
@@ -263,7 +263,7 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
   }
 
   public void testEmptyCurvePolygonIsValid() throws Exception {
-    Geometry g = read("CURVEPOLYGON EMPTY");
+    Geometry g = readSqlMm("CURVEPOLYGON EMPTY");
     assertTrue(g instanceof CurvePolygon);
     assertTrue(g.isEmpty());
     assertTrue(g.isValid());
@@ -272,7 +272,7 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
   // -- MultiCurve / MultiSurface ----------------------------------------
 
   public void testMultiCurveHoldsLineCircularAndCompound() throws Exception {
-    Geometry g = read(
+    Geometry g = readSqlMm(
         "MULTICURVE ((0 0, 1 1), CIRCULARSTRING (0 0, 1 1, 2 0), "
             + "COMPOUNDCURVE ((2 0, 3 0), CIRCULARSTRING (3 0, 4 1, 5 0)))");
     assertTrue(g instanceof MultiCurve);
@@ -286,13 +286,13 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
   public void testNoMultiCircularStringOrMultiCompoundStringType()
       throws Exception {
     try {
-      read("MULTICIRCULARSTRING ((0 0, 1 1, 2 0))");
+      readSqlMm("MULTICIRCULARSTRING ((0 0, 1 1, 2 0))");
       fail("ISO/IEC 13249-3 has no MultiCircularString");
     } catch (ParseException e) {
       // unknown type
     }
     try {
-      read("MULTICOMPOUNDCURVE (((0 0, 1 0)))");
+      readSqlMm("MULTICOMPOUNDCURVE (((0 0, 1 0)))");
       fail("ISO/IEC 13249-3 has no MultiCompoundString");
     } catch (ParseException e) {
       // unknown type
@@ -300,7 +300,7 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
   }
 
   public void testMultiSurfaceHoldsPolygonAndCurvePolygon() throws Exception {
-    Geometry g = read(
+    Geometry g = readSqlMm(
         "MULTISURFACE (((10 10, 12 10, 12 12, 10 12, 10 10)), "
             + "CURVEPOLYGON (CIRCULARSTRING (0 0, 4 0, 4 4, 0 4, 0 0)))");
     assertTrue(g instanceof MultiSurface);
@@ -311,8 +311,8 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
   }
 
   public void testEmptyMultiCurveAndMultiSurfaceAreValid() throws Exception {
-    Geometry mc = read("MULTICURVE EMPTY");
-    Geometry ms = read("MULTISURFACE EMPTY");
+    Geometry mc = readSqlMm("MULTICURVE EMPTY");
+    Geometry ms = readSqlMm("MULTISURFACE EMPTY");
     assertTrue(mc instanceof MultiCurve);
     assertTrue(ms instanceof MultiSurface);
     assertTrue(mc.isEmpty());
@@ -325,16 +325,17 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
 
   public void testCircularStringZmRoundTripKeepsTypeAndOrdinates()
       throws Exception {
-    Geometry g = read("CIRCULARSTRING ZM (1 2 3 4, 5 6 7 8, 9 10 11 12)");
+    Geometry g = readSqlMm("CIRCULARSTRING ZM (1 2 3 4, 5 6 7 8, 9 10 11 12)");
     assertTrue(g instanceof CircularString);
     assertEquals(3.0, g.getCoordinates()[0].getZ(), 0.0);
     assertEquals(4.0, g.getCoordinates()[0].getM(), 0.0);
     String wkt = new CurveWKTWriter(4).write(g);
     assertTrue(wkt.toUpperCase().contains("CIRCULARSTRING"));
     assertTrue(wkt.toUpperCase().contains("ZM"));
-    Geometry backWkt = read(wkt);
+    Geometry backWkt = readSqlMm(wkt);
     assertTrue(backWkt instanceof CircularString);
-    Geometry backWkb = wkbRoundTrip(g);
+    Geometry backWkb = new CurveWKBReader(g.getFactory())
+        .read(new CurveWKBWriter(4).write(g));
     assertTrue(backWkb instanceof CircularString);
     assertEquals(3.0, backWkb.getCoordinates()[0].getZ(), 0.0);
     assertEquals(4.0, backWkb.getCoordinates()[0].getM(), 0.0);
@@ -360,9 +361,9 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
         "MultiCurve", "MultiSurface"
     };
     for (int i = 0; i < wkts.length; i++) {
-      Geometry g = read(wkts[i]);
+      Geometry g = readSqlMm(wkts[i]);
       assertEquals(types[i], g.getGeometryType());
-      String emitted = write(g);
+      String emitted = writeSqlMm(g);
       assertTrue(emitted + " lost " + types[i],
           emitted.toUpperCase().contains(types[i].toUpperCase()));
       assertFalse(emitted + " flattened to LINESTRING",
@@ -371,7 +372,7 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
       assertFalse(emitted + " flattened to POLYGON",
           types[i].equals("CurvePolygon")
               && emitted.toUpperCase().startsWith("POLYGON"));
-      Geometry g2 = read(emitted);
+      Geometry g2 = readSqlMm(emitted);
       assertEquals(types[i], g2.getGeometryType());
       Geometry wkb = wkbRoundTrip(g);
       assertEquals(types[i], wkb.getGeometryType());
@@ -395,11 +396,11 @@ public class SqlMm13249CurveSpecTest extends GeometryTestCase {
   }
 
   public void testLinearizationIsToLinearOnly() throws Exception {
-    Geometry g = read(ARC_3);
+    Geometry g = readSqlMm(ARC_3);
     Geometry lin = ((Linearizable) g).toLinear(0.1);
     assertEquals("LineString", lin.getGeometryType());
     assertTrue(lin.getNumPoints() >= 2);
-    String stillCurve = write(g);
+    String stillCurve = writeSqlMm(g);
     assertTrue(stillCurve.toUpperCase().contains("CIRCULARSTRING"));
   }
 
