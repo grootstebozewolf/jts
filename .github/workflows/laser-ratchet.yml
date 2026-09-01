@@ -7,7 +7,9 @@
 #
 # Version history is git log -- doc/laser-ratchet.json. On push to
 # feature/sfa-curve-rgr the job commits a retip when the JSON changed.
-# [skip ci] on that commit prevents a loop (the JSON path is also a trigger).
+# That bot commit uses a skip-ci token so GitHub does not loop (the JSON
+# path is also a trigger). Do not put that token in human commit bodies
+# or this workflow will not run.
 #
 # HOLD — do not add these as reasons to expand work:
 #   ClothoidHalley / Year-2 zoo, N-SS hierarchy, SHARED_SNAPPED_RAY walk,
@@ -29,6 +31,8 @@ on:
       - 'modules/curve/**/exactcurve/**'
       - 'modules/curve/**/overlayng/curve/**'
       - 'modules/app/**/DistanceConstructionPerfGate*'
+      - 'modules/curve/**/ExactArcOptionAMillionTrialTest*'
+      - 'modules/curve/**/PredicateOptionBMillionTrialTest*'
       - 'modules/core/**/LaserRatchetSink.java'
       - 'doc/LASER_RATCHET.md'
       - 'doc/CHAINSAW_LASER_PROGRAM.md'
@@ -43,6 +47,8 @@ on:
       - 'modules/curve/**/exactcurve/**'
       - 'modules/curve/**/overlayng/curve/**'
       - 'modules/app/**/DistanceConstructionPerfGate*'
+      - 'modules/curve/**/ExactArcOptionAMillionTrialTest*'
+      - 'modules/curve/**/PredicateOptionBMillionTrialTest*'
       - 'modules/core/**/LaserRatchetSink.java'
       - 'doc/LASER_RATCHET.md'
       - 'doc/CHAINSAW_LASER_PROGRAM.md'
@@ -52,14 +58,21 @@ on:
       - 'dev/assemble-laser-ratchet.sh'
       - '.github/workflows/laser-ratchet.yml'
 
+# contents: write = same-branch retip push. actions: write = upload-artifact.
+# Setting permissions replaces the default token scopes; both are required.
 permissions:
   contents: write
+  actions: write
 
 jobs:
   year1-circular:
     runs-on: ubuntu-latest
     steps:
+      # Branch ref (not detached SHA) so the retip step can commit + push.
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          persist-credentials: true
 
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
@@ -105,13 +118,14 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B feature/sfa-curve-rgr
           git add -- doc/laser-ratchet.json
           if git diff --cached --quiet; then
             echo "no doc/laser-ratchet.json diff"
             exit 0
           fi
           git commit -m "chore(laser): retip doc/laser-ratchet.json [skip ci]"
-          git push
+          git push origin HEAD:refs/heads/feature/sfa-curve-rgr
 
       # GITHUB_TOKEN cannot dispatch into NetTopologySuite.Proofs.
       - name: Optional Proofs repository_dispatch
