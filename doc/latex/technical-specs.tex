@@ -1,0 +1,529 @@
+\documentclass[11pt]{article}
+\usepackage{jtsguide}
+\setshorttitle{Technical Specifications}
+
+\title{JTS Topology Suite --- Technical Specifications}
+\author{M.\ Davis / J.\ Aquino (v1.4 / 1.4.1) \\ rebuilt from the 2003 text}
+\date{}
+
+\begin{document}
+\jtscover{Technical Specifications}{Version 1.4 / 1.4.1, rebuilt}{Base text: 2003 \textperiodcentered\ rebuild: 16 August 2026}
+
+\noindent
+This document is the design specification for the classes, methods
+and algorithms implemented in the JTS Topology Suite. The 2003
+chapter plan is kept. Sections that would now lie about the spatial
+model, WKT/WKB, overlay, or Hausdorff are amended against the code
+on this tree.
+
+Package names in this tree are \texttt{org.locationtech.jts}. The
+2003 copies used \texttt{com.vividsolutions.jts}. LocationTech JTS
+remains the upstream project; this fork is not described as if it
+were already upstream.
+
+\clearpage
+\changectrl{%
+  1.3 & 31 Mar 2003 & M.\ Davis & Updated to cover changes in JTS 1.3. \\
+  1.4 & 17 Oct 2003 & J.\ Aquino & CoordinateSequences and the user-data field. \\
+  1.4.1 & 2003 & M.\ Davis & Fixed definition of contains. \\
+  1.4-rebuild & 16 Aug 2026 & This tree & LaTeX rebuild. SFS Curve /
+    MultiCurve / MultiSurface are no longer abstract-only. WKB 8--12,
+    OverlayNGCurve, hulls, and the two D-HF pairs are recorded. \\
+}
+
+\tableofcontents
+\clearpage
+
+\section{Overview}
+The JTS Topology Suite is a Java API that implements a core set of
+spatial data operations using an explicit precision model and robust
+geometric algorithms. JTS is intended to be used in the development
+of applications that support the validation, cleaning, integration
+and querying of spatial datasets.
+
+JTS attempts to implement the OpenGIS Simple Features Specification
+(SFS) as accurately as possible. Where the SFS is unclear or omits a
+specification, JTS chooses a reasonable and consistent alternative.
+Differences from and elaborations of the SFS are documented here.
+
+The 2003 spec stopped at linear SFS. This tree adds opt-in
+SQL/MM Spatial (ISO/IEC 13249-3) curve types in \texttt{jts-curve}. The detailed
+class hierarchy remains JavaDoc. This rebuild records the contract a
+reader of the 2003 PDF would otherwise get wrong.
+
+\section{Other resources}
+\begin{itemize}
+  \item OpenGIS Simple Features Specification for SQL Revision 1.1
+        (SFS) --- master specification for the linear spatial model
+        and predicates.
+  \item SQL/MM Spatial (ISO/IEC 13249-3) --- CircularString,
+        CompoundCurve, CurvePolygon, and WKB codes 8--12. No
+        13249-3 DOI is cited.
+  \item \emph{JTS Developer's Guide} and \emph{TestBuilder \&
+        TestRunner User Guide} (siblings in this directory), rebuilt
+        against the same tree.
+\end{itemize}
+
+\section{Design goals}
+The 2003 goals are still the goals of JTS core:
+\begin{itemize}
+  \item Conform to the SFS as accurately as possible, consistent with
+        a correct implementation.
+  \item Follow Java conventions (\texttt{getX} / \texttt{setX},
+        \texttt{isX}, lowercase method names).
+  \item Support a user-defined precision model; algorithms are robust
+        under it.
+  \item Return topologically and geometrically correct results within
+        that precision model wherever possible.
+  \item Correctness is the highest priority; space and time
+        efficiency is important but secondary.
+  \item Fast enough for production. Algorithms and code should stay
+        clear.
+\end{itemize}
+
+The curve module adds a further constraint that is not in the 2003
+spec: a closed-form curve path that would be slower than
+densify-then-core is refused, and the linear path runs instead.
+
+\section{Terminology}
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{3.4cm}p{9.8cm}}
+  \toprule
+  \textbf{Term} & \textbf{Definition} \\
+  \midrule
+  Coordinate     & A point in space exactly representable under the
+                   precision model. \\
+  Node           & A point where two lines intersect. Not necessarily
+                   a representable coordinate. \\
+  Noding         & Computing the nodes where geometries intersect. \\
+  Robust computation & Numerical computation guaranteed to return
+                   the correct answer for all inputs. \\
+  SFS            & OGC Simple Features Specification (linear). \\
+  SQL/MM Spatial (ISO/IEC 13249-3) & CircularString, CompoundCurve,
+                   CurvePolygon, MultiCurve, MultiSurface. \\
+  Closed form    & A cheap shape check that answers exactly. On this
+                   tree: certified discs, the single-arc hull, the
+                   compound-curve hull of circular-plus-straight
+                   members, and the two D-HF pairs. \\
+  Chord / densify & The fallback: replace arcs with LineString
+                   segments. Not a laser. \\
+  Vertex         & A corner point stored explicitly. \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\section{Notation}
+Items that adhere to the SFS are marked (SFS). Items that elaborate
+or differ are marked (JTS). Items that exist only on this tree's
+curve module are marked (jts-curve).
+
+\section{Java implementation}
+Where SFS coding style differs from Java, JTS follows Java:
+\texttt{boolean} instead of Integer-as-boolean; method names start
+with a lowercase letter; get/set prefixes for JavaBeans. The 2003
+package root \texttt{com.vividsolutions.jts} is
+\texttt{org.locationtech.jts} on this tree. That is the LocationTech
+package rename, not a claim that this fork is LocationTech upstream.
+
+\section{Computational geometry issues}
+
+\subsection{Precision model}
+JTS lets the client state how many bits of precision are assumed in
+input coordinates and maintained in computed coordinates. Two basic
+types are supported: Fixed (coordinates on a uniform grid, scale
+factor) and Floating (IEEE-754 double or single). Input routines
+supplied with JTS round to the precision model. Incompatible
+precision models are not reconciled.
+
+In the Fixed model, coordinates fall on a discrete grid. The grid
+size is the inverse of the scale factor:
+\[
+  \mathrm{jtsPt}.x = \mathrm{round}(\mathrm{inputPt}.x \cdot s) / s,
+  \qquad
+  \mathrm{jtsPt}.y = \mathrm{round}(\mathrm{inputPt}.y \cdot s) / s.
+\]
+Precise coordinates are represented internally as IEEE-754 doubles
+(53 bits of precision).
+
+Floating Double uses the full Java double. Floating Single rounds
+computed coordinates to single precision (for example when the
+destination is Java2D).
+
+JTS does not implement an exact (rational) precision model.
+
+\subsection{Constructed points and dimensional collapse}
+Overlay may construct points that are not input vertices.
+Intersection coordinates can require twice the input precision; JTS
+rounds them to the PrecisionModel. Rounding can produce dimensional
+collapse. JTS forms the lower-dimension Geometry that results.
+
+\subsection{Robustness and numerical stability}
+Fundamental predicates (orientation, line intersection, point-in-ring)
+use robust algorithms. The binary-predicate algorithm is completely
+robust. Overlay and buffer are engineered to return correct answers
+in the majority of cases; they are not a substitute for exact
+arithmetic. Line-intersection inputs are normalized toward the origin
+to preserve bits.
+
+\subsection{Performance --- monotone chains}
+Intersection detection uses in-memory spatial indexes and monotone
+chains: sequences of segments whose direction vectors lie in one
+quadrant. Segments inside one chain do not intersect; envelopes of
+contiguous subsets are the envelopes of the endpoints, so binary
+search applies. This is unchanged for linear Geometry. It is not a
+circular noder.
+
+\section{Spatial model (linear, kept)}
+The 2003 design decisions stand for linear Geometry: repeated points
+are allowed (SFS); LineStrings may be non-simple (SFS); polygon rings
+may not self-touch; polygon rings may mutually touch at a single
+point.
+
+\subsection{Geometric definitions (linear)}
+Every Geometry carries a PrecisionModel and an optional user-data
+field. Empty geometries are allowed; a generic empty is an empty
+GeometryCollection. The dimension of a heterogeneous
+GeometryCollection is the maximum dimension of its elements.
+
+\paragraph{Curve (SFS, 2003).}
+The 2003 spec defined SFS Curve as a non-degenerate linear curve: at
+least two points, no two consecutive points equal. The only concrete
+curve was LineString / LinearRing. That paragraph is still true of
+core.
+
+\paragraph{MultiCurve (SFS, 2003).}
+Boundary uses the Mod-2 rule: a point is on the boundary iff it is
+on the boundary of an odd number of elements. The 2003 figures
+showing that this can disagree with point-set topology still apply
+to MultiLineString.
+
+\paragraph{LineString / LinearRing / Polygon / MultiPolygon.}
+Unchanged. LineStrings may self-intersect. LinearRings have at least
+4 points (including the repeated close), are simple, and may be CW
+or CCW. Polygon shells and holes are LinearRings; holes may touch
+the shell or another hole at a single point only; interiors are
+connected.
+
+\subsection{Support classes}
+Coordinate, CoordinateSequence, Envelope, IntersectionMatrix,
+GeometryFactory, CoordinateFilter, GeometryFilter remain as in 2003.
+GeometryFactory on this tree also has
+\texttt{createCircularString} / \texttt{createCompoundCurve} /
+\texttt{createCurvePolygon} / \texttt{createMultiCurve} /
+\texttt{createMultiSurface} stubs that throw unless the factory is a
+\texttt{CurveGeometryFactory} (jts-curve).
+
+\section{Spatial model --- curve types on this tree}
+On this tree the concrete SQL/MM Spatial (ISO/IEC 13249-3) curve
+types live in the
+\texttt{jts-curve} module
+(\texttt{org.locationtech.jts.geom.curve}):
+\texttt{CircularString}, \texttt{CompoundCurve},
+\texttt{CurvePolygon}, and the collections \texttt{MultiCurve} and
+\texttt{MultiSurface}. Construction is opt-in: the default
+\texttt{GeometryFactory} throws on the curve \texttt{create*}
+methods. Use \texttt{CurveGeometryFactory}. Constructors do not
+linearise.
+
+\subsection{CircularString (jts-curve)}
+A CircularString is a LineString whose consecutive triples (start,
+mid, end) are circular arcs. SQL/MM Spatial (ISO/IEC 13249-3)
+requires an odd point count
+$\ge 3$. It is not a LineString of those control chords.
+\texttt{toLinear(tolerance)} densifies explicitly. The class is not
+constructed by the default GeometryFactory.
+
+\subsection{CompoundCurve (jts-curve)}
+A CompoundCurve is a LineString whose members are LineString and/or
+CircularString pieces, end-to-start connected. Member structure is
+preserved on copy and on \texttt{CurveWKTWriter} /
+\texttt{CurveWKBWriter}. A clothoid may appear as a non-leading
+member when read by \texttt{CurveWKTReader}, and as first-class
+preview Clothoid (code 18, HOLD --- not SIGNED I/O). Core
+\texttt{WKTReader} still fails on the keyword without a curve factory.
+
+\subsection{CurvePolygon (jts-curve)}
+A CurvePolygon is a Polygon whose rings may be CircularString,
+CompoundCurve, or LinearRing. A full-circle CircularString shell is
+a certified disc. Disc area, envelope, and disc-buffer are closed
+form on that shape. A CurvePolygon that is not a certified disc is
+not promoted to a laser.
+
+\subsection{MultiCurve and MultiSurface (jts-curve)}
+MultiCurve extends MultiLineString; MultiSurface extends
+MultiPolygon. They are the SQL/MM collections (WKB 11 and 12). A
+MultiSurface of one certified disc unwraps to that disc for the D-HF
+disc pair. They are not a general overlay noder.
+
+\subsection{What this section does not add}
+No public noder that treats every chord as an arc. Constructors do not
+linearise silently. This fork is not described as LocationTech upstream.
+Triangle / PolyhedralSurface / TIN (WKB 15--17) stay Architect-gated.
+Preview 18--21 is not SIGNED I/O and not the curve SoT (below).
+
+\subsection{Option B noding contract}
+Public \texttt{SegmentString} names each span
+$[i,i{+}1]$ as \texttt{SegmentKind.LINEARIZED}, \texttt{ARC}, or
+\texttt{CERTIFIED}. Default earth is linearized
+(\texttt{mayCollapseToChord} true). Exact consumers ask the kind;
+they do not treat chord ends as an arc. Spatial indexes may use
+PrecisionModel-scaled chord or expanded bounds (the allowed lie);
+PM snap must not rename the kind. OverlayNG may consume
+\texttt{CircularNodedSegmentString}. See
+\texttt{SegmentStringContractTest}.
+
+\subsection{No silent linearization}
+\texttt{CurveLinearizationStrategy} defaults to \texttt{LINEARIZED}
+and \textbf{must} warn on densify. \texttt{PRESERVE} keeps curve
+identity. TestBuilder Edit menu toggles the default; the Log tab
+receives warn-sink messages.
+
+\subsection{Preview 18--21 (HOLD, not SIGNED I/O)}
+The signed I/O set is ISO/IEC 13249-3 types 8--12 only. Cite
+13249-3 for 8--12 only. No DOI. DIS is not the 2016 IS --- do not
+take DIS 18--24 as JTS I/O. Preview fork map Clothoid=18 /
+B\'ezier=19 / Ellipse=20 / NURBS=21 is not SIGNED I/O and is not
+the curve SoT. HOLD type 18--20. HOLD JTS I/O 21. Not Circle-as-18.
+Not Clothoid-as-22. B\'ezier is a named fallback, not type 19.
+HOLD 13/14. HOLD GEO-TIN 15--17. leftover 1000001--1000005 HOLD.
+ISO dimension offsets $+1000/+2000/+3000$ stay; EWKB default is
+not ISO. Preview layouts are locked in \texttt{WKBClothoidTest} /
+\texttt{WKBCurveZoo19\_21Test}. A bare \texttt{WKBWriter} refuses
+to flatten these types.
+
+\section{Basic geometric algorithms}
+The 2003 primitives remain the linear primitives: point-line
+orientation, line intersection test and computation, point-in-ring,
+ring orientation. They operate on coordinates and segments. They do
+not node circular arcs. Arc/circle predicates used by certified-disc
+paths live in \texttt{jts-curve} (package-private helpers) and are
+not a public noder.
+
+\section{Topological computation and overlay}
+The 2003 spec described topology graphs, labels, the Relate
+algorithm, and the overlay algorithm that built a noded graph and
+extracted result edges. That is the historical linear overlay.
+Production linear overlay on this tree is OverlayNG.
+
+The curve overlay type is \texttt{OverlayNGCurve}. It lives in
+\texttt{jts-curve}
+(\texttt{org.locationtech.jts.operation.overlayng.curve}). There is
+no public noder. Closed-form answers are limited to certified discs.
+Anything else densifies and delegates to core OverlayNG.
+\texttt{Geometry.intersection} / \texttt{union} / \texttt{difference}
+/ \texttt{symDifference} on a curve type are not a general circular
+overlay.
+
+Relate / DE-9IM on a certified disc vs Point, LineString, hole-free
+Polygon, or a second disc has closed-form cases in the curve module.
+Half-disc and general CompoundCurve relate that have no kit fall
+through to linearise. That fall-through is not a general arc-aware
+relate.
+
+\section{Binary predicates}
+Equals, Disjoint, Intersects, Touches, Crosses, Within, Contains,
+Overlaps keep their 2003 / SFS meanings on linear Geometry. Two
+areas never Crosses. The 2003 contains fix (1.4.1) stands. On curve
+operands, a predicate is exact only when a certified path answers;
+otherwise it sees chords or an explicit \texttt{toLinear} copy.
+
+\section{Spatial analysis methods}
+Constructive methods (Buffer, ConvexHull) and set-theoretic methods
+(Intersection, Union, Difference, SymDifference) keep their 2003
+point-set definitions. Representation of computed geometries is
+still constrained by the precision model.
+
+\paragraph{Buffer (linear).}
+Unchanged: Minkowski sum with a disc, approximated by quadrant
+segments, end-cap styles as in the Developer's Guide.
+
+\paragraph{Buffer (curve, jts-curve).}
+Certified disc $\rightarrow$ disc of radius $r+d$ or empty. Open-arc
+buffer is BufferOp on chords --- not a closed form.
+
+\paragraph{ConvexHull (linear).}
+Unchanged: smallest convex polygon, or a lower-dimension Geometry if
+fewer than 3 hull points; no three consecutive hull points collinear.
+
+\paragraph{ConvexHull (curve, jts-curve).}
+A certified disc's hull is the disc (radius-5 disc: area $25\pi$).
+A single-arc hull is the slice bounded by the arc and its chord (a
+CurvePolygon). The compound-curve hull of circular-plus-straight
+members (H-CC), including a stadium, keeps the exposed arcs as
+CircularString members of a CurvePolygon. The H-CC witness
+\texttt{COMPOUNDCURVE (CIRCULARSTRING (0 0, 5 5, 10 0), (10 0, 10 10))}
+has hull area $50 + 12.5\arccos(0.6) \approx 61.59119$ and a
+CircularString shell. A clothoid hull stays the linear fallback
+(\texttt{CurveExact} null $\rightarrow$
+\texttt{linearise().convexHull()}), not a laser. Any other curve uses
+the linear hull of \texttt{toLinear} --- a fallback, not a fail.
+TestBuilder can draw \texttt{logoLines} as curves.
+
+\paragraph{Inscribed and empty circles (jts-curve).}
+\texttt{MaximumInscribedCircle} on a certified disc and on a stadium
+takes a closed form. \texttt{LargestEmptyCircle} on legal curve
+obstacles is present. These are constructions, not a general
+circular noder.
+
+\figshot{ug7_dg3_ts2_disc_hull.png}{TS-2. Disc hull area $25\pi$. Circular-plus-straight laser hull shipped.}
+\figshot{ts3_arc_hull.png}{TS-3. Single-arc hull area $12.5\pi$.}
+\figshot{ug8_ts6_compound_hull.png}{TS-6. Compound H-CC hull area 61.59119, CurvePolygon with CircularString.}
+
+\section{Other methods}
+Boundary, isClosed, isSimple, isValid keep the 2003 tables for
+linear types. JTS does not validate on construct (efficiency).
+IsValidOp reports the nature and location of a failure. Curve
+validation is best-effort structural (odd CircularString count,
+member connectivity); it is not a full SQL/MM validator.
+
+\section{Well-Known Text and Well-Known Binary}
+
+\subsection{WKT --- linear (kept)}
+SFS \S3.2.5. JTS follows the \texttt{MULTIPOINT (x y, x y)} example
+form, not the parenthesized-pairs grammar. JTS extends WKT with
+\texttt{LINEARRING}. \texttt{WKTReader} is parameterized by a
+GeometryFactory (precision and SRID). \texttt{WKTWriter} rounds to
+the precision model.
+
+\subsection{WKT --- curve (jts-curve)}
+Core \texttt{WKTReader} still rejects \texttt{CIRCULARSTRING} and
+the other SQL/MM keywords. Read them with \texttt{CurveWKTReader}.
+Write structured members with \texttt{CurveWKTWriter}. Core
+\texttt{WKTWriter} already emits the subclass keyword via
+\texttt{getGeometryType()} for a flat CircularString; composite
+types need the curve writer to keep member tags.
+
+Added tagged text (SQL/MM Spatial): \texttt{CIRCULARSTRING},
+\texttt{COMPOUNDCURVE}, \texttt{CURVEPOLYGON}, \texttt{MULTICURVE},
+\texttt{MULTISURFACE}. \texttt{CLOTHOID}, \texttt{BEZIER},
+\texttt{ELLIPSE}, and \texttt{NURBS} are recognised by
+\texttt{CurveWKTReader} / \texttt{CurveWKTWriter} as preview HOLD
+keywords, not SIGNED I/O.
+Clothoid may also appear as a non-leading \texttt{COMPOUNDCURVE}
+member. Core \texttt{WKTReader} still fails on those keywords unless
+the factory path is curve-capable.
+
+\subsection{WKB}
+The 2003 spec did not list WKB codes 8--12. Signed I/O on this
+tree is 8--12 only (ISO/IEC 13249-3). Preview 18--21 is HOLD:
+
+\begin{center}
+\begin{tabular}{clp{4.4cm}p{5.4cm}}
+  \toprule
+  \textbf{Code} & \textbf{Type} & \textbf{Read (core WKBReader)} &
+    \textbf{Write} \\
+  \midrule
+  1--7 & Point \ldots GeometryCollection &
+    Yes, default factory & WKBWriter \\
+  8 & CircularString &
+    Yes; \texttt{factory.createCircularString} &
+    CurveWKBWriter. Bare WKBWriter emits 2 \\
+  9 & CompoundCurve &
+    Yes; \texttt{factory.createCompoundCurve} &
+    CurveWKBWriter. Bare WKBWriter emits 2 \\
+  10 & CurvePolygon &
+    Yes; \texttt{factory.createCurvePolygon} &
+    CurveWKBWriter. Bare WKBWriter emits 3 \\
+  11 & MultiCurve &
+    Yes; \texttt{factory.createMultiCurve} &
+    CurveWKBWriter. Bare WKBWriter emits 5 \\
+  12 & MultiSurface &
+    Yes; \texttt{factory.createMultiSurface} &
+    CurveWKBWriter. Bare WKBWriter emits 6 \\
+  18 & Clothoid (HOLD preview) &
+    HOLD type 18; not SIGNED I/O & not Circle; not Clothoid-as-22 \\
+  19 & B\'ezier (named fallback) &
+    HOLD type 19; not type 19 & not SIGNED I/O \\
+  20 & Ellipse (HOLD preview) &
+    HOLD type 20; not SIGNED I/O & preview layout only \\
+  21 & NURBS (HOLD I/O) &
+    HOLD JTS I/O 21 & not SIGNED I/O \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+WKB type codes 8--12 are the signed I/O set in core
+\texttt{WKBReader} / \texttt{WKBConstants} (ISO/IEC 13249-3).
+Preview 18--21 is not SIGNED I/O and not the curve SoT.
+Construction still requires a curve-capable factory; otherwise the
+reader throws. \texttt{CurveWKBWriter} emits 8--12 and the preview
+HOLD layouts. A bare \texttt{WKBWriter} still walks the parent
+\texttt{instanceof} ladder for 8--12 and \textbf{refuses} to
+flatten preview 18--21. ISO flavour adds $+1000/+2000/+3000$ for
+Z/M/ZM. EWKB default is not ISO. Default and export WKB paths
+route through \texttt{CurveWKBWriter}.
+
+Default GeometryFactory throws on the \texttt{create*} curve
+methods, so \texttt{new WKBReader().read(type8)} fails with a
+factory-required ParseException.
+\texttt{new WKBReader(new CurveGeometryFactory())} or
+\texttt{CurveWKBReader} succeeds.
+
+\fighole{TS-1 WKB 8--12 signed I/O}
+
+\section{Discrete Hausdorff distance}
+The 2003 spec did not define Hausdorff. On this tree the public
+class is
+\texttt{org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance}.
+
+Public \texttt{DiscreteHausdorffDistance} (commit \texttt{0ca71b})
+has a closed form for two pairs only:
+\begin{enumerate}
+  \item A single-arc CircularString toward a single-segment
+        LineString, apex $\sqrt{949}/6 - 7/6 = 3.967640600249787$ for
+        \texttt{CIRCULARSTRING (0 0, 2 3, 10 0)} vs
+        \texttt{LINESTRING (0 0, 10 0)}.
+  \item Two circular discs. A
+        MultiSurface unwrap of one disc is the same disc pair, not a
+        third.
+\end{enumerate}
+The exact path skips densify; densify is not the laser. For every
+other pair the public API still sees vertices / chords. Tests keep
+\texttt{fail()} on the general case.
+
+\texttt{DensifyFrac} still interpolates chords on the fallback path.
+Calling \texttt{distance(..., densifyFrac)} on a certified pair does
+not replace the closed form with densify; the exact path skips
+densify. Do not document densify as the laser.
+
+Fr\'echet (\texttt{DiscreteFrechetDistance}) remains open as a
+general curve metric. This specification does not claim a Fr\'echet
+laser.
+
+\fighole{TS-4 APEX}
+\fighole{TS-5 two discs}
+
+\section{Licence}
+JTS is dual-licensed under the Eclipse Public License 2.0 and the
+Eclipse Distribution License 1.0. See \texttt{LICENSE\_EPLv2.txt},
+\texttt{LICENSE\_EDLv1.txt}, and \texttt{LICENSES.md}. The 2005
+TestBuilder guide's ACME licence appendix is historical and is not
+the project licence.
+
+\section{References}
+\begin{itemize}
+  \item [SFS] OpenGIS Simple Features Specification For SQL
+        Revision 1.1. Open GIS Consortium, Inc. OpenGIS project
+        Document 99-049.
+  \item [SQL/MM] ISO/IEC 13249-3, Information technology ---
+        Database languages --- SQL multimedia and application
+        packages --- Part 3: Spatial. Source of CircularString,
+        CompoundCurve, and CurvePolygon. No 13249-3 DOI is cited.
+        No JTS DOI is cited.
+  \item [Ava97] F.\ Avnaim, J-D.\ Boissonnat, O.\ Devillers,
+        F.\ Preparata and M.\ Yvinec. Evaluating signs of
+        determinants using single-precision arithmetic.
+        \emph{Algorithmica} 17:111--132, 1997.
+  \item [Bri98] A.\ Brinkmann, K.\ Hinrichs. Implementing exact line
+        segment intersection in map overlay. SDH 1998, pp.\ 569--579.
+  \item [Sch97] Stefan Schirra. Precision and robustness in geometric
+        computations. In \emph{Algorithmic Foundations of Geographic
+        Information Systems}, LNCS 1340, Springer, 1997.
+\end{itemize}
+
+\vspace{1.2em}
+\noindent\textit{End of Technical Specifications. Remaining named
+holes (WKB, D-HF) are empty 4:3 slots (target 1600$\times$1200,
+full TestBuilder window). No clothoid DOI is cited.}
+
+\end{document}

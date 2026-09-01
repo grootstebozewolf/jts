@@ -24,6 +24,7 @@ import org.locationtech.jts.geom.CoordinateArrays;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.LineSegment;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Location;
@@ -174,6 +175,10 @@ public class BufferCurveSetBuilder {
     
     Coordinate[] coord = clean(line.getCoordinates());
     
+    //-- skip if no valid coordinates
+    if (coord.length == 0)
+      return;
+    
     /**
      * Rings (closed lines) are generated with a continuous curve, 
      * with no end arcs. This produces better quality linework, 
@@ -183,7 +188,7 @@ public class BufferCurveSetBuilder {
      * Singled-sided buffers currently treat rings as if they are lines.
      */
     if (CoordinateArrays.isRing(coord) && ! curveBuilder.getBufferParameters().isSingleSided()) {
-      addRingBothSides(coord, distance);
+      addLinearRingSides(coord, distance);
     }
     else {
       Coordinate[] curve = curveBuilder.getLineCurve(coord, distance);
@@ -214,17 +219,23 @@ public class BufferCurveSetBuilder {
     }
 
     LinearRing shell = p.getExteriorRing();
-    Coordinate[] shellCoord = clean(shell.getCoordinates());
-    // optimization - don't bother computing buffer
+    // optimization - don't compute buffer
     // if the polygon would be completely eroded
-    if (distance < 0.0 && isErodedCompletely(shell, distance))
+    if (distance < 0.0 && isRingFullyEroded(shell, false, distance))
         return;
+    
+    Coordinate[] shellCoords = clean(shell.getCoordinates());
+    
+    //-- skip if no valid coordinates
+    if (shellCoords.length == 0)
+      return;
+    
     // don't attempt to buffer a polygon with too few distinct vertices
-    if (distance <= 0.0 && shellCoord.length < 3)
+    if (distance <= 0.0 && shellCoords.length < 3)
     	return;
 
-    addRingSide(
-            shellCoord,
+    addPolygonRingSide(
+            shellCoords,
             offsetDistance,
             offsetSide,
             Location.EXTERIOR,
@@ -233,18 +244,23 @@ public class BufferCurveSetBuilder {
     for (int i = 0; i < p.getNumInteriorRing(); i++) {
 
       LinearRing hole = p.getInteriorRingN(i);
-      Coordinate[] holeCoord = clean(hole.getCoordinates());
-
-      // optimization - don't bother computing buffer for this hole
+      
+      // optimization - don't compute buffer for this hole
       // if the hole would be completely covered
-      if (distance > 0.0 && isErodedCompletely(hole, -distance))
+      if (distance > 0.0 && isRingFullyEroded(hole, true, distance))
           continue;
+
+      Coordinate[] holeCoords = clean(hole.getCoordinates());
+
+      //-- skip if no valid coordinates
+      if (holeCoords.length == 0)
+        continue;
 
       // Holes are topologically labelled opposite to the shell, since
       // the interior of the polygon lies on their opposite side
       // (on the left, if the hole is oriented CCW)
-      addRingSide(
-            holeCoord,
+      addPolygonRingSide(
+            holeCoords,
             offsetDistance,
             Position.opposite(offsetSide),
             Location.INTERIOR,
@@ -252,25 +268,12 @@ public class BufferCurveSetBuilder {
     }
   }
   
-  private void addRingBothSides(Coordinate[] coord, double distance)
-  {
-    addRingSide(coord, distance,
-      Position.LEFT, 
-      Location.EXTERIOR, Location.INTERIOR);
-    /* Add the opposite side of the ring
-    */
-    addRingSide(coord, distance,
-      Position.RIGHT,
-      Location.INTERIOR, Location.EXTERIOR);
-  }
-  
   /**
-   * Adds an offset curve for one side of a ring.
+   * Adds an offset curve for one side of a polygon ring.
    * The side and left and right topological location arguments
    * are provided as if the ring is oriented CW.
-   * (If the ring is in the opposite orientation,
-   * this is detected and 
-   * the left and right locations are interchanged and the side is flipped.)
+   * If the ring is in the opposite orientation,
+   * the left and right locations are interchanged and the side is flipped.
    *
    * @param coord the coordinates of the ring (must not contain repeated points)
    * @param offsetDistance the positive distance at which to create the buffer
@@ -278,7 +281,7 @@ public class BufferCurveSetBuilder {
    * @param cwLeftLoc the location on the L side of the ring (if it is CW)
    * @param cwRightLoc the location on the R side of the ring (if it is CW)
    */
-  private void addRingSide(Coordinate[] coord, double offsetDistance, int side, int cwLeftLoc, int cwRightLoc)
+  private void addPolygonRingSide(Coordinate[] coord, double offsetDistance, int side, int cwLeftLoc, int cwRightLoc)
   {
     // don't bother adding ring if it is "flat" and will disappear in the output
     if (offsetDistance == 0.0 && coord.length < LinearRing.MINIMUM_VALID_SIZE)
@@ -293,8 +296,44 @@ public class BufferCurveSetBuilder {
       rightLoc = cwLeftLoc;
       side = Position.opposite(side);
     }
-    Coordinate[] curve = curveBuilder.getRingCurve(coord, side, offsetDistance);
+    addRingSide(coord, offsetDistance, side, leftLoc, rightLoc);
+  }
+  
+  /**
+   * Add both sides of a linear ring.
+   * Checks for erosion of the hole side.
+   * 
+   * @param coord ring vertices
+   * @param distance offset distance (must be non-zero positive)
+   */
+  private void addLinearRingSides(Coordinate[] coord, double distance)
+  {
+    /*
+     * (f "hole" side will be eroded completely, avoid generating it.
+     * This prevents hole artifacts (e.g. https://github.com/libgeos/geos/issues/1223)
+     */
+    //-- distance is assumed > 0, due to previous checks
+    boolean isHoleComputed = ! isRingFullyEroded(coord, CoordinateArrays.envelope(coord), true, distance);
     
+    boolean isCCW = isRingCCW(coord);
+    
+    boolean isShellLeft = ! isCCW;
+    if (isShellLeft || isHoleComputed) {
+      addRingSide(coord, distance,
+        Position.LEFT, 
+        Location.EXTERIOR, Location.INTERIOR);
+    }
+    boolean isShellRight = isCCW;
+    if (isShellRight || isHoleComputed) {
+      addRingSide(coord, distance,
+        Position.RIGHT,
+        Location.INTERIOR, Location.EXTERIOR);
+    }
+  }
+  
+  private void addRingSide(Coordinate[] coord, double offsetDistance, int side, int leftLoc, int rightLoc)
+  {
+    Coordinate[] curve = curveBuilder.getRingCurve(coord, side, offsetDistance);
     /**
      * If the offset curve has inverted completely it will produce
      * an unwanted artifact in the result, so skip it. 
@@ -302,11 +341,11 @@ public class BufferCurveSetBuilder {
     if (isRingCurveInverted(coord, offsetDistance, curve)) {
       return;
     }
-
     addCurve(curve, leftLoc, rightLoc);
   }
 
   private static final int MAX_INVERTED_RING_SIZE = 9;
+  private static final int INVERTED_CURVE_VERTEX_FACTOR = 4;
   private static final double NEARNESS_FACTOR = 0.99;
 
   /**
@@ -326,56 +365,75 @@ public class BufferCurveSetBuilder {
    * <p>
    * See https://github.com/locationtech/jts/issues/472
    * 
-   * @param inputPts the input ring
+   * @param inputRing the input ring
    * @param distance the buffer distance
-   * @param curvePts the generated offset curve
+   * @param curveRing the generated offset curve ring
    * @return true if the offset curve is inverted
    */
-  private static boolean isRingCurveInverted(Coordinate[] inputPts, double distance, Coordinate[] curvePts) {
+  private static boolean isRingCurveInverted(Coordinate[] inputRing, double distance, Coordinate[] curveRing) {
     if (distance == 0.0) return false;
     /**
      * Only proper rings can invert.
      */
-    if (inputPts.length <= 3) return false;
+    if (inputRing.length <= 3) return false;
    /**
      * Heuristic based on low chance that a ring with many vertices will invert.
      * This low limit ensures this test is fairly efficient.
      */
-    if (inputPts.length >= MAX_INVERTED_RING_SIZE) return false;
+    if (inputRing.length >= MAX_INVERTED_RING_SIZE) return false;
     
     /**
-     * An inverted curve has no more points than the input ring.
-     * This also eliminates concave inputs (which will produce fillet arcs)
+     * Don't check curves which are much larger than the input.
+     * This improves performance by avoiding checking some concave inputs 
+     * (which can produce fillet arcs with many more vertices)
      */
-    if (curvePts.length > inputPts.length) return false;
+    if (curveRing.length > INVERTED_CURVE_VERTEX_FACTOR * inputRing.length) return false;
     
     /**
-     * Check if the curve vertices are all closer to the input ring
-     * than the buffer distance.
-     * If so, the curve is NOT a valid buffer curve.
+     * If curve contains points which are on the buffer, 
+     * it is not inverted and can be included in the raw curves.
      */
-    double distTol = NEARNESS_FACTOR * Math.abs(distance);
-    double maxDist = maxDistance(curvePts, inputPts);
-    boolean isCurveTooClose = maxDist < distTol;
-    return isCurveTooClose;
+    if (hasPointOnBuffer(inputRing, distance, curveRing))
+      return false;
+    
+    //-- curve is inverted, so discard it
+    return true;
   }
 
   /**
-   * Computes the maximum distance out of a set of points to a linestring.
+   * Tests if there are points on the raw offset curve which may
+   * lie on the final buffer curve
+   * (i.e. they are (approximately) at the buffer distance from the input ring). 
+   * For efficiency this only tests a limited set of points on the curve.
    * 
-   * @param pts the points
-   * @param line the linestring vertices
-   * @return the maximum distance
+   * @param inputRing
+   * @param distance
+   * @param curveRing
+   * @return true if the curve contains points lying at the required buffer distance
    */
-  private static double maxDistance(Coordinate[] pts, Coordinate[] line) {
-    double maxDistance = 0;
-    for (Coordinate p : pts) {
-      double dist = Distance.pointToSegmentString(p, line);
-      if (dist > maxDistance) {
-        maxDistance = dist;
+  private static boolean hasPointOnBuffer(Coordinate[] inputRing, double distance, Coordinate[] curveRing) {
+    double distTol = NEARNESS_FACTOR * Math.abs(distance);
+    
+    for (int i = 0; i < curveRing.length - 1; i++) {
+      Coordinate v = curveRing[i];
+      
+      //-- check curve vertices
+      double dist = Distance.pointToSegmentString(v, inputRing);
+      if (dist > distTol) {
+        return true; 
+      }
+      
+      //-- check curve segment midpoints
+      int iNext = (i < curveRing.length - 1) ? i + 1 : 0;
+      Coordinate vnext = curveRing[iNext];
+      Coordinate midPt = LineSegment.midPoint(v, vnext);
+      
+      double distMid = Distance.pointToSegmentString(midPt, inputRing);
+      if (distMid > distTol) {
+        return true; 
       }
     }
-    return maxDistance;
+    return false;
   }
 
   /**
@@ -390,25 +448,32 @@ public class BufferCurveSetBuilder {
    * @param offsetDistance
    * @return
    */
-  private static boolean isErodedCompletely(LinearRing ring, double bufferDistance)
+  private static boolean isRingFullyEroded(LinearRing ring, boolean isHole, double bufferDistance)
   {
-    Coordinate[] ringCoord = ring.getCoordinates();
+    return isRingFullyEroded(ring.getCoordinates(), ring.getEnvelopeInternal(), isHole, bufferDistance);
+  }
+  
+  private static boolean isRingFullyEroded(Coordinate[] ringCoord, Envelope ringEnv, boolean isHole, double bufferDistance)
+  {
     // degenerate ring has no area
     if (ringCoord.length < 4)
-      return bufferDistance < 0;
+      return true;
 
     // important test to eliminate inverted triangle bug
     // also optimizes erosion test for triangles
     if (ringCoord.length == 4)
       return isTriangleErodedCompletely(ringCoord, bufferDistance);
 
-    // if envelope is narrower than twice the buffer distance, ring is eroded
-    Envelope env = ring.getEnvelopeInternal();
-    double envMinDimension = Math.min(env.getHeight(), env.getWidth());
-    if (bufferDistance < 0.0
-        && 2 * Math.abs(bufferDistance) > envMinDimension)
-      return true;
-
+    boolean isErodable = 
+        (  isHole && bufferDistance > 0) ||
+        (! isHole && bufferDistance < 0);
+    
+    if (isErodable) {
+      //-- if envelope is narrower than twice the buffer distance, ring is eroded
+      double envMinDimension = Math.min(ringEnv.getHeight(), ringEnv.getWidth());
+      if (2 * Math.abs(bufferDistance) > envMinDimension)
+        return true;
+    }
     return false;
   }
 

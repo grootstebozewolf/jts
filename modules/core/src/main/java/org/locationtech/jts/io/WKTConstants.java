@@ -27,7 +27,28 @@ public class WKTConstants {
   public static final String MULTIPOINT = "MULTIPOINT";
   public static final String POINT = "POINT";
   public static final String POLYGON = "POLYGON";
-  
+
+  /* Extended OGC SFA / ISO 19125-2 type keywords. The core JTS readers and
+   * writers do not handle these directly; they are exposed here so that
+   * extension modules (e.g. {@code jts-curve}) and downstream tooling can
+   * share a single canonical set of strings. */
+  public static final String CIRCULARSTRING = "CIRCULARSTRING";
+  public static final String COMPOUNDCURVE = "COMPOUNDCURVE";
+  public static final String CURVEPOLYGON = "CURVEPOLYGON";
+  public static final String MULTICURVE = "MULTICURVE";
+  public static final String MULTISURFACE = "MULTISURFACE";
+  public static final String POLYHEDRALSURFACE = "POLYHEDRALSURFACE";
+  public static final String TIN = "TIN";
+  public static final String TRIANGLE = "TRIANGLE";
+  /** Preview CLOTHOID keyword. HOLD type 18. Not SIGNED I/O. */
+  public static final String CLOTHOID = "CLOTHOID";
+  /** Named Bézier fallback keyword. Not type 19. HOLD type 19. */
+  public static final String BEZIER = "BEZIER";
+  /** Preview ELLIPSE keyword. HOLD type 20. Not SIGNED I/O. */
+  public static final String ELLIPSE = "ELLIPSE";
+  /** Preview NURBS keyword. HOLD JTS I/O 21. Not SIGNED I/O. */
+  public static final String NURBS = "NURBS";
+
   public static final String EMPTY = "EMPTY";
 
   public static final String M = "M";

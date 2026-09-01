@@ -27,9 +27,9 @@ import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.index.SpatialIndex;
 import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.util.Stopwatch;
+import org.locationtech.jtstest.geomfunction.FilterGeometryFunction;
 import org.locationtech.jtstest.geomfunction.GeometryFunction;
 import org.locationtech.jtstest.geomfunction.GeometryFunctionRegistry;
-import org.locationtech.jtstest.geomfunction.FilterGeometryFunction;
 import org.locationtech.jtstest.testbuilder.ui.SwingUtil;
 import org.locationtech.jtstest.util.io.MultiFormatBufferedReader;
 import org.locationtech.jtstest.util.io.MultiFormatFileReader;
@@ -66,8 +66,8 @@ public class JTSOpRunner {
   private boolean captureGeometry = false;
   private List<Geometry> resultGeoms = new ArrayList<Geometry>();
   
-  private CommandOutput out = new CommandOutput();
-  private GeometryOutput geomOut = new GeometryOutput(out);
+  private CommandOutput out;
+  private GeometryOutput geomOut;
   private String symGeom2 = SYM_B;
 
   private IndexedGeometry geomIndexB;
@@ -95,7 +95,8 @@ public class JTSOpRunner {
     
     public boolean isGeomAB = false;
     public boolean isCollect = false;
-    String format = null;
+    public boolean isQuiet = false;
+    public String format = null;
     public Integer repeat;
     public boolean eachA = false;
     public boolean eachB = false;
@@ -108,6 +109,8 @@ public class JTSOpRunner {
     public boolean isFilter = false;
     public int filterOp;
     public double filterVal = 0;
+    
+    public String outputFile;
     
     String operation;
     public String[] argList;
@@ -158,8 +161,20 @@ public class JTSOpRunner {
   public String getOutput() {
     return out.getOutput();
   }
+  
   void execute(OpParams param) {
     this.param = param;
+    
+    //-- init output to file or console
+    if (out == null) {
+      if (param.outputFile != null) {
+        out = new CommandOutput(param.outputFile);
+      }
+      else {
+        out = new CommandOutput();
+      }
+      geomOut = new GeometryOutput(out);
+    }
     
     geomFactory = createGeometryFactory(param.srid);
     geomA = null;
@@ -268,7 +283,7 @@ public class JTSOpRunner {
     executeFunctionOverA(fun);
     
     if (isVerbose || isTime) {
-      out.println("\nOperation " + func.getCategory() + "." + func.getName() + ": " + opCount
+      out.logln("\nOperation " + func.getCategory() + "." + func.getName() + ": " + opCount
         + " invocations - Total Time: " + Stopwatch.getTimeString( totalTime ));
     }
   }
@@ -281,7 +296,7 @@ public class JTSOpRunner {
     String header = "";
     for (int i = 0; i < numGeom; i++) {
       Geometry comp = geomA == null ? null : geomA.get(i);
-      String hdr =  GeometryOutput.writeGeometrySummary(SYM_A + "[" + i + "]", comp);
+      String hdr =  GeometryOutput.summary(SYM_A + "[" + i + "]", comp);
       if (geomB == null) {
         executeFunction(comp, fun, hdr);
       }
@@ -296,7 +311,7 @@ public class JTSOpRunner {
     List<Integer> targetB = geomIndexB.query(geomA);
     for (int index : targetB) {
       Geometry gb = geomB.get(index);
-      String hdr = header + ", " + GeometryOutput.writeGeometrySummary(symGeom2 + "[" + index + "]", gb);
+      String hdr = header + ", " + GeometryOutput.summary(symGeom2 + "[" + index + "]", gb);
       fun.setB(gb);
       executeFunction(geomA, fun, hdr);
     }
@@ -313,7 +328,7 @@ public class JTSOpRunner {
       
       String opDesc = "[" + (opCount+1) + "] -- " + opSummary(func, arg) + " : ";
       if (isVerbose) {
-        out.println(opDesc + hdr);
+        out.logln(opDesc + hdr);
       }
       else {
         hdrSave = hdr + "\n" + opDesc;
@@ -361,11 +376,13 @@ public class JTSOpRunner {
     if (param.validate) {
       validate(result);
     }
-    outputResult(result, param.isExplode, param.format);
+    if (! param.isQuiet) {
+      outputResult(result, param.isExplode, param.format);
+    }
     return result;
   }
 
-  private String errorMsg(Throwable ex) {
+  private static String errorMsg(Throwable ex) {
     String msg = "ERROR excuting function: " + ex.getMessage() + "\n";
     msg += toStackString(ex);
     if (ex.getCause() != null) {
@@ -375,7 +392,7 @@ public class JTSOpRunner {
     return msg;
   }
 
-  private String toStackString(Throwable ex) {
+  private static String toStackString(Throwable ex) {
     StringWriter sw = new StringWriter();
     PrintWriter pw = new PrintWriter(sw);
     ex.printStackTrace(pw);
@@ -385,8 +402,8 @@ public class JTSOpRunner {
   
   private void logError(String msg) {
     // this will be blank if already printed in verbose mode
-    out.println(hdrSave);
-    out.println(msg);
+    out.logln(hdrSave);
+    out.logln(msg);
   }
 
   private void validate(Object result) {
@@ -430,7 +447,7 @@ public class JTSOpRunner {
     if (filename == null) return null;
     
     // must be a filename
-    if (filename.equalsIgnoreCase(CommandOptions.STDIN)){
+    if (filename.equalsIgnoreCase(CommandOptions.SOURCE_STDIN)){
       return readStdin(limit, offset);     
     }
     
@@ -481,13 +498,14 @@ public class JTSOpRunner {
     Geometry geom = (Geometry) result;
     if (isExplode && geom instanceof GeometryCollection) {
       for (int i = 0; i < geom.getNumGeometries(); i++) {
-        printGeometry(geom.getGeometryN(i), param.srid, outputFormat);
+        writeGeometry(geom.getGeometryN(i), param.srid, outputFormat);
       }
     }
     else {
-      printGeometry(geom, param.srid, outputFormat);
+      writeGeometry(geom, param.srid, outputFormat);
     }
   }
+  
   private void outputList(List<Geometry> geoms, String outputFormat) {
     if (geoms == null) return;
     if (outputFormat == null) return;
@@ -497,19 +515,16 @@ public class JTSOpRunner {
     }
   }
   
-  private void printGeometry(Geometry geom, int srid, String outputFormat) {
-    if (geom == null) return;
-    if (outputFormat == null) return;
-    
+  private void writeGeometry(Geometry geom, int srid, String outputFormat) {    
     if (captureGeometry) {
       resultGeoms.add((Geometry) geom);
     }
-    geomOut.printGeometry((Geometry) geom, srid, outputFormat);
+    geomOut.write((Geometry) geom, srid, outputFormat);
   }
   
   private void printlnInfo(String s) {
     if (! isVerbose) return;
-    out.println(s);
+    out.logln(s);
   }
   
   private void printGeometrySummary(String label, List<Geometry> geom, String source) {
@@ -518,13 +533,13 @@ public class JTSOpRunner {
     
     String srcname = "";
     if (source != null) srcname = " -- " + source;
-    printlnInfo( GeometryOutput.writeGeometrySummary(label, geom) + srcname);
+    printlnInfo( GeometryOutput.summary(label, geom) + srcname);
   }
   
   private void printGeometrySummary(String label, Geometry geom) {
     // short-circuit to avoid cost
     if (! isVerbose) return;
-    printlnInfo( GeometryOutput.writeGeometrySummary(label, geom));
+    printlnInfo( GeometryOutput.summary(label, geom));
   }
   
   private static String fileInfo(String filename, int limit, int offset) {
@@ -536,7 +551,7 @@ public class JTSOpRunner {
   }
   
   private void checkFunctionArgs(GeometryFunction func, List<Geometry> geomB, String[] argList) {
-    Class[] paramTypes = func.getParameterTypes();
+    Class<?>[] paramTypes = func.getParameterTypes();
     int nParam = paramTypes.length;
     
     /*
@@ -619,7 +634,7 @@ class FunctionInvoker {
   }
   
   private Object[] createFunctionArgs(GeometryFunction func, Geometry geomB, String arg1) {
-    Class[] paramTypes = func.getParameterTypes();
+    Class<?>[] paramTypes = func.getParameterTypes();
     Object[] paramVal = new Object[paramTypes.length];
     
     int iparam = 0;
@@ -661,7 +676,7 @@ class IndexedGeometry
     index = new STRtree();
     for (int i = 0; i < geoms.size(); i++) {
       Geometry comp = geoms.get(i);
-      index.insert(comp.getEnvelopeInternal(), new Integer(i));
+      index.insert(comp.getEnvelopeInternal(), Integer.valueOf(i));
     }
   }
   

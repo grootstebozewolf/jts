@@ -103,6 +103,26 @@ public class Triangle
   }
 
   /**
+   * Computes the radius of the circumcircle of a triangle.
+   * <p>
+   * Formula is as per https://math.stackexchange.com/a/3610959
+   * 
+   * @param a a vertex of the triangle
+   * @param b a vertex of the triangle
+   * @param c a vertex of the triangle
+   * @return the circumradius of the triangle
+   */
+  public static double circumradius(Coordinate a, Coordinate b, Coordinate c) {
+    double lenAB = a.distance(b);
+    double lenBC = b.distance(c);
+    double lenCA = c.distance(a);
+    double area = area(a, b, c);
+    if (area == 0.0)
+      return Double.POSITIVE_INFINITY;
+    return (lenAB * lenBC * lenCA) / (4 * area);
+  }
+  
+  /**
    * Computes the circumcentre of a triangle. The circumcentre is the centre of
    * the circumcircle, the smallest circle which encloses the triangle. It is
    * also the common intersection point of the perpendicular bisectors of the
@@ -241,7 +261,8 @@ public class Triangle
    * the point which is equidistant from the sides of the triangle. It is also
    * the point at which the bisectors of the triangle's angles meet. It is the
    * centre of the triangle's <i>incircle</i>, which is the unique circle that
-   * is tangent to each of the triangle's three sides.
+   * is tangent to each of the triangle's three sides
+   * (and hence the Maximum Inscribed Circle).
    * <p>
    * The incentre always lies within the triangle.
    * 
@@ -255,14 +276,13 @@ public class Triangle
    */
   public static Coordinate inCentre(Coordinate a, Coordinate b, Coordinate c)
   {
-    // the lengths of the sides, labelled by their opposite vertex
-    double len0 = b.distance(c);
-    double len1 = a.distance(c);
-    double len2 = a.distance(b);
-    double circum = len0 + len1 + len2;
+    double lenAB = a.distance(b);
+    double lenBC = b.distance(c);
+    double lenCA = c.distance(a);
+    double circum = lenBC + lenCA + lenAB;
 
-    double inCentreX = (len0 * a.x + len1 * b.x + len2 * c.x) / circum;
-    double inCentreY = (len0 * a.y + len1 * b.y + len2 * c.y) / circum;
+    double inCentreX = (lenBC * a.x + lenCA * b.x + lenAB * c.x) / circum;
+    double inCentreY = (lenBC * a.y + lenCA * b.y + lenAB * c.y) / circum;
     return new Coordinate(inCentreX, inCentreY);
   }
 
@@ -290,6 +310,19 @@ public class Triangle
     return new Coordinate(x, y);
   }
 
+  /**
+   * Compute the length of the perimeter of a triangle
+   * 
+   * @param a a vertex of the triangle
+   * @param b a vertex of the triangle
+   * @param c a vertex of the triangle
+   * @return the length of the triangle perimeter
+   */
+  public static double length(Coordinate a, Coordinate b, Coordinate c)
+  {
+    return a.distance(b) + b.distance(c) + c.distance(a);
+  }
+  
   /**
    * Computes the length of the longest side of a triangle
    * 
@@ -334,9 +367,9 @@ public class Triangle
      * Uses the fact that the lengths of the parts of the split segment are
      * proportional to the lengths of the adjacent triangle sides
      */
-    double len0 = b.distance(a);
-    double len2 = b.distance(c);
-    double frac = len0 / (len0 + len2);
+    double lenBA = b.distance(a);
+    double lenBC = b.distance(c);
+    double frac = lenBA / (lenBA + lenBC);
     double dx = c.x - a.x;
     double dy = c.y - a.y;
 
@@ -359,8 +392,7 @@ public class Triangle
    */
   public static double area(Coordinate a, Coordinate b, Coordinate c)
   {
-    return Math
-        .abs(((c.x - a.x) * (b.y - a.y) - (b.x - a.x) * (c.y - a.y)) / 2);
+    return Math.abs(((c.x - a.x) * (b.y - a.y) - (b.x - a.x) * (c.y - a.y)) / 2);
   }
 
   /**
@@ -430,7 +462,7 @@ public class Triangle
 
     return area3D;
   }
-
+  
   /**
    * Computes the Z-value (elevation) of an XY point on a three-dimensional
    * plane defined by a triangle whose vertices have Z-values. The defining
@@ -530,8 +562,8 @@ public class Triangle
   
   /**
    * Computes the circumcentre of this triangle. The circumcentre is the centre
-   * of the circumcircle, the smallest circle which encloses the triangle. It is
-   * also the common intersection point of the perpendicular bisectors of the
+   * of the circumcircle, the smallest circle which passes through all the triangle vertices. 
+   * It is also the common intersection point of the perpendicular bisectors of the
    * sides of the triangle, and is the only point which has equal distance to
    * all three vertices of the triangle.
    * <p>
@@ -549,6 +581,16 @@ public class Triangle
   }
 
   /**
+   * Computes the radius of the circumcircle of a triangle.
+   * 
+   * @return the triangle circumradius
+   */
+  public double circumradius()
+  {
+    return circumradius(p0, p1, p2);
+  }
+  
+  /**
    * Computes the centroid (centre of mass) of this triangle. This is also the
    * point at which the triangle's three medians intersect (a triangle median is
    * the segment from a vertex of the triangle to the midpoint of the opposite
@@ -563,6 +605,16 @@ public class Triangle
     return centroid(p0, p1, p2);
   }
 
+  /**
+   * Computes the length of the perimeter of this triangle.
+   * 
+   * @return the length of the perimeter
+   */
+  public double length()
+  {
+    return length(p0, p1, p2);
+  }
+  
   /**
    * Computes the length of the longest side of this triangle
    * 

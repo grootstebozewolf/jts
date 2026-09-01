@@ -12,6 +12,8 @@
 package org.locationtech.jts.geom;
 
 
+import org.locationtech.jts.algorithm.Orientation;
+
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
 
@@ -174,6 +176,43 @@ public class CoordinateArraysTest extends GeometryTestCase {
     assertTrue( array[1] != fixed[1] ); // processing needed to CoordinateXYZM
   }
 
+  public void testOrientCW() {
+    checkOrient("POLYGON ((1 1, 9 9, 9 1, 1 1))");
+  }
+  
+  public void testOrientCCW() {
+    checkOrient("POLYGON ((9 7, 5 9, 1 4, 5 4, 4 1, 8 1, 9 7))");
+  }
+  
+  public void testRemoveInvalidStartPoint() {
+    checkRemoveInvalidPoints("LINESTRING (NaN 0, 1 1, 2 2)", 
+        "LINESTRING (1 1, 2 2)");
+  }
+
+  public void testRemoveInvalidPoints() {
+    checkRemoveInvalidPoints("LINESTRING (Nan 0, 1 1, Nan Nan, 2 2, 3 NaN)", 
+        "LINESTRING (1 1, 2 2)");
+  }
+
+  //================================================
+  
+  private void checkOrient(String wkt) {
+    Coordinate[] pts = read(wkt).getCoordinates();
+    //-- orient CW
+    Coordinate[] ptsCW = CoordinateArrays.orient(pts, true);
+    assertEquals(false, Orientation.isCCW(ptsCW));
+    Coordinate[] ptsCCW = CoordinateArrays.orient(pts, false);
+    assertEquals(true, Orientation.isCCW(ptsCCW));
+    //-- check that original is unchanged for same orientation
+    boolean isCCW = Orientation.isCCW(pts);
+    if (isCCW) {
+      assertTrue(pts == ptsCCW);
+    }
+    else {
+      assertTrue(pts == ptsCW);      
+    }
+  }
+
   private static void checkCoordinateAt(Coordinate[] seq1, int pos1,
                                         Coordinate[] seq2, int pos2) {
     Coordinate c1 = seq1[pos1], c2 = seq2[pos2];
@@ -213,4 +252,14 @@ public class CoordinateArraysTest extends GeometryTestCase {
     return sequence;
   }
 
+  private void checkRemoveInvalidPoints(String wkt, String wktExpected) {
+    Coordinate[] pts = read(wkt).getCoordinates();
+    
+    assertTrue(CoordinateArrays.hasRepeatedOrInvalidPoints(pts));
+    
+    Coordinate[] ptsFix = CoordinateArrays.removeRepeatedOrInvalidPoints(pts);
+    Coordinate[] ptsExpected = read(wktExpected).getCoordinates();
+    assertTrue(CoordinateArrays.equals(ptsFix, ptsExpected));
+  }
+  
 }

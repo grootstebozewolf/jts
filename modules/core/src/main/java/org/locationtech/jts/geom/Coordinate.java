@@ -14,6 +14,7 @@ package org.locationtech.jts.geom;
 import java.io.Serializable;
 import java.util.Comparator;
 
+import org.locationtech.jts.math.MathUtil;
 import org.locationtech.jts.util.Assert;
 import org.locationtech.jts.util.NumberUtil;
 
@@ -435,7 +436,20 @@ public class Coordinate implements Comparable<Coordinate>, Cloneable, Serializab
   public double distance(Coordinate c) {
     double dx = x - c.x;
     double dy = y - c.y;
-    return Math.sqrt(dx * dx + dy * dy);
+    return MathUtil.hypot(dx, dy);
+  }
+  
+  /**
+   * Computes the squared 2-dimensional Euclidean distance to another location.
+   * The Z-ordinate is ignored.
+   * 
+   * @param c a point
+   * @return the squared 2-dimensional Euclidean distance between the locations
+   */
+  public double distanceSq(Coordinate c) {
+    double dx = x - c.x;
+    double dy = y - c.y;
+    return dx * dx + dy * dy;
   }
 
   /**

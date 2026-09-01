@@ -13,6 +13,8 @@ package org.locationtech.jts.geom;
 
 import java.io.Serializable;
 
+import org.locationtech.jts.math.MathUtil;
+
 /**
  *  Defines a rectangular region of the 2D coordinate plane.
  *  It is often used to represent the bounding box of a {@link Geometry},
@@ -303,7 +305,7 @@ public class Envelope
     }
     double w = getWidth();
     double h = getHeight();
-    return Math.sqrt(w*w + h*h);
+    return MathUtil.hypot(w, h);
   }
   /**
    *  Returns the <code>Envelope</code>s minimum x-value. min x &gt; max x
@@ -541,6 +543,8 @@ public class Envelope
   /**
    * Tests if the region defined by <code>other</code>
    * intersects the region of this <code>Envelope</code>.
+   * <p>
+   * A null envelope never intersects.
    *
    *@param  other  the <code>Envelope</code> which this <code>Envelope</code> is
    *          being checked for intersecting
@@ -584,6 +588,8 @@ public class Envelope
   /**
    * Tests if the region defined by <code>other</code>
    * is disjoint from the region of this <code>Envelope</code>.
+   * <p>
+   * A null envelope is always disjoint.
    *
    *@param  other  the <code>Envelope</code> being checked for disjointness
    *@return        <code>true</code> if the <code>Envelope</code>s are disjoint
@@ -591,11 +597,7 @@ public class Envelope
    *@see #intersects(Envelope)
    */
   public boolean disjoint(Envelope other) {
-      if (isNull() || other.isNull()) { return true; }
-    return other.minx > maxx ||
-        other.maxx < minx ||
-        other.miny > maxy ||
-        other.maxy < miny;
+    return ! intersects(other);
   }
   
   /**
@@ -698,6 +700,20 @@ public class Envelope
   }
 
   /**
+   * Tests if an envelope is properly contained in this one.
+   * The envelope is properly contained if it is contained 
+   * by this one but not equal to it.
+   * 
+   * @param other the envelope to test
+   * @return true if the envelope is properly contained
+   */
+  public boolean containsProperly(Envelope other) {
+    if (equals(other))
+      return false;
+    return covers(other);
+  }
+  
+  /**
    * Tests if the given point lies in or on the envelope.
    *
    *@param  x  the x-coordinate of the point which this <code>Envelope</code> is
@@ -766,7 +782,7 @@ public class Envelope
     // if either is zero, the envelopes overlap either vertically or horizontally
     if (dx == 0.0) return dy;
     if (dy == 0.0) return dx;
-    return Math.sqrt(dx * dx + dy * dy);
+    return MathUtil.hypot(dx, dy);
   }
 
   public boolean equals(Object other) {

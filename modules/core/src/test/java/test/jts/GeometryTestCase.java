@@ -37,6 +37,8 @@ import junit.framework.TestCase;
 public abstract class GeometryTestCase extends TestCase{
 
   private static final String CHECK_EQUAL_FAIL = "FAIL - Expected = %s -- Actual = %s\n";
+  private static final String CHECK_EQUAL_FAIL_MSG = "FAIL - %s: Expected = %s -- Actual = %s\n";
+  private static final String CHECK_NO_AlIAS_FAIL = "FAIL - geometries have aliased coordinates\n";
 
   final GeometryFactory geomFactory;
   
@@ -59,6 +61,10 @@ public abstract class GeometryTestCase extends TestCase{
     return geomFactory;
   }
   
+  protected void checkValid(Geometry geom) {
+    assertTrue(geom.isValid());
+  }
+  
   /**
    * Checks that the normalized values of the expected and actual
    * geometries are exactly equal.
@@ -67,11 +73,28 @@ public abstract class GeometryTestCase extends TestCase{
    * @param actual the actual value
    */
   protected void checkEqual(Geometry expected, Geometry actual) {
-    Geometry actualNorm = actual.norm();
-    Geometry expectedNorm = expected.norm();
-    boolean equal = actualNorm.equalsExact(expectedNorm);
+    checkEqual("", expected, actual);
+  }
+
+  /**
+   * Checks that the normalized values of the expected and actual
+   * geometries are exactly equal.
+   * 
+   * @param expected the expected value
+   * @param actual the actual value
+   */
+  protected void checkEqual(String msg, Geometry expected, Geometry actual) {
+    Geometry actualNorm = actual == null ? null : actual.norm();
+    Geometry expectedNorm = expected == null ? null : expected.norm();
+    boolean equal;
+    if (actualNorm == null || expectedNorm == null) {
+      equal = actualNorm == null && expectedNorm == null;
+    }
+    else {
+      equal = actualNorm.equalsExact(expectedNorm);
+    }
     if (! equal) {
-      System.out.format(CHECK_EQUAL_FAIL, expectedNorm, actualNorm );
+      System.out.format(CHECK_EQUAL_FAIL_MSG, msg, expectedNorm, actualNorm );
     }
     assertTrue(equal);
   }
@@ -91,6 +114,14 @@ public abstract class GeometryTestCase extends TestCase{
     assertTrue(equal);
   }
 
+  protected void checkEqualExact(Geometry expected, Geometry actual, double tolerance) {
+    boolean equal = actual.equalsExact(expected, tolerance);
+    if (! equal) {
+      System.out.format(CHECK_EQUAL_FAIL, expected, actual );
+    }
+    assertTrue(equal);
+  }
+
   protected void checkEqual(Geometry expected, Geometry actual, double tolerance) {
     Geometry actualNorm = actual.norm();
     Geometry expectedNorm = expected.norm();
@@ -104,7 +135,7 @@ public abstract class GeometryTestCase extends TestCase{
   protected void checkEqualXYZ(Geometry expected, Geometry actual) {
     Geometry actualNorm = actual.norm();
     Geometry expectedNorm = expected.norm();
-    boolean equal = equalsExactXYZ(actualNorm, expectedNorm);
+    boolean equal = equalsExactMultipleDimension(actualNorm, expectedNorm, 3);
     if (! equal) {
       System.out.format(CHECK_EQUAL_FAIL, 
           writerZ.write(expectedNorm), 
@@ -112,22 +143,34 @@ public abstract class GeometryTestCase extends TestCase{
     }
     assertTrue(equal);
   }
+
+  protected void checkEqualXYZM(Geometry expected, Geometry actual) {
+    Geometry actualNorm = actual.norm();
+    Geometry expectedNorm = expected.norm();
+    boolean equal = equalsExactMultipleDimension(actualNorm, expectedNorm, 4);
+    if (! equal) {
+      System.out.format(CHECK_EQUAL_FAIL,
+          writerZ.write(expectedNorm),
+          writerZ.write(actualNorm) );
+    }
+    assertTrue(equal);
+  }
   
-  private boolean equalsExactXYZ(Geometry a, Geometry b) {
+  private boolean equalsExactMultipleDimension(Geometry a, Geometry b, int dimension) {
     if (a.getClass() != b.getClass()) return false;
     if (a.getNumGeometries() != b.getNumGeometries()) return false;
     if (a instanceof Point) {
-      return isEqualDim(((Point) a).getCoordinateSequence(), ((Point) b).getCoordinateSequence(), 3);
+      return isEqualDim(((Point) a).getCoordinateSequence(), ((Point) b).getCoordinateSequence(), dimension);
     }
     else if (a instanceof LineString) {
-      return isEqualDim(((LineString) a).getCoordinateSequence(), ((LineString) b).getCoordinateSequence(), 3);
+      return isEqualDim(((LineString) a).getCoordinateSequence(), ((LineString) b).getCoordinateSequence(), dimension);
     }
     else if (a instanceof Polygon) {
-      return equalsExactXYZPolygon( (Polygon) a, (Polygon) b);
+      return equalsExactMultipleDimensionPolygon( (Polygon) a, (Polygon) b, dimension);
     }
     else if (a instanceof GeometryCollection) {
       for (int i = 0; i < a.getNumGeometries(); i++) {
-        if (! equalsExactXYZ(a.getGeometryN(i), b.getGeometryN(i)))
+        if (! equalsExactMultipleDimension(a.getGeometryN(i), b.getGeometryN(i), dimension))
           return false;
       }
       return true;
@@ -135,20 +178,27 @@ public abstract class GeometryTestCase extends TestCase{
     return false;
   }
 
-  private boolean equalsExactXYZPolygon(Polygon a, Polygon b) {
+  private boolean equalsExactMultipleDimensionPolygon(Polygon a, Polygon b, int dimension) {
     LinearRing aShell = a.getExteriorRing();
     LinearRing bShell = b.getExteriorRing();
-    if (! isEqualDim(aShell.getCoordinateSequence(), bShell.getCoordinateSequence(), 3))
+    if (! isEqualDim(aShell.getCoordinateSequence(), bShell.getCoordinateSequence(), dimension))
       return false;
     if (a.getNumInteriorRing() != b.getNumInteriorRing())
       return false;
     for (int i = 0; i < a.getNumInteriorRing(); i++) {
       LinearRing aHole = a.getInteriorRingN(i);
       LinearRing bHole = b.getInteriorRingN(i);
-      if (! isEqualDim(aHole.getCoordinateSequence(), bHole.getCoordinateSequence(), 3))
+      if (! isEqualDim(aHole.getCoordinateSequence(), bHole.getCoordinateSequence(), dimension))
         return false;        
     }
     return true;
+  }
+
+  protected void checkEqual(Geometry[] expected, Geometry[] actual) {
+    assertEquals("Array length", expected.length, actual.length);
+    for (int i = 0; i < expected.length; i++) {
+      checkEqual("element " + i, expected[i], actual[i]);      
+    }
   }
 
   protected void checkEqual(Collection expected, Collection actual) {
@@ -169,7 +219,6 @@ public abstract class GeometryTestCase extends TestCase{
     assertEquals("Coordinate Y", expected.getY(), actual.getY() );
     assertEquals("Coordinate Z", expected.getZ(), actual.getZ() );
   }
-  
   protected void checkEqualXY(String message, Coordinate expected, Coordinate actual) {
     assertEquals(message + " X", expected.getX(), actual.getX() );
     assertEquals(message + " Y", expected.getY(), actual.getY() );
@@ -184,7 +233,43 @@ public abstract class GeometryTestCase extends TestCase{
     assertEquals(message + " X", expected.getX(), actual.getX(), tolerance);
     assertEquals(message + " Y", expected.getY(), actual.getY(), tolerance);
   }
- 
+  
+  protected void checkEqual(LineSegment expected, LineSegment actual, double tolerance) {
+    boolean equal;
+    if (actual == null || expected == null) {
+      equal = actual == null && expected == null;
+    }
+    else {
+      equal = isEqual(actual, expected, tolerance);
+    }
+    if (! equal) {
+      System.out.format(CHECK_EQUAL_FAIL_MSG, expected, actual );
+    }
+    assertTrue(equal);
+  }
+  
+  private boolean isEqual(LineSegment actual, LineSegment expected, double tolerance) {
+    return expected.getCoordinate(0).equals2D(actual.getCoordinate(0), tolerance)
+        && expected.getCoordinate(1).equals2D(actual.getCoordinate(1), tolerance);
+    
+  }
+
+  protected void checkNoAlias(Geometry geom, Geometry geom2) {
+    Geometry geom2Copy = geom2.copy();
+    geom.apply(new CoordinateFilter() {
+
+      @Override
+      public void filter(Coordinate coord) {
+        coord.x = coord.x + 1;
+      }
+      
+    });
+    boolean equal = geom2.equalsExact(geom2Copy);
+    if (! equal) {
+      System.out.println(CHECK_NO_AlIAS_FAIL);
+      fail();
+    }
+  }
   
   /**
    * Reads a {@link Geometry} from a WKT string using a custom {@link GeometryFactory}.
@@ -230,6 +315,14 @@ public abstract class GeometryTestCase extends TestCase{
     return geometries;
   }
 
+  protected Geometry[] readArray(String... wkt) {
+    Geometry[] geometries = new Geometry[wkt.length];
+    for (int i = 0; i < wkt.length; i++) {
+      geometries[i] = (wkt[i] == null) ? null : read(wkt[i]);
+    }
+    return geometries;
+  }
+  
   /**
    * Gets a {@link WKTReader} to read geometries from WKT with expected ordinates.
    *

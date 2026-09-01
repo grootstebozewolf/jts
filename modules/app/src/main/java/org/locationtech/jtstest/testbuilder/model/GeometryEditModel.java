@@ -12,26 +12,35 @@
 
 package org.locationtech.jtstest.testbuilder.model;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Vector;
 
-import org.locationtech.jts.geom.*;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateArrays;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.WKTWriter;
 import org.locationtech.jts.util.Assert;
-import org.locationtech.jtstest.*;
 import org.locationtech.jtstest.testbuilder.JTSTestBuilder;
-import org.locationtech.jtstest.testbuilder.geom.*;
+import org.locationtech.jtstest.testbuilder.geom.AdjacentVertexFinder;
+import org.locationtech.jtstest.testbuilder.geom.GeometryElementLocater;
+import org.locationtech.jtstest.testbuilder.geom.GeometryCombiner;
+import org.locationtech.jtstest.testbuilder.geom.GeometryLocation;
+import org.locationtech.jtstest.testbuilder.geom.GeometryPointLocater;
+import org.locationtech.jtstest.testbuilder.geom.GeometryUtil;
+import org.locationtech.jtstest.testbuilder.geom.GeometryVertexMover;
 
 
 /**
  * Holds the current {@link TestCaseEdit}.
  * 
  * @author Martin Davis
- * @author Jeroen Bloemscheer
  *
  */
 public class GeometryEditModel 
 {
-  private static WKTWriter wktWriter = new WKTWriter();
+  private static WKTWriter wktWriter = new org.locationtech.jts.io.curve.CurveWKTWriter();
 
   private boolean readOnly = true;
 
@@ -142,6 +151,7 @@ public class GeometryEditModel
 
   public static String toStringVeryLarge(Geometry g)
   {
+    if (g == null) return "";
     return "[[ " + GeometryUtil.structureSummary(g) + " ]]";
   }
   
@@ -150,6 +160,7 @@ public class GeometryEditModel
 
   public Geometry getResult() {
 //    return result;
+    if (testCase == null) return null;
     return testCase.getResult();
   }
 
@@ -160,6 +171,7 @@ public class GeometryEditModel
   
   public Geometry getGeometry(int i)
   {
+    if (testCase == null) return null;
     return testCase.getGeometry(i);
   }
   
@@ -260,11 +272,38 @@ public class GeometryEditModel
       break;
     case GeometryType.LINESTRING:
       Coordinate[] pts = CoordinateArrays.toCoordinateArray(coordList);
-      newGeom = creator.addLineString(getGeometry(), pts);      
+      newGeom = creator.addLineString(getGeometry(), pts);
       break;
     case GeometryType.CIRCULARSTRING:
-      Coordinate[] Circular = CoordinateArrays.toCoordinateArray(coordList);
-      newGeom = creator.addCircularString(getGeometry(), Circular);      
+      Coordinate[] arcPts = CoordinateArrays.toCoordinateArray(coordList);
+      newGeom = creator.addCircularString(getGeometry(), arcPts);
+      break;
+    case GeometryType.COMPOUNDCURVE:
+      Coordinate[] ccPts = CoordinateArrays.toCoordinateArray(coordList);
+      if (ccPts.length == 2) {
+        newGeom = creator.addCompoundCurveLine(getGeometry(), ccPts);
+      }
+      else {
+        Coordinate[][] ccPieces = GeometryCombiner.circularStringPieces(ccPts);
+        if (ccPieces == null) {
+          newGeom = getGeometry();
+        }
+        else {
+          newGeom = creator.addCompoundCurve(getGeometry(), ccPieces);
+        }
+      }
+      break;
+    case GeometryType.CURVEPOLYGON:
+      Coordinate[] cpPts = CoordinateArrays.toCoordinateArray(coordList);
+      newGeom = creator.addCurvePolygon(getGeometry(), cpPts);
+      break;
+    case GeometryType.TRIANGLE:
+      Coordinate[] triPts = CoordinateArrays.toCoordinateArray(coordList);
+      newGeom = creator.addTriangle(getGeometry(), triPts);
+      break;
+    case GeometryType.TIN:
+      Coordinate[] tinPts = CoordinateArrays.toCoordinateArray(coordList);
+      newGeom = creator.addTin(getGeometry(), tinPts);
       break;
     case GeometryType.POINT:
       newGeom = creator.addPoint(getGeometry(), (Coordinate) coordList.get(0));      
@@ -326,6 +365,13 @@ public class GeometryEditModel
     Geometry geom = getGeometry();
     if (geom == null) return null;
     return GeometryPointLocater.locateVertex(getGeometry(), testPt, tolerance);
+  }
+  
+  public List<GeometryLocation> getElements(Coordinate testPt, double tolerance)
+  {
+    Geometry geom = getGeometry();
+    if (geom == null) return null;
+    return GeometryElementLocater.getElements(getGeometry(), testPt, tolerance);
   }
   
   public Coordinate locateVertexPt(Coordinate testPt, double tolerance)

@@ -1,0 +1,57 @@
+{
+  "id": "CurveExample.clothoidRailBend.half-moon.pr7",
+  "claimId": "TB-AP-CURVEEXAMPLE-CLOTHOIDRAILBEND",
+  "category": "CurveExample",
+  "function": "clothoidRailBend",
+  "branch": "pr7",
+  "tags": [
+    "tb-appium",
+    "CurveExample",
+    "clothoidRailBend",
+    "half-moon"
+  ],
+  "golden": true,
+  "skipped": false,
+  "fixtureFile": "_fixtures/pr7-half-moon.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "CurveExample",
+        "clothoidRailBend"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "clothoidRailBend",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "preserveCurveAware": true
+  },
+  "notes": "pr7-only \u00b7 pr7 half-moon",
+  "optionB": {
+    "contract": "Draft v6 MMF Option B",
+    "defaultStrategy": "LINEARIZED",
+    "requiresWarnOnDensify": true,
+    "overlayName": "OverlayNGCurve"
+  }
+}

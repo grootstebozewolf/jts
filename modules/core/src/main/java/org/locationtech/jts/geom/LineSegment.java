@@ -18,6 +18,8 @@ import org.locationtech.jts.algorithm.Intersection;
 import org.locationtech.jts.algorithm.LineIntersector;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.algorithm.RobustLineIntersector;
+import org.locationtech.jts.io.WKTConstants;
+import org.locationtech.jts.math.MathUtil;
 
 
 /**
@@ -159,7 +161,7 @@ public class LineSegment
       return Math.max(orient0, orient1);
     // this handles the case where the points are R or collinear
     if (orient0 <= 0 && orient1 <= 0)
-      return Math.max(orient0, orient1);
+      return Math.min(orient0, orient1);
     // points lie on opposite sides ==> indeterminate orientation
     return 0;
   }
@@ -259,14 +261,40 @@ public class LineSegment
   /**
    * Computes the perpendicular distance between the (infinite) line defined
    * by this line segment and a point.
+   * If the segment has zero length this returns the distance between
+   * the segment and the point.
    *
-   * @return the perpendicular distance between the defined line and the given point
+   * @param p the point to compute the distance to
+   * @return the perpendicular distance between the line and point
    */
   public double distancePerpendicular(Coordinate p)
   {
+    if (p0.equals2D(p1))
+      return p0.distance(p);
     return Distance.pointToLinePerpendicular(p, p0, p1);
   }
 
+  /**
+   * Computes the oriented perpendicular distance between the (infinite) line
+   * defined by this line segment and a point.
+   * The oriented distance is positive if the point on the left of the line,
+   * and negative if it is on the right.
+   * If the segment has zero length this returns the distance between
+   * the segment and the point.
+   * 
+   * @param p the point to compute the distance to
+   * @return the oriented perpendicular distance between the line and point
+   */
+  public double distancePerpendicularOriented(Coordinate p)
+  {
+    if (p0.equals2D(p1))
+      return p0.distance(p);
+    double dist = distancePerpendicular(p);
+    if (orientationIndex(p) < 0)
+      return -dist;
+    return dist;
+  }
+  
   /**
    * Computes the {@link Coordinate} that lies a given
    * fraction along the line defined by this segment.
@@ -310,7 +338,7 @@ public class LineSegment
     
     double dx = p1.x - p0.x;
     double dy = p1.y - p0.y;
-    double len = Math.sqrt(dx * dx + dy * dy);
+    double len = MathUtil.hypot(dx, dy);
     double ux = 0.0;
     double uy = 0.0;
     if (offsetDistance != 0.0) {
@@ -339,36 +367,39 @@ public class LineSegment
    * equal the vector for the projection of <tt>p</tt> on the line
    * defined by this segment.
    * <p>
-   * The projection factor will lie in the range <tt>(-inf, +inf)</tt>,
-   * or be <code>NaN</code> if the line segment has zero length..
+   * The projection factor lies in the range <tt>(-inf, +inf)</tt>.
+   * It is <code>NaN</code> if the line segment has zero length..
    * 
    * @param p the point to compute the factor for
-   * @return the projection factor for the point
+   * @return the projection factor for the point, or NaN
    */
   public double projectionFactor(Coordinate p)
   {
     if (p.equals(p0)) return 0.0;
     if (p.equals(p1)) return 1.0;
-    // Otherwise, use comp.graphics.algorithms Frequently Asked Questions method
-    /*     	      AC dot AB
+    /**
+     * Use comp.graphics.algorithms Frequently Asked Questions method
+     * 
+                	      AC dot AB
                    r = ---------
                          ||AB||^2
+                         
                 r has the following meaning:
-                r=0 P = A
-                r=1 P = B
-                r<0 P is on the backward extension of AB
-                r>1 P is on the forward extension of AB
+                r=0 : P = A
+                r=1 : P = B
+                r<0 : P is on the backward extension of AB
+                r>1 : P is on the forward extension of AB
                 0<r<1 P is interior to AB
         */
     double dx = p1.x - p0.x;
     double dy = p1.y - p0.y;
-    double len = dx * dx + dy * dy;
+    double lenSq = dx * dx + dy * dy;
     
     // handle zero-length segments
-    if (len <= 0.0) return Double.NaN;
+    if (lenSq <= 0.0) return Double.NaN;
     
     double r = ( (p.x - p0.x) * dx + (p.y - p0.y) * dy )
-              / len;
+              / lenSq;
     return r;
   }
 
@@ -409,11 +440,17 @@ public class LineSegment
     if (p.equals(p0) || p.equals(p1)) return p.copy();
 
     double r = projectionFactor(p);
+    return project(p, r);
+  }
+  
+  private Coordinate project(Coordinate p, double projectionFactor)
+  {
     Coordinate coord = p.copy();
-    coord.x = p0.x + r * (p1.x - p0.x);
-    coord.y = p0.y + r * (p1.y - p0.y);
+    coord.x = p0.x + projectionFactor * (p1.x - p0.x);
+    coord.y = p0.y + projectionFactor * (p1.y - p0.y);
     return coord;
   }
+  
   /**
    * Project a line segment onto this line segment and return the resulting
    * line segment.  The returned line segment will be a subset of
@@ -431,16 +468,30 @@ public class LineSegment
     double pf0 = projectionFactor(seg.p0);
     double pf1 = projectionFactor(seg.p1);
     // check if segment projects at all
-    if (pf0 >= 1.0 && pf1 >= 1.0) return null;
-    if (pf0 <= 0.0 && pf1 <= 0.0) return null;
+    if (pf0 > 1.0 && pf1 > 1.0) return null;
+    if (pf0 < 0.0 && pf1 < 0.0) return null;
 
-    Coordinate newp0 = project(seg.p0);
-    if (pf0 < 0.0) newp0 = p0;
-    if (pf0 > 1.0) newp0 = p1;
+    Coordinate newp0;
+    if (pf0 < 0.0) {
+      newp0 = p0;
+    }
+    else if (pf0 > 1.0) {
+      newp0 = p1;
+    }
+    else {
+      newp0 = project(seg.p0, pf0);
+    }
 
-    Coordinate newp1 = project(seg.p1);
-    if (pf1 < 0.0) newp1 = p0;
-    if (pf1 > 1.0) newp1 = p1;
+    Coordinate newp1;
+    if (pf1 < 0.0) {
+      newp1 = p0;
+    }
+    else if (pf1 > 1.0) {
+      newp1 = p1;
+    }
+    else {
+      newp1 = project(seg.p1, pf1);
+    }
 
     return new LineSegment(newp0, newp1);
   }
@@ -500,7 +551,7 @@ public class LineSegment
   {
     double factor = projectionFactor(p);
     if (factor > 0 && factor < 1) {
-      return project(p);
+      return project(p, factor);
     }
     double dist0 = p0.distance(p);
     double dist1 = p1.distance(p);
@@ -641,6 +692,15 @@ public class LineSegment
    * @return a hashcode for this object
    */
   public int hashCode() {
+    int hash = 17;
+    hash = hash * 29 + Double.hashCode(p0.x);
+    hash = hash * 29 + Double.hashCode(p0.y);
+    hash = hash * 29 + Double.hashCode(p1.x);
+    hash = hash * 29 + Double.hashCode(p1.y);
+    return hash;
+  }
+
+  public int OLDhashCode() {
     long bits0 = java.lang.Double.doubleToLongBits(p0.x);
     bits0 ^= java.lang.Double.doubleToLongBits(p0.y) * 31;
     int hash0 = (((int) bits0) ^ ((int) (bits0  >> 32)));
@@ -652,7 +712,7 @@ public class LineSegment
     // XOR is supposed to be a good way to combine hashcodes
     return hash0 ^ hash1;
   }
-
+  
   /**
    *  Compares this object with the specified object for order.
    *  Uses the standard lexicographic ordering for the points in the LineSegment.
@@ -687,7 +747,7 @@ public class LineSegment
 
   public String toString()
   {
-    return "LINESTRING( " +
+    return WKTConstants.LINESTRING + " (" +
         p0.x + " " + p0.y
         + ", " +
         p1.x + " " + p1.y + ")";

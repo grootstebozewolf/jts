@@ -18,17 +18,17 @@ import java.util.List;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.GeometryMapper;
-import org.locationtech.jts.geom.util.LinearComponentExtracter;
 import org.locationtech.jts.geom.util.GeometryMapper.MapOp;
+import org.locationtech.jts.geom.util.LinearComponentExtracter;
 import org.locationtech.jts.noding.SegmentString;
+import org.locationtech.jts.operation.buffer.BufferCurveSetBuilder;
 import org.locationtech.jts.operation.buffer.BufferInputLineSimplifier;
 import org.locationtech.jts.operation.buffer.BufferOp;
 import org.locationtech.jts.operation.buffer.BufferParameters;
 import org.locationtech.jts.operation.buffer.OffsetCurveBuilder;
-import org.locationtech.jts.operation.buffer.BufferCurveSetBuilder;
 import org.locationtech.jts.operation.buffer.VariableBuffer;
 import org.locationtech.jts.operation.buffer.validate.BufferResultValidator;
 import org.locationtech.jtstest.geomfunction.Metadata;
@@ -38,7 +38,7 @@ public class BufferFunctions {
 	
 	public static String bufferDescription = "Buffers a geometry by a distance";
 	
-	@Metadata(description="Buffer a geometry by a distance")
+	@Metadata(description="Buffer a geometry by a distance", curveAwareness="passthrough")
   public static Geometry buffer(Geometry g, double distance)    {   return g.buffer(distance);  }
 
 	public static Geometry bufferWithParams(Geometry g, 
@@ -101,10 +101,22 @@ public class BufferFunctions {
     if (capStyle != null)	bufParams.setEndCapStyle(capStyle.intValue());
     if (joinStyle != null) 	bufParams.setJoinStyle(joinStyle.intValue());
     if (mitreLimit != null) 	bufParams.setMitreLimit(mitreLimit.doubleValue());
-    
-    return buildCurveSet(g, dist, bufParams);
+
+    Geometry input = linearizeForBuffer(g, dist);
+    return buildCurveSet(input, dist, bufParams);
 	}
-	
+
+  /**
+   * The buffer curve builder is chord-based, so a curve must be densified
+   * first. The tolerance is tied to the buffer distance rather than chosen:
+   * deviation that is small relative to the offset cannot show up in the
+   * result. Use {@code Curve.toLinear} to linearise at a tolerance of your own.
+   */
+  private static Geometry linearizeForBuffer(Geometry g, double bufferDistance) {
+    double tol = Math.max(0.001, Math.abs(bufferDistance) / 100.0);
+    return CurveFunctions.linearize(g, tol);
+  }
+
   private static Geometry buildCurveSet(Geometry g, double dist, BufferParameters bufParams)
   {
     // --- now construct curve
@@ -143,10 +155,19 @@ public class BufferFunctions {
     return simpGeom;
   }
 
+  /**
+   * Validates against the same linearised geometry the buffer effectively used.
+   * g.buffer() is arc-aware (CRV-OPS densifies the arc), but
+   * BufferResultValidator measures from coordinates -- the chords -- and the
+   * arc of CIRCULARSTRING (1 0, 1 1, 0 1) bulges 0.207 outside its chords, so
+   * the validator rejected a correct 0.1 buffer as "too small (0.066)". One
+   * function was comparing two different geometries and blaming the answer.
+   */
   public static Geometry bufferValidated(Geometry g, double distance)
   {
-    Geometry buf = g.buffer(distance);
-    String errMsg = BufferResultValidator.isValidMsg(g, distance, buf);
+    Geometry input = CurveFunctions.linearizeForOps(g);
+    Geometry buf = input.buffer(distance);
+    String errMsg = BufferResultValidator.isValidMsg(input, distance, buf);
     if (errMsg != null)
       throw new IllegalStateException("Buffer Validation error: " + errMsg);
     return buf;
@@ -154,8 +175,9 @@ public class BufferFunctions {
 
   public static Geometry bufferValidatedGeom(Geometry g, double distance)
   {
-    Geometry buf = g.buffer(distance);
-    BufferResultValidator validator = new BufferResultValidator(g, distance, buf);    
+    Geometry input = CurveFunctions.linearizeForOps(g);
+    Geometry buf = input.buffer(distance);
+    BufferResultValidator validator = new BufferResultValidator(input, distance, buf);
     boolean isValid = validator.isValid();
     return validator.getErrorIndicator();
   }
@@ -202,6 +224,7 @@ public class BufferFunctions {
     if (line instanceof Polygon) {
       line = ((Polygon) line).getExteriorRing();
     }
+    line = linearizeCurveForVariableBuffer(line);
     return VariableBuffer.buffer(line, startDist, endDist);
   }
   
@@ -215,7 +238,24 @@ public class BufferFunctions {
     if (line instanceof Polygon) {
       line = ((Polygon) line).getExteriorRing();
     }
+    line = linearizeCurveForVariableBuffer(line);
     return VariableBuffer.buffer(line, startDist, midDist, startDist);
+  }
+
+  /**
+   * VBF honesty (#1195): VariableBuffer samples vertices by cumulative
+   * length. Curve inputs densify by equal <em>arc length</em> via
+   * {@link CurveOps#lineariseArcLength} (strategy + warn), never silent
+   * control-polygon flatten. Emitting arc-preserving variable offsets
+   * remains the full TAG meter.
+   */
+  private static Geometry linearizeCurveForVariableBuffer(Geometry g) {
+    if (g instanceof org.locationtech.jts.geom.curve.Linearizable
+        || g instanceof org.locationtech.jts.geom.curve.CircularString
+        || g instanceof org.locationtech.jts.geom.curve.CompoundCurve) {
+      return org.locationtech.jts.geom.curve.CurveOps.lineariseArcLength(g, 16);
+    }
+    return g;
   }
   
   public static Geometry bufferRadius(Geometry radiusLine) {

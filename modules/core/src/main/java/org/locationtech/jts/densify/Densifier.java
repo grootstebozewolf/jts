@@ -51,9 +51,44 @@ public class Densifier {
 	 * @return the densified geometry
 	 */
 	public static Geometry densify(Geometry geom, double distanceTolerance) {
+		Geometry curveLinear = densifyCurveViaToLinear(geom, distanceTolerance);
+		if (curveLinear != null) {
+			return curveLinear;
+		}
 		Densifier densifier = new Densifier(geom);
 		densifier.setDistanceTolerance(distanceTolerance);
 		return densifier.getResultGeometry();
+	}
+
+	/**
+	 * DSF (#1195): when {@code geom} is a jts-curve {@code Linearizable}
+	 * type, densify by {@code toLinear(tolerance)} so samples lie on the
+	 * arc, not the control chord. Detection uses the class package name so
+	 * core does not import jts-curve.
+	 *
+	 * @return densified geometry, or {@code null} to use chord densify
+	 */
+	private static Geometry densifyCurveViaToLinear(Geometry geom,
+			double distanceTolerance) {
+		if (geom == null) {
+			return null;
+		}
+		String cn = geom.getClass().getName();
+		if (cn.indexOf(".geom.curve.") < 0) {
+			return null;
+		}
+		try {
+			java.lang.reflect.Method m = geom.getClass().getMethod("toLinear",
+					double.class);
+			Object out = m.invoke(geom, Double.valueOf(distanceTolerance));
+			if (out instanceof Geometry) {
+				return (Geometry) out;
+			}
+		}
+		catch (ReflectiveOperationException ex) {
+			return null;
+		}
+		return null;
 	}
 
 	/**
@@ -83,7 +118,10 @@ public class Densifier {
 			for (int j = 1; j < densifiedSegCount; j++) {
 				double segFract = (j * densifiedSegLen) / len;
 				Coordinate p = seg.pointAlong(segFract);
-        precModel.makePrecise(p);
+				if(!Double.isNaN(seg.p0.z) && !Double.isNaN(seg.p1.z)) {
+					p.setZ(seg.p0.z + segFract * (seg.p1.z - seg.p0.z));
+				}
+        		precModel.makePrecise(p);
 				coordList.add(p, false);
 			}
 		}

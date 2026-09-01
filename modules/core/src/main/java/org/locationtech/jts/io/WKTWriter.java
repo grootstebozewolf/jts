@@ -16,14 +16,12 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.EnumSet;
+import java.util.Locale;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
-import org.locationtech.jts.geom.CoordinateSequenceFilter;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
-import org.locationtech.jts.geom.CircularString;
-import org.locationtech.jts.geom.MultiCircularString;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiLineString;
@@ -32,6 +30,7 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.SqlMmTypes;
 import org.locationtech.jts.util.Assert;
 
 /**
@@ -48,9 +47,24 @@ import org.locationtech.jts.util.Assert;
  * <p>
  * The SFS WKT spec does not define a special tag for {@link LinearRing}s.
  * Under the spec, rings are output as <code>LINESTRING</code>s.
- * In order to allow precisely specifying constructed geometries, 
- * JTS also supports a non-standard <code>LINEARRING</code> tag which is used 
+ * In order to allow precisely specifying constructed geometries,
+ * JTS also supports a non-standard <code>LINEARRING</code> tag which is used
  * to output LinearRings.
+ * <p>
+ * <b>Extension:</b> this class is designed to be subclassed to support
+ * OGC SFA / ISO 19125-2 extended geometry types. The keyword for each
+ * tagged-text emission is now read from
+ * {@code geometry.getGeometryType().toUpperCase()}, so {@link Geometry}
+ * subclasses with structurally compatible bodies emit their own
+ * keyword without any new dispatch branches. For types that need
+ * different bodies (e.g. preserving member structure in
+ * {@code CompoundCurve}), subclasses should override
+ * {@link #appendOtherGeometryTaggedText}, which is invoked early in
+ * the dispatch ladder. Helpers for composing emission output
+ * ({@link #indent}, {@link #appendOrdinateText},
+ * {@link #appendSequenceText}, {@link #appendPolygonText},
+ * {@link #appendMultiLineStringText}, {@link #appendMultiPolygonText})
+ * are exposed as {@code protected}.
  *
  * @version 1.7
  * @see WKTReader
@@ -177,60 +191,6 @@ public class WKTWriter
     return buf.toString();
   }
 
-  /**
-   * A filter implementation to test if a coordinate sequence actually has
-   * meaningful values for an ordinate bit-pattern
-   */
-  private class CheckOrdinatesFilter implements CoordinateSequenceFilter {
-
-    private final EnumSet<Ordinate> checkOrdinateFlags;
-    private final EnumSet<Ordinate> outputOrdinates;
-
-    /**
-     * Creates an instance of this class
-
-     * @param checkOrdinateFlags the index for the ordinates to test.
-     */
-    private CheckOrdinatesFilter(EnumSet<Ordinate> checkOrdinateFlags) {
-
-      this.outputOrdinates = EnumSet.of(Ordinate.X, Ordinate.Y);
-      this.checkOrdinateFlags = checkOrdinateFlags;
-    }
-
-    /** @see org.locationtech.jts.geom.CoordinateSequenceFilter#isGeometryChanged */
-    public void filter(CoordinateSequence seq, int i) {
-
-      if (checkOrdinateFlags.contains(Ordinate.Z) && !outputOrdinates.contains(Ordinate.Z)) {
-        if (!Double.isNaN(seq.getZ(i)))
-          outputOrdinates.add(Ordinate.Z);
-      }
-
-      if (checkOrdinateFlags.contains(Ordinate.M) && !outputOrdinates.contains(Ordinate.M)) {
-        if (!Double.isNaN(seq.getM(i)))
-          outputOrdinates.add(Ordinate.M);
-      }
-    }
-
-    /** @see org.locationtech.jts.geom.CoordinateSequenceFilter#isGeometryChanged */
-    public boolean isGeometryChanged() {
-      return false;
-    }
-
-    /** @see org.locationtech.jts.geom.CoordinateSequenceFilter#isDone */
-    public boolean isDone() {
-      return outputOrdinates.equals(checkOrdinateFlags);
-    }
-
-    /**
-     * Gets the evaluated ordinate bit-pattern
-     *
-     * @return A bit-pattern of ordinates with valid values masked by {@link #checkOrdinateFlags}.
-     */
-    EnumSet<Ordinate> getOutputOrdinates() {
-      return outputOrdinates;
-    }
-  }
-
   private EnumSet<Ordinate> outputOrdinates;
   private final int outputDimension;
   private PrecisionModel precisionModel = null;
@@ -259,10 +219,11 @@ public class WKTWriter
    *   is set to false</b>, the Measure value of coordinates will be written if it is present
    * (i.e. if it is not <code>Double.NaN</code>)</li>
    *   <li>If the specified <b>output dimension is 4</b>, the Z value of coordinates will
-   *   be written even if it is not present when the Measure value is present.The Measrue
+   *   be written even if it is not present when the Measure value is present. The Measure
    *   value of coordinates will be written if it is present
    * (i.e. if it is not <code>Double.NaN</code>)</li>
    * </ul>
+   * See also {@link #setOutputOrdinates(EnumSet)}
    *
    * @param outputDimension the coordinate dimension to output (2 to 4)
    */
@@ -499,16 +460,23 @@ public class WKTWriter
   {
     indent(useFormatting, level, writer);
 
+    // Extension hook for SQL/MM ISO/IEC 13249-3 types 8–12.
+    if (appendOtherGeometryTaggedText(geometry, outputOrdinates, useFormatting,
+            level, writer, formatter)) {
+      return;
+    }
+
+    // CIRCULARSTRING keyword via getGeometryType() is OK. CompoundCurve
+    // members must not collapse to one seq tagged COMPOUNDCURVE.
+    // Refuse this geometry only — collections dispatch members themselves.
+    SqlMmTypes.refuseOne(geometry, "WKTWriter", true);
+
     if (geometry instanceof Point) {
       appendPointTaggedText((Point) geometry, outputOrdinates, useFormatting,
               level, writer, formatter);
     }
     else if (geometry instanceof LinearRing) {
       appendLinearRingTaggedText((LinearRing) geometry, outputOrdinates, useFormatting,
-              level, writer, formatter);
-    }
-    else if (geometry instanceof CircularString) {
-      appendCircularStringTaggedText((CircularString) geometry, outputOrdinates, useFormatting,
               level, writer, formatter);
     }
     else if (geometry instanceof LineString) {
@@ -542,6 +510,29 @@ public class WKTWriter
   }
 
   /**
+   * Hook for subclasses to write geometry types not handled by the core
+   * dispatch (extended OGC SFA / ISO 19125-2 types such as
+   * {@code CircularString}, {@code CompoundCurve}, {@code CurvePolygon},
+   * {@code MultiCurve}, {@code MultiSurface}, {@code Triangle},
+   * {@code PolyhedralSurface}, {@code Tin}).
+   * <p>
+   * Called early in {@link #appendGeometryTaggedText} so that subclasses
+   * can intercept geometries that would otherwise be routed to a parent
+   * class's handler by the {@code instanceof} ladder. Implementations
+   * should return {@code true} if the geometry was written, and
+   * {@code false} if the core dispatch should proceed.
+   * <p>
+   * The default implementation returns {@code false}, preserving the
+   * previous behaviour.
+   */
+  protected boolean appendOtherGeometryTaggedText(
+          Geometry geometry, EnumSet<Ordinate> outputOrdinates, boolean useFormatting,
+          int level, Writer writer, OrdinateFormat formatter)
+      throws IOException {
+    return false;
+  }
+
+  /**
    *  Converts a <code>Coordinate</code> to &lt;Point Tagged Text&gt; format,
    *  then appends it to the writer.
    *
@@ -564,28 +555,6 @@ public class WKTWriter
   }
 
   /**
-   *  Converts a <code>CircularString</code> to &lt;CircularString Tagged Text&gt;
-   *  format, then appends it to the writer.
-   *
-   * @param  CircularString  the <code>CircularString</code> to process
-   * @param  useFormatting      flag indicating that the output should be formatted
-   * @param  level              the indentation level
-   * @param  writer             the output writer to append to
-   * @param  formatter       the <code>DecimalFormatter</code> to use to convert
-   *      from a precise coordinate to an external coordinate
-   */
-  private void appendCircularStringTaggedText(
-          CircularString CircularString, EnumSet<Ordinate> outputOrdinates, boolean useFormatting,
-          int level, Writer writer, OrdinateFormat formatter)
-    throws IOException
-  {
-    writer.write("CIRCULARSTRING ");
-    appendOrdinateText(outputOrdinates, writer);
-    appendSequenceText(CircularString.getCoordinateSequence(), outputOrdinates, useFormatting,
-            level, false, writer, formatter);
-  }
-
-  /**
    *  Converts a <code>LineString</code> to &lt;LineString Tagged Text&gt;
    *  format, then appends it to the writer.
    *
@@ -601,7 +570,7 @@ public class WKTWriter
           int level, Writer writer, OrdinateFormat formatter)
     throws IOException
   {
-    writer.write(WKTConstants.LINESTRING);
+    writer.write(lineString.getGeometryType().toUpperCase(Locale.ROOT));
     writer.write(" ");
     appendOrdinateText(outputOrdinates, writer);
     appendSequenceText(lineString.getCoordinateSequence(), outputOrdinates, useFormatting,
@@ -647,7 +616,7 @@ public class WKTWriter
           int level, Writer writer, OrdinateFormat formatter)
     throws IOException
   {
-    writer.write(WKTConstants.POLYGON);
+    writer.write(polygon.getGeometryType().toUpperCase(Locale.ROOT));
     writer.write(" ");
     appendOrdinateText(outputOrdinates, writer);
     appendPolygonText(polygon, outputOrdinates, useFormatting,
@@ -692,7 +661,7 @@ public class WKTWriter
           int level, Writer writer, OrdinateFormat formatter)
     throws IOException
   {
-    writer.write(WKTConstants.MULTILINESTRING);
+    writer.write(multiLineString.getGeometryType().toUpperCase(Locale.ROOT));
     writer.write(" ");
     appendOrdinateText(outputOrdinates, writer);
     appendMultiLineStringText(multiLineString, outputOrdinates, useFormatting,
@@ -715,7 +684,7 @@ public class WKTWriter
           int level, Writer writer, OrdinateFormat formatter)
     throws IOException
   {
-    writer.write(WKTConstants.MULTIPOLYGON);
+    writer.write(multiPolygon.getGeometryType().toUpperCase(Locale.ROOT));
     writer.write(" ");
     appendOrdinateText(outputOrdinates, writer);
     appendMultiPolygonText(multiPolygon, outputOrdinates, useFormatting,
@@ -805,7 +774,7 @@ public class WKTWriter
    * @param writer         the output writer to append to.
    * @throws IOException   if an error occurs while using the writer.
    */
-  private void appendOrdinateText(EnumSet<Ordinate> outputOrdinates, Writer writer) throws IOException {
+  protected void appendOrdinateText(EnumSet<Ordinate> outputOrdinates, Writer writer) throws IOException {
 
     if (outputOrdinates.contains(Ordinate.Z))
       writer.append(WKTConstants.Z);
@@ -825,7 +794,7 @@ public class WKTWriter
    * @param  writer          the output writer to append to
    * @param  formatter       the formatter to use for writing ordinate values.
    */
-  private void appendSequenceText(CoordinateSequence seq, EnumSet<Ordinate> outputOrdinates, boolean useFormatting,
+  protected void appendSequenceText(CoordinateSequence seq, EnumSet<Ordinate> outputOrdinates, boolean useFormatting,
                                   int level, boolean indentFirst, Writer writer, OrdinateFormat formatter)
     throws IOException
   {
@@ -861,7 +830,7 @@ public class WKTWriter
    * @param  writer          the output writer to append to
    * @param  formatter       the formatter to use for writing ordinate values.
    */
-  private void appendPolygonText(
+  protected void appendPolygonText(
           Polygon polygon, EnumSet<Ordinate> outputOrdinates, boolean useFormatting,
           int level, boolean indentFirst, Writer writer, OrdinateFormat formatter)
     throws IOException
@@ -927,7 +896,7 @@ public class WKTWriter
    * @param  writer           the output writer to append to
    * @param  formatter        the formatter to use for writing ordinate values.
    */
-  private void appendMultiLineStringText(MultiLineString multiLineString, EnumSet<Ordinate> outputOrdinates,
+  protected void appendMultiLineStringText(MultiLineString multiLineString, EnumSet<Ordinate> outputOrdinates,
            boolean useFormatting, int level, /*boolean indentFirst, */Writer writer, OrdinateFormat formatter)
     throws IOException
   {
@@ -961,7 +930,7 @@ public class WKTWriter
    * @param  writer          the output writer to append to
    * @param  formatter       the formatter to use for writing ordinate values.
    */
-  private void appendMultiPolygonText(
+  protected void appendMultiPolygonText(
           MultiPolygon multiPolygon, EnumSet<Ordinate> outputOrdinates, boolean useFormatting,
           int level, Writer writer, OrdinateFormat formatter)
     throws IOException
@@ -1028,7 +997,7 @@ public class WKTWriter
     indent(useFormatting, level, writer);
   }
 
-  private void indent(boolean useFormatting, int level, Writer writer)
+  protected void indent(boolean useFormatting, int level, Writer writer)
     throws IOException
   {
     if (! useFormatting || level <= 0)

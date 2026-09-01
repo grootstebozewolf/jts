@@ -28,36 +28,55 @@ import org.locationtech.jts.operation.overlayng.UnaryUnionNG;
 import org.locationtech.jtstest.geomfunction.Metadata;
 
 public class OverlayNGSRFunctions {
+  /**
+   * Densifies curve operands before handing them to core.
+   * <p>
+   * These are static entry points taking a {@link Geometry}, so a curve type has
+   * no virtual call to override, and left alone they node the chords through the
+   * control points: two concentric circles of radius 5 and 3 intersected in 18
+   * rather than 9*pi. Worse, a CurvePolygon reports an arc-aware area while its
+   * coordinates enclose the chord area, and OverlayNG's own cross-check rejected
+   * that contradiction with
+   * {@code TopologyException("Result area inconsistent with overlay operation")}.
+   * <p>
+   * Non-curve input is returned as the same object, so nothing without an arc is
+   * affected. The arc cannot survive an overlay at any tolerance -- see
+   * {@code CurveOps} -- so the result is a densified plain geometry by necessity.
+   */
+  private static Geometry arc(Geometry g) {
+    return CurveFunctions.linearizeForOps(g);
+  }
+
 
   public static Geometry intersection(Geometry a, Geometry b, 
       @Metadata(title="Grid Scale") double scaleFactor) {
-    return OverlayNG.overlay(a, b, INTERSECTION, new PrecisionModel(scaleFactor));
+    return OverlayNG.overlay(arc(a), arc(b), INTERSECTION, new PrecisionModel(scaleFactor));
   }
   
   public static Geometry union(Geometry a, Geometry b, 
       @Metadata(title="Grid Scale") double scaleFactor) {
-    return OverlayNG.overlay(a, b, UNION, new PrecisionModel(scaleFactor));
+    return OverlayNG.overlay(arc(a), arc(b), UNION, new PrecisionModel(scaleFactor));
   }
   
   public static Geometry difference(Geometry a, Geometry b, 
       @Metadata(title="Grid Scale") double scaleFactor) {
-    return OverlayNG.overlay(a, b, DIFFERENCE, new PrecisionModel(scaleFactor));
+    return OverlayNG.overlay(arc(a), arc(b), DIFFERENCE, new PrecisionModel(scaleFactor));
   }
 
   public static Geometry differenceBA(Geometry a, Geometry b, 
       @Metadata(title="Grid Scale") double scaleFactor) {
-    return OverlayNG.overlay(b, a, DIFFERENCE, new PrecisionModel(scaleFactor));
+    return OverlayNG.overlay(arc(b), arc(a), DIFFERENCE, new PrecisionModel(scaleFactor));
   }
 
   public static Geometry symDifference(Geometry a, Geometry b, 
       @Metadata(title="Grid Scale") double scaleFactor) {
-    return OverlayNG.overlay(a, b, SYMDIFFERENCE, new PrecisionModel(scaleFactor));
+    return OverlayNG.overlay(arc(a), arc(b), SYMDIFFERENCE, new PrecisionModel(scaleFactor));
   }
   
   @Metadata(description="Unary union a collection of geometries")
   public static Geometry unaryUnion(Geometry a, 
       @Metadata(title="Grid Scale") double scaleFactor) {
-    return UnaryUnionNG.union(a, new PrecisionModel(scaleFactor));
+    return UnaryUnionNG.union(arc(a), new PrecisionModel(scaleFactor));
   }
   
   @Metadata(description="Reduce precision of a geometry")
@@ -68,7 +87,7 @@ public class OverlayNGSRFunctions {
      * This ONLY works if the input GeometryCollection 
      * is a non-overlapping polygonal coverage!
      */
-    Geometry homoGeom = extractHomo(a);
+    Geometry homoGeom = extractHomo(arc(a));
     Geometry reduced = PrecisionReducer.reducePrecision(homoGeom, new PrecisionModel(scaleFactor));
     return reduced;
     /*

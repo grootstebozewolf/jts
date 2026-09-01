@@ -1,0 +1,65 @@
+{
+  "id": "Distance.nearestPoints.polygon.upstream",
+  "claimId": "TB-AP-DISTANCE-NEARESTPOINTS",
+  "category": "Distance",
+  "function": "nearestPoints",
+  "branch": "upstream",
+  "tags": [
+    "tb-appium",
+    "Distance",
+    "nearestPoints",
+    "polygon"
+  ],
+  "golden": true,
+  "skipped": false,
+  "fixtureFile": "_fixtures/upstream-polygon.wkt",
+  "fixtureFileB": "_fixtures/upstream-polygon.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.b",
+      "action": "setText",
+      "valueFromFixture": "b"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "Distance",
+        "nearestPoints"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "nearestPoints",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "resultWktContainsAny": [
+      "LINESTRING",
+      "POINT",
+      "MULTIPOINT"
+    ]
+  },
+  "notes": "nearestPoints needs B=same"
+}

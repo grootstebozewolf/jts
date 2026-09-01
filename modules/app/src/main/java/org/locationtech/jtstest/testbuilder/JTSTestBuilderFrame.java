@@ -23,7 +23,6 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.util.Iterator;
 import java.util.List;
-
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
@@ -45,14 +44,6 @@ import org.locationtech.jtstest.testbuilder.model.TestBuilderModel;
 import org.locationtech.jtstest.testbuilder.model.TestCaseEdit;
 import org.locationtech.jtstest.testbuilder.ui.SwingUtil;
 import org.locationtech.jtstest.testbuilder.ui.dnd.FileDrop;
-import org.locationtech.jtstest.testbuilder.ui.tools.DeleteVertexTool;
-import org.locationtech.jtstest.testbuilder.ui.tools.EditVertexTool;
-import org.locationtech.jtstest.testbuilder.ui.tools.ExtractComponentTool;
-import org.locationtech.jtstest.testbuilder.ui.tools.InfoTool;
-import org.locationtech.jtstest.testbuilder.ui.tools.CircularStringTool;
-import org.locationtech.jtstest.testbuilder.ui.tools.LineStringTool;
-import org.locationtech.jtstest.testbuilder.ui.tools.PanTool;
-import org.locationtech.jtstest.testbuilder.ui.tools.PointTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.RectangleTool;
 import org.locationtech.jtstest.util.StringUtil;
 
@@ -67,6 +58,7 @@ public class JTSTestBuilderFrame extends JFrame
     
   private static JTSTestBuilderFrame singleton = null;
   static boolean isShowingIndicators = true;
+  static boolean isSavingIndicators = false;
   
   TestBuilderModel tbModel;
 
@@ -88,13 +80,13 @@ public class JTSTestBuilderFrame extends JFrame
   CommandPanel commandPanel = new CommandPanel();
   InspectorPanel inspectPanel = new InspectorPanel();
   TestListPanel testListPanel = new TestListPanel(this);
-  //LayerListPanel layerListPanel = new LayerListPanel();
   LayerListPanel layerListPanel = new LayerListPanel();
   GridBagLayout gridBagLayout2 = new GridBagLayout();
   GridLayout gridLayout1 = new GridLayout();
   ResultWKTPanel resultWKTPanel = new ResultWKTPanel();
   ResultValuePanel resultValuePanel = new ResultValuePanel();
   StatsPanel statsPanel = new StatsPanel();
+  ClothoidPanel clothoidPanel = new ClothoidPanel();
   InfoPanel logPanel = new InfoPanel();
 
   private JFileChooser fileChooser = new JFileChooser();
@@ -112,6 +104,8 @@ public class JTSTestBuilderFrame extends JFrame
       enableEvents(AWTEvent.WINDOW_EVENT_MASK);
       setIconImage(AppIcons.APP.getImage());
       jbInit();
+      installCurveLinearizationWarnSink();
+      JTSTestBuilder.controller().setStatus("Curve strategy: LINEARIZED");
       testCasePanel.cbRevealTopo.addActionListener(
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -175,7 +169,9 @@ public class JTSTestBuilderFrame extends JFrame
   public static boolean isShowingIndicators() {
     return isRunning() && isShowingIndicators;
   }
-  
+  public static boolean isSavingIndicators() {
+    return isRunning() && isSavingIndicators;
+  }
   public static GeometryEditPanel getGeometryEditPanel()
   {
     return instance().getTestCasePanel().getGeometryEditPanel();
@@ -200,6 +196,7 @@ public class JTSTestBuilderFrame extends JFrame
     resultWKTPanel.setModel(model);
     resultValuePanel.setModel(model);
     statsPanel.setModel(model);
+    clothoidPanel.setModel(model);
     
     model.getGeometryEditModel().addGeometryListener(
         new org.locationtech.jtstest.testbuilder.model.GeometryListener() {
@@ -248,7 +245,24 @@ public class JTSTestBuilderFrame extends JFrame
   public InfoPanel getLogPanel() {
     return logPanel;
   }
-  
+
+  /**
+   * Phase 5 (#1195): route CurveLinearizationStrategy warnings into the
+   * Log tab so linearize is never silent in the TestBuilder UI.
+   */
+  private void installCurveLinearizationWarnSink() {
+    org.locationtech.jts.geom.curve.CurveLinearizationStrategy.setWarnSink(
+        new org.locationtech.jts.geom.curve.CurveLinearizationStrategy.WarnSink() {
+          public void warn(final String message) {
+            javax.swing.SwingUtilities.invokeLater(new Runnable() {
+              public void run() {
+                logPanel.addInfo(message);
+              }
+            });
+          }
+        });
+  }
+
   public CommandPanel getCommandPanel() {
     return commandPanel;
   }
@@ -314,21 +328,11 @@ public class JTSTestBuilderFrame extends JFrame
   TestCaseEdit currentCase() {
     return tbModel.cases().getCurrentCase();
   }
+  
   public void updateTestCases()
   {
     testListPanel.populateList();    
     updateTestCaseView();
-  }
-  
-  public void copyResultToTest() 
-  {
-    Object currResult = tbModel.getResult();
-    if (! (currResult instanceof Geometry))
-      return;
-    tbModel.addCase(new Geometry[] { (Geometry) currResult, null }, 
-        "Result of " + tbModel.getOpName());
-    updateTestCaseView();
-    testListPanel.populateList();  
   }
   
   public void inspectResult() 
@@ -336,7 +340,7 @@ public class JTSTestBuilderFrame extends JFrame
     Object currResult = tbModel.getResult();
     if (! (currResult instanceof Geometry))
       return;
-    inspectGeometry((Geometry) currResult, 0, "R", false);
+    inspectGeometry("R", (Geometry) currResult);
   }
 
   public void inspectGeometry() {
@@ -344,6 +348,11 @@ public class JTSTestBuilderFrame extends JFrame
     String tag = geomIndex == 0 ? AppStrings.GEOM_LABEL_A : AppStrings.GEOM_LABEL_B;
     Geometry geometry = currentCase().getGeometry(geomIndex);
     inspectGeometry(geometry, geomIndex, tag, true);
+  }
+
+  public void inspectGeometry(String tag, Geometry geometry) {
+    inspectPanel.setGeometry( tag, geometry, 0, false);
+    showTab(AppStrings.TAB_LABEL_INSPECT);
   }
 
   private void inspectGeometry(Geometry geometry, int geomIndex, String tag, boolean isEditable) {
@@ -442,14 +451,15 @@ public class JTSTestBuilderFrame extends JFrame
     //---- Input tabs
     inputTabbedPane.setTabPlacement(JTabbedPane.LEFT);
     inputTabbedPane.add(testListPanel, AppStrings.TAB_LABEL_CASES);
+    inputTabbedPane.add(layerListPanel, AppStrings.TAB_LABEL_LAYERS);
     inputTabbedPane.add(wktPanel,  AppStrings.TAB_LABEL_INPUT);
     inputTabbedPane.add(resultWKTPanel, AppStrings.TAB_LABEL_RESULT);
     inputTabbedPane.add(resultValuePanel, AppStrings.TAB_LABEL_VALUE);
-    inputTabbedPane.add(commandPanel,  AppStrings.TAB_LABEL_COMMAND);
     inputTabbedPane.add(inspectPanel,  AppStrings.TAB_LABEL_INSPECT);
     inputTabbedPane.add(statsPanel, AppStrings.TAB_LABEL_STATS);
+    inputTabbedPane.add(clothoidPanel, "Clothoid");
     inputTabbedPane.add(logPanel, AppStrings.TAB_LABEL_LOG);
-    inputTabbedPane.add(layerListPanel, AppStrings.TAB_LABEL_LAYERS);
+    inputTabbedPane.add(commandPanel,  AppStrings.TAB_LABEL_COMMAND);
     inputTabbedPane.setSelectedIndex(1);
     inputTabbedPane.addChangeListener(new ChangeListener() {
       public void stateChanged(ChangeEvent e)
@@ -468,10 +478,6 @@ public class JTSTestBuilderFrame extends JFrame
     jSplitPane1.add(panelTop, JSplitPane.TOP);
     jSplitPane1.add(panelBottom, JSplitPane.BOTTOM);
     
-    /*
-    border4 = BorderFactory.createBevelBorder(BevelBorder.LOWERED, Color.white,
-        Color.white, new Color(93, 93, 93), new Color(134, 134, 134));
-        */
     contentPane = (JPanel) this.getContentPane();
     contentPane.setLayout(contentLayout);
     contentPane.setPreferredSize(new Dimension(601, 690));
@@ -489,8 +495,10 @@ public class JTSTestBuilderFrame extends JFrame
     int index = inputTabbedPane.getSelectedIndex();
     if (index < 0) return;
     if (inputTabbedPane.getComponent(index) == statsPanel) {
-      statsPanel.refresh();         
-    }   
+      statsPanel.refresh();
+    } else if (inputTabbedPane.getComponent(index) == clothoidPanel) {
+      clothoidPanel.refresh();
+    } 
   }
   
   public void geometryChanged() {
@@ -520,6 +528,10 @@ public class JTSTestBuilderFrame extends JFrame
 
   public void updateLayerList() {
     layerListPanel.updateList();
+  }
+  
+  public void refreshLayerList() {
+    layerListPanel.populateList();
   }
   
   private void reportProblemsParsingXmlTestFile(List parsingProblems) {

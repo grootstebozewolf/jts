@@ -1,0 +1,69 @@
+{
+  "id": "Curve.toLinear.circle.pr7",
+  "claimId": "TB-AP-CURVE-TOLINEAR",
+  "category": "Curve",
+  "function": "toLinear",
+  "branch": "pr7",
+  "tags": [
+    "tb-appium",
+    "Curve",
+    "toLinear",
+    "circle"
+  ],
+  "golden": true,
+  "skipped": false,
+  "fixtureFile": "_fixtures/pr7-circle.wkt",
+  "params": [
+    "0.1"
+  ],
+  "steps": [
+    {
+      "id": "jts.tb.menu.edit.curveStrategy.linearized",
+      "action": "click",
+      "notes": "Option B: explicit LINEARIZED (warn) before densify path"
+    },
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "Curve",
+        "toLinear"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.param.0",
+      "action": "setText",
+      "value": "0.1"
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "toLinear",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "preserveCurveAware": true
+  },
+  "notes": "pr7-only toLinear \u00b7 pr7 circle",
+  "optionB": {
+    "contract": "Draft v6 MMF Option B",
+    "defaultStrategy": "LINEARIZED",
+    "requiresWarnOnDensify": true,
+    "overlayName": "OverlayNGCurve"
+  }
+}

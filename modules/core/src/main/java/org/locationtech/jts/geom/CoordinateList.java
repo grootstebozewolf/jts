@@ -202,9 +202,11 @@ public class CoordinateList
     }
   }
 
-  /** Returns the Coordinates in this collection.
+  /** 
+   * Returns the Coordinates in this list as an array.
+   * Coordinates are not copied
    *
-   * @return the coordinates
+   * @return the coordinate array
    */
   public Coordinate[] toCoordinateArray()
   {
@@ -240,7 +242,7 @@ public class CoordinateList
   public Object clone() {
       CoordinateList clone = (CoordinateList) super.clone();
       for (int i = 0; i < this.size(); i++) {	  
-          clone.add(i, (Coordinate) this.get(i).clone());
+          clone.set(i, (Coordinate) this.get(i).clone());
       }
       return clone;
   }

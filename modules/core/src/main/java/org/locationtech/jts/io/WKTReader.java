@@ -18,12 +18,15 @@ import java.io.StreamTokenizer;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Locale;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFactory;
-
+import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.jts.geom.CoordinateXYM;
+import org.locationtech.jts.geom.CoordinateXYZM;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -55,7 +58,21 @@ import org.locationtech.jts.util.AssertionFailedException;
  *
  *  The <code>WKTReader</code> converts all input numbers to the precise
  *  internal representation.
- *
+ *  <p>
+ * As of version 1.15, JTS can read (but not write) WKT syntax
+ * which specifies coordinate dimension Z, M or ZM as modifiers (e.g. POINT Z)
+ * or in the name of the geometry type (e.g. LINESTRINGZM).
+ * If the coordinate dimension is specified it will be set in the created geometry.
+ * If the coordinate dimension is not specified, the default behaviour is to 
+ * create XYZ geometry (this is backwards compatible with older JTS versions).  
+ * This can be altered to create XY geometry by
+ * calling {@link #setIsOldJtsCoordinateSyntaxAllowed(boolean)}.
+ * <p>
+ * A reader can be set to ensure the input is structurally valid
+ * by calling {@link #setFixStructure(boolean)}.
+ * This ensures that geometry can be constructed without errors due to missing coordinates.
+ * The created geometry may still be topologically invalid.
+ * 
  * <h3>Notes:</h3>
  * <ul>
  * <li>Keywords are case-insensitive.
@@ -63,18 +80,39 @@ import org.locationtech.jts.util.AssertionFailedException;
  * <li>The reader uses <tt>Double.parseDouble</tt> to perform the conversion of ASCII
  * numbers to floating point.  This means it supports the Java
  * syntax for floating point literals (including scientific notation).
+ * <li><tt>NaN</tt>, <tt>Inf</tt> and <tt>-Inf</tt> ordinate symbols are supported (case-insensitive),
+ * which convert to the corresponding IEE-754 value
  * </ul>
- *
+ * <h3>Extension</h3>
+ * <p>This class is designed to be subclassed to support OGC SFA / ISO
+ * 19125-2 extended geometry types (such as {@code CIRCULARSTRING},
+ * {@code COMPOUNDCURVE}, {@code CURVEPOLYGON}, {@code TRIANGLE},
+ * {@code POLYHEDRALSURFACE}, {@code TIN}). Subclasses should override
+ * {@link #readOtherGeometryText} to recognise additional type keywords,
+ * and may compose their implementation from the protected helpers
+ * exposed by this class:
+ * <ul>
+ * <li>tokenizer helpers: {@link #getNextEmptyOrOpener},
+ *     {@link #getNextCloserOrComma}, {@link #getNextWord},
+ *     {@link #lookAheadWord};
+ * <li>coordinate helpers: {@link #getCoordinate},
+ *     {@link #getCoordinateSequence},
+ *     {@link #createCoordinateSequenceEmpty};
+ * <li>nested-geometry helpers: {@link #readLineStringText},
+ *     {@link #readLinearRingText}, {@link #readPolygonText},
+ *     {@link #readMultiPolygonText}, and the 3-arg form of
+ *     {@link #readGeometryTaggedText} for dispatching on a known type;
+ * <li>error helper: {@link #parseErrorWithLine};
+ * <li>fields: {@link #geometryFactory}, {@link #csFactory}.
+ * </ul>
+ * The default implementation of {@link #readOtherGeometryText} throws
+ * a {@link ParseException}, preserving the historical behaviour for
+ * direct (non-extending) callers.
  * <h3>Syntax</h3>
  * The following syntax specification describes the version of Well-Known Text
  * supported by JTS.
  * (The specification uses a syntax language similar to that used in
  * the C and Java language specifications.)
- * <p>
- * As of version 1.15, JTS can read (but not write) WKT Strings including Z, M or ZM
- * in the name of the geometry type (ex. POINT Z, LINESTRINGZM).
- * Note that it only makes the reader more flexible, but JTS could already read
- * 3D coordinates from WKT String and still can't read 4D coordinates.
  *
  * <blockquote><pre>
  * <i>WKTGeometry:</i> one of<i>
@@ -118,15 +156,40 @@ import org.locationtech.jts.util.AssertionFailedException;
  *         | <b>EMPTY</b>
  *
  * <i>Coordinate:
- *         Number Number Number<sub>opt</sub></i>
+ *         Number Number Number<sub>opt</sub> Number<sub>opt</sub></i>
  *
- * <i>Number:</i> A Java-style floating-point number (including <tt>NaN</tt>, with arbitrary case)
+ * <i>Number:</i> A Java-style floating-point number (including <tt>NaN</tt>, <tt>Inf</tt> and <tt>-Inf</tt>, case-independent)
  *
  * <i>Dimension:</i>
  *         <b>Z</b>|<b> Z</b>|<b>M</b>|<b> M</b>|<b>ZM</b>|<b> ZM</b>
  *
  * </pre></blockquote>
- *
+ * 
+ * <h3>Examples</h3>
+ * <pre>
+ * POINT (0 0)
+ * POINT EMPTY
+ * LINESTRING (0 0, 0 1, 1 2)
+ * LINESTRING EMPTY
+ * POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))
+ * POLYGON ((0 0, 4 0, 4 4, 0 4, 0 0), (1 1, 1 2, 2 2, 2 1, 1 1))
+ * POLYGON EMPTY
+ * MULTIPOINT ((0 0), (1 1))
+ * MULTILINESTRING ((0 0, 1 1), (2 2, 3 3))
+ * MULTIPOLYGON (((1 1, 1 3, 3 3, 3 1, 1 1)), ((4 3, 6 3, 6 1, 4 1, 4 3)))
+ * GEOMETRYCOLLECTION (MULTIPOINT((0 0), (1 1)), POINT(3 4), LINESTRING(2 3, 3 4))
+ * 
+ * POINTZ (0 0 0)
+ * POINT Z (0 0 0)
+ * POINT Z EMPTY
+ * POINTM (0 0 0)
+ * POINT M (0 0 0)
+ * POINTZM (0 0 0 0)
+ * POINT ZM (0 0 0 0)
+ * 
+ * POINT (Inf Nan)
+ * POINT (Inf -Inf)
+ * </pre>
  *
  *@version 1.7
  * @see WKTWriter
@@ -137,9 +200,21 @@ public class WKTReader
   private static final String L_PAREN = "(";
   private static final String R_PAREN = ")";
   private static final String NAN_SYMBOL = "NaN";
+  private static final String INF_SYMBOL = "Inf";
+  private static final String NEG_INF_SYMBOL = "-Inf";
 
-  private GeometryFactory geometryFactory;
-  private CoordinateSequenceFactory csFactory;
+  /**
+   * The factory used to construct the {@link Geometry} return values.
+   * Exposed as {@code protected} so that extension subclasses (see
+   * {@link #readOtherGeometryText}) can construct geometries with the
+   * same factory the reader is parameterised with.
+   */
+  protected GeometryFactory geometryFactory;
+  /**
+   * The {@link CoordinateSequenceFactory} of {@link #geometryFactory}.
+   * Exposed as {@code protected} for the same reason.
+   */
+  protected CoordinateSequenceFactory csFactory;
   private static CoordinateSequenceFactory csFactoryXYZM = CoordinateArraySequenceFactory.instance();
   private PrecisionModel precisionModel;
 
@@ -156,6 +231,9 @@ public class WKTReader
    */
   private static final boolean ALLOW_OLD_JTS_MULTIPOINT_SYNTAX = true;
   private boolean isAllowOldJtsMultipointSyntax = ALLOW_OLD_JTS_MULTIPOINT_SYNTAX;
+  
+  
+  private boolean isFixStructure = false;
 
   /**
    * Creates a reader that creates objects using the default {@link GeometryFactory}.
@@ -195,6 +273,19 @@ public class WKTReader
     isAllowOldJtsMultipointSyntax = value;
   }
 
+  /**
+   * Sets a flag indicating that the structure of input geometry should be fixed
+   * so that the geometry can be constructed without error.
+   * This involves adding coordinates if the input coordinate sequence is shorter than required.
+   * 
+   * @param isFixStructure true if the input structure should be fixed
+   * 
+   * @see LinearRing#MINIMUM_VALID_SIZE
+   */
+  public void setFixStructure(boolean isFixStructure) {
+    this.isFixStructure = isFixStructure;
+  }
+  
   /**
    * Reads a Well-Known Text representation of a {@link Geometry}
    * from a {@link String}.
@@ -261,49 +352,60 @@ public class WKTReader
   /**
    * Reads a <code>Coordinate</Code> from a stream using the given {@link StreamTokenizer}.
    * <p>
-   *   All ordinate values are read, but -depending on the {@link CoordinateSequenceFactory} of the
-   *   underlying {@link GeometryFactory}- not necessarily all can be handled. Those are silently dropped.
+   * All ordinate values are read, but -depending on the {@link CoordinateSequenceFactory} of the
+   * underlying {@link GeometryFactory}- not necessarily all can be handled. Those are silently dropped.
    * </p>
    * @param tokenizer the tokenizer to use
    * @param ordinateFlags a bit-mask defining the ordinates to read.
    * @param tryParen a value indicating if a starting {@link #L_PAREN} should be probed.
-   * @return a {@link CoordinateSequence} of length 1 containing the read ordinate values
+   * @return a {@link Coordinate} of appropriate dimension containing the read ordinate values
    *
    *@throws  IOException     if an I/O error occurs
    *@throws  ParseException  if an unexpected token was encountered
    */
-  private CoordinateSequence getCoordinate(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags, boolean tryParen)
-          throws IOException, ParseException
+  protected Coordinate getCoordinate(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags, boolean tryParen)
+      throws IOException, ParseException
   {
-
     boolean opened = false;
     if (tryParen && isOpenerNext(tokenizer) ) {
       tokenizer.nextToken();
       opened = true;
     }
-
+    
     // create a sequence for one coordinate
     int offsetM = ordinateFlags.contains(Ordinate.Z) ? 1 : 0;
-    CoordinateSequence sequence = csFactory.create(1, toDimension(ordinateFlags), ordinateFlags.contains(Ordinate.M) ? 1 : 0);
-    sequence.setOrdinate(0, CoordinateSequence.X, precisionModel.makePrecise(getNextNumber(tokenizer)));
-    sequence.setOrdinate(0, CoordinateSequence.Y, precisionModel.makePrecise(getNextNumber(tokenizer)));
-
+    Coordinate coord = createCoordinate(ordinateFlags);
+    coord.setOrdinate(CoordinateSequence.X, precisionModel.makePrecise(getNextNumber(tokenizer)));
+    coord.setOrdinate(CoordinateSequence.Y, precisionModel.makePrecise(getNextNumber(tokenizer)));
+    
     // additionally read other vertices
     if (ordinateFlags.contains(Ordinate.Z))
-      sequence.setOrdinate(0, CoordinateSequence.Z, getNextNumber(tokenizer));
+      coord.setOrdinate(CoordinateSequence.Z, getNextNumber(tokenizer));
     if (ordinateFlags.contains(Ordinate.M))
-      sequence.setOrdinate(0, CoordinateSequence.Z + offsetM, getNextNumber(tokenizer));
-
+      coord.setOrdinate(CoordinateSequence.Z + offsetM, getNextNumber(tokenizer));
+    
     if (ordinateFlags.size() == 2 && this.isAllowOldJtsCoordinateSyntax && isNumberNext(tokenizer)) {
-      sequence.setOrdinate(0, CoordinateSequence.Z, getNextNumber(tokenizer));
+      coord.setOrdinate(CoordinateSequence.Z, getNextNumber(tokenizer));
     }
-
+    
     // read close token if it was opened here
     if (opened) {
       getNextCloser(tokenizer);
     }
-
-    return sequence;
+    
+    return coord;
+  }
+  
+  private Coordinate createCoordinate(EnumSet<Ordinate> ordinateFlags) {
+    boolean hasZ = ordinateFlags.contains(Ordinate.Z);
+    boolean hasM = ordinateFlags.contains(Ordinate.M);
+    if (hasZ && hasM) 
+      return new CoordinateXYZM();
+    if (hasM)
+      return new CoordinateXYM();
+    if (hasZ || this.isAllowOldJtsCoordinateSyntax) 
+      return new Coordinate();
+    return new CoordinateXY();
   }
 
   /**
@@ -322,17 +424,47 @@ public class WKTReader
    *@throws  IOException     if an I/O error occurs
    *@throws  ParseException  if an unexpected token was encountered
    */
-  private CoordinateSequence getCoordinateSequence(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
+  protected CoordinateSequence getCoordinateSequence(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags, int minSize, boolean isRing)
           throws IOException, ParseException {
     if (getNextEmptyOrOpener(tokenizer).equals(WKTConstants.EMPTY))
-      return this.csFactory.create(0, toDimension(ordinateFlags), ordinateFlags.contains(Ordinate.M) ? 1 : 0);
+      return createCoordinateSequenceEmpty(ordinateFlags);
     
-    ArrayList coordinates = new ArrayList();
+    List<Coordinate> coordinates = new ArrayList<Coordinate>();
     do {
       coordinates.add(getCoordinate(tokenizer, ordinateFlags, false));
     } while (getNextCloserOrComma(tokenizer).equals(COMMA));
 
-    return mergeSequences(coordinates, ordinateFlags);  }
+    if (isFixStructure) {
+      fixStructure(coordinates, minSize, isRing);
+    }
+    Coordinate[] coordArray = coordinates.toArray(new Coordinate[0]);
+    return csFactory.create(coordArray);
+  }
+
+  private static void fixStructure(List<Coordinate> coords, int minSize, boolean isRing) {
+    if (coords.size() == 0)
+      return;
+    if (isRing && ! isClosed(coords)) {
+        coords.add(coords.get(0).copy());
+      }
+    while (coords.size() < minSize) {
+      coords.add(coords.get(coords.size() - 1).copy());
+    }
+  }
+
+  private static boolean isClosed(List<Coordinate> coords) {
+    if (coords.size() == 0) return true;
+    if (coords.size() == 1 
+        || ! coords.get(0).equals2D(coords.get(coords.size() - 1))) {
+      return false;
+    } 
+    return true;
+  }
+
+  protected CoordinateSequence createCoordinateSequenceEmpty(EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
+    return csFactory.create(0, toDimension(ordinateFlags), ordinateFlags.contains(Ordinate.M) ? 1 : 0);
+  }
 
   /**
    * Reads a <code>CoordinateSequence</Code> from a stream using the given {@link StreamTokenizer}
@@ -353,13 +485,13 @@ S  */
   private CoordinateSequence getCoordinateSequenceOldMultiPoint(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
           throws IOException, ParseException {
 
-    ArrayList coordinates = new ArrayList();
+    List<Coordinate> coordinates = new ArrayList<Coordinate>();
     do {
       coordinates.add(getCoordinate(tokenizer, ordinateFlags, true));
     } while (getNextCloserOrComma(tokenizer).equals(COMMA));
 
-    return mergeSequences(coordinates, ordinateFlags);
-  }
+    Coordinate[] coordArray = coordinates.toArray(new Coordinate[0]);
+    return csFactory.create(coordArray);  }
 
   /**
    * Computes the required dimension based on the given ordinate values.
@@ -379,137 +511,6 @@ S  */
       dimension++;
 
     return dimension;
-  }
-
-  /**
-   * Merges an array of one-coordinate-{@link CoordinateSequence}s into one {@link CoordinateSequence}.
-   *
-   * @param sequences an array of coordinate sequences. Each sequence contains <b>exactly one</b> coordinate.
-   * @param ordinateFlags a bit-mask of required ordinates.
-   * @return a coordinate sequence containing all coordinate
-   */
-  private CoordinateSequence mergeSequences(ArrayList sequences, EnumSet<Ordinate> ordinateFlags) {
-
-    // if the sequences array is empty or null create an empty sequence
-    if (sequences == null || sequences.size() == 0)
-      return csFactory.create(0, toDimension(ordinateFlags));
-
-    if (sequences.size() == 1)
-      return (CoordinateSequence) sequences.get(0);
-
-    EnumSet<Ordinate> mergeOrdinates;
-    if (this.isAllowOldJtsCoordinateSyntax && ordinateFlags.size() == 2) {
-      mergeOrdinates = ordinateFlags.clone();
-      for (int i = 0; i < sequences.size(); i++) {
-        if (((CoordinateSequence)sequences.get(i)).hasZ()) {
-          mergeOrdinates.add(Ordinate.Z);
-          break;
-        }
-      }
-    }
-    else
-      mergeOrdinates = ordinateFlags;
-
-    // create and fill the result sequence
-    CoordinateSequence sequence = this.csFactory.create(sequences.size(), toDimension(mergeOrdinates),
-            mergeOrdinates.contains(Ordinate.M) ? 1 : 0);
-
-    int offsetM = CoordinateSequence.Z + (mergeOrdinates.contains(Ordinate.Z) ? 1 : 0);
-    for (int i = 0; i < sequences.size(); i++) {
-      CoordinateSequence item = (CoordinateSequence)sequences.get(i);
-      sequence.setOrdinate(i, CoordinateSequence.X, item.getOrdinate(0, CoordinateSequence.X));
-      sequence.setOrdinate(i, CoordinateSequence.Y, item.getOrdinate(0, CoordinateSequence.Y));
-      if (mergeOrdinates.contains(Ordinate.Z))
-        sequence.setOrdinate(i, CoordinateSequence.Z, item.getOrdinate(0, CoordinateSequence.Z));
-      if (mergeOrdinates.contains(Ordinate.M))
-        sequence.setOrdinate(i, offsetM, item.getOrdinate(0, offsetM));
-    }
-
-    // return it
-    return sequence;
-  }
-
-  /**
-   * Returns the next array of <code>Coordinate</code>s in the stream.
-   *
-   *@param  tokenizer        tokenizer over a stream of text in Well-known Text
-   *      format. The next element returned by the stream should be L_PAREN (the
-   *      beginning of "(x1 y1, x2 y2, ..., xn yn)") or EMPTY.
-   *@return                  the next array of <code>Coordinate</code>s in the
-   *      stream, or an empty array if EMPTY is the next element returned by
-   *      the stream.
-   *@throws  IOException     if an I/O error occurs
-   *@throws  ParseException  if an unexpected token was encountered
-   *
-   *@deprecated in favor of functions returning {@link CoordinateSequence}s
-   */
-  private Coordinate[] getCoordinates(StreamTokenizer tokenizer) throws IOException, ParseException {
-    String nextToken = getNextEmptyOrOpener(tokenizer);
-    if (nextToken.equals(WKTConstants.EMPTY)) {
-      return new Coordinate[] {};
-    }
-    ArrayList coordinates = new ArrayList();
-    coordinates.add(getPreciseCoordinate(tokenizer));
-    nextToken = getNextCloserOrComma(tokenizer);
-    while (nextToken.equals(COMMA)) {
-      coordinates.add(getPreciseCoordinate(tokenizer));
-      nextToken = getNextCloserOrComma(tokenizer);
-    }
-    Coordinate[] array = new Coordinate[coordinates.size()];
-    return (Coordinate[]) coordinates.toArray(array);
-  }
-
-  /**
-   * Returns the next array of <code>Coordinate</code>s in the stream.
-   *
-   *@param  tokenizer        tokenizer over a stream of text in Well-known Text
-   *      format. The next element returned by the stream should be a number.
-   *@return                  the next array of <code>Coordinate</code>s in the
-   *      stream.
-   *@throws  IOException     if an I/O error occurs
-   *@throws  ParseException  if an unexpected token was encountered
-   *
-   *@deprecated in favor of functions returning {@link CoordinateSequence}s
-   */
-  private Coordinate[] getCoordinatesNoLeftParen(StreamTokenizer tokenizer) throws IOException, ParseException {
-    String nextToken = null;
-    ArrayList coordinates = new ArrayList();
-    coordinates.add(getPreciseCoordinate(tokenizer));
-    nextToken = getNextCloserOrComma(tokenizer);
-    while (nextToken.equals(COMMA)) {
-      coordinates.add(getPreciseCoordinate(tokenizer));
-      nextToken = getNextCloserOrComma(tokenizer);
-    }
-    Coordinate[] array = new Coordinate[coordinates.size()];
-    return (Coordinate[]) coordinates.toArray(array);
-  }
-
-  /**
-   * Returns the next precise <code>Coordinate</code> in the stream.
-   *
-   *@param  tokenizer        tokenizer over a stream of text in Well-known Text
-   *      format. The next element returned by the stream should be a number.
-   *@return                  the next array of <code>Coordinate</code>s in the
-   *      stream.
-   *@throws  IOException     if an I/O error occurs
-   *@throws  ParseException  if an unexpected token was encountered
-   *
-   *@deprecated in favor of functions returning {@link CoordinateSequence}s
-   */
-  private Coordinate getPreciseCoordinate(StreamTokenizer tokenizer)
-      throws IOException, ParseException
-  {
-    Coordinate coord = new Coordinate();
-    coord.x = getNextNumber(tokenizer);
-    coord.y = getNextNumber(tokenizer);
-    if (isNumberNext(tokenizer)) {
-        coord.setZ(getNextNumber(tokenizer));
-    }
-    if (isNumberNext(tokenizer)) {
-      getNextNumber(tokenizer); // ignore M value
-    }
-    precisionModel.makePrecise(coord);
-    return coord;
   }
 
   /**
@@ -558,6 +559,13 @@ S  */
         if (tokenizer.sval.equalsIgnoreCase(NAN_SYMBOL)) {
           return Double.NaN;
         }
+        if (tokenizer.sval.equalsIgnoreCase(INF_SYMBOL)) {
+          return Double.POSITIVE_INFINITY;
+        }
+        if (tokenizer.sval.equalsIgnoreCase(NEG_INF_SYMBOL)) {
+          return Double.NEGATIVE_INFINITY;
+        }
+        //TODO: handle -Inf ?
         else {
           try {
             return Double.parseDouble(tokenizer.sval);
@@ -580,7 +588,7 @@ S  */
    *@throws  IOException     if an I/O error occurs
    * @param  tokenizer        tokenizer over a stream of text in Well-known Text
    */
-  private static String getNextEmptyOrOpener(StreamTokenizer tokenizer) throws IOException, ParseException {
+  protected static String getNextEmptyOrOpener(StreamTokenizer tokenizer) throws IOException, ParseException {
     String nextWord = getNextWord(tokenizer);
     if (nextWord.equalsIgnoreCase(WKTConstants.Z)) {
       //z = true;
@@ -641,7 +649,7 @@ S  */
    *@throws  ParseException  if the next token is not a word
    *@throws  IOException     if an I/O error occurs
    */
-  private static String lookAheadWord(StreamTokenizer tokenizer) throws IOException, ParseException {
+  protected static String lookAheadWord(StreamTokenizer tokenizer) throws IOException, ParseException {
     String nextWord = getNextWord(tokenizer);
     tokenizer.pushBack();
     return nextWord;
@@ -655,7 +663,7 @@ S  */
    *@throws  IOException     if an I/O error occurs
    * @param  tokenizer        tokenizer over a stream of text in Well-known Text
    */
-  private static String getNextCloserOrComma(StreamTokenizer tokenizer) throws IOException, ParseException {
+  protected static String getNextCloserOrComma(StreamTokenizer tokenizer) throws IOException, ParseException {
     String nextWord = getNextWord(tokenizer);
     if (nextWord.equals(COMMA) || nextWord.equals(R_PAREN)) {
       return nextWord;
@@ -688,7 +696,7 @@ S  */
    *@throws  IOException     if an I/O error occurs
    * @param  tokenizer        tokenizer over a stream of text in Well-known Text
    */
-  private static String getNextWord(StreamTokenizer tokenizer) throws IOException, ParseException {
+  protected static String getNextWord(StreamTokenizer tokenizer) throws IOException, ParseException {
     int type = tokenizer.nextToken();
     switch (type) {
     case StreamTokenizer.TT_WORD:
@@ -731,7 +739,7 @@ S  */
    * @param msg a description of what was expected
    * @throws AssertionFailedException if an invalid token is encountered
    */
-  private static ParseException parseErrorWithLine(StreamTokenizer tokenizer, String msg)
+  protected static ParseException parseErrorWithLine(StreamTokenizer tokenizer, String msg)
   {
     return new ParseException(msg + " (line " + tokenizer.lineno() + ")");
   }
@@ -781,7 +789,7 @@ S  */
     return readGeometryTaggedText(tokenizer, type, ordinateFlags);
   }
 
-  private Geometry readGeometryTaggedText(StreamTokenizer tokenizer, String type, EnumSet<Ordinate> ordinateFlags)
+  protected Geometry readGeometryTaggedText(StreamTokenizer tokenizer, String type, EnumSet<Ordinate> ordinateFlags)
           throws IOException, ParseException {
 
     if (ordinateFlags.size() == 2) {
@@ -825,6 +833,28 @@ S  */
     else if (isTypeName(tokenizer, type, WKTConstants.GEOMETRYCOLLECTION)) {
       return readGeometryCollectionText(tokenizer, ordinateFlags);
     }
+    return readOtherGeometryText(tokenizer, type, ordinateFlags);
+  }
+
+  /**
+   * Hook for subclasses to read geometry types that the core JTS WKT
+   * reader does not recognise (extended OGC SFA / ISO 19125-2 types
+   * such as {@code CIRCULARSTRING}, {@code COMPOUNDCURVE},
+   * {@code CURVEPOLYGON}, {@code MULTICURVE}, {@code MULTISURFACE},
+   * {@code TRIANGLE}, {@code POLYHEDRALSURFACE}, {@code TIN}, etc.).
+   * <p>
+   * The default implementation throws a {@link ParseException} with
+   * the unknown-type message, preserving the previous behaviour.
+   *
+   * @param tokenizer    tokenizer positioned just after the type keyword
+   * @param type         the type keyword that was read (already uppercased)
+   * @param ordinateFlags the dimensional ordinates parsed for this geometry
+   * @return the decoded geometry
+   * @throws IOException     if an I/O error occurs
+   * @throws ParseException  if an unexpected token was encountered
+   */
+  protected Geometry readOtherGeometryText(StreamTokenizer tokenizer, String type, EnumSet<Ordinate> ordinateFlags)
+      throws IOException, ParseException {
     throw parseErrorWithLine(tokenizer, "Unknown geometry type: " + type);
   }
 
@@ -856,7 +886,7 @@ S  */
    *@throws  ParseException  if an unexpected token was encountered
    */
   private Point readPointText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags) throws IOException, ParseException {
-    Point point = geometryFactory.createPoint(getCoordinateSequence(tokenizer, ordinateFlags));
+    Point point = geometryFactory.createPoint(getCoordinateSequence(tokenizer, ordinateFlags, 1, false));
     return point;
   }
 
@@ -870,8 +900,8 @@ S  */
    *@throws  IOException     if an I/O error occurs
    *@throws  ParseException  if an unexpected token was encountered
    */
-  private LineString readLineStringText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags) throws IOException, ParseException {
-    return geometryFactory.createLineString(getCoordinateSequence(tokenizer, ordinateFlags));
+  protected LineString readLineStringText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags) throws IOException, ParseException {
+    return geometryFactory.createLineString(getCoordinateSequence(tokenizer, ordinateFlags, LineString.MINIMUM_VALID_SIZE, false));
   }
 
   /**
@@ -886,10 +916,10 @@ S  */
    *      do not form a closed linestring, or if an unexpected token was
    *      encountered
    */
-  private LinearRing readLinearRingText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
+  protected LinearRing readLinearRingText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags)
     throws IOException, ParseException
   {
-    return geometryFactory.createLinearRing(getCoordinateSequence(tokenizer, ordinateFlags));
+    return geometryFactory.createLinearRing(getCoordinateSequence(tokenizer, ordinateFlags, LinearRing.MINIMUM_VALID_SIZE, true));
   }
 
   /**
@@ -919,7 +949,7 @@ S  */
       }
     }
     
-    ArrayList points = new ArrayList();
+    List<Point> points = new ArrayList<Point>();
     Point point = readPointText(tokenizer, ordinateFlags);
     points.add(point);
     nextToken = getNextCloserOrComma(tokenizer);
@@ -945,12 +975,12 @@ S  */
    *      token was encountered.
    *@throws  IOException     if an I/O error occurs
    */
-  private Polygon readPolygonText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags) throws IOException, ParseException {
+  protected Polygon readPolygonText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags) throws IOException, ParseException {
     String nextToken = getNextEmptyOrOpener(tokenizer);
     if (nextToken.equals(WKTConstants.EMPTY)) {
-        return geometryFactory.createPolygon();
+        return geometryFactory.createPolygon(createCoordinateSequenceEmpty(ordinateFlags));
     }
-    ArrayList holes = new ArrayList();
+    List<LinearRing> holes = new ArrayList<LinearRing>();
     LinearRing shell = readLinearRingText(tokenizer, ordinateFlags);
     nextToken = getNextCloserOrComma(tokenizer);
     while (nextToken.equals(COMMA)) {
@@ -979,7 +1009,7 @@ S  */
       return geometryFactory.createMultiLineString();
     }
 
-    ArrayList lineStrings = new ArrayList();
+    List<LineString> lineStrings = new ArrayList<LineString>();
     do {
       LineString lineString = readLineStringText(tokenizer, ordinateFlags);
       lineStrings.add(lineString);
@@ -1001,12 +1031,12 @@ S  */
    *@throws  IOException     if an I/O error occurs
    *@throws  ParseException  if an unexpected token was encountered
    */
-  private MultiPolygon readMultiPolygonText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags) throws IOException, ParseException {
+  protected MultiPolygon readMultiPolygonText(StreamTokenizer tokenizer, EnumSet<Ordinate> ordinateFlags) throws IOException, ParseException {
     String nextToken = getNextEmptyOrOpener(tokenizer);
     if (nextToken.equals(WKTConstants.EMPTY)) {
       return geometryFactory.createMultiPolygon();
     }
-    ArrayList polygons = new ArrayList();
+    List<Polygon> polygons = new ArrayList<Polygon>();
     do {
       Polygon polygon = readPolygonText(tokenizer, ordinateFlags);
       polygons.add(polygon);
@@ -1034,7 +1064,7 @@ S  */
     if (nextToken.equals(WKTConstants.EMPTY)) {
       return geometryFactory.createGeometryCollection();
     }
-    ArrayList geometries = new ArrayList();
+    List<Geometry> geometries = new ArrayList<Geometry>();
     do {
       Geometry geometry = readGeometryTaggedText(tokenizer);
       geometries.add(geometry);

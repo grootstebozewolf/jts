@@ -12,6 +12,7 @@
 package org.locationtech.jts.math;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * Implements extended-precision floating-point numbers 
@@ -91,7 +92,7 @@ import java.io.Serializable;
  *
  */
 public strictfp final class DD 
-  implements Serializable, Comparable, Cloneable
+  implements Serializable, Comparable<DD>, Cloneable
 {
   /**
    * The value nearest to the constant Pi.
@@ -985,11 +986,23 @@ public strictfp final class DD
    * @param y a DoubleDouble value
    * @return true if this value = y
    */
-  public boolean equals(DD y)
+  public boolean equals(Object o)
   {
-    return hi == y.hi && lo == y.lo;
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;    
+    DD dd = (DD) o;
+    return hi == dd.hi && lo == dd.lo;
   }
-  
+
+  public int hashCode()
+  {
+    // equals() compares hi/lo with ==, under which -0.0 and +0.0 are equal,
+    // whereas Double.hashCode distinguishes them. Adding 0.0 normalizes
+    // -0.0 to +0.0 (and leaves every other value unchanged) so that equal
+    // values always hash equally.
+    return Objects.hash(hi + 0.0, lo + 0.0);
+  }
+
   /**
    * Tests whether this value is greater than another <tt>DoubleDouble</tt> value.
    * @param y a DoubleDouble value
@@ -1030,13 +1043,12 @@ public strictfp final class DD
   /**
    * Compares two DoubleDouble objects numerically.
    * 
+   * @param other a DD value to compare to
    * @return -1,0 or 1 depending on whether this value is less than, equal to
    * or greater than the value of <tt>o</tt>
    */
-  public int compareTo(Object o) 
+  public int compareTo(DD other) 
   {
-    DD other = (DD) o;
-
     if (hi < other.hi) return -1;
     if (hi > other.hi) return 1;
     if (lo < other.lo) return -1;

@@ -42,6 +42,8 @@ public class MultiLineString
     super(lineStrings, new GeometryFactory(precisionModel, SRID));
   }
 
+
+
   /**
    * @param lineStrings
    *            the <code>LineString</code>s for this <code>MultiLineString</code>,
@@ -54,14 +56,18 @@ public class MultiLineString
   }
 
   public int getDimension() {
-    return 1;
+    return Dimension.L;
   }
 
+  public boolean hasDimension(int dim) {
+    return dim == Dimension.L;
+  }
+  
   public int getBoundaryDimension() {
     if (isClosed()) {
       return Dimension.FALSE;
     }
-    return 0;
+    return Dimension.P;
   }
 
   public String getGeometryType() {

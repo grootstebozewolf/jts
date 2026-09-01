@@ -16,6 +16,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.index.SpatialIndex;
 import org.locationtech.jts.index.chain.MonotoneChain;
 import org.locationtech.jts.index.chain.MonotoneChainBuilder;
@@ -40,6 +41,8 @@ public class MCIndexSegmentSetMutualIntersector implements SegmentSetMutualInter
   * or {@link STRtree}.
   */
   private STRtree index = new STRtree();
+  private double overlapTolerance = 0.0;
+  private Envelope envelope = null;
 
   /**
    * Constructs a new intersector for a given set of {@link SegmentString}s.
@@ -48,7 +51,19 @@ public class MCIndexSegmentSetMutualIntersector implements SegmentSetMutualInter
    */
   public MCIndexSegmentSetMutualIntersector(Collection baseSegStrings)
   {
-	  initBaseSegments(baseSegStrings);
+    initBaseSegments(baseSegStrings);
+  }
+
+  public MCIndexSegmentSetMutualIntersector(Collection baseSegStrings, Envelope env)
+  {
+    this.envelope  = env;
+    initBaseSegments(baseSegStrings);
+  }
+
+  public MCIndexSegmentSetMutualIntersector(Collection baseSegStrings, double overlapTolerance)
+  {
+    initBaseSegments(baseSegStrings);
+    this.overlapTolerance  = overlapTolerance;
   }
 
   /** 
@@ -60,10 +75,12 @@ public class MCIndexSegmentSetMutualIntersector implements SegmentSetMutualInter
    */
   public SpatialIndex getIndex() { return index; }
 
-  private void initBaseSegments(Collection segStrings)
+  private void initBaseSegments(Collection<SegmentString> segStrings)
   {
-    for (Iterator i = segStrings.iterator(); i.hasNext(); ) {
-      addToIndex((SegmentString) i.next());
+    for (SegmentString ss : segStrings) {
+      if (ss.size() == 0)
+        continue;
+      addToIndex(ss);
     }
     // build index to ensure thread-safety
     index.build();
@@ -74,7 +91,9 @@ public class MCIndexSegmentSetMutualIntersector implements SegmentSetMutualInter
     List segChains = MonotoneChainBuilder.getChains(segStr.getCoordinates(), segStr);
     for (Iterator i = segChains.iterator(); i.hasNext(); ) {
       MonotoneChain mc = (MonotoneChain) i.next();
-      index.insert(mc.getEnvelope(), mc);
+      if (envelope == null || envelope.intersects(mc.getEnvelope())) {
+        index.insert(mc.getEnvelope(overlapTolerance), mc);
+      }
     }
   }
 
@@ -99,10 +118,14 @@ public class MCIndexSegmentSetMutualIntersector implements SegmentSetMutualInter
 
   private void addToMonoChains(SegmentString segStr, List monoChains)
   {
+    if (segStr.size() == 0)
+      return;
     List segChains = MonotoneChainBuilder.getChains(segStr.getCoordinates(), segStr);
     for (Iterator i = segChains.iterator(); i.hasNext(); ) {
       MonotoneChain mc = (MonotoneChain) i.next();
-      monoChains.add(mc);
+      if (envelope == null || envelope.intersects(mc.getEnvelope())) {
+        monoChains.add(mc);
+      }
     }
   }
 
@@ -112,10 +135,11 @@ public class MCIndexSegmentSetMutualIntersector implements SegmentSetMutualInter
 
     for (Iterator i = monoChains.iterator(); i.hasNext(); ) {
       MonotoneChain queryChain = (MonotoneChain) i.next();
-      List overlapChains = index.query(queryChain.getEnvelope());
+      Envelope queryEnv = queryChain.getEnvelope(overlapTolerance);
+      List overlapChains = index.query(queryEnv);
       for (Iterator j = overlapChains.iterator(); j.hasNext(); ) {
         MonotoneChain testChain = (MonotoneChain) j.next();
-        queryChain.computeOverlaps(testChain, overlapAction);
+        queryChain.computeOverlaps(testChain, overlapTolerance, overlapAction);
         if (segInt.isDone()) return;
       }
     }

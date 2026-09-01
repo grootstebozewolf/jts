@@ -180,6 +180,25 @@ import org.locationtech.jts.geom.Coordinate;
 			return angDel - PI_TIMES_2;
 		return angDel;
   }
+  
+  /**
+   * Computes the angle of the unoriented bisector 
+   * of the smallest angle between two vectors.
+   * The computed angle will be in the range (-Pi, Pi].
+   * Collinear inputs are handled.
+   * 
+   * @param tip1 the tip of v1
+   * @param tail the tail of each vector
+   * @param tip2 the tip of v2
+   * @return the angle of the bisector between v1 and v2
+   */
+  public static double bisector(Coordinate tip1, Coordinate tail,
+      Coordinate tip2)
+  {
+    double angDel = angleBetweenOriented(tip1, tail, tip2);
+    double angBi = angle(tail, tip1) + angDel / 2;
+    return normalize(angBi);
+  }
 
   /**
 	 * Computes the interior angle between two segments of a ring. The ring is
@@ -295,9 +314,47 @@ import org.locationtech.jts.geom.Coordinate;
     }
 
     if (delAngle > Math.PI) {
-      delAngle = (2 * Math.PI) - delAngle;
+      delAngle = PI_TIMES_2 - delAngle;
     }
 
     return delAngle;
+  }
+
+  /**
+   * Computes sin of an angle, snapping near-zero values to zero.
+   *
+   * @param ang the input angle (in radians)
+   * @return the result of the trigonometric function
+   */
+  public static double sinSnap(double ang) {
+    double res = Math.sin(ang);
+    if (Math.abs(res) < 5e-16) return 0.0;
+    return res;
+  }
+
+  /**
+   * Computes cos of an angle, snapping near-zero values to zero.
+   *
+   * @param ang the input angle (in radians)
+   * @return the result of the trigonometric function
+   */
+  public static double cosSnap(double ang) {
+    double res = Math.cos(ang);
+    if (Math.abs(res) < 5e-16) return 0.0;
+    return res;
+  }
+
+  /**
+   * Projects a point by a given angle and distance.
+   * 
+   * @param p the point to project
+   * @param angle the angle at which to project
+   * @param dist the distance to project
+   * @return the projected point
+   */
+  public static Coordinate project(Coordinate p, double angle, double dist) {
+    double x = p.getX() + dist * Angle.cosSnap(angle);
+    double y = p.getY() + dist * Angle.sinSnap(angle);
+    return new Coordinate(x, y);
   }
 }

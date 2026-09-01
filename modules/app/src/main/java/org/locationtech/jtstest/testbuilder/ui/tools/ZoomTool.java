@@ -11,11 +11,13 @@
  */
 package org.locationtech.jtstest.testbuilder.ui.tools;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Graphics;
+import java.awt.Point;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.geom.Point2D;
-
 import javax.swing.SwingUtilities;
 
 import org.locationtech.jtstest.testbuilder.AppConstants;
@@ -110,9 +112,12 @@ public class ZoomTool extends BasicTool
   }
 
   public void mouseWheelMoved(MouseWheelEvent e) {
+    /**
+     * Rolling wheel forward zooms in, backward zooms out
+     */
     double notches = e.getPreciseWheelRotation();
-    double zoomFactor = Math.abs(notches) * 2;
-    if (notches > 0 && zoomFactor > 0) zoomFactor = 1.0 / zoomFactor;
+    double zoomFactor = Math.abs(notches) * 4;
+    if (notches < 0 && zoomFactor > 0) zoomFactor = 1.0 / zoomFactor;
     panel().zoom(toModel(e.getPoint()), zoomFactor);
   }
   

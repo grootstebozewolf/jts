@@ -38,13 +38,14 @@ JTS artifacts are available on maven central.
 
 ### Using JTS Snapshots
 
-Our [build server](https://ci.eclipse.org/jts/) publishes to the LocationTech Maven repository. To include JTS in a project, add the following repositories to the pom:
+Our [build server](https://ci.eclipse.org/jts/) publishes [snapshots](https://repo.eclipse.org/content/repositories/jts-snapshots/org/locationtech/jts) to the LocationTech Maven repository. 
+To include JTS in a project, add the following repositories to the pom:
 
 ```xml
 <repositories>
   <repository>
     <id>locationtech-releases</id>
-    <url>https://repo.eclipse.org/content/groups/releases</url>
+    <url>https://repo.eclipse.org/content/repositories/jts</url>
     <snapshots>
       <enabled>false</enabled>
     </snapshots>
@@ -66,7 +67,7 @@ The latest snapshot builds are now avaialble:
 
 ```xml
 <properties>
-    <jts.version>1.17.0-SNAPSHOT</jts.version>
+    <jts.version>1.20.0-SNAPSHOT</jts.version>
 </properties>
 <dependency>
     <groupId>org.locationtech.jts</groupId>
@@ -123,6 +124,7 @@ module org.foo.baz {
 ## JTS System Properties
 
 * `-Djts.overlay=ng` enables the use of OverlayNG in `Geometry` overlay methods. (*Note: in a future release this will become the default behaviour*) 
+* `-Djts.relate=ng` enables the use of RelateNG in `Geometry` topological predicate methods. (*Note: in a future release this will become the default behaviour*) 
 
 ## JTS Tools
 

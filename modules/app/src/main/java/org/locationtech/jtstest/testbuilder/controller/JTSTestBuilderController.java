@@ -13,18 +13,23 @@
 package org.locationtech.jtstest.testbuilder.controller;
 
 
+import java.awt.Color;
+
 import javax.swing.JFileChooser;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.util.LinearComponentExtracter;
-import org.locationtech.jtstest.testbuilder.TestBuilderDialogs;
 import org.locationtech.jtstest.clean.CleanDuplicatePoints;
+import org.locationtech.jtstest.testbuilder.AppConstants;
+import org.locationtech.jtstest.testbuilder.AppStrings;
 import org.locationtech.jtstest.testbuilder.GeometryEditPanel;
 import org.locationtech.jtstest.testbuilder.JTSTestBuilder;
 import org.locationtech.jtstest.testbuilder.JTSTestBuilderFrame;
 import org.locationtech.jtstest.testbuilder.JTSTestBuilderToolBar;
 import org.locationtech.jtstest.testbuilder.SpatialFunctionPanel;
+import org.locationtech.jtstest.testbuilder.TestBuilderDialogs;
+import org.locationtech.jtstest.testbuilder.geom.GeometryElementLocater;
 import org.locationtech.jtstest.testbuilder.model.GeometryEditModel;
 import org.locationtech.jtstest.testbuilder.model.LayerList;
 import org.locationtech.jtstest.testbuilder.model.TestBuilderModel;
@@ -34,12 +39,18 @@ import org.locationtech.jtstest.testbuilder.ui.render.ViewStyle;
 import org.locationtech.jtstest.testbuilder.ui.tools.DeleteByBoxTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.EditVertexTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.ExtractComponentTool;
-import org.locationtech.jtstest.testbuilder.ui.tools.InfoTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.CircularStringTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.CompoundCurveTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.CurvePolygonTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.InfoTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.LineStringTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.TinTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.TriangleTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.MoveTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.PanTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.PointTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.RectangleTool;
+import org.locationtech.jtstest.testbuilder.ui.tools.SelectElementTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.StreamPolygonTool;
 import org.locationtech.jtstest.testbuilder.ui.tools.Tool;
 import org.locationtech.jtstest.testbuilder.ui.tools.ZoomTool;
@@ -82,7 +93,7 @@ public class JTSTestBuilderController
     return JTSTestBuilderFrame.instance();
   }
 
-  public GeometryEditModel geomEditModel() {
+  public GeometryEditModel getGeomEditModel() {
     return JTSTestBuilder.model().getGeometryEditModel();
   }
   
@@ -105,57 +116,79 @@ public class JTSTestBuilderController
   }
   
   public Geometry getGeometryA() {
-    return geomEditModel().getGeometry(0);
+    return getGeomEditModel().getGeometry(0);
   }
 
   public Geometry getGeometryB() {
-    return geomEditModel().getGeometry(1);
+    return getGeomEditModel().getGeometry(1);
   }
 
   public void exchangeGeometry() {
-    geomEditModel().exchangeGeometry();
+    getGeomEditModel().exchangeGeometry();
   }
   
-  public void addTestCase(Geometry[] geom, String name)
+  public void caseAdd(Geometry[] geoms, String name)
   {
-    model().addCase(geom, name);
+    model().addCase(geoms, name);
     JTSTestBuilderFrame.instance().updateTestCases();
     JTSTestBuilderFrame.instance().showGeomsTab();
+    selectClear();
   }
   
-  public void extractComponentsToTestCase(Coordinate pt)
+  public void copyElementsToTestCase(Coordinate pt)
   {
     double toleranceInModel = editPanel().getToleranceInModel();
     LayerList lyrList = model().getLayers();
-    Geometry comp = lyrList.getComponent(pt, toleranceInModel);
+    Geometry comp = lyrList.getElement(pt, toleranceInModel);
     if (comp == null) 
       return;
-    model().addCase(new Geometry[] { comp, null });
-    JTSTestBuilderFrame.instance().updateTestCases();
+    caseAdd(new Geometry[] { comp, null }, "Extract");
   }
   
-  public void extractComponentsToTestCase(Geometry aoi, boolean isSegments)
+  public void copyElementsToTestCase(Geometry aoi, boolean isSegments)
   {
     //double toleranceInModel = JTSTestBuilderFrame.getGeometryEditPanel().getToleranceInModel();
     LayerList lyrList = model().getLayers();
     Geometry[] comp;
-    comp = lyrList.getComponents(aoi, isSegments);
+    comp = lyrList.getElements(aoi, isSegments);
     if (comp == null) 
       return;
-    model().addCase(comp);
-    JTSTestBuilderFrame.instance().updateTestCases();
+    caseAdd(comp, "Extract");
     toolbar().selectZoomButton();
     modeZoomIn();
   }
 
-  public void copyComponentToClipboard(Coordinate pt)
+  public void copyElementToClipboard(Coordinate pt)
   {
     double toleranceInModel = editPanel().getToleranceInModel();
     LayerList lyrList = model().getLayers();
-    Geometry comp = lyrList.getComponent(pt, toleranceInModel);
+    Geometry comp = lyrList.getElement(pt, toleranceInModel);
     if (comp == null) 
       return;
     SwingUtil.copyToClipboard(comp, false);
+  }
+  
+  public void selectElements(Geometry aoi)
+  {
+    Geometry geom = model().getGeometryEditModel().getGeometry();
+    Geometry comp = null;
+    if (geom != null) {
+      comp = GeometryElementLocater.extractElements(geom, aoi);
+    }
+    if (comp == null) {
+      model().clearSelection();
+    } 
+    else {
+      model().getLayerSelect().setEnabled(true);
+      model().setSelection(comp);
+    }
+    geometryViewChanged();
+    layerListRefresh();
+  }
+
+  public void selectClear() {
+    model().clearSelection();
+    layerListRefresh();
   }
   
   public void setFocusGeometry(int index) {
@@ -163,6 +196,11 @@ public class JTSTestBuilderController
     toolbar().setFocusGeometry(index);    
   }
 
+  public void flash(Geometry geom)
+  {
+    JTSTestBuilderFrame.getGeometryEditPanel().flash(geom);
+  }
+  
   public void inspectGeometry()
   {
     JTSTestBuilderFrame.instance().inspectGeometry();
@@ -173,14 +211,23 @@ public class JTSTestBuilderController
     JTSTestBuilderFrame.instance().inspectResult();
   }
 
+  public void inspectGeometry(String name, Geometry geometry) {
+    JTSTestBuilderFrame.instance().inspectGeometry(name, geometry);
+  }
+
+  public void inspectGeometryDialog(String name, Geometry geometry)
+  {
+    TestBuilderDialogs.inspectGeometry(frame(), name, geometry);
+  }
+  
   public void inspectGeometryDialogForCurrentCase()
   {
-    int geomIndex = JTSTestBuilder.model().getGeometryEditModel().getGeomIndex();
+    int geomIndex = model().getGeometryEditModel().getGeomIndex();
     Geometry geometry = model().getCurrentCase().getGeometry(geomIndex);
     TestBuilderDialogs.inspectGeometry(frame(), geomIndex, geometry);
   }
   
-  public void clearResult()
+  public void resultClear()
   {
     frame().getResultWKTPanel().clearResult();
     model().setResult(null);
@@ -224,11 +271,16 @@ public class JTSTestBuilderController
       reportException(x);
     }
   }
+
+  //==================================
   
-  public void updateLayerList() {
+  public void layerListUpdate() {
     JTSTestBuilderFrame.instance().updateLayerList();
   }
   
+  public void layerListRefresh() {
+    JTSTestBuilderFrame.instance().refreshLayerList();
+  }
   
   //================================
       
@@ -247,10 +299,26 @@ public class JTSTestBuilderController
 
   public void modeDrawLineString() {
     setTool(LineStringTool.getInstance());
-  }    
+  }
 
   public void modeDrawCircularString() {
     setTool(CircularStringTool.getInstance());
+  }
+
+  public void modeDrawCompoundCurve() {
+    setTool(CompoundCurveTool.getInstance());
+  }
+
+  public void modeDrawCurvePolygon() {
+    setTool(CurvePolygonTool.getInstance());
+  }
+
+  public void modeDrawTriangle() {
+    setTool(TriangleTool.getInstance());
+  }
+
+  public void modeDrawTin() {
+    setTool(TinTool.getInstance());
   }
 
   public void modeDrawPoint() {
@@ -265,11 +333,18 @@ public class JTSTestBuilderController
     setTool(ExtractComponentTool.getInstance());
   }
 
+  public void modeSelectComponent() {
+    setTool(SelectElementTool.getInstance());
+  }
+
   public void modeDeleteVertex() {
     setTool(DeleteByBoxTool.getInstance());
   }
   public void modeEditVertex() {
     setTool(EditVertexTool.getInstance());
+  }
+  public void modeMove() {
+    setTool(MoveTool.getInstance());
   }
   public void modeZoomIn() {
     setTool(ZoomTool.getInstance());
@@ -302,32 +377,53 @@ public class JTSTestBuilderController
     editPanel().zoomToGeometry(1);
   }
   
-  public void caseMoveToPrev(boolean isZoom) {
-    model().cases().prevCase();
-    frame().updateTestCaseView();
-    if (isZoom) zoomToInput();
+  public void zoomToGeometry(Geometry geom) {
+    editPanel().zoom(geom);
   }
-
-  public void caseMoveToNext(boolean isZoom) {
+  
+  public void caseMoveTo(int dir, boolean isZoom) {
+    if (dir < 1) {
+      model().cases().prevCase();
+    }
+    else {
     model().cases().nextCase();
+    }
     frame().updateTestCaseView();
+    selectClear();
     if (isZoom) zoomToInput();
   }
 
   public void caseCopy() {
     model().cases().copyCase();
     frame().updateTestCases();
+    selectClear();
   }
   
   public void caseCreateNew() {
+    CircularStringTool.onNewCase();
     model().cases().createNew();
     frame().showGeomsTab();
     frame().updateTestCases();
+    selectClear();
   }
   
   public void caseDelete() {
     model().cases().deleteCase();
     frame().updateTestCases();
+    selectClear();
+  }
+  
+  //========================================
+
+  public void resultCopyToTest() 
+  {
+    Object currResult = model().getResult();
+    if (! (currResult instanceof Geometry))
+      return;
+    model().addCase(
+        new Geometry[] { (Geometry) currResult, null }, 
+        "Result of " + model().getOpName());
+    frame().updateTestCases(); 
   }
   
   //========================================
@@ -337,15 +433,36 @@ public class JTSTestBuilderController
     displayInfo( editPanel().getInfo(modelPt) );
   }
   
+  /**
+   * Writes the Log tab and selects it ({@link org.locationtech.jtstest.testbuilder.JTSTestBuilderFrame#showInfoTab}).
+   * That steals the Input tab. CurvePolygon Escape cancel must not
+   * call this — use {@link #setStatus} instead. If Log is also written,
+   * call {@link #displayInfo(String, boolean)} with {@code showTab=false}.
+   */
   public void displayInfo(String s)
   {
     displayInfo(s, true);
   }
   
+  /**
+   * Writes the Log tab. {@code showTab=true} selects Log and steals
+   * Input. Cancel must not pass {@code true}.
+   */
   public void displayInfo(String s, boolean showTab)
   {
     frame().getLogPanel().addInfo(s);
     if (showTab) frame().showInfoTab();
+  }
+
+  /**
+   * Bottom status bar on {@link org.locationtech.jtstest.testbuilder.TestCasePanel}
+   * (Case / PM strip). Not the Log tab; that is {@link #displayInfo}.
+   * CurvePolygon Escape writes {@code CurvePolygon cancelled.} here only.
+   */
+  public void setStatus(String s)
+  {
+    if (!JTSTestBuilderFrame.isRunning()) return;
+    frame().getTestCasePanel().setStatus(s);
   }
   
   //========================================
@@ -368,5 +485,21 @@ public class JTSTestBuilderController
     Geometry cleanGeom = LinearComponentExtracter.getGeometry(model().getGeometryEditModel().getGeometry(0));
     model().getCurrentCase().setGeometry(0, cleanGeom);
     frame().geometryChanged();
+  }
+  
+  //=============================================
+
+  public void indicatorShow(Geometry geom, Color lineClr)
+  {
+    if (! JTSTestBuilderFrame.isShowingIndicators()) return;
+    
+    if (JTSTestBuilderFrame.isSavingIndicators()) {
+      //-- refresh layer list panel only when indicator layer is created
+      boolean refreshLayerList = ! model().hasLayer(AppStrings.LYR_INDICATORS);
+      model().addIndicator(geom);
+      if (refreshLayerList) 
+        frame().refreshLayerList();
+    }
+    editPanel().draw(geom, lineClr, AppConstants.INDICATOR_FILL_CLR);
   }
 }

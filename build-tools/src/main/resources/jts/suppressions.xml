@@ -5,5 +5,9 @@
     "https://checkstyle.org/dtds/suppressions_1_2.dtd">
 
 <suppressions>
+   <suppress files="Varint.java" checks="Header"/>
+   <!-- EUPL-1.2 port of clothoid-halley-coq v1.1.1 (DOI 10.5281/zenodo.22059577). -->
+   <suppress files="ClothoidHalleySolver.java" checks="Header"/>
+   <suppress files="GaussLegendre.java" checks="Header"/>
    <suppress files="[\\/]test[\\/]" checks="[a-zA-Z0-9]*"/>
 </suppressions>

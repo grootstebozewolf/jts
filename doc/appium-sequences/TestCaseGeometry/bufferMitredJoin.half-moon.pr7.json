@@ -1,0 +1,59 @@
+{
+  "id": "TestCaseGeometry.bufferMitredJoin.half-moon.pr7",
+  "claimId": "TB-AP-TESTCASEGEOMETRY-BUFFERMITREDJOIN",
+  "category": "TestCaseGeometry",
+  "function": "bufferMitredJoin",
+  "branch": "pr7",
+  "tags": [
+    "tb-appium",
+    "TestCaseGeometry",
+    "bufferMitredJoin",
+    "half-moon"
+  ],
+  "golden": false,
+  "skipped": true,
+  "playbackOf": "TestCaseGeometry.bufferMitredJoin.polygon.upstream",
+  "fixtureFile": "_fixtures/pr7-half-moon.wkt",
+  "params": [
+    "1"
+  ],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "TestCaseGeometry",
+        "bufferMitredJoin"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.param.0",
+      "action": "setText",
+      "value": "1"
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "bufferMitredJoin",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "preserveCurveAware": true
+  },
+  "notes": "bufferMitredJoin \u00b7 pr7 half-moon | PROMOTE SKIP: TestCaseGeometry.bufferMitredJoin"
+}

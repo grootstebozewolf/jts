@@ -12,10 +12,12 @@
 package org.locationtech.jts.geom.util;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateArrays;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
 
 import junit.textui.TestRunner;
+import org.locationtech.jts.io.WKTReader;
 import test.jts.GeometryTestCase;
 
 public class GeometryFixerTest extends GeometryTestCase {
@@ -333,8 +335,43 @@ public class GeometryFixerTest extends GeometryTestCase {
         "GEOMETRYCOLLECTION Z (POINT (10 10 1), LINESTRING (10 10 1, 90 90 9))");
   }
 
+  //----------------------------------------
+  
+  // see https://github.com/locationtech/jts/issues/852
+  public void testIssue852Case1() {
+    checkFix("POLYGON ((42.565844354657436 -72.61247966084643, 42.56484510561062 -72.61202938126273, 42.56384585656381 -72.61247966084643, 42.563637679679054 -72.61276108558623, 42.562055535354936 -72.61366164475362, 42.5631796905326 -72.61259223074235, 42.565844354657436 -72.61214195115866, 42.566510520688645 -72.61259223074235, 42.565844354657436 -72.61247966084643))");
+  }
+
+  public void testIssue852Case2() {
+    checkFix("POLYGON ((50.69544005538049 4.587126197745181, 50.699035986722194 4.592752502415541, 50.699395579856365 4.592049214331746, 50.699125885005735 4.590501980547397, 50.69867639358802 4.591064611014433, 50.69795720731968 4.591064611014433, 50.69759761418551 4.590501980547397, 50.69759761418551 4.589376719613325, 50.69831680045385 4.588251458679252, 50.69723802105134 4.586563567278144, 50.69579964851466 4.586563567278144, 50.69544005538049 4.587126197745181))");
+  }
+
+  //----------------------------------------
+  public void testDimensionConsistence(){
+    // test 2d case
+    WKTReader reader = new WKTReader();
+    reader.setIsOldJtsCoordinateSyntaxAllowed(false);
+    Geometry geom2d = read(reader, "POLYGON((0 0, 1 0.1, 1 1, 0.5 1, 0.5 1.5, 1 1, 1.5 1.5, 1.5 1, 1 1, 1.5 0.5, 1 0.1, 2 0, 2 2,0 2, 0 0))");
+    assertEquals(2, CoordinateArrays.dimension(geom2d.getCoordinates()));
+
+    Geometry fix2d = GeometryFixer.fix(geom2d);
+    assertEquals(2, CoordinateArrays.dimension(fix2d.getCoordinates()));
+
+    // test 3d case
+    Geometry geom3d = read(reader, "POLYGON Z ((10 90 1, 60 90 6, 60 10 6, 10 10 1, 10 90 1), (20 80 2, 90 80 9, 90 20 9, 20 20 2, 20 80 2))");
+    assertEquals(3, CoordinateArrays.dimension(geom3d.getCoordinates()));
+
+    Geometry fix3d = GeometryFixer.fix(geom3d);
+    assertEquals(3, CoordinateArrays.dimension(fix3d.getCoordinates()));
+  }
+
   //================================================
 
+  private void checkFix(String wkt) {
+    Geometry geom = read(wkt);
+    Geometry fix = GeometryFixer.fix(geom);
+    assertTrue("Result is invalid", fix.isValid());
+  }
 
   private void checkFix(String wkt, String wktExpected) {
     Geometry geom = read(wkt);

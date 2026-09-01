@@ -12,16 +12,17 @@
 
 package org.locationtech.jtstest;
 
-import junit.framework.TestCase;
-import org.locationtech.jts.util.Assert;
-import org.locationtech.jtstest.testrunner.SimpleReportWriter;
-import org.locationtech.jtstest.testrunner.TestEngine;
-
 import java.io.File;
 import java.io.FilenameFilter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import org.locationtech.jts.util.Assert;
+import org.locationtech.jtstest.testrunner.SimpleReportWriter;
+import org.locationtech.jtstest.testrunner.TestEngine;
+
+import junit.framework.TestCase;
 
 public class CoreGeometryXMLTest extends TestCase {
     public CoreGeometryXMLTest(String name) {
@@ -51,7 +52,7 @@ public class CoreGeometryXMLTest extends TestCase {
 
     private void testFiles(String... directoryName) {
         TestEngine engine = new TestEngine();
-        List testFiles = new ArrayList();
+        List<File> testFiles = new ArrayList<File>();
         for (String dirName : directoryName) {
           testFiles.addAll( filenames(new File(dirName)) );
         }

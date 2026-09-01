@@ -23,14 +23,18 @@ import java.util.List;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
 import org.locationtech.jts.io.WKTWriter;
+import org.locationtech.jts.io.curve.CurveWKTReader;
 import org.locationtech.jts.math.MathUtil;
 import org.locationtech.jts.util.Assert;
 import org.locationtech.jtstest.test.TestCaseList;
 import org.locationtech.jtstest.test.Testable;
-import org.locationtech.jtstest.testbuilder.GeometryDepiction;
+import org.locationtech.jtstest.testbuilder.AppColors;
+import org.locationtech.jtstest.testbuilder.AppConstants;
+import org.locationtech.jtstest.testbuilder.AppStrings;
 import org.locationtech.jtstest.testbuilder.ui.SwingUtil;
 import org.locationtech.jtstest.testbuilder.ui.style.BasicStyle;
 import org.locationtech.jtstest.testrunner.TestReader;
@@ -50,8 +54,9 @@ public class TestBuilderModel
   private LayerList layerList = LayerList.createFixed();
   private LayerList layerListTop = new LayerList();
   private LayerList layerListBase = new LayerList();
+  private Layer layerSelect = new Layer(AppStrings.LYR_LABEL_SELECTION, false);
   
-  private WKTWriter writer = new WKTWriter();
+  private WKTWriter writer = new org.locationtech.jts.io.curve.CurveWKTWriter();
   private Object currResult = null;
   private String opName = "";
 
@@ -75,7 +80,7 @@ public class TestBuilderModel
   public GeometryFactory getGeometryFactory()
   {
     if (geometryFactory == null)
-      geometryFactory = new GeometryFactory(getPrecisionModel());
+      geometryFactory = new CurveGeometryFactory(getPrecisionModel());
     return geometryFactory;
   }
   
@@ -89,13 +94,30 @@ public class TestBuilderModel
 		return writer.writeFormatted(g);
 	}
 	
+  public Layer getLayer(int i) { return layerList.getLayer(i); }
   public LayerList getLayers() { return layerList; }
-  public LayerList getLayersAll() { return LayerList.create(layerListTop,layerList,layerListBase) ; }
-  
   public LayerList getLayersTop() { return layerListTop; }
   public LayerList getLayersBase() { return layerListBase; }
-  
-  
+  public LayerList getLayersAll() { 
+    LayerList layers = LayerList.create(
+        layerListTop,
+        layerList,
+        getLayersFloating(),
+        layerListBase
+        );
+    return layers;
+  }
+  public Layer getLayerSelect() {
+    return layerSelect;
+  }
+
+  public LayerList getLayersFloating() {
+    LayerList list = new LayerList();
+    if (layerSelect.hasGeometry())
+      list.addBottom(layerSelect);
+    return list;
+  }
+
   public List<Layer> getLayersLegend() {
     List<Layer> layers = new ArrayList<Layer>();
     addLegendLayers(layerList, layers);
@@ -112,6 +134,44 @@ public class TestBuilderModel
     }
   }
   
+  public Layer getLayerIndicators() {
+    Layer ind = layerListTop.find(AppStrings.LYR_INDICATORS);
+    if (ind == null)
+      ind = layerListBase.find(AppStrings.LYR_INDICATORS);
+    if (ind == null) {
+      ind = createIndicatorLayer();
+      layerListBase.add(ind, true);
+    }
+    return ind;
+  }
+
+  private Layer createIndicatorLayer() {
+    Layer ind = new Layer(AppStrings.LYR_INDICATORS,
+        new ListGeometryContainer(),
+        new BasicStyle(AppConstants.INDICATOR_LINE_CLR, 
+                        AppConstants.INDICATOR_FILL_CLR));
+    ind.getLayerStyle().setVertices(false);
+    return ind;
+  }
+  
+  public void addIndicator(Geometry geom) {
+    Layer lyr = getLayerIndicators();
+    ListGeometryContainer src = (ListGeometryContainer) lyr.getSource();
+    src.add(geom);   
+  }
+  
+  public boolean hasLayer(String name) {
+    return findLayer(name) != null;
+  }
+  
+  private Layer findLayer(String name) {
+    Layer lyr = layerListTop.find(name);
+    if (lyr != null) return lyr;
+    lyr = layerListBase.find(name);
+    if (lyr != null) return lyr;
+    return layerList.find(name);
+  }
+  
   private void initLayers()
   {  	
   	GeometryContainer geomCont0 = new IndexedGeometryContainer(geomEditModel, 0);
@@ -119,22 +179,26 @@ public class TestBuilderModel
   	
     layerList.getLayer(LayerList.LYR_A).setSource(geomCont0);
     layerList.getLayer(LayerList.LYR_B).setSource(geomCont1);
+    //layerList.getLayer(LayerList.LYR_SELECT).setSource(new ListGeometryContainer());
     
     if (geomEditModel != null)
       layerList.getLayer(LayerList.LYR_RESULT).setSource(
           new ResultGeometryContainer(geomEditModel));
 
     Layer lyrA = layerList.getLayer(LayerList.LYR_A);
-    lyrA.setGeometryStyle(new BasicStyle(GeometryDepiction.GEOM_A_LINE_CLR,
-        GeometryDepiction.GEOM_A_FILL_CLR));
+    lyrA.setGeometryStyle(new BasicStyle(AppColors.GEOM_A_LINE_CLR,
+        AppColors.GEOM_A_FILL_CLR));
     
     Layer lyrB = layerList.getLayer(LayerList.LYR_B);
-    lyrB.setGeometryStyle(new BasicStyle(GeometryDepiction.GEOM_B_LINE_CLR,
-        GeometryDepiction.GEOM_B_FILL_CLR));
+    lyrB.setGeometryStyle(new BasicStyle(AppColors.GEOM_B_LINE_CLR,
+        AppColors.GEOM_B_FILL_CLR));
     
     Layer lyrR = layerList.getLayer(LayerList.LYR_RESULT);
-    lyrR.setGeometryStyle(new BasicStyle(GeometryDepiction.GEOM_RESULT_LINE_CLR,
-        GeometryDepiction.GEOM_RESULT_FILL_CLR));
+    lyrR.setGeometryStyle(new BasicStyle(AppColors.GEOM_RESULT_LINE_CLR,
+        AppColors.GEOM_RESULT_FILL_CLR));
+    
+    layerSelect.setGeometryStyle(new BasicStyle(AppColors.GEOM_SELECT_LINE_CLR,
+        AppColors.GEOM_SELECT_FILL_CLR));
   }
 
   public void pasteGeometry(int geomIndex) throws Exception {
@@ -178,7 +242,7 @@ public class TestBuilderModel
   }
   
   public void loadGeometryText(String wktA, String wktB) throws ParseException, IOException {
-    MultiFormatReader reader = new MultiFormatReader(new GeometryFactory(getPrecisionModel(),0));
+    MultiFormatReader reader = new MultiFormatReader(new CurveGeometryFactory(getPrecisionModel(),0));
     
     // read geom A
     Geometry g0 = null;
@@ -393,7 +457,7 @@ public class TestBuilderModel
   }
 
   private void loadWKTAfterPMChange() throws ParseException {
-    WKTReader reader = new WKTReader(new GeometryFactory(getPrecisionModel(), 0));
+    WKTReader reader = new CurveWKTReader(new CurveGeometryFactory(getPrecisionModel(), 0));
     for (int i = 0; i < getCases().size(); i++) {
       Testable testable = (Testable) getCases().get(i);
       String wktA = (String) wktABeforePMChange.get(i);
@@ -516,7 +580,7 @@ public class TestBuilderModel
     }  
   
   }
-
+  
   public Layer layerCopy(Layer lyr) {
     if (layerListTop.contains(lyr)) {
       return layerListTop.copy(lyr);
@@ -560,13 +624,23 @@ public class TestBuilderModel
       }
       layerListTop.moveDown(lyr);
     } 
-    
   }
 
-  public boolean isLayerFixed(Layer lyr) {
-    return layerList.contains(lyr);
+  public void setSelection(Geometry geometry) {
+    layerSelect.setGeometry(geometry);
   }
 
+  /*
+  public void addSelection(Geometry geometry) {
+    ListGeometryContainer src = (ListGeometryContainer) layerSelect.getSource();
+    src.add(geometry);
+  }
+*/
+  
+  public void clearSelection() {
+    if (layerSelect.getSource() != null)
+      layerSelect.getSource().clear();
+  }
 
 }
 

@@ -20,6 +20,8 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -48,6 +50,17 @@ import org.locationtech.jtstest.testbuilder.ui.style.Palette;
 import org.locationtech.jtstest.testbuilder.ui.style.VertexStyle;
 
 public class LayerStylePanel extends JPanel {
+  
+  private static StyleSwatchList createPresets() {
+    return StyleSwatchList.create(
+      new BasicStyle(Color.RED, Color.PINK),
+      new BasicStyle(AppColors.GEOM_SELECT_LINE_CLR, AppColors.GEOM_SELECT_FILL_CLR),
+      new BasicStyle(Color.MAGENTA, Color.PINK),
+      new BasicStyle(Color.YELLOW, ColorUtil.lighter(ColorUtil.lighter(Color.YELLOW))),
+      new BasicStyle(Color.BLACK, Color.LIGHT_GRAY)
+      );
+  }
+  
   private Layer layer;
   private JLabel title;
   private JCheckBox cbShift;
@@ -97,13 +110,23 @@ public class LayerStylePanel extends JPanel {
   private BasicStyle geomStyle() {
     return layer.getLayerStyle().getGeomStyle();
   }  
+  
   public void setLayer(Layer layer, boolean isModifiable) {
     this.layer = layer;
     //this.title.setText("Styling - Layer " + layer.getName());
     txtName.setText(layer.getName());
     txtName.setEditable(isModifiable);
     txtName.setFocusable(isModifiable);
-
+    updateStyleControls();
+  }
+  
+  void updateStyleControls() {
+    ColorControl.update(btnVertexColor, layer.getLayerStyle().getVertexColor() );
+    ColorControl.update(btnLabelColor, layer.getLayerStyle().getLabelColor() );
+    ColorControl.update(btnLineColor, geomStyle().getLineColor() );
+    ColorControl.update(btnFillColor, geomStyle().getFillColor() );
+    sliderLineAlpha.setValue(geomStyle().getLineAlpha());
+    sliderFillAlpha.setValue(geomStyle().getFillAlpha());
     cbShift.setSelected(layer.getLayerStyle().isShifted());
     cbVertex.setSelected(layer.getLayerStyle().isVertices());
     cbVertexLabel.setSelected(layer.getLayerStyle().isVertexLabels());
@@ -122,29 +145,18 @@ public class LayerStylePanel extends JPanel {
     cbSegIndex.setSelected(layer.getLayerStyle().isSegIndex());
     lineWidthModel.setValue((double) geomStyle().getStrokeWidth());
     setPaletteType(comboPalette, layer.getLayerStyle().getFillType());
-    updateStyleControls();
-  }
-  
-  void updateStyleControls() {
-    ColorControl.update(btnVertexColor, layer.getLayerStyle().getVertexColor() );
-    ColorControl.update(btnLabelColor, layer.getLayerStyle().getLabelColor() );
-    ColorControl.update(btnLineColor, geomStyle().getLineColor() );
-    ColorControl.update(btnFillColor, geomStyle().getFillColor() );
-    sliderLineAlpha.setValue(geomStyle().getLineAlpha());
-    sliderFillAlpha.setValue(geomStyle().getFillAlpha());
-    JTSTestBuilder.controller().updateLayerList();
+
+    JTSTestBuilder.controller().layerListUpdate();
   }
   
   private void uiInit() throws Exception {
     setBorder(BorderFactory.createEmptyBorder(2,2,2,2));
     setLayout(new BorderLayout());
      
-     
     //title = new JLabel("Styling");
     //title.setAlignmentX(Component.LEFT_ALIGNMENT);
     //add(title, BorderLayout.NORTH);
     
-
     add( stylePanel(), BorderLayout.CENTER );
     
     JButton btnReset = SwingUtil.createButton(AppIcons.CLEAR, "Reset style to default", new ActionListener() {
@@ -155,12 +167,49 @@ public class LayerStylePanel extends JPanel {
         JTSTestBuilder.controller().geometryViewChanged();
       }
     });
+
+    StyleSwatchList stylePresetList = createStylePresets();
+    
     JPanel btnPanel = new JPanel();
+    //btnPanel.setPreferredSize(new Dimension(30, 30));
     btnPanel.setLayout(new BoxLayout(btnPanel, BoxLayout.Y_AXIS));
     btnPanel.add(btnReset);
+    btnPanel.add(Box.createVerticalStrut(6));
+    btnPanel.add(stylePresetList);
+    
     add( btnPanel, BorderLayout.EAST);
   }
   
+  private StyleSwatchList createStylePresets() {
+    StyleSwatchList stylePresetList = createPresets();
+    //stylePresetList.setBackground(Color.WHITE);
+    //stylePresetList.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
+    stylePresetList.setAlignmentX(LEFT_ALIGNMENT);
+
+    stylePresetList.addMouseListener(new MouseAdapter() {
+      @Override
+      public void mouseClicked(MouseEvent e) {
+        stylePresetList.clearSelection();
+        if (layer == null) return;
+        
+        BasicStyle style = stylePresetList.getStyle(e);
+        
+        layer.getGeometryStyle().setFillColor(style.getFillColor());
+        layer.getLayerStyle().getGeomStyle().setLineColor(style.getLineColor());
+        layer.getLayerStyle().setColor(style.getLineColor());
+        layer.getLayerStyle().setVertexColor(style.getLineColor());
+        
+        ColorControl.update(btnVertexColor, layer.getLayerStyle().getVertexColor() );
+        ColorControl.update(btnLineColor, geomStyle().getLineColor() );
+        ColorControl.update(btnFillColor, geomStyle().getFillColor() );
+        
+        JTSTestBuilder.controller().geometryViewChanged();
+        JTSTestBuilder.controller().layerListUpdate();
+      }
+    });
+    return stylePresetList;
+  }
+
   private JPanel stylePanel() {
     JPanel containerPanel = new JPanel();
     containerPanel.setLayout(new BoxLayout(containerPanel, BoxLayout.Y_AXIS));
@@ -211,7 +260,7 @@ public class LayerStylePanel extends JPanel {
       public void update() {
         String name = txtName.getText();
         layer.setName(name);
-        JTSTestBuilder.controller().updateLayerList();
+        JTSTestBuilder.controller().layerListUpdate();
       }
     });
 
@@ -295,7 +344,7 @@ public class LayerStylePanel extends JPanel {
             geomStyle().setLineColor(clr);
             layer.getLayerStyle().setColor(clr);
             JTSTestBuilder.controller().geometryViewChanged();
-            JTSTestBuilder.controller().updateLayerList();
+            JTSTestBuilder.controller().layerListUpdate();
           }
         }
        );
@@ -322,7 +371,7 @@ public class LayerStylePanel extends JPanel {
         float width = lineWidthModel.getNumber().floatValue();
         geomStyle().setStrokeWidth(width);
         JTSTestBuilder.controller().geometryViewChanged();
-        JTSTestBuilder.controller().updateLayerList();
+        JTSTestBuilder.controller().layerListUpdate();
       }
     });
 
@@ -333,7 +382,7 @@ public class LayerStylePanel extends JPanel {
           int alpha = (int)source.getValue();
           geomStyle().setLineAlpha(alpha);
           JTSTestBuilder.controller().geometryViewChanged();
-          JTSTestBuilder.controller().updateLayerList();
+          JTSTestBuilder.controller().layerListUpdate();
         }
       }
     });
@@ -432,7 +481,7 @@ public class LayerStylePanel extends JPanel {
       public void actionPerformed(ActionEvent e) {
         geomStyle().setFilled(cbFilled.isSelected());
         JTSTestBuilder.controller().geometryViewChanged();
-        JTSTestBuilder.controller().updateLayerList();
+        JTSTestBuilder.controller().layerListUpdate();
       }
     });
    
@@ -443,7 +492,7 @@ public class LayerStylePanel extends JPanel {
           int alpha = (int)source.getValue();
           geomStyle().setFillAlpha(alpha);
           JTSTestBuilder.controller().geometryViewChanged();
-          JTSTestBuilder.controller().updateLayerList();
+          JTSTestBuilder.controller().layerListUpdate();
         }
       }
     });
@@ -455,7 +504,7 @@ public class LayerStylePanel extends JPanel {
             geomStyle().setFillColor(clr);
             updateStyleControls();
             JTSTestBuilder.controller().geometryViewChanged();
-            JTSTestBuilder.controller().updateLayerList();
+            JTSTestBuilder.controller().layerListUpdate();
           }
         }
        );
@@ -531,7 +580,7 @@ public class LayerStylePanel extends JPanel {
   }
 
   //-----------------------------------------
-  static String[] paletteNames = { "Basic", "Varying", "Spectrum", "Spectrum Random" }; 
+  static String[] paletteNames = { "Basic", "Varying", "Spectrum", "Spectrum Random", "Spectrum Third" }; 
 
   private static int getPaletteType(JComboBox comboPal) {
     String palName = (String)comboPal.getSelectedItem();
@@ -540,6 +589,7 @@ public class LayerStylePanel extends JPanel {
     if (palName.equalsIgnoreCase(paletteNames[1])) paletteType = Palette.TYPE_VARY;
     if (palName.equalsIgnoreCase(paletteNames[2])) paletteType = Palette.TYPE_SPECTRUM;
     if (palName.equalsIgnoreCase(paletteNames[3])) paletteType = Palette.TYPE_SPECTRUM_RANDOM;
+    if (palName.equalsIgnoreCase(paletteNames[4])) paletteType = Palette.TYPE_SPECTRUM_THIRD;
     return paletteType;
   }
   
@@ -548,6 +598,7 @@ public class LayerStylePanel extends JPanel {
     if (paletteType == Palette.TYPE_VARY) index = 1;
     if (paletteType == Palette.TYPE_SPECTRUM) index = 2;
     if (paletteType == Palette.TYPE_SPECTRUM_RANDOM) index = 3;
+    if (paletteType == Palette.TYPE_SPECTRUM_THIRD) index = 4;
     comboPal.setSelectedIndex(index);
   }
   
@@ -632,5 +683,50 @@ public class LayerStylePanel extends JPanel {
         new Insets(2, 2, 2, 2),
         2,
         0);
+  }
+}
+
+class StyleSwatchButton extends JButton {
+  
+  public static StyleSwatchButton create(BasicStyle style, ActionListener action ) {
+    StyleSwatchButton btn = new StyleSwatchButton(style);
+    if (action != null) btn.addActionListener(action);
+    btn.setFocusable(false);
+    btn.setFocusPainted(false);
+    return btn;
+  }
+
+  private BasicStyle style;
+
+  public StyleSwatchButton(BasicStyle style) {
+    this.style = style;
+    
+    setMargin(new Insets(2, 2, 2, 2));
+    Dimension dim = new Dimension(16,16);
+    setMinimumSize(dim);
+    setPreferredSize(dim);
+    setMaximumSize(dim);
+    setOpaque(true);
+    update(style);
+  }
+  
+  public void setStyle(Layer layer) {
+    layer.getGeometryStyle().setFillColor(style.getFillColor());
+    layer.getLayerStyle().getGeomStyle().setLineColor(style.getLineColor());
+    layer.getLayerStyle().setVertexColor(style.getLineColor());
+    JTSTestBuilder.controller().geometryViewChanged();
+    JTSTestBuilder.controller().layerListUpdate();
+  }
+  
+  private void update(BasicStyle style) {
+    
+    Color fillClr = style.getFillColor() == null ? Color.WHITE : style.getFillColor();
+    setBackground( fillClr );  
+
+    int lineWidth = 1;
+    if (style.getStrokeWidth() > 1)
+      lineWidth = 2;
+
+    setBorder(BorderFactory.createLineBorder(style.getLineColor(), lineWidth));
   }
 }

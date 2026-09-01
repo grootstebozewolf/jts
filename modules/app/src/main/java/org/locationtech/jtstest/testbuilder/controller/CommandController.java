@@ -18,10 +18,10 @@ import java.io.InputStreamReader;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.io.ParseException;
-import org.locationtech.jts.io.WKBWriter;
 import org.locationtech.jtstest.geomfunction.GeometryFunctionInvocation;
 import org.locationtech.jtstest.testbuilder.CommandPanel;
 import org.locationtech.jtstest.testbuilder.JTSTestBuilder;
+import org.locationtech.jtstest.testbuilder.io.IOUtil;
 import org.locationtech.jtstest.util.CommandRunner;
 import org.locationtech.jtstest.util.io.MultiFormatReader;
 
@@ -124,9 +124,7 @@ public class CommandController {
   }
 
   private static String valueWKB(Geometry geom) {
-    if (geom == null) return "";
-    WKBWriter wkbWriter = new WKBWriter();
-    return WKBWriter.toHex(wkbWriter.write(geom));
+    return IOUtil.toWKBHex(geom);
   }
 
   private static String removeNewline(String s) {

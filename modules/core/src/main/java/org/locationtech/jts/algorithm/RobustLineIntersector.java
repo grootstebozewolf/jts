@@ -15,6 +15,10 @@ package org.locationtech.jts.algorithm;
  *@version 1.7
  */
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.jts.geom.CoordinateXYM;
+import org.locationtech.jts.geom.CoordinateXYZM;
+import org.locationtech.jts.geom.Coordinates;
 import org.locationtech.jts.geom.Envelope;
 
 /**
@@ -211,58 +215,31 @@ public class RobustLineIntersector
 
   private static Coordinate copyWithZ(Coordinate p, double z) {
     Coordinate pCopy = copy(p);
-    if (! Double.isNaN(z)) {
-      pCopy.setZ( z );
+    if (! Double.isNaN(z) && Coordinates.hasZ(pCopy)) {
+      pCopy.setZ(z);
     }
-    return pCopy;    
+    return pCopy;
   }
   
   private static Coordinate copy(Coordinate p) {
-    return new Coordinate(p);    
+    return p.copy();
   }
   
   /**
    * This method computes the actual value of the intersection point.
-   * To obtain the maximum precision from the intersection calculation,
-   * the coordinates are normalized by subtracting the minimum
-   * ordinate values (in absolute value).  This has the effect of
-   * removing common significant digits from the calculation to
-   * maintain more bits of precision.
+   * It is rounded to the precision model if being used.
    */
   private Coordinate intersection(
     Coordinate p1, Coordinate p2, Coordinate q1, Coordinate q2)
   {
     Coordinate intPt = intersectionSafe(p1, p2, q1, q2);
-    
-    /*
-    // TESTING ONLY
-    Coordinate intPtDD = CGAlgorithmsDD.intersection(p1, p2, q1, q2);
-    double dist = intPt.distance(intPtDD);
-    System.out.println(intPt + " - " + intPtDD + " dist = " + dist);
-    //intPt = intPtDD;
-    */
-    
-    /**
-     * Due to rounding it can happen that the computed intersection is
-     * outside the envelopes of the input segments.  Clearly this
-     * is inconsistent. 
-     * This code checks this condition and forces a more reasonable answer
-     * 
-     * MD - May 4 2005 - This is still a problem.  Here is a failure case:
-     *
-     * LINESTRING (2089426.5233462777 1180182.3877339689, 2085646.6891757075 1195618.7333999649)
-     * LINESTRING (1889281.8148903656 1997547.0560044837, 2259977.3672235999 483675.17050843034)
-     * int point = (2097408.2633752143,1144595.8008114607)
-     * 
-     * MD - Dec 14 2006 - This does not seem to be a failure case any longer
-     */
+
     if (! isInSegmentEnvelopes(intPt)) {
 //      System.out.println("Intersection outside segment envelopes: " + intPt);
       
       // compute a safer result
       // copy the coordinate, since it may be rounded later
       intPt = copy(nearestEndpoint(p1, p2, q1, q2));
-//    intPt = CentralEndpointIntersector.getIntersection(p1, p2, q1, q2);
       
 //      System.out.println("Segments: " + this);
 //      System.out.println("Snapped to " + intPt);
@@ -274,19 +251,21 @@ public class RobustLineIntersector
     return intPt;
   }
 
+  /*
   private void checkDD(Coordinate p1, Coordinate p2, Coordinate q1,
       Coordinate q2, Coordinate intPt)
   {
     Coordinate intPtDD = CGAlgorithmsDD.intersection(p1, p2, q1, q2);
     boolean isIn = isInSegmentEnvelopes(intPtDD);
-    System.out.println(   "DD in env = " + isIn + "  --------------------- " + intPtDD);
+    Debug.println(   "DD in env = " + isIn + "  --------------------- " + intPtDD);
     if (intPt.distance(intPtDD) > 0.0001) {
-      System.out.println("Distance = " + intPt.distance(intPtDD));
+      Debug.println("Distance = " + intPt.distance(intPtDD));
     }
   }
+  */
   
   /**
-   * Computes a segment intersection using homogeneous coordinates.
+   * Computes a segment intersection.
    * Round-off error can cause the raw computation to fail, 
    * (usually due to the segments being approximately parallel).
    * If this happens, a reasonable approximation is computed instead.

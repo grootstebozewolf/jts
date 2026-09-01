@@ -11,7 +11,9 @@
  */
 package org.locationtech.jtstest.test;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 import org.locationtech.jtstest.testbuilder.model.TestCaseEdit;
 
@@ -20,11 +22,11 @@ import org.locationtech.jtstest.testbuilder.model.TestCaseEdit;
  * @version 1.7
  */
 public class TestCaseList {
-  ArrayList tests = new ArrayList();
+  ArrayList<Object> tests = new ArrayList<Object>();
 
   public TestCaseList() { }
 
-  public List getList() {
+  public List<Object> getList() {
     return tests;
   }
   public int size() {
@@ -40,7 +42,7 @@ public class TestCaseList {
     arrayAdd(tests, tc, i);
   }
   public void add(TestCaseList tcl) {
-    for (Iterator i = tcl.tests.iterator(); i.hasNext(); ) {
+    for (Iterator<Object> i = tcl.tests.iterator(); i.hasNext(); ) {
       tests.add((Testable) i.next());
     }
   }
@@ -55,7 +57,7 @@ public class TestCaseList {
    * @param o object to add
    * @param index index to add at
    */
-  private static void arrayAdd(ArrayList list, Object o, int index) {
+  private static void arrayAdd(ArrayList<Object> list, Object o, int index) {
     list.add(o);
     // adding at or after end of array?
     if (index >= list.size()) {

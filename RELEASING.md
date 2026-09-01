@@ -58,20 +58,28 @@ On master:
 2. Update version number in Maven POMs (run the Maven release plugin at project root:
    
    ```
-   mvn versions:set -DnewVersion=1.18.0
+   mvn versions:set -DnewVersion=1.19.0
    ```
 
+3. Edit ``build-tools/pom.xml`` by hand, and compile to test.
+   
+   ```
+   mvn clean install
+   ```
+   
 3. Commit this change.
 
    ```
-   git commit -m "Release version 1.18.0"
+   git add .
+   git commit -m "Release version 1.19.0"
    git push
    ```
       
 4. Tag this commit, and push the tag to GitHub.
 
    ```
-   git tag -a 1.18.0 -m "Release version 1.18.0"
+   git tag -a 1.19.0 -m "Release version 1.19.0"
+   git push --tags
    ```
 
    This is the commit that will form the GitHub release below.
@@ -87,9 +95,8 @@ On master:
    
    To interact with the agent (so it asks you the passphrase):
    
-   ````
-   gpg --use-agent --armor --detach-sign --output $output pom.xml
-   rm pom.xml.asc
+   ```
+   gpg --use-agent --armor --detach-sign --output - pom.xml
    ```
    
    Reference: [Configuring GPG/PGP for Maven Releases to Sonatype on Mac OS X](https://nblair.github.io/2015/10/29/maven-gpg-sonatype/)
@@ -149,31 +156,54 @@ Update [Javadoc on JTS Github IO](http://locationtech.github.io/jts/javadoc/):
    
 2. Update branch [`gh-pages`](https://github.com/locationtech/jts/tree/gh-pages):
    
-   * clone
-   * branch
-   * copy new Javadoc
-   * commit
+   ```bash
+   cd ..
+   git clone https://github.com/locationtech/jts.git jts-docs
+   cd jts-docs
+   git checkout --track origin/gh-pages
+   git mv javadoc javadoc-1.18.0
+   git mv javadoc-io javadoc-io-1.18.0
+   cp -r ../jts/modules/core/target/apidocs/ javadoc  
+   cp -r ../jts/modules/io/common/target/apidocs javadoc-io
+   ```
+   
+   Edit ``index.html`` with new details:
+   
+   ```
+   <li>Javadoc for JTS 1.19.0 (
+       <a href="javadoc/index.html" target="javadoc">jts-core</a> |
+       <a href="javadoc-io/index.html" target="javadoc">jts-io-common</a>)</li>
+   <li>Javadoc for JTS 1.18.0 (
+       <a href="javadoc-1.18.0/index.html" target="javadoc">jts-core</a> |
+       <a href="javadoc-io-1.18.0/index.html" target="javadoc">jts-io-common</a>)</li>
+   ```
+   
+   Commit 
+   ```
+   git add .
+   git commit -m "JTS 1.19.0 javadocs"
+   ```
 
-### Post release
+### Post-release actions
 
 Update master to the next release version:
 
 1. Set the version number in Java class: [`org.locationtech.jts.JTSVersion`](https://github.com/locationtech/jts/blob/master/modules/core/src/main/java/org/locationtech/jts/JTSVersion.java)
    
-   Change release version:
-   
-   ```
-   public static final int MAJOR = 1;
-   public static final int MINOR = 18;
-   public static final int PATCH = 0;
-   private static final String RELEASE_INFO = "";
-   ```
-   
-   To next SNAPSHOT version:
+   Change release version from (e.g.):
    
    ```
    public static final int MAJOR = 1;
    public static final int MINOR = 19;
+   public static final int PATCH = 0;
+   private static final String RELEASE_INFO = "";
+   ```
+   
+   To the next SNAPSHOT version:
+   
+   ```
+   public static final int MAJOR = 1;
+   public static final int MINOR = 20;
    public static final int PATCH = 0;
    private static final String RELEASE_INFO = "SNAPSHOT";
    ```
@@ -181,18 +211,48 @@ Update master to the next release version:
 2. Update version number in Maven POMs (run the Maven release plugin at project root:
    
    ```
-   mvn versions:set -DnewVersion=1.19.0-SNAPSHOT
+   mvn versions:set -DnewVersion=1.20.0-SNAPSHOT
    ```
+   
+3. Edit ``build-tools/pom.xml`` manually to update the main `<version ` entry:
+   ```
+   <version>1.20.1-SNAPSHOT</version>
+   ```
+   At this point `git status` should show the following:
+   
+   ```
+   modified:   build-tools/pom.xml
+	modified:   modules/app/pom.xml
+	modified:   modules/core/pom.xml
+	modified:   modules/core/src/main/java/org/locationtech/jts/JTSVersion.java
+	modified:   modules/example/pom.xml
+	modified:   modules/io/common/pom.xml
+	modified:   modules/io/ora/pom.xml
+	modified:   modules/io/pom.xml
+	modified:   modules/lab/pom.xml
+	modified:   modules/pom.xml
+	modified:   modules/tests/pom.xml
+	modified:   pom.xml
+   ```
+5. Compile the project to test the changes.
+   
+   ```
+   mvn clean install
+   ```
+   The mvn execution log should show the new version, and the build artifacts in the `target` directories
+   should be stamped with the new version number. 
  
-3. Commit this change.
+6. If the build is good, commit the updates to initiate the next version:
 
    ```
-   git commit -m "Version 1.19.0-SNAPSHOT"
+   git add .
+   git commit -m "Version 1.20.0-SNAPSHOT"
    git push
-   ```
-4. Add a new version entry to the [Version History](https://github.com/locationtech/jts/blob/master/doc/JTS_Version_History.md)
+   ```  
+   
+5. Add a new empty version entry to the [Version History](https://github.com/locationtech/jts/blob/master/doc/JTS_Version_History.md), ready to record revisions
 
-### Announcing
+### Announcing the new release
 
 * Message to [JTS Dev mail list](https://accounts.eclipse.org/mailing-list/jts-dev)
 * Comment on [Gitter channel](https://gitter.im/locationtech/jts)

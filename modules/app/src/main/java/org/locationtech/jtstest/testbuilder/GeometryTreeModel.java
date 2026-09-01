@@ -18,7 +18,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Vector;
-
 import javax.swing.ImageIcon;
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreeModel;
@@ -38,10 +37,12 @@ import org.locationtech.jtstest.testbuilder.geom.GeometryUtil;
 
 public class GeometryTreeModel implements TreeModel
 {
-  public static Comparator SORT_AREA_ASC = new AreaComparator(false);
-  public static Comparator SORT_AREA_DESC = new AreaComparator(true);
-  public static Comparator SORT_LEN_ASC = new LengthComparator(false);
-  public static Comparator SORT_LEN_DESC = new LengthComparator(true);
+  public static Comparator<GeometricObjectNode> SORT_AREA_ASC = new AreaComparator(false);
+  public static Comparator<GeometricObjectNode> SORT_AREA_DESC = new AreaComparator(true);
+  public static Comparator<GeometricObjectNode> SORT_LEN_ASC = new LengthComparator(false);
+  public static Comparator<GeometricObjectNode> SORT_LEN_DESC = new LengthComparator(true);
+  public static Comparator<GeometricObjectNode> SORT_NUMPTS_ASC = new NumPointsComparator(false);
+  public static Comparator<GeometricObjectNode> SORT_NUMPTS_DESC = new NumPointsComparator(true);
   
   private Vector<TreeModelListener> treeModelListeners = new Vector<TreeModelListener>();
 
@@ -124,7 +125,7 @@ public class GeometryTreeModel implements TreeModel
         .println("*** valueForPathChanged : " + path + " --> " + newValue);
   }
   
-  public static class AreaComparator implements Comparator {
+  public static class AreaComparator implements Comparator<GeometricObjectNode> {
 
     private int dirFactor;
 
@@ -133,13 +134,13 @@ public class GeometryTreeModel implements TreeModel
     }
     
     @Override
-    public int compare(Object o1, Object o2) {
-      double area1 = ((GeometricObjectNode) o1).getGeometry().getArea();
-      double area2 = ((GeometricObjectNode) o2).getGeometry().getArea();
+    public int compare(GeometricObjectNode o1, GeometricObjectNode o2) {
+      double area1 = o1.getGeometry().getArea();
+      double area2 = o2.getGeometry().getArea();
       return dirFactor * Double.compare(area1, area2);
     }
   }
-  public static class LengthComparator implements Comparator {
+  public static class LengthComparator implements Comparator<GeometricObjectNode> {
 
     private int dirFactor;
 
@@ -148,10 +149,25 @@ public class GeometryTreeModel implements TreeModel
     }
     
     @Override
-    public int compare(Object o1, Object o2) {
-      double area1 = ((GeometricObjectNode) o1).getGeometry().getLength();
-      double area2 = ((GeometricObjectNode) o2).getGeometry().getLength();
+    public int compare(GeometricObjectNode o1, GeometricObjectNode o2) {
+      double area1 = o1.getGeometry().getLength();
+      double area2 = o2.getGeometry().getLength();
       return dirFactor * Double.compare(area1, area2);
+    }
+  }
+  public static class NumPointsComparator implements Comparator<GeometricObjectNode> {
+
+    private int dirFactor;
+
+    public NumPointsComparator(boolean direction) {
+      this.dirFactor = direction ? 1 : -1;
+    }
+    
+    @Override
+    public int compare(GeometricObjectNode o1, GeometricObjectNode o2) {
+      int num1 = o1.getGeometry().getNumPoints();
+      int num2 = o2.getGeometry().getNumPoints();
+      return dirFactor * Integer.compare(num1, num2);
     }
   }
 }

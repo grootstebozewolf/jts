@@ -48,6 +48,7 @@ public class WKTReaderTest extends GeometryTestCase {
   private final WKTReader readerXYZ;
   private final WKTReader readerXYM;
   private final WKTReader readerXYZM;
+  private WKTReader readerXYZCloseRings;
 
   public static void main(String args[]) {
     TestRunner.run(suite());
@@ -66,6 +67,9 @@ public class WKTReaderTest extends GeometryTestCase {
     readerXYZ = getWKTReader(Ordinate.createXYZ(), 1d);
     readerXYM = getWKTReader(Ordinate.createXYM(), 1d);
     readerXYZM = getWKTReader(Ordinate.createXYZM(), 1d);
+    
+    readerXYZCloseRings = getWKTReader(Ordinate.createXYZM(), 1d);
+    readerXYZCloseRings.setFixStructure(true);
   }
 
   public static Test suite() { return new TestSuite(WKTReaderTest.class); }
@@ -85,13 +89,17 @@ public class WKTReaderTest extends GeometryTestCase {
     Point pt2DE = (Point) readerXY.read("POINT EMPTY");
     Point pt3D = (Point) readerXYZ.read("POINT Z(10 10 10)");
     Point pt2DM = (Point) readerXYM.read("POINT M(10 10 11)");
+    Point pt2DM2 = (Point) new WKTReader().read("POINT M(10 10 11)");
     Point pt3DM = (Point) readerXYZM.read("POINT ZM(10 10 10 11)");
 
     // assert
     assertTrue(isEqual(seqPt2D, pt2D.getCoordinateSequence()));
     assertTrue(isEqual(seqPt2DE, pt2DE.getCoordinateSequence()));
     assertTrue(isEqual(seqPt3D, pt3D.getCoordinateSequence()));
+    assertTrue(pt2DM.getCoordinateSequence().hasM());
     assertTrue(isEqual(seqPt2DM, pt2DM.getCoordinateSequence()));
+    assertTrue(pt2DM2.getCoordinateSequence().hasM());
+    assertTrue(isEqual(seqPt2DM, pt2DM2.getCoordinateSequence()));
     assertTrue(isEqual(seqPt3DM, pt3DM.getCoordinateSequence()));
   }
 
@@ -418,6 +426,27 @@ public class WKTReaderTest extends GeometryTestCase {
     assertTrue(gc3.isEmpty());
   }
 
+  public void testEmptyLineDimOldSyntax() throws ParseException {
+    WKTReader wktReader = new WKTReader();
+    LineString geom = (LineString) wktReader.read("LINESTRING EMPTY");
+    int dim = geom.getCoordinateSequence().getDimension();
+    checkCSDim(geom.getCoordinateSequence(), 3);
+  }
+  
+  public void testEmptyLineDim() throws ParseException {
+    WKTReader wktReader = new WKTReader();
+    wktReader.setIsOldJtsCoordinateSyntaxAllowed(false);
+    LineString geom = (LineString) wktReader.read("LINESTRING EMPTY");
+    checkCSDim(geom.getCoordinateSequence(), 2);
+  }
+  
+  public void testEmptyPolygonDim() throws ParseException {
+    WKTReader wktReader = new WKTReader();
+    wktReader.setIsOldJtsCoordinateSyntaxAllowed(false);
+    Polygon geom = (Polygon) wktReader.read("POLYGON EMPTY");
+    checkCSDim(geom.getExteriorRing().getCoordinateSequence(), 2);
+  }
+  
   public void testNaN() throws Exception {
 
     // arrange
@@ -435,6 +464,15 @@ public class WKTReaderTest extends GeometryTestCase {
     assertTrue(isEqual(seq, pt3.getCoordinateSequence()));
   }
 
+  public void testInf() throws ParseException {
+    LineString pt = (LineString) readerXY.read("LINESTRING ( Inf -INF, -Inf inf )");
+    CoordinateSequence cs = pt.getCoordinateSequence();
+    assertEquals(Double.POSITIVE_INFINITY, cs.getOrdinate(0, Coordinate.X));
+    assertEquals(Double.NEGATIVE_INFINITY, cs.getOrdinate(0, Coordinate.Y));
+    assertEquals(Double.NEGATIVE_INFINITY, cs.getOrdinate(1, Coordinate.X));
+    assertEquals(Double.POSITIVE_INFINITY, cs.getOrdinate(1, Coordinate.Y));
+  }
+  
   public void testLargeNumbers() throws Exception {
     PrecisionModel precisionModel = new PrecisionModel(1E9);
     GeometryFactory geometryFactory = new GeometryFactory(precisionModel, 0);
@@ -458,6 +496,7 @@ public class WKTReaderTest extends GeometryTestCase {
   }
   
 
+
   private void checkCS(CoordinateSequence cs, Geometry geom) {
     assertTrue( isEqual( cs, extractCS(geom)));
   }
@@ -473,6 +512,11 @@ public class WKTReaderTest extends GeometryTestCase {
     if (geom instanceof GeometryCollection) {
       assertTrue(geom.getNumGeometries() == 0);
     }
+  }
+  
+  private void checkCSDim(CoordinateSequence cs, int expectedCoordDim) {
+    int dim = cs.getDimension();
+    assertEquals(expectedCoordDim, dim);
   }
   
   private static CoordinateSequence[] createSequences(EnumSet<Ordinate> ordinateFlags, double[][] xyarray) {

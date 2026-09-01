@@ -1,0 +1,55 @@
+{
+  "id": "LineHandling.mergeLines.polygon.upstream",
+  "claimId": "TB-AP-LINEHANDLING-MERGELINES",
+  "category": "LineHandling",
+  "function": "mergeLines",
+  "branch": "upstream",
+  "tags": [
+    "tb-appium",
+    "LineHandling",
+    "mergeLines",
+    "polygon"
+  ],
+  "golden": true,
+  "skipped": false,
+  "fixtureFile": "_fixtures/upstream-linestring.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "LineHandling",
+        "mergeLines"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "mergeLines",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "resultWktContainsAny": [
+      "LINESTRING",
+      "MULTILINESTRING",
+      "GEOMETRYCOLLECTION"
+    ]
+  },
+  "notes": "mergeLines"
+}

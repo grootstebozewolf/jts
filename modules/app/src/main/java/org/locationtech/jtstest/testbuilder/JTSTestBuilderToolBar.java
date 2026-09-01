@@ -16,7 +16,6 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
-
 import javax.swing.AbstractButton;
 import javax.swing.Box;
 import javax.swing.ButtonGroup;
@@ -27,6 +26,7 @@ import javax.swing.JToolBar;
 import javax.swing.SwingConstants;
 
 import org.locationtech.jtstest.testbuilder.controller.JTSTestBuilderController;
+import org.locationtech.jtstest.testbuilder.ui.AutomationIds;
 
 public class JTSTestBuilderToolBar {
 
@@ -35,24 +35,14 @@ public class JTSTestBuilderToolBar {
   JToolBar toolbar = new JToolBar();
   ButtonGroup toolButtonGroup = new ButtonGroup();
   
-  JButton previousButton = new JButton();
-  JButton nextButton = new JButton();
-  JButton newButton = new JButton();
-  JButton copyButton = new JButton();
-  JButton deleteButton = new JButton();
-  JButton exchangeButton = new JButton();
-
-  JButton oneToOneButton = new JButton();
-  JButton zoomToFullExtentButton = new JButton();
-  JButton zoomToInputButton = new JButton();
-  JButton zoomToInputAButton = new JButton();
-  JButton zoomToInputBButton = new JButton();
-  JButton zoomToResultButton = new JButton();
-  
   JToggleButton drawRectangleButton;
   JToggleButton drawPolygonButton;
   JToggleButton drawLineStringButton;
   JToggleButton drawCircularStringButton;
+  JToggleButton drawCompoundCurveButton;
+  JToggleButton drawCurvePolygonButton;
+  JToggleButton drawTriangleButton;
+  JToggleButton drawTinButton;
   JToggleButton drawPointButton;
   JToggleButton zoomButton;
   JToggleButton infoButton;
@@ -60,6 +50,7 @@ public class JTSTestBuilderToolBar {
   JToggleButton btnEditVertex;
   JToggleButton extractComponentButton;
   JToggleButton deleteVertexButton;
+  JToggleButton btnMove;
 
   private final ImageIcon leftIcon = new ImageIcon(this.getClass().getResource("Left.png"));
   private final ImageIcon rightIcon = new ImageIcon(this.getClass().getResource("Right.png"));
@@ -75,6 +66,14 @@ public class JTSTestBuilderToolBar {
   private final ImageIcon drawLineStringBIcon = new ImageIcon(this.getClass().getResource("DrawLineStringB.png"));
   private final ImageIcon drawCircularStringIcon = new ImageIcon(this.getClass().getResource("DrawCircularString.png"));
   private final ImageIcon drawCircularStringBIcon = new ImageIcon(this.getClass().getResource("DrawCircularStringB.png"));
+  private final ImageIcon drawCompoundCurveIcon = new ImageIcon(this.getClass().getResource("DrawCompoundCurve.png"));
+  private final ImageIcon drawCompoundCurveBIcon = new ImageIcon(this.getClass().getResource("DrawCompoundCurveB.png"));
+  private final ImageIcon drawCurvePolygonIcon = new ImageIcon(this.getClass().getResource("DrawCurvePolygon.png"));
+  private final ImageIcon drawCurvePolygonBIcon = new ImageIcon(this.getClass().getResource("DrawCurvePolygonB.png"));
+  private final ImageIcon drawTriangleIcon = new ImageIcon(this.getClass().getResource("DrawTriangle.png"));
+  private final ImageIcon drawTriangleBIcon = new ImageIcon(this.getClass().getResource("DrawTriangleB.png"));
+  private final ImageIcon drawTinIcon = new ImageIcon(this.getClass().getResource("DrawTin.png"));
+  private final ImageIcon drawTinBIcon = new ImageIcon(this.getClass().getResource("DrawTinB.png"));
   private final ImageIcon drawPointIcon = new ImageIcon(this.getClass().getResource("DrawPoint.png"));
   private final ImageIcon drawPointBIcon = new ImageIcon(this.getClass().getResource("DrawPointB.png"));
   private final ImageIcon infoIcon = new ImageIcon(this.getClass().getResource("Info.png"));
@@ -84,7 +83,6 @@ public class JTSTestBuilderToolBar {
   private final ImageIcon zoomToInputBIcon = new ImageIcon(this.getClass().getResource("ZoomInputB.png"));
   private final ImageIcon zoomToResultIcon = new ImageIcon(this.getClass().getResource("ZoomResult.png"));
   private final ImageIcon zoomToFullExtentIcon = new ImageIcon(this.getClass().getResource("ZoomAll.png"));
-  private final ImageIcon selectIcon = new ImageIcon(this.getClass().getResource("Select.gif"));
   private final ImageIcon moveVertexIcon = new ImageIcon(this.getClass().getResource("MoveVertex.png"));
   private final ImageIcon panIcon = new ImageIcon(this.getClass().getResource("Hand.gif"));
 
@@ -119,194 +117,99 @@ public class JTSTestBuilderToolBar {
      * Buttons
      * --------------------------------------------------
      */
-      previousButton.setFont(new java.awt.Font("SansSerif", 0, 10));
-      previousButton.setMaximumSize(new Dimension(30, 30));
-      previousButton.setMinimumSize(new Dimension(30, 30));
-      previousButton.setPreferredSize(new Dimension(30, 30));
-      previousButton.setToolTipText(AppStrings.TIP_PREV);
-      previousButton.setHorizontalTextPosition(SwingConstants.CENTER);
-      previousButton.setIcon(leftIcon);
-      previousButton.setMargin(new Insets(0, 0, 0, 0));
-      previousButton.setVerticalTextPosition(SwingConstants.BOTTOM);
-      previousButton.addActionListener(
+    JButton previousButton = createButton(
+        AutomationIds.TOOLBAR_CASE_PREV,
+        AppStrings.TIP_PREV, leftIcon,
+        new java.awt.event.ActionListener() {
+          public void actionPerformed(ActionEvent e) {
+            boolean isZoom = 0 == (e.getModifiers() & ActionEvent.CTRL_MASK);
+            controller().caseMoveTo(-1, isZoom);
+          }
+        });
+    JButton nextButton = createButton(
+        AutomationIds.TOOLBAR_CASE_NEXT,
+        AppStrings.TIP_NEXT, rightIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
               boolean isZoom = 0 == (e.getModifiers() & ActionEvent.CTRL_MASK);
-              controller().caseMoveToPrev(isZoom);
+              controller().caseMoveTo(1, isZoom);
             }
           });
-      
-      nextButton.setMargin(new Insets(0, 0, 0, 0));
-      nextButton.setVerticalTextPosition(SwingConstants.BOTTOM);
-      nextButton.setFont(new java.awt.Font("SansSerif", 0, 10));
-      nextButton.setMaximumSize(new Dimension(30, 30));
-      nextButton.setMinimumSize(new Dimension(30, 30));
-      nextButton.setPreferredSize(new Dimension(30, 30));
-      nextButton.setToolTipText(AppStrings.TIP_NEXT);
-      nextButton.setHorizontalTextPosition(SwingConstants.CENTER);
-      nextButton.setIcon(rightIcon);
-      nextButton.addActionListener(
-          new java.awt.event.ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-             boolean isZoom = 0 == (e.getModifiers() & ActionEvent.CTRL_MASK);
-             controller().caseMoveToNext(isZoom);
-            }
-          });
-      
-      newButton.setMargin(new Insets(0, 0, 0, 0));
-      newButton.setVerticalTextPosition(SwingConstants.BOTTOM);
-      newButton.setFont(new java.awt.Font("SansSerif", 0, 10));
-      newButton.setMaximumSize(new Dimension(30, 30));
-      newButton.setMinimumSize(new Dimension(30, 30));
-      newButton.setPreferredSize(new Dimension(30, 30));
-      newButton.setToolTipText(AppStrings.TIP_CASE_ADD_NEW);
-      newButton.setHorizontalTextPosition(SwingConstants.CENTER);
-      newButton.setIcon(plusIcon);
-      newButton.addActionListener(
+    JButton newButton = createButton(
+        AutomationIds.TOOLBAR_CASE_NEW,
+        AppStrings.TIP_CASE_ADD_NEW, plusIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
               controller().caseCreateNew();
             }
           });
-      
-      copyButton.setMargin(new Insets(0, 0, 0, 0));
-      copyButton.setVerticalTextPosition(SwingConstants.BOTTOM);
-      copyButton.setFont(new java.awt.Font("SansSerif", 0, 10));
-      copyButton.setMaximumSize(new Dimension(30, 30));
-      copyButton.setMinimumSize(new Dimension(30, 30));
-      copyButton.setPreferredSize(new Dimension(30, 30));
-      copyButton.setToolTipText(AppStrings.TIP_CASE_DUP);
-      copyButton.setHorizontalTextPosition(SwingConstants.CENTER);
-      copyButton.setIcon(copyCaseIcon);
-      copyButton.addActionListener(
+    JButton copyButton = createButton(
+        AutomationIds.TOOLBAR_CASE_COPY,
+        AppStrings.TIP_CASE_DUP, copyCaseIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
               controller().caseCopy();
             }
           });
-      
-      deleteButton.setMargin(new Insets(0, 0, 0, 0));
-      deleteButton.setVerticalTextPosition(SwingConstants.BOTTOM);
-      deleteButton.setFont(new java.awt.Font("SansSerif", 0, 10));
-      deleteButton.setMaximumSize(new Dimension(30, 30));
-      deleteButton.setMinimumSize(new Dimension(30, 30));
-      deleteButton.setPreferredSize(new Dimension(30, 30));
-      deleteButton.setToolTipText(AppStrings.TIP_CASE_DELETE);
-      deleteButton.setHorizontalTextPosition(SwingConstants.CENTER);
-      deleteButton.setIcon(deleteIcon);
-      deleteButton.addActionListener(
+    JButton deleteButton = createButton(
+        AutomationIds.TOOLBAR_CASE_DELETE,
+        AppStrings.TIP_CASE_DELETE, deleteIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
               controller().caseDelete();
             }
           });
-
-      
-      oneToOneButton.setMargin(new Insets(0, 0, 0, 0));
-      oneToOneButton.setIcon(zoomOneToOneIcon);
-      oneToOneButton.setPreferredSize(new Dimension(30, 30));
-      oneToOneButton.setMinimumSize(new Dimension(30, 30));
-      oneToOneButton.setVerticalTextPosition(SwingConstants.BOTTOM);
-      oneToOneButton.addActionListener(
-        new java.awt.event.ActionListener() {
-
-          public void actionPerformed(ActionEvent e) {
-            controller().zoomOneToOne();
-          }
-        });
-      oneToOneButton.setFont(new java.awt.Font("SansSerif", 0, 10));
-      oneToOneButton.setToolTipText(AppStrings.TIP_ZOOM_1_1);
-      oneToOneButton.setHorizontalTextPosition(SwingConstants.CENTER);
-      oneToOneButton.setMaximumSize(new Dimension(30, 30));
-      
-      zoomToInputButton.setMargin(new Insets(0, 0, 0, 0));
-      zoomToInputButton.setIcon(zoomToInputIcon);
-      zoomToInputButton.setPreferredSize(new Dimension(30, 30));
-      zoomToInputButton.setMaximumSize(new Dimension(30, 30));
-      zoomToInputButton.setVerticalTextPosition(SwingConstants.BOTTOM);
-      zoomToInputButton.setMinimumSize(new Dimension(30, 30));
-      zoomToInputButton.setFont(new java.awt.Font("SansSerif", 0, 10));
-      zoomToInputButton.setHorizontalTextPosition(SwingConstants.CENTER);
-      zoomToInputButton.setToolTipText("Zoom To Input");
-      zoomToInputButton.addActionListener(
-        new java.awt.event.ActionListener() {
-
-          public void actionPerformed(ActionEvent e) {
-            controller().zoomToInput();
-          }
-        });
-
-      zoomToInputAButton.setMargin(new Insets(0, 0, 0, 0));
-      zoomToInputAButton.setIcon(zoomToInputAIcon);
-      zoomToInputAButton.setPreferredSize(new Dimension(30, 30));
-      zoomToInputAButton.setMaximumSize(new Dimension(30, 30));
-      zoomToInputAButton.setVerticalTextPosition(SwingConstants.BOTTOM);
-      zoomToInputAButton.setMinimumSize(new Dimension(30, 30));
-      zoomToInputAButton.setFont(new java.awt.Font("SansSerif", 0, 10));
-      zoomToInputAButton.setHorizontalTextPosition(SwingConstants.CENTER);
-      zoomToInputAButton.setToolTipText(AppStrings.TIP_ZOOM_TO_A);
-      zoomToInputAButton.addActionListener(
-        new java.awt.event.ActionListener() {
-
-          public void actionPerformed(ActionEvent e) {
-            controller().zoomToInputA();
-          }
-        });
-      
-      zoomToInputBButton.setMargin(new Insets(0, 0, 0, 0));
-      zoomToInputBButton.setIcon(zoomToInputBIcon);
-      zoomToInputBButton.setPreferredSize(new Dimension(30, 30));
-      zoomToInputBButton.setMaximumSize(new Dimension(30, 30));
-      zoomToInputBButton.setVerticalTextPosition(SwingConstants.BOTTOM);
-      zoomToInputBButton.setMinimumSize(new Dimension(30, 30));
-      zoomToInputBButton.setFont(new java.awt.Font("SansSerif", 0, 10));
-      zoomToInputBButton.setHorizontalTextPosition(SwingConstants.CENTER);
-      zoomToInputBButton.setToolTipText(AppStrings.TIP_ZOOM_TO_B);
-      zoomToInputBButton.addActionListener(
-        new java.awt.event.ActionListener() {
-
-          public void actionPerformed(ActionEvent e) {
-            controller().zoomToInputB();
-          }
-        });
-      zoomToInputButton.setMaximumSize(new Dimension(30, 30));
-      
-      zoomToResultButton.setMargin(new Insets(0, 0, 0, 0));
-      zoomToResultButton.setIcon(zoomToResultIcon);
-      zoomToResultButton.setPreferredSize(new Dimension(30, 30));
-      zoomToResultButton.setMaximumSize(new Dimension(30, 30));
-      zoomToResultButton.setVerticalTextPosition(SwingConstants.BOTTOM);
-      zoomToResultButton.setMinimumSize(new Dimension(30, 30));
-      zoomToResultButton.setFont(new java.awt.Font("SansSerif", 0, 10));
-      zoomToResultButton.setHorizontalTextPosition(SwingConstants.CENTER);
-      zoomToResultButton.setToolTipText(AppStrings.TIP_ZOOM_TO_RESULT);
-      zoomToResultButton.addActionListener(
-        new java.awt.event.ActionListener() {
-
-          public void actionPerformed(ActionEvent e) {
-            controller().zoomToResult();
-          }
-        });
-      zoomToResultButton.setMaximumSize(new Dimension(30, 30));
-      
-      zoomToFullExtentButton.setMargin(new Insets(0, 0, 0, 0));
-      zoomToFullExtentButton.setIcon(zoomToFullExtentIcon);
-      zoomToFullExtentButton.setPreferredSize(new Dimension(30, 30));
-      zoomToFullExtentButton.setVerticalTextPosition(SwingConstants.BOTTOM);
-      zoomToFullExtentButton.setMinimumSize(new Dimension(30, 30));
-      zoomToFullExtentButton.setFont(new java.awt.Font("SansSerif", 0, 10));
-      zoomToFullExtentButton.setHorizontalTextPosition(SwingConstants.CENTER);
-      zoomToFullExtentButton.setToolTipText(AppStrings.TIP_ZOOM_TO_FULL_EXTENT);
-      zoomToFullExtentButton.addActionListener(
-        new java.awt.event.ActionListener() {
-
-          public void actionPerformed(ActionEvent e) {
-            controller().zoomToFullExtent();
-          }
-        });
-      zoomToFullExtentButton.setMaximumSize(new Dimension(30, 30));
+    JButton oneToOneButton = createButton(
+        AutomationIds.TOOLBAR_ZOOM_ONE_TO_ONE,
+        AppStrings.TIP_ZOOM_1_1, zoomOneToOneIcon,
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+              controller().zoomOneToOne();
+            }
+          });
+    JButton zoomToInputButton = createButton(
+        AutomationIds.TOOLBAR_ZOOM_INPUT,
+        "Zoom To Input", zoomToInputIcon,
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+              controller().zoomToInput();
+            }
+          });
+    JButton zoomToInputAButton = createButton(
+        AutomationIds.TOOLBAR_ZOOM_INPUT_A,
+        AppStrings.TIP_ZOOM_TO_A, zoomToInputAIcon,
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+              controller().zoomToInputA();
+            }
+          });
+    JButton zoomToInputBButton = createButton(
+        AutomationIds.TOOLBAR_ZOOM_INPUT_B,
+        AppStrings.TIP_ZOOM_TO_B, zoomToInputBIcon,
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+              controller().zoomToInputB();
+            }
+          });
+    JButton zoomToResultButton = createButton(
+        AutomationIds.TOOLBAR_ZOOM_RESULT,
+        AppStrings.TIP_ZOOM_TO_RESULT, zoomToResultIcon,
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+              controller().zoomToResult();
+            }
+          });
+    JButton zoomToFullExtentButton = createButton(
+        AutomationIds.TOOLBAR_ZOOM_FULL,
+        AppStrings.TIP_ZOOM_TO_FULL_EXTENT, zoomToFullExtentIcon,
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+              controller().zoomToFullExtent();
+            }
+          });
       
       drawRectangleButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_RECTANGLE,
           AppStrings.TIP_DRAW_RECTANGLE, drawRectangleIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -314,6 +217,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       drawPolygonButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_POLYGON,
           AppStrings.TIP_DRAW_POLY, drawPolygonIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -321,6 +225,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       drawLineStringButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_LINESTRING,
           AppStrings.TIP_DRAW_LINE, drawLineStringIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -328,13 +233,47 @@ public class JTSTestBuilderToolBar {
             }
           });
       drawCircularStringButton = createToggleButton(
-        AppStrings.TIP_DRAW_CIRCULAR, drawCircularStringIcon,
-        new java.awt.event.ActionListener() {
-          public void actionPerformed(ActionEvent e) {
-            controller().modeDrawCircularString();
-          }
-        });
+          AutomationIds.TOOLBAR_DRAW_CIRCULARSTRING,
+          AppStrings.TIP_DRAW_CIRCULAR, drawCircularStringIcon,
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+              controller().modeDrawCircularString();
+            }
+          });
+      drawCompoundCurveButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_COMPOUNDCURVE,
+          AppStrings.TIP_DRAW_COMPOUNDCURVE, drawCompoundCurveIcon,
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+              controller().modeDrawCompoundCurve();
+            }
+          });
+      drawCurvePolygonButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_CURVEPOLYGON,
+          AppStrings.TIP_DRAW_CURVEPOLYGON, drawCurvePolygonIcon,
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+              controller().modeDrawCurvePolygon();
+            }
+          });
+      drawTriangleButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_TRIANGLE,
+          AppStrings.TIP_DRAW_TRIANGLE, drawTriangleIcon,
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+              controller().modeDrawTriangle();
+            }
+          });
+      drawTinButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_TIN,
+          AppStrings.TIP_DRAW_TIN, drawTinIcon,
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+              controller().modeDrawTin();
+            }
+          });
       drawPointButton = createToggleButton(
+          AutomationIds.TOOLBAR_DRAW_POINT,
           AppStrings.TIP_DRAW_POINT, drawPointIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -342,6 +281,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       infoButton = createToggleButton(
+          AutomationIds.TOOLBAR_INFO_MODE,
           AppStrings.TIP_INFO, infoIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -349,6 +289,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       zoomButton = createToggleButton(
+          AutomationIds.TOOLBAR_ZOOM_MODE,
           AppStrings.TIP_ZOOM, zoomIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -356,6 +297,7 @@ public class JTSTestBuilderToolBar {
             }
           });
       panButton = createToggleButton(
+          AutomationIds.TOOLBAR_PAN_MODE,
           AppStrings.TIP_PAN, panIcon,
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -364,6 +306,7 @@ public class JTSTestBuilderToolBar {
           });
       
       btnEditVertex = createToggleButton(
+          AutomationIds.TOOLBAR_EDIT_VERTEX,
           AppStrings.TIP_MOVE_VERTEX, moveVertexIcon,
         new java.awt.event.ActionListener() {
           public void actionPerformed(ActionEvent e) {
@@ -371,8 +314,18 @@ public class JTSTestBuilderToolBar {
           }
         });
 
+      btnMove = createToggleButton(
+          AutomationIds.TOOLBAR_MODE_MOVE,
+          AppStrings.TIP_MOVE, AppIcons.MOVE,
+        new java.awt.event.ActionListener() {
+          public void actionPerformed(ActionEvent e) {
+            controller().modeMove();
+          }
+        });
+
       extractComponentButton = createToggleButton(
-          AppStrings.TIP_EXTRACT_COMPONENTS,
+          AutomationIds.TOOLBAR_EXTRACT_ELEMENTS,
+          AppStrings.TIP_EXTRACT_ELEMENTS,
           new ImageIcon(this.getClass().getResource("ExtractComponent.png")), 
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e)
@@ -381,47 +334,65 @@ public class JTSTestBuilderToolBar {
             }
           });
       
+      JToggleButton selectComponentButton = createToggleButton(
+          AutomationIds.TOOLBAR_SELECT_ELEMENTS,
+          AppStrings.TIP_SELECT_ELEMENTS,
+          new ImageIcon(this.getClass().getResource("Select.png")), 
+          new java.awt.event.ActionListener() {
+            public void actionPerformed(ActionEvent e)
+            {
+              controller().modeSelectComponent();
+            }
+          });
+      
       deleteVertexButton = createToggleButton(
-          AppStrings.TIP_DELETE_VERTEX_COMPONENT,
+          AutomationIds.TOOLBAR_DELETE_VERTEX,
+          AppStrings.TIP_DELETE_VERTEX_ELEMENT,
           new ImageIcon(this.getClass().getResource("DeleteVertex.png")), 
           new java.awt.event.ActionListener() {
             public void actionPerformed(ActionEvent e) {
               controller().modeDeleteVertex();
           }});
 
-      group(drawRectangleButton
+      group(toolButtonGroup,
+          drawRectangleButton
           ,drawPolygonButton
           ,drawLineStringButton
           ,drawCircularStringButton
+          ,drawCompoundCurveButton
+          ,drawCurvePolygonButton
+          ,drawTriangleButton
+          ,drawTinButton
           ,drawPointButton
           ,panButton
           ,zoomButton
           ,btnEditVertex
+          ,btnMove
           ,deleteVertexButton
           ,infoButton
+          ,selectComponentButton
           ,extractComponentButton
       );
 
-
-      add(
+      add(toolbar,
         newButton, copyButton, previousButton, nextButton,
         strut(8),
         deleteButton,
-        strut(8),
-        exchangeButton,
         strut(8),
         oneToOneButton,
         zoomToInputAButton, zoomToInputBButton, zoomToInputButton,
         zoomToResultButton, zoomToFullExtentButton,
         strut(20),
         zoomButton,
-        //jToolBar1.add(panButton  // remove in favour of using Zoom tool right-drag
         infoButton,
+        selectComponentButton,
         extractComponentButton,
         
         strut(20),
-        drawRectangleButton,drawPolygonButton,drawLineStringButton,drawCircularStringButton,
-        drawPointButton, btnEditVertex,
+        drawRectangleButton,drawPolygonButton,drawLineStringButton,drawCircularStringButton,drawCompoundCurveButton,drawCurvePolygonButton,drawTriangleButton,drawTinButton,
+        drawPointButton,
+        strut(20),
+        btnMove, btnEditVertex,
         deleteVertexButton
       );
       
@@ -430,18 +401,18 @@ public class JTSTestBuilderToolBar {
       return toolbar;
   }
 
-  private Component strut(int width) {
+  private static Component strut(int width) {
     return Box.createHorizontalStrut(width);
   }
   
-  private void add(Component ...  comps) {
+  private static void add(JToolBar toolbar, Component ...  comps) {
     for (Component comp : comps) {
       toolbar.add(comp);
     }
   }
-  private void group(AbstractButton ...  btns) {
+  private static void group(ButtonGroup group, AbstractButton ...  btns) {
     for (AbstractButton btn : btns) {
-      toolButtonGroup.add(btn);
+      group.add(btn);
     }
   }
   public void setFocusGeometry(int index)
@@ -450,10 +421,14 @@ public class JTSTestBuilderToolBar {
     drawPolygonButton.setIcon(index == 0 ? drawPolygonIcon : drawPolygonBIcon);
     drawLineStringButton.setIcon(index == 0 ? drawLineStringIcon : drawLineStringBIcon);
     drawCircularStringButton.setIcon(index == 0 ? drawCircularStringIcon : drawCircularStringBIcon);
+    drawCompoundCurveButton.setIcon(index == 0 ? drawCompoundCurveIcon : drawCompoundCurveBIcon);
+    drawCurvePolygonButton.setIcon(index == 0 ? drawCurvePolygonIcon : drawCurvePolygonBIcon);
+    drawTriangleButton.setIcon(index == 0 ? drawTriangleIcon : drawTriangleBIcon);
+    drawTinButton.setIcon(index == 0 ? drawTinIcon : drawTinBIcon);
     drawPointButton.setIcon(index == 0 ? drawPointIcon : drawPointBIcon);
   }
   
-  private static JToggleButton createToggleButton(String toolTipText, 
+  private static JToggleButton createToggleButton(String automationId, String toolTipText, 
       ImageIcon icon, 
       java.awt.event.ActionListener actionListener)
   {
@@ -470,10 +445,11 @@ public class JTSTestBuilderToolBar {
     btn.setMaximumSize(new Dimension(30, 30));
     btn.setFocusable(false);
     btn.addActionListener(actionListener);
+    AutomationIds.set(btn, automationId);
     return btn;
   }
   
-  private static JButton createButton(String toolTipText, 
+  private static JButton createButton(String automationId, String toolTipText, 
       ImageIcon icon, 
       java.awt.event.ActionListener actionListener)
   {
@@ -491,6 +467,7 @@ public class JTSTestBuilderToolBar {
     btn.addActionListener(actionListener);
     btn.setFocusable(false);
     btn.setFocusPainted(false);
+    AutomationIds.set(btn, automationId);
     return btn;
   }
   

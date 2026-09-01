@@ -21,6 +21,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.LineSegment;
 import org.locationtech.jts.geom.Position;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.math.MathUtil;
 
 /**
  * Generates segments which form an offset curve.
@@ -38,20 +39,23 @@ class OffsetSegmentGenerator
 {
 
   /**
-   * Factor which controls how close offset segments can be to
-   * skip adding a filler or mitre.
+   * Factor controlling how close offset segments can be to
+   * skip adding a fillet or mitre.
+   * This eliminates very short fillet segments, 
+   * reduces the number of offset curve vertices.
+   * and improves the robustness of mitre construction.
    */
-  private static final double OFFSET_SEGMENT_SEPARATION_FACTOR = 1.0E-3;
+  private static final double OFFSET_SEGMENT_SEPARATION_FACTOR = .05;
   
   /**
-   * Factor which controls how close curve vertices on inside turns can be to be snapped 
+   * Factor controlling how close curve vertices on inside turns can be to be snapped 
    */
   private static final double INSIDE_TURN_VERTEX_SNAP_DISTANCE_FACTOR = 1.0E-3;
 
   /**
    * Factor which controls how close curve vertices can be to be snapped
    */
-  private static final double CURVE_VERTEX_SNAP_DISTANCE_FACTOR = 1.0E-6;
+  private static final double CURVE_VERTEX_SNAP_DISTANCE_FACTOR = 1.0E-4;
 
   /**
    * Factor which determines how short closing segs can be for round buffers
@@ -111,7 +115,7 @@ class OffsetSegmentGenerator
     
     int quadSegs = bufParams.getQuadrantSegments();
     if (quadSegs < 1) quadSegs = 1;
-    filletAngleQuantum = Math.PI / 2.0 / quadSegs;
+    filletAngleQuantum = Angle.PI_OVER_2 / quadSegs;
 
     /**
      * Non-round joins cause issues with short closing segments, so don't use
@@ -143,14 +147,14 @@ class OffsetSegmentGenerator
   
   private void init(double distance)
   {
-    this.distance = distance;
-    maxCurveSegmentError = distance * (1 - Math.cos(filletAngleQuantum / 2.0));
+    this.distance = Math.abs(distance);
+    maxCurveSegmentError = this.distance * (1 - Math.cos(filletAngleQuantum / 2.0));
     segList = new OffsetSegmentString();
     segList.setPrecisionModel(precisionModel);
     /**
      * Choose the min vertex separation as a small fraction of the offset distance.
      */
-    segList.setMinimumVertexDistance(distance * CURVE_VERTEX_SNAP_DISTANCE_FACTOR);
+    segList.setMinimumVertexDistance(this.distance * CURVE_VERTEX_SNAP_DISTANCE_FACTOR);
   }
 
 
@@ -268,14 +272,20 @@ class OffsetSegmentGenerator
   private void addOutsideTurn(int orientation, boolean addStartPoint)
   {
     /**
-     * Heuristic: If offset endpoints are very close together, 
-     * just use one of them as the corner vertex.
-     * This avoids problems with computing mitre corners in the case
-     * where the two segments are almost parallel 
-     * (which is hard to compute a robust intersection for).
+     * Heuristic: If offset endpoints are very close together,
+     * (which happens for nearly-parallel segments),
+     * use an endpoint as the single offset corner vertex.
+     * This eliminates very short single-segment joins
+     * and reduces the number of offset curve vertices.
+     * This also avoids robustness problems with computing mitre corners 
+     * for nearly-parallel segments.
      */
     if (offset0.p1.distance(offset1.p0) < distance * OFFSET_SEGMENT_SEPARATION_FACTOR) {
-      segList.addPt(offset0.p1);
+      //-- use endpoint of longest segment, to reduce change in area
+      double segLen0 = s0.distance(s1);
+      double segLen1 = s1.distance(s2);
+      Coordinate offsetPt = (segLen0 > segLen1) ? offset0.p1 : offset1.p0;
+      segList.addPt(offsetPt);
       return;
     }
     
@@ -286,9 +296,10 @@ class OffsetSegmentGenerator
       addBevelJoin(offset0, offset1);
     }
     else {
-    // add a circular fillet connecting the endpoints of the offset segments
-     if (addStartPoint) segList.addPt(offset0.p1);
-      // TESTING - comment out to produce beveled joins
+      //-- add a circular fillet connecting the endpoints of the offset segments
+      if (addStartPoint) {
+        segList.addPt(offset0.p1);
+      }
       addCornerFillet(s1, offset0.p1, offset1.p0, orientation, distance);
       segList.addPt(offset1.p0);
     }
@@ -388,7 +399,7 @@ class OffsetSegmentGenerator
     int sideSign = side == Position.LEFT ? 1 : -1;
     double dx = seg.p1.x - seg.p0.x;
     double dy = seg.p1.y - seg.p0.y;
-    double len = Math.sqrt(dx * dx + dy * dy);
+    double len = MathUtil.hypot(dx, dy);
     // u is the vector that is the length of the offset, in the direction of the segment
     double ux = sideSign * distance * dx / len;
     double uy = sideSign * distance * dy / len;
@@ -418,7 +429,7 @@ class OffsetSegmentGenerator
       case BufferParameters.CAP_ROUND:
         // add offset seg points with a fillet between them
         segList.addPt(offsetL.p1);
-        addDirectedFillet(p1, angle + Math.PI / 2, angle - Math.PI / 2, Orientation.CLOCKWISE, distance);
+        addDirectedFillet(p1, angle + Angle.PI_OVER_2, angle - Angle.PI_OVER_2, Orientation.CLOCKWISE, distance);
         segList.addPt(offsetR.p1);
         break;
       case BufferParameters.CAP_FLAT:
@@ -429,8 +440,8 @@ class OffsetSegmentGenerator
       case BufferParameters.CAP_SQUARE:
         // add a square defined by extensions of the offset segment endpoints
         Coordinate squareCapSideOffset = new Coordinate();
-        squareCapSideOffset.x = Math.abs(distance) * Math.cos(angle);
-        squareCapSideOffset.y = Math.abs(distance) * Math.sin(angle);
+        squareCapSideOffset.x = Math.abs(distance) * Angle.cosSnap(angle);
+        squareCapSideOffset.y = Math.abs(distance) * Angle.sinSnap(angle);
 
         Coordinate squareCapLOffset = new Coordinate(
             offsetL.p1.x + squareCapSideOffset.x,
@@ -524,7 +535,7 @@ class OffsetSegmentGenerator
     Coordinate bevelMidPt = project(cornerPt, -mitreLimitDistance, dirBisector);
     
     // direction of bevel segment (at right angle to corner bisector)
-    double dirBevel = Angle.normalize(dirBisector + Math.PI/2.0);
+    double dirBevel = Angle.normalize(dirBisector + Angle.PI_OVER_2);
     
     // compute the candidate bevel segment by projecting both sides of the midpoint
     Coordinate bevel0 = project(bevelMidPt, distance, dirBevel);
@@ -557,8 +568,8 @@ class OffsetSegmentGenerator
    * @return the projected point
    */
   private static Coordinate project(Coordinate pt, double d, double dir) {
-    double x = pt.x + d * Math.cos(dir);
-    double y = pt.y + d * Math.sin(dir);
+    double x = pt.x + d * Angle.cosSnap(dir);
+    double y = pt.y + d * Angle.sinSnap(dir);
     return new Coordinate(x, y);
   }
   
@@ -597,10 +608,10 @@ class OffsetSegmentGenerator
     double endAngle = Math.atan2(dy1, dx1);
 
     if (direction == Orientation.CLOCKWISE) {
-      if (startAngle <= endAngle) startAngle += 2.0 * Math.PI;
+      if (startAngle <= endAngle) startAngle += Angle.PI_TIMES_2;
     }
     else {    // direction == COUNTERCLOCKWISE
-      if (startAngle >= endAngle) startAngle -= 2.0 * Math.PI;
+      if (startAngle >= endAngle) startAngle -= Angle.PI_TIMES_2;
     }
     segList.addPt(p0);
     addDirectedFillet(p, startAngle, endAngle, direction, radius);
@@ -631,8 +642,8 @@ class OffsetSegmentGenerator
     Coordinate pt = new Coordinate();
     for (int i = 0; i < nSegs; i++) {
       double angle = startAngle + directionFactor * i * angleInc;
-      pt.x = p.x + radius * Math.cos(angle);
-      pt.y = p.y + radius * Math.sin(angle);
+      pt.x = p.x + radius * Angle.cosSnap(angle);
+      pt.y = p.y + radius * Angle.sinSnap(angle);
       segList.addPt(pt);
     }
   }
@@ -645,7 +656,7 @@ class OffsetSegmentGenerator
     // add start point
     Coordinate pt = new Coordinate(p.x + distance, p.y);
     segList.addPt(pt);
-    addDirectedFillet(p, 0.0, 2.0 * Math.PI, -1, distance);
+    addDirectedFillet(p, 0.0, Angle.PI_TIMES_2, -1, distance);
     segList.closeRing();
   }
 

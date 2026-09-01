@@ -14,7 +14,6 @@ package org.locationtech.jtstest.testbuilder;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -83,13 +82,20 @@ public class JTSTestBuilderMenuBar
           JTSTestBuilder.controller().inspectGeometryDialogForCurrentCase();
         }
       });
-    JMenuItem menuShowIndicators = menuItemCheck("ShowIndicators",
-      JTSTestBuilderFrame.isShowingIndicators,
-      new java.awt.event.ActionListener() {
-        public void actionPerformed(ActionEvent e) {
-          JTSTestBuilderFrame.isShowingIndicators = ! JTSTestBuilderFrame.isShowingIndicators;
-        }
-      });
+    JMenuItem menuShowIndicators = menuItemCheck("Show Indicators",
+        JTSTestBuilderFrame.isShowingIndicators,
+        new java.awt.event.ActionListener() {
+          public void actionPerformed(ActionEvent e) {
+            JTSTestBuilderFrame.isShowingIndicators = ! JTSTestBuilderFrame.isShowingIndicators;
+          }
+        });
+    JMenuItem menuSaveIndicators = menuItemCheck("Save Indicators",
+        JTSTestBuilderFrame.isSavingIndicators,
+        new java.awt.event.ActionListener() {
+          public void actionPerformed(ActionEvent e) {
+            JTSTestBuilderFrame.isSavingIndicators = ! JTSTestBuilderFrame.isSavingIndicators;
+          }
+        });
     menuLoadXmlTestFile.setText("Open XML File(s)...");
     menuLoadXmlTestFile.addActionListener(
       new java.awt.event.ActionListener() {
@@ -167,6 +173,40 @@ public class JTSTestBuilderMenuBar
         JTSTestBuilder.controller().changeToLines();
       }
     });
+
+    final JRadioButtonMenuItem menuCurveLinearized = new JRadioButtonMenuItem(
+        "Curve strategy: LINEARIZED (warn)");
+    final JRadioButtonMenuItem menuCurvePreserve = new JRadioButtonMenuItem(
+        "Curve strategy: PRESERVE");
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        menuCurveLinearized,
+        org.locationtech.jtstest.testbuilder.ui.AutomationIds.MENU_CURVE_STRATEGY_LINEARIZED);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        menuCurvePreserve,
+        org.locationtech.jtstest.testbuilder.ui.AutomationIds.MENU_CURVE_STRATEGY_PRESERVE);
+    javax.swing.ButtonGroup curveStrategyGroup = new javax.swing.ButtonGroup();
+    curveStrategyGroup.add(menuCurveLinearized);
+    curveStrategyGroup.add(menuCurvePreserve);
+    menuCurveLinearized.setSelected(true);
+    menuCurveLinearized.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent e) {
+        org.locationtech.jts.geom.curve.CurveLinearizationStrategy
+            .setDefault(org.locationtech.jts.geom.curve.CurveLinearizationStrategy.LINEARIZED);
+        String msg = "CurveLinearizationStrategy default = LINEARIZED (densify warns)";
+        tbFrame.getLogPanel().addInfo(msg);
+        JTSTestBuilder.controller().setStatus("Curve strategy: LINEARIZED");
+      }
+    });
+    menuCurvePreserve.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent e) {
+        org.locationtech.jts.geom.curve.CurveLinearizationStrategy
+            .setDefault(org.locationtech.jts.geom.curve.CurveLinearizationStrategy.PRESERVE);
+        String msg = "CurveLinearizationStrategy default = PRESERVE (no densify)";
+        tbFrame.getLogPanel().addInfo(msg);
+        JTSTestBuilder.controller().setStatus("Curve strategy: PRESERVE");
+      }
+    });
+
     jMenuFile.setText("File");
     //jMenuOptions.setText("Options");
     //jMenuTools.setText("Tools");
@@ -193,6 +233,7 @@ public class JTSTestBuilderMenuBar
     //-----------------------
     jMenuEdit.addSeparator();
     jMenuView.add(menuShowIndicators);
+    jMenuView.add(menuSaveIndicators);
     
     //==========================    
     jMenuEdit.setText("Edit");
@@ -202,6 +243,9 @@ public class JTSTestBuilderMenuBar
     jMenuEdit.addSeparator();
     jMenuEdit.add(removeDuplicatePoints);
     jMenuEdit.add(changeToLines);
+    jMenuEdit.addSeparator();
+    jMenuEdit.add(menuCurveLinearized);
+    jMenuEdit.add(menuCurvePreserve);
     
     jMenuBar1.add(jMenuFile);
     jMenuBar1.add(jMenuView);

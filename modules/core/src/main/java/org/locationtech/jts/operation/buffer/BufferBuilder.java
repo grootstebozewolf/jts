@@ -27,6 +27,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Position;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.TopologyException;
@@ -35,14 +36,11 @@ import org.locationtech.jts.geomgraph.EdgeList;
 import org.locationtech.jts.geomgraph.Label;
 import org.locationtech.jts.geomgraph.Node;
 import org.locationtech.jts.geomgraph.PlanarGraph;
+import org.locationtech.jts.noding.FastNodingValidator;
 import org.locationtech.jts.noding.IntersectionAdder;
 import org.locationtech.jts.noding.MCIndexNoder;
 import org.locationtech.jts.noding.Noder;
 import org.locationtech.jts.noding.SegmentString;
-import org.locationtech.jts.operation.overlay.OverlayNodeFactory;
-import org.locationtech.jts.operation.overlay.PolygonBuilder;
-
-
 
 /**
  * Builds the buffer geometry for a given input geometry and precision model.
@@ -157,8 +155,16 @@ class BufferBuilder
 //wktWriter.setMaxCoordinatesPerLine(10);
 //System.out.println(wktWriter.writeFormatted(convertSegStrings(bufferSegStrList.iterator())));
 
-    computeNodedEdges(bufferSegStrList, precisionModel);
-    graph = new PlanarGraph(new OverlayNodeFactory());
+    /**
+     * Currently only zero-distance buffers are validated, 
+     * to avoid reducing performance for other buffers.
+     * This fixes some noding failure cases found via GeometryFixer
+     * (see JTS-852).
+     */
+    boolean isNodingValidated = distance == 0.0;
+    computeNodedEdges(bufferSegStrList, precisionModel, isNodingValidated);
+    
+    graph = new PlanarGraph(new BufferNodeFactory());
     graph.addEdges(edgeList.getEdges());
 
     List subgraphList = createSubgraphs(graph);
@@ -171,8 +177,40 @@ class BufferBuilder
       return createEmptyResultGeometry();
     }
 
+    /**
+     *  Heuristic to remove artifacts caused by topology robustness problems
+     *  or buffer curve generation anomalies.
+     *  Uses fact that for distance > 0 single-element inputs must create single element buffers.
+     *  This does not hold if distance <= 0;
+     *  distance = 0 can create multipolygon results due to topology collapse,
+     *  and distance < 0 may erode polygons so they are disconnected.
+     */
+    if (distance > 0 && g.getNumGeometries() == 1 && resultPolyList.size() > 1) {
+      resultPolyList = keepLargestArea(resultPolyList);
+    }
+    
     Geometry resultGeom = geomFact.buildGeometry(resultPolyList);
     return resultGeom;
+  }
+
+  private static List<Polygon> keepLargestArea(List<Polygon> polyList) {
+    Polygon largest = findLargestArea(polyList);
+    List<Polygon> largestPolyList = new ArrayList<Polygon>();
+    largestPolyList.add(largest);
+    return largestPolyList;
+  }
+
+  private static Polygon findLargestArea(List<Polygon> polyList) {
+    double largestArea = 0;
+    Polygon largest = null;
+    for (Polygon poly : polyList) {
+      double polyArea = poly.getArea();
+      if (largest == null || polyArea > largestArea) {
+        largest = poly;
+        largestArea = polyArea;
+      }
+    }
+    return largest;
   }
 
   private Noder getNoder(PrecisionModel precisionModel)
@@ -192,11 +230,17 @@ class BufferBuilder
 //                                  precisionModel.getScale());
   }
 
-  private void computeNodedEdges(List bufferSegStrList, PrecisionModel precisionModel)
+  private void computeNodedEdges(List bufferSegStrList, PrecisionModel precisionModel, boolean isNodingValidated)
   {
     Noder noder = getNoder(precisionModel);
     noder.computeNodes(bufferSegStrList);
     Collection nodedSegStrings = noder.getNodedSubstrings();
+    
+    if (isNodingValidated) {
+      FastNodingValidator nv = new FastNodingValidator(nodedSegStrings);
+      nv.checkValid();
+    }
+    
 // DEBUGGING ONLY
 //BufferDebug.saveEdges(nodedEdges, "run" + BufferDebug.runCount + "_nodedEdges");
 

@@ -13,16 +13,22 @@
 package org.locationtech.jtstest.testbuilder.geom;
 
 import org.locationtech.jts.algorithm.Area;
-import org.locationtech.jts.geom.*;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.GeometryComponentFilter;
+import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Polygon;
 
 public class GeometryUtil {
 
   public static String structureSummary(Geometry g)
   {
     String structure = "";
+    if (g == null) return "";
     if (g instanceof Polygon) {
       int nHoles = ((Polygon) g).getNumInteriorRing();
-      if (nHoles > 0) structure = nHoles + " holes, " ;
+      if (nHoles > 0) structure = nHoles + (nHoles > 1 ? " holes, " : " hole, ");
     }
     String size = "";
     if (g instanceof GeometryCollection)

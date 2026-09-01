@@ -14,7 +14,6 @@ package org.locationtech.jts.operation.buffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
@@ -162,28 +161,29 @@ class SubgraphDepthLocater
 
     public DepthSegment(LineSegment seg, int depth)
     {
-      // input seg is assumed to be normalized
+      // Assert: input seg is upward (p0.y <= p1.y)
       upwardSeg = new LineSegment(seg);
-      //upwardSeg.normalize();
       this.leftDepth = depth;
     }
+    
+    public boolean isUpward() {
+      return upwardSeg.p0.y <= upwardSeg.p1.y;
+    }
+    
     /**
-     * Defines a comparison operation on DepthSegments
-     * which orders them left to right.
-     * Assumes the segments are normalized.
+     * A comparison operation
+     * which orders segments left to right
+     * along some horizontal line.
+     * If segments don't touch the same line, 
+     * or touch at the same point,
+     * they are compared in their Y extent.
+     * 
      * <p>
      * The definition of the ordering is:
      * <ul>
      * <li>-1 : if DS1.seg is left of or below DS2.seg (DS1 < DS2)
-     * <li>1 : if   DS1.seg is right of or above DS2.seg (DS1 > DS2) 
+     * <li>1 : if  DS1.seg is right of or above DS2.seg (DS1 > DS2) 
      * <li>0 : if the segments are identical 
-     * </ul>
-     *
-     * KNOWN BUGS:
-     * <ul>
-     * <li>The logic does not obey the {@link Comparator.compareTo} contract. 
-     * This is acceptable for the intended usage, but may cause problems if used with some
-     * utilities in the Java standard library (e.g. {@link Collections.sort()}.
      * </ul>
      * 
      * @param obj a DepthSegment
@@ -191,49 +191,89 @@ class SubgraphDepthLocater
      */
     public int compareTo(Object obj)
     {
-      DepthSegment other = (DepthSegment) obj;
-      
-      // fast check if segments are trivially ordered along X
-      if (upwardSeg.minX() >= other.upwardSeg.maxX()) return 1;
-      if (upwardSeg.maxX() <= other.upwardSeg.minX()) return -1;
+      LineSegment otherSeg = ((DepthSegment) obj).upwardSeg;
       
       /**
-       * try and compute a determinate orientation for the segments.
-       * Test returns 1 if other is left of this (i.e. this > other)
+       * If segments are disjoint in X, X values provides ordering.
+       * This is the most common case.
        */
-      int orientIndex = upwardSeg.orientationIndex(other.upwardSeg);
-      if (orientIndex != 0) return orientIndex;
-
+      if (upwardSeg.minX() > otherSeg.maxX())
+        return 1;
+      if (upwardSeg.maxX() < otherSeg.minX())
+        return -1;
       /**
-       * If comparison between this and other is indeterminate,
-       * try the opposite call order.
-       * The sign of the result needs to be flipped.
+       * The segments Y ranges should intersect since they lie on same stabbing line.
+       * But check for this and provide a result based on Y ordering
        */
-      orientIndex = -1 * other.upwardSeg.orientationIndex(upwardSeg);
-      if (orientIndex != 0) return orientIndex;
-
-      // otherwise, use standard lexocographic segment ordering
-      return upwardSeg.compareTo(other.upwardSeg);
+      if (upwardSeg.minY() > otherSeg.maxY())
+        return 1;
+      if (upwardSeg.maxY() < otherSeg.minY())
+        return -1;
+      
+      /**
+       * Check if some segment point is left or right
+       * of the other segment in its Y extent.
+       */
+      int comp00 = comparePointInYExtent(upwardSeg.p0, otherSeg);
+      if (comp00 != 0) return comp00;
+      int comp01 = comparePointInYExtent(upwardSeg.p1, otherSeg);
+      if (comp01 != 0) return comp01;
+      //-- negate orientation for other/this checks
+      int comp10 = -comparePointInYExtent(otherSeg.p0, upwardSeg);
+      if (comp10 != 0) return comp10;
+      int comp11 = -comparePointInYExtent(otherSeg.p1, upwardSeg);
+      if (comp11 != 0) return comp11;
+      
+      /**
+       * If point checks in Y range are indeterminate,
+       * segments touch at a point
+       * and lie above and below that point, or are horizontal.
+       * Order according to their Y values.
+       * (The ordering in this case doesn't matter, it just has to be consistent)
+       */
+      if (upwardSeg.maxY() > otherSeg.maxY())
+        return 1;
+      if (upwardSeg.maxY() < otherSeg.maxY())
+        return -1;
+      
+      /**
+       * If both are horizontal order by X
+       */
+      if (upwardSeg.isHorizontal() && otherSeg.isHorizontal()) {
+        if (upwardSeg.minX() < otherSeg.minX())
+          return -1;
+        if (upwardSeg.minX() > otherSeg.minX())
+          return 1;
+      }
+      
+      // assert: segments are equal
+      return 0;
     }
-
+    
     /**
-     * Compare two collinear segments for left-most ordering.
-     * If segs are vertical, use vertical ordering for comparison.
-     * If segs are equal, return 0.
-     * Segments are assumed to be directed so that the second coordinate is >= to the first
-     * (e.g. up and to the right).
-     *
-     * @param seg0 a segment to compare
-     * @param seg1 a segment to compare
+     * Compares a point to a segment for left/right position, 
+     * as long as the point lies within the segment Y extent.
+     * Otherwise the point is not comparable.
+     * If the point is not comparable or it lies on the segment
+     * returns 0.
+     * 
+     * @param p
+     * @param seg
      * @return
      */
-    private int compareX(LineSegment seg0, LineSegment seg1)
-    {
-      int compare0 = seg0.p0.compareTo(seg1.p0);
-      if (compare0 != 0)
-        return compare0;
-      return seg0.p1.compareTo(seg1.p1);
-
+    private int comparePointInYExtent(Coordinate p, LineSegment seg) {
+      //-- if point is comparable to segment
+      if (p.y >= seg.minY() && p.y <= seg.maxY()) {
+        //-- flip sign, since orientation and order relation are opposite
+        int orient = seg.orientationIndex(p);
+        switch (orient) {
+        case Orientation.LEFT: return -1;
+        case Orientation.RIGHT: return 1;
+        }
+        //-- collinear, so indeterminate
+      }
+      //-- not computable
+      return 0;
     }
 
     public String toString()

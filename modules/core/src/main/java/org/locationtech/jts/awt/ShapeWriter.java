@@ -18,13 +18,10 @@ import java.awt.geom.Point2D;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
-import org.locationtech.jts.geom.CircularString;
-import org.locationtech.jts.geom.MultiCircularString;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.Triangle;
 
 
 
@@ -171,9 +168,14 @@ public class ShapeWriter
 	public Shape toShape(Geometry geometry)
 	{
 		if (geometry.isEmpty()) return new GeneralPath();
+		// Extension hook for SFA / ISO 19125-2 geometries (CircularString,
+		// CompoundCurve, etc.). Called before the instanceof ladder so that
+		// subclasses extending LineString or Polygon can render with their
+		// own semantics (e.g. arcs as Bezier curves) instead of being routed
+		// to the parent's straight-line / straight-edge handler.
+		Shape ext = toShapeOther(geometry);
+		if (ext != null) return ext;
 		if (geometry instanceof Polygon) return toShape((Polygon) geometry);
-		if (geometry instanceof CircularString) 			return toShape((CircularString) geometry);
-		if (geometry instanceof MultiCircularString) 			return toShape((MultiCircularString) geometry);
 		if (geometry instanceof LineString) 			return toShape((LineString) geometry);
 		if (geometry instanceof MultiLineString) 	return toShape((MultiLineString) geometry);
 		if (geometry instanceof Point) 			return toShape((Point) geometry);
@@ -181,6 +183,21 @@ public class ShapeWriter
 
 		throw new IllegalArgumentException(
 			"Unrecognized Geometry class: " + geometry.getClass());
+	}
+
+	/**
+	 * Hook for subclasses to render geometry types that the core dispatch
+	 * does not recognise (e.g. arc-bearing curves). Called early in
+	 * {@link #toShape(Geometry)} so that subclasses can intercept geometries
+	 * that would otherwise be routed to a parent-class handler by the
+	 * {@code instanceof} ladder. Implementations should return {@code null}
+	 * if the geometry should fall through to the default dispatch.
+	 *
+	 * @param geometry the geometry to render
+	 * @return the rendered {@link Shape}, or {@code null} to fall through
+	 */
+	protected Shape toShapeOther(Geometry geometry) {
+		return null;
 	}
 
 	private Shape toShape(Polygon p) 
@@ -246,70 +263,6 @@ public class ShapeWriter
 		}
 		return shape;
 	}
-	
-	private GeneralPath toShape(MultiCircularString mls)
-	{
-		GeneralPath path = new GeneralPath();
-
-		for (int i = 0; i < mls.getNumGeometries(); i++) {
-			CircularString arc = (CircularString) mls.getGeometryN(i);
-			path.append(toShape(arc), false);
-		}
-		return path;
-	}
-
-	private boolean isColinear(double x1, double y1, double x2, double y2, double x3, double y3)
-	{
-		return Math.abs( (x2 - x1)*(y3 - y1) - (x3 - x1)*(y2 - y1) ) < 1e-10;
-	}
-
-	private GeneralPath toShape(CircularString cs)
-	{
-		GeneralPath shape = new GeneralPath();
-		Coordinate[] pts = cs.getCoordinates();
-		if (pts.length < 3) return shape;
-		
-		transformPoint(pts[0], transPoint);
-		shape.moveTo((float) transPoint.getX(), (float) transPoint.getY());
-		
-		for (int i = 2; i < pts.length; i += 2) {
-			Coordinate s = pts[i-2];
-			Coordinate m = pts[i-1];
-			Coordinate e = pts[i];
-			transformPoint(s, transPoint); double sx = transPoint.getX(); double sy = transPoint.getY();
-			transformPoint(m, transPoint); double mx = transPoint.getX(); double my = transPoint.getY();
-			transformPoint(e, transPoint); double ex = transPoint.getX(); double ey = transPoint.getY();
-
-			if (isColinear(sx, sy, mx, my, ex, ey)) {
-				shape.lineTo((float)ex, (float)ey);
-			} else {
-				Coordinate c1 = new Coordinate(sx, sy);
-				Coordinate c2 = new Coordinate(mx, my);
-				Coordinate c3 = new Coordinate(ex, ey);
-				Coordinate cen = Triangle.circumcentre(c1, c2, c3);
-				double cx = cen.x;
-				double cy = cen.y;
-				double r = Math.hypot(sx - cx, sy - cy);
-				double a1 = Math.atan2(sy - cy, sx - cx);
-				double a2 = Math.atan2(ey - cy, ex - cx);
-				// determine sweep using orientation of s,m,e
-				double orient = (mx - sx)*(ey - sy) - (my - sy)*(ex - sx);
-				double theta = a2 - a1;
-				if (orient > 0) {
-					if (theta < 0) theta += 2 * Math.PI;
-				} else {
-					if (theta > 0) theta -= 2 * Math.PI;
-				}
-				double k = 4.0 / 3.0 * Math.tan(theta / 4.0);
-				double cp1x = cx + r * (Math.cos(a1) - k * Math.sin(a1));
-				double cp1y = cy + r * (Math.sin(a1) + k * Math.cos(a1));
-				double cp2x = cx + r * (Math.cos(a2) + k * Math.sin(a2));
-				double cp2y = cy + r * (Math.sin(a2) - k * Math.cos(a2));
-				shape.curveTo((float)cp1x, (float)cp1y, (float)cp2x, (float)cp2y, (float)ex, (float)ey);
-			}
-		}
-		return shape;
-	}
 
 	private GeneralPath toShape(MultiLineString mls)
 	{
@@ -328,7 +281,7 @@ public class ShapeWriter
 		
     Coordinate prev = lineString.getCoordinateN(0);
     transformPoint(prev, transPoint);
-	shape.moveTo((float) transPoint.getX(), (float) transPoint.getY());
+		shape.moveTo((float) transPoint.getX(), (float) transPoint.getY());
 
     double prevx = transPoint.getX();
     double prevy = transPoint.getY();
@@ -365,16 +318,16 @@ public class ShapeWriter
 	}
 
 	private Shape toShape(Point point)
-    {
+  {
 		Point2D viewPoint = transformPoint(point.getCoordinate());
 		return pointFactory.createPoint(viewPoint);
 	}
 
-    private Point2D transformPoint(Coordinate model) {
+  protected Point2D transformPoint(Coordinate model) {
 		return transformPoint(model, new Point2D.Double());
 	}
-  
-    private Point2D transformPoint(Coordinate model, Point2D view) {
+
+  protected Point2D transformPoint(Coordinate model, Point2D view) {
 		pointTransformer.transform(model, view);
 		return view;
 	}

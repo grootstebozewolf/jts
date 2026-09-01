@@ -1,0 +1,75 @@
+{
+  "id": "PolygonOverlay.overlaySR.circle.pr7",
+  "claimId": "TB-AP-POLYGONOVERLAY-OVERLAYSR",
+  "category": "PolygonOverlay",
+  "function": "overlaySR",
+  "branch": "pr7",
+  "tags": [
+    "tb-appium",
+    "PolygonOverlay",
+    "overlaySR",
+    "circle"
+  ],
+  "golden": false,
+  "skipped": false,
+  "playbackOf": "PolygonOverlay.overlaySR.polygon.upstream",
+  "fixtureFile": "_fixtures/pr7-circle.wkt",
+  "fixtureFileB": "_fixtures/pr7-circle.wkt",
+  "params": [
+    "1"
+  ],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.b",
+      "action": "setText",
+      "valueFromFixture": "b"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "PolygonOverlay",
+        "overlaySR"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.param.0",
+      "action": "setText",
+      "value": "1"
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "overlaySR",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "preserveCurveAware": true
+  },
+  "notes": "overlaySR \u00b7 pr7 circle",
+  "optionB": {
+    "contract": "Draft v6 MMF Option B",
+    "defaultStrategy": "LINEARIZED",
+    "requiresWarnOnDensify": true,
+    "overlayName": "OverlayNGCurve"
+  }
+}

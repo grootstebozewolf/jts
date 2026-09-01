@@ -12,7 +12,6 @@
 package org.locationtech.jtstest.testbuilder;
 
 import java.awt.Frame;
-
 import javax.swing.JDialog;
 
 import org.locationtech.jts.geom.Geometry;
@@ -58,6 +57,10 @@ public class GeometryInspectorDialog extends JDialog
   public void setGeometry(int geomIndex, Geometry geometry) {
     String tag = geomIndex == 0 ? AppStrings.GEOM_LABEL_A : AppStrings.GEOM_LABEL_B;
     inspectPanel.setGeometry(tag, geometry, geomIndex, false);
+  }
+
+  public void setGeometry(String tag, Geometry geom, int index, boolean isEditable) {
+    inspectPanel.setGeometry(tag, geom, index, false);
   }
 
 }

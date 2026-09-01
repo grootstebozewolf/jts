@@ -15,6 +15,7 @@ import java.lang.reflect.Array;
 import java.util.Collection;
 import java.util.Comparator;
 
+import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.math.MathUtil;
 
 
@@ -192,6 +193,24 @@ public class CoordinateArrays {
     return null;
   }
 
+  /**
+   * Orients an array of points to have a specified orientation.
+   * The array is not copied if it already has the required orientation.
+   * The points are not copied.
+   * 
+   * @param pts the array to orient
+   * @param orientCW true if the points should be oriented CVW
+   * @return the oriented array
+   */
+  public static Coordinate[] orient(Coordinate[] pts, boolean orientCW) {
+    boolean isFlipped = orientCW == Orientation.isCCW(pts);
+    if (isFlipped) {
+      pts = pts.clone();
+      CoordinateArrays.reverse(pts);
+    }
+    return pts;
+  }
+  
   /**
    * Compares two {@link Coordinate} arrays
    * in the forward direction of their coordinates,
@@ -415,10 +434,10 @@ public class CoordinateArrays {
    * @see Coordinate#isValid()
    */
   public static boolean hasRepeatedOrInvalidPoints(Coordinate[] coord) {
-    for (int i = 1; i < coord.length; i++) {
+    for (int i = 0; i < coord.length; i++) {
       if (! coord[i].isValid())
         return true;
-      if (coord[i - 1].equals(coord[i])) {
+      if (i > 0 && coord[i - 1].equals(coord[i])) {
         return true;
       }
     }

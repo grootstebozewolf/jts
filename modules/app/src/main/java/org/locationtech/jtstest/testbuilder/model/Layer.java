@@ -23,12 +23,24 @@ public class Layer
   private String name = "";
   private GeometryContainer geomCont;
   private boolean isEnabled = true;
+  private boolean isModifiable = true;
   
   private LayerStyle layerStyle;
   private BasicStyle initStyle = null;
     
   public Layer(String name) {
     this.name = name;
+  }
+
+  public Layer(String name, boolean isModifiable) {
+    this.name = name;
+    this.isModifiable = isModifiable;
+  }
+
+  public Layer(String name, GeometryContainer source, BasicStyle style) {
+    this.name = name;
+    setSource(source);
+    setGeometryStyle(style);
   }
 
   public Layer(Layer layer) {
@@ -44,11 +56,21 @@ public class Layer
     this.name = name; 
   }
   
+  public boolean isModifiable() {
+    return isModifiable;
+  }
+  
   public String getNameInfo() {
     if (geomCont.getGeometry() == null) return getName();
     return getName()
       + "   " + GeometryUtil.structureSummary(geomCont.getGeometry()) 
       + "  --  " + GeometryUtil.metricsSummary(geomCont.getGeometry()); 
+  }
+  
+  public String getNameSummary() {
+    if (geomCont.getGeometry() == null) return getName();
+    return getName()
+      + "   " + GeometryUtil.structureSummary(geomCont.getGeometry()); 
   }
   
   public void setEnabled(boolean isEnabled)
@@ -91,6 +113,11 @@ public class Layer
     return geomCont.getGeometry();
   }
 
+  public void setGeometry(Geometry geom)
+  {
+    this.geomCont = new StaticGeometryContainer(geom);
+  }
+
   public Envelope getEnvelope() {
     if (hasGeometry()) return getGeometry().getEnvelopeInternal();
     return new Envelope();
@@ -105,6 +132,5 @@ public class Layer
     if (initStyle == null) return;
     setGeometryStyle(initStyle.copy());
   }
-  
 
 }

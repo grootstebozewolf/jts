@@ -12,7 +12,13 @@
 
 package org.locationtech.jts.io.kml;
 
-import org.locationtech.jts.geom.*;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.io.ParseException;
 
 import javax.xml.stream.XMLInputFactory;
@@ -20,7 +26,16 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import java.io.StringReader;
 import java.lang.reflect.Array;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Constructs a {@link Geometry} object from the OGC KML representation.
@@ -30,6 +45,8 @@ public class KMLReader {
     private final XMLInputFactory inputFactory = XMLInputFactory.newInstance();
     private final GeometryFactory geometryFactory;
     private final Set<String> attributeNames;
+
+    private final Pattern whitespaceRegex = Pattern.compile("\\s+");
 
     private static final String POINT = "Point";
     private static final String LINESTRING = "LineString";
@@ -80,6 +97,10 @@ public class KMLReader {
         this.attributeNames = attributeNames == null
                 ? Collections.emptySet()
                 : new HashSet<>(attributeNames);
+        // Disable DTDs completely (prevents DOCTYPE declarations)
+        inputFactory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+        // Prevent external entity expansion from DTDs
+        inputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
     }
 
     /**
@@ -106,6 +127,8 @@ public class KMLReader {
         if (coordinates.isEmpty()) {
             raiseParseError("Empty coordinates");
         }
+        Matcher matcher= whitespaceRegex.matcher(coordinates.trim());
+        coordinates = matcher.replaceAll(" ");
 
         double[] parsedOrdinates = {Double.NaN, Double.NaN, Double.NaN};
         List<Coordinate> coordinateList = new ArrayList();

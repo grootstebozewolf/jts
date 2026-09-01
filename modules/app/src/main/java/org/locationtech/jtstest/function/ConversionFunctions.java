@@ -12,9 +12,18 @@
 
 package org.locationtech.jtstest.function;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
-import org.locationtech.jts.geom.*;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateList;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.GeometryCollectionIterator;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.util.LinearComponentExtracter;
 import org.locationtech.jts.geom.util.PolygonExtracter;
 
@@ -64,12 +73,12 @@ public class ConversionFunctions
         .createMultiPolygon( GeometryFactory.toPolygonArray(polys));
   }
 
-  public static Geometry toGeometryCollection(Geometry g, Geometry g2)
+  public static Geometry toGeometryCollection(Geometry g1, Geometry g2)
   {
     List atomicGeoms = new ArrayList();
-    if (g != null) addComponents(g, atomicGeoms);
+    if (g1 != null) addComponents(g1, atomicGeoms);
     if (g2 != null) addComponents(g2, atomicGeoms);
-    return g.getFactory().createGeometryCollection(
+    return FunctionsUtil.getFactoryOrDefault(g1, g2).createGeometryCollection(
         GeometryFactory.toGeometryArray(atomicGeoms));
   }
 

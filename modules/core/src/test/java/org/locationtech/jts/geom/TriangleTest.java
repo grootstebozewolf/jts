@@ -11,9 +11,9 @@
  */
 package org.locationtech.jts.geom;
 
+import org.locationtech.jts.algorithm.Distance;
 import org.locationtech.jts.io.WKTReader;
 
-import junit.framework.TestCase;
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
 
@@ -144,6 +144,16 @@ public class TriangleTest extends GeometryTestCase
         15.0, 13.75));
   }
 
+  public void testCircumradius() throws Exception
+  {
+    // right triangle
+    checkCircumradius("POLYGON((10 10, 20 20, 20 10, 10 10))");
+    // CCW right tri
+    checkCircumradius("POLYGON((10 10, 20 10, 20 20, 10 10))");
+    // acute
+    checkCircumradius("POLYGON((10 10, 20 10, 15 20, 10 10))");
+  }
+
   public void testCentroid() throws Exception
   {
     // right triangle
@@ -156,6 +166,24 @@ public class TriangleTest extends GeometryTestCase
     checkCentroid("POLYGON((10 10, 20 10, 15 20, 10 10))", new Coordinate(
         (10.0 + 20.0 + 15.0) / 3.0, (10.0 + 10.0 + 20.0) / 3.0));
   }
+  
+  public void testInCentre() throws Exception
+  {
+    // right triangle
+    checkInCentre("POLYGON((10 10, 20 20, 20 10, 10 10))", 
+        new Coordinate(17.071067811865476, 12.928932188134524) );
+    // CCW right tri
+    checkInCentre("POLYGON((10 10, 20 10, 20 20, 10 10))", 
+        new Coordinate(17.071067811865476, 12.928932188134524) );
+    // acute
+    checkInCentre("POLYGON((10 10, 20 10, 15 20, 10 10))", 
+        new Coordinate(14.999999999999998, 13.090169943749475));
+    // obtuse
+    checkInCentre("POLYGON ((10 10, 20 10, 40 20, 10 10))", 
+        new Coordinate(19.63104841334295, 11.56290400148567));
+  }
+  
+  //==========================================================
   
   public void checkCentroid(String wkt, Coordinate expectedValue)
       throws Exception
@@ -175,6 +203,35 @@ public class TriangleTest extends GeometryTestCase
     assertEquals(expectedValue.toString(), centroid.toString());
   }
 
+  public void checkInCentre(String wkt, Coordinate expectedValue)
+      throws Exception
+  {
+    double tolerance = 0.00001;
+    
+    Geometry g = reader.read(wkt);
+    Coordinate[] pt = g.getCoordinates();
+
+    Coordinate centre = Triangle.inCentre(pt[0], pt[1], pt[2]);
+    //System.out.println("(Static) centroid = " + centroid);
+    checkEqualXY(expectedValue, centre, tolerance);
+    checkEquidistantToEdges(centre, pt, tolerance);
+    
+    // Test Instance version
+    //
+    Triangle t = new Triangle(pt[0], pt[1], pt[2]);
+    Coordinate centreTri = t.inCentre();
+    checkEqualXY(expectedValue, centreTri, tolerance);
+  }
+
+  private void checkEquidistantToEdges(Coordinate centre, Coordinate[] pt, double tolerance) {
+    //-- inCenter must be equidistant from edges
+    double radius0 = Distance.pointToLinePerpendicular(centre, pt[0], pt[1]);
+    double radius1 = Distance.pointToLinePerpendicular(centre, pt[1], pt[2]);
+    double radius2 = Distance.pointToLinePerpendicular(centre, pt[2], pt[3]);
+    assertEquals(radius0, radius1, tolerance);
+    assertEquals(radius0, radius2, tolerance);
+  }
+  
   public void checkCircumCentre(String wkt, Coordinate expectedValue)
       throws Exception
   {
@@ -193,6 +250,23 @@ public class TriangleTest extends GeometryTestCase
     assertEquals(expectedValue.toString(), circumcentre.toString());
   }
 
+  public void checkCircumradius(String wkt)
+      throws Exception
+  {
+    Geometry g = reader.read(wkt);
+    Coordinate[] pt = g.getCoordinates();
+
+    Coordinate circumcentre = Triangle.circumcentre(pt[0], pt[1], pt[2]);
+    double circumradius = Triangle.circumradius(pt[0], pt[1], pt[2]);
+    //System.out.println("(Static) circumcentre = " + circumcentre);
+    double rad0 = pt[0].distance(circumcentre);
+    double rad1 = pt[1].distance(circumcentre);
+    double rad2 = pt[2].distance(circumcentre);
+    assertEquals(rad0, circumradius, 0.00001);
+    assertEquals(rad1, circumradius, 0.00001);
+    assertEquals(rad2, circumradius, 0.00001);
+  }
+  
   public void testLongestSideLength() throws Exception
   {
     // right triangle

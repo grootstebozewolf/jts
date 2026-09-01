@@ -1,0 +1,67 @@
+{
+  "id": "OverlayNGCurve.union.disc.pr7",
+  "claimId": "TB-AP-OVERLAYNGCURVE-UNION",
+  "category": "OverlayNGCurve",
+  "function": "union",
+  "branch": "pr7",
+  "tags": [
+    "tb-appium",
+    "OverlayNGCurve",
+    "union",
+    "disc"
+  ],
+  "golden": true,
+  "skipped": false,
+  "fixtureFile": "_fixtures/pr7-disc.wkt",
+  "fixtureFileB": "_fixtures/pr7-disc.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.b",
+      "action": "setText",
+      "valueFromFixture": "b"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "OverlayNGCurve",
+        "union"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "union",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "preserveCurveAware": true
+  },
+  "notes": "pr7-only OverlayNGCurve.union \u00b7 pr7 disc",
+  "optionB": {
+    "contract": "Draft v6 MMF Option B",
+    "defaultStrategy": "LINEARIZED",
+    "requiresWarnOnDensify": true,
+    "overlayName": "OverlayNGCurve"
+  }
+}

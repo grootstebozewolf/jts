@@ -18,7 +18,6 @@ import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JButton;
@@ -85,13 +84,13 @@ extends JPanel
     JButton copyToTestButton = SwingUtil.createButton(AppIcons.COPY_TO_TEST, "Copy Result to new Test",
         new ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        JTSTestBuilderFrame.instance().copyResultToTest();
+        JTSTestBuilder.controller().resultCopyToTest();
       }
     });
     JButton btnClearResult = SwingUtil.createButton(AppIcons.CUT, "Clear Result",         
         new ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        JTSTestBuilder.controller().clearResult();
+        JTSTestBuilder.controller().resultClear();
       }
     });
 
@@ -224,7 +223,8 @@ extends JPanel
   }
   
   void copyToTestButton_actionPerformed(ActionEvent e) {
-    JTSTestBuilderFrame.instance().copyResultToTest();
+    JTSTestBuilder.controller().resultCopyToTest();
+    //JTSTestBuilderFrame.instance().copyResultToTest();
   }
   
 }
