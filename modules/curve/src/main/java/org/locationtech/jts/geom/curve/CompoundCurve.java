@@ -29,7 +29,7 @@ import org.locationtech.jts.io.curve.CurveWKTWriter;
 
 /**
  * A connected sequence of {@link LineString} and {@link CircularString}
- * segments per OGC SFA / ISO 19125-2.
+ * segments per SQL/MM ISO/IEC 13249-3 §4.2.13 / §7.10.1 (WKB type 9).
  *
  * <p>Members are preserved as-is so consumers (renderer, densifier,
  * WKT writer) can walk segment-by-segment instead of treating the

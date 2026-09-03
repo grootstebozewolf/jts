@@ -24,6 +24,7 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularString;
 import org.locationtech.jts.geom.curve.CompoundCurve;
+import org.locationtech.jts.geom.curve.CurveLinearizationStrategy;
 import org.locationtech.jts.geom.curve.CurvePolygon;
 import org.locationtech.jts.geom.curve.Linearizable;
 import org.locationtech.jtstest.geomfunction.Metadata;
@@ -186,7 +187,10 @@ public class CurveFunctions {
     if (g == null) return g;
     // Empty Linearizable still goes through toLinear so CURVEPOLYGON EMPTY
     // becomes POLYGON EMPTY — a named fallback, not a silent curve type.
-    if (g instanceof Linearizable) return ((Linearizable) g).toLinear(tolerance);
+    if (g instanceof Linearizable) {
+      CurveLinearizationStrategy.warnLinearized(g, "CurveFunctions.toLinear");
+      return ((Linearizable) g).toLinear(tolerance);
+    }
     if (g.isEmpty()) return g;
     if (g instanceof GeometryCollection) {
       int n = g.getNumGeometries();

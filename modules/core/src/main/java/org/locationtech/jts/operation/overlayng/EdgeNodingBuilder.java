@@ -29,6 +29,7 @@ import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.SqlMmTypes;
 import org.locationtech.jts.noding.IntersectionAdder;
 import org.locationtech.jts.noding.MCIndexNoder;
 import org.locationtech.jts.noding.NodedSegmentString;
@@ -226,6 +227,7 @@ class EdgeNodingBuilder {
   private void add(Geometry g, int geomIndex)
   {
     if (g == null || g.isEmpty()) return;
+    SqlMmTypes.refuseCompoundCurveChord(g, "OverlayNG");
     
     if (isClippedCompletely(g.getEnvelopeInternal())) 
       return;

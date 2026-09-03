@@ -139,6 +139,14 @@ public class OverlayNGRobust
     }
     catch (RuntimeException ex) {
       /**
+       * A CompoundCurve chord refuse is honesty, not a noding
+       * failure. Do not retry it as snap / snap-round of the
+       * control polygon (CRV-CC flatten-elimination).
+       */
+      if (ex instanceof IllegalArgumentException) {
+        throw ex;
+      }
+      /**
        * Capture original exception,
        * so it can be rethrown if the remaining strategies all fail.
        */
