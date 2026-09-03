@@ -224,9 +224,13 @@ public class GeometryCombinerCurveTest extends TestCase {
         new Coordinate(5, 0), new Coordinate(-5, 0)
     };
     Geometry g = combiner().addCurvePolygon(null, closedFour);
-    assertTrue("4-pt closed (A,B,C,A) is a circumcircle CurvePolygon, got "
+    assertTrue("construct (A,B,C,A) expands to a 5-token CIRCULARSTRING, got "
         + (g == null ? "null" : wkt(g)), g instanceof CurvePolygon);
+    CurvePolygon cp = (CurvePolygon) g;
+    assertEquals(5, cp.getExteriorCurve().getNumPoints());
     assertTrue(wkt(g).startsWith("CURVEPOLYGON (CIRCULARSTRING"));
+    assertEquals(2.0 * Math.PI * RADIUS, g.getLength(), ARC_EPS);
+    assertEquals(Math.PI * RADIUS * RADIUS, g.getArea(), ARC_EPS);
   }
 
   public void testEvenLeftoverAbortsCurvePolygon() {

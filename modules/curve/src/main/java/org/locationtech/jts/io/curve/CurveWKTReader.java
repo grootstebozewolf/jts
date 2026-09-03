@@ -184,8 +184,9 @@ public class CurveWKTReader extends WKTReader {
     CoordinateSequence seq = ls.getCoordinateSequence();
     if (!CircularString.isValidControlCount(seq)) {
       throw parseErrorWithLine(tokenizer,
-          "CIRCULARSTRING must have an odd number of points >= 3, "
-          + "or be the closed 4-control form CIRCULARSTRING(A,B,C,A)");
+          "CIRCULARSTRING must be EMPTY or have an odd control count n > 1 "
+          + "(ISO/IEC 13249-3). CIRCULARSTRING(A,B,C,A) is even and is not "
+          + "a SQL/MM CircularString; do not invent a fifth control");
     }
     return new CircularString(seq, geometryFactory);
   }
@@ -235,11 +236,61 @@ public class CurveWKTReader extends WKTReader {
             }
           }
         }
+        if (m instanceof CompoundCurve) {
+          throw parseErrorWithLine(tokenizer,
+              "COMPOUNDCURVE members must be LineString or CircularString "
+              + "(ISO/IEC 13249-3); nested CompoundCurve is not a SimpleCurve");
+        }
+        if (!mems.isEmpty()) {
+          LineString prev = mems.get(mems.size() - 1);
+          if (!CompoundCurve.areMembersContiguous(new LineString[] { prev, m })) {
+            throw parseErrorWithLine(tokenizer,
+                "COMPOUNDCURVE members must be contiguous: end of each "
+                + "component except the last coincides with the start of "
+                + "the next (ISO/IEC 13249-3)");
+          }
+        }
         mems.add(m);
       }
       tok = getNextCloserOrComma(tokenizer);
     } while (tok.equals(","));
-    return new CompoundCurve(mems.toArray(new LineString[0]), geometryFactory);
+    LineString[] arr = mems.toArray(new LineString[0]);
+    requireSqlMmCompoundMembers(tokenizer, arr);
+    return new CompoundCurve(arr, geometryFactory);
+  }
+
+  private void requireSqlMmCompoundMembers(StreamTokenizer tokenizer,
+      LineString[] members) throws IOException, ParseException {
+    for (int i = 0; i < members.length; i++) {
+      if (members[i] instanceof CompoundCurve) {
+        throw parseErrorWithLine(tokenizer,
+            "COMPOUNDCURVE members must be LineString or CircularString "
+            + "(ISO/IEC 13249-3); nested CompoundCurve is not a SimpleCurve");
+      }
+    }
+    if (!CompoundCurve.areMembersContiguous(members)) {
+      throw parseErrorWithLine(tokenizer,
+          "COMPOUNDCURVE members must be contiguous: end of each "
+          + "component except the last coincides with the start of "
+          + "the next (ISO/IEC 13249-3)");
+    }
+  }
+
+  private void requireClosedSqlMmRing(StreamTokenizer tokenizer, LineString ring)
+      throws IOException, ParseException {
+    if (ring == null) {
+      throw parseErrorWithLine(tokenizer,
+          "CURVEPOLYGON ring is missing (ISO/IEC 13249-3)");
+    }
+    if (!CurvePolygon.isSqlMmRing(ring)) {
+      throw parseErrorWithLine(tokenizer,
+          "CURVEPOLYGON ring must be LineString, CircularString, or "
+          + "CompoundCurve (ISO/IEC 13249-3)");
+    }
+    if (!ring.isEmpty() && !ring.isClosed()) {
+      throw parseErrorWithLine(tokenizer,
+          "CURVEPOLYGON ring must be closed (ISO/IEC 13249-3)");
+    }
   }
 
   /** Reads {@code (k0, k1, L)} and inherits start state from {@code prev}. */
@@ -321,10 +372,13 @@ public class CurveWKTReader extends WKTReader {
     // Rings may be a single curve member, or a parenthesised list of
     // members forming a CompoundCurve shell/hole (ISO/SQL-MM).
     LineString structuralShell = readCurvePolygonRing(tokenizer, ordinateFlags);
+    requireClosedSqlMmRing(tokenizer, structuralShell);
     List<LineString> structuralHoles = new ArrayList<LineString>();
     tok = getNextCloserOrComma(tokenizer);
     while (tok.equals(",")) {
-      structuralHoles.add(readCurvePolygonRing(tokenizer, ordinateFlags));
+      LineString hole = readCurvePolygonRing(tokenizer, ordinateFlags);
+      requireClosedSqlMmRing(tokenizer, hole);
+      structuralHoles.add(hole);
       tok = getNextCloserOrComma(tokenizer);
     }
     return new CurvePolygon(structuralShell,
@@ -351,8 +405,9 @@ public class CurveWKTReader extends WKTReader {
         if (members.size() == 1) {
           return members.get(0);
         }
-        return new CompoundCurve(members.toArray(new LineString[0]),
-            geometryFactory);
+        LineString[] arr = members.toArray(new LineString[0]);
+        requireSqlMmCompoundMembers(tokenizer, arr);
+        return new CompoundCurve(arr, geometryFactory);
       }
       // Untagged coordinate ring; '(' already consumed.
       List<Coordinate> coordinates = new ArrayList<Coordinate>();

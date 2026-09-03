@@ -44,10 +44,12 @@ public class CompoundCurve extends LineString implements Linearizable {
   private final LineString[] members;
 
   /**
-   * Constructs a CompoundCurve from an explicit member list. Each
-   * member's last coordinate must equal the next member's first
-   * coordinate; this is not enforced here (the WKT reader and
-   * geometryJoin function are the producers and already maintain it).
+   * Constructs a CompoundCurve from an explicit member list.
+   * ISO/IEC 13249-3 requires each member to be a LineString or
+   * CircularString and the end of each component (except the last)
+   * to coincide with the start of the next. Constructors stay
+   * permissive (JTS pattern); {@link #isValid()} and the WKT reader
+   * enforce those rules.
    */
   public CompoundCurve(LineString[] members, GeometryFactory factory) {
     super(concatMembers(members, factory), factory);
@@ -78,6 +80,78 @@ public class CompoundCurve extends LineString implements Linearizable {
 
   public LineString[] getMembers() {
     return members.clone();
+  }
+
+  /**
+   * ISO/IEC 13249-3 SimpleCurve member: {@link LineString} (including
+   * {@link org.locationtech.jts.geom.LinearRing}) or
+   * {@link CircularString}. Nested {@code CompoundCurve} and
+   * non-SQL/MM LineString subclasses (clothoid, Bézier, …) are not
+   * SimpleCurves.
+   */
+  public static boolean isSqlMmSimpleCurve(LineString member) {
+    if (member == null) {
+      return false;
+    }
+    if (member instanceof CircularString) {
+      return true;
+    }
+    if (member instanceof CompoundCurve) {
+      return false;
+    }
+    return member.getClass() == LineString.class
+        || member instanceof org.locationtech.jts.geom.LinearRing;
+  }
+
+  /**
+   * True when consecutive SQL/MM SimpleCurve members share an endpoint
+   * in XY (ISO/IEC 13249-3 CompoundCurve continuity). Empty members are
+   * skipped. A single-member or empty chain is contiguous.
+   * <p>
+   * Non-SQL/MM members (clothoid extension) are not a SimpleCurve pair;
+   * their junction is the grammars-v4 drift warning, not this check.
+   */
+  public static boolean areMembersContiguous(LineString[] members) {
+    if (members == null || members.length <= 1) {
+      return true;
+    }
+    LineString prev = null;
+    for (int i = 0; i < members.length; i++) {
+      LineString m = members[i];
+      if (m == null || m.isEmpty()) {
+        continue;
+      }
+      if (prev != null && isSqlMmSimpleCurve(prev) && isSqlMmSimpleCurve(m)) {
+        Coordinate end = prev.getCoordinateN(prev.getNumPoints() - 1);
+        Coordinate start = m.getCoordinateN(0);
+        if (end == null || start == null || !end.equals2D(start)) {
+          return false;
+        }
+      }
+      prev = m;
+    }
+    return true;
+  }
+
+  /**
+   * ISO/IEC 13249-3: empty is valid; otherwise every member is a
+   * SimpleCurve, each CircularString has a legal control count, and
+   * adjacent non-empty members are contiguous.
+   */
+  @Override
+  public boolean isValid() {
+    if (isEmpty()) {
+      return true;
+    }
+    for (int i = 0; i < members.length; i++) {
+      if (!isSqlMmSimpleCurve(members[i])) {
+        return false;
+      }
+      if (!members[i].isValid()) {
+        return false;
+      }
+    }
+    return areMembersContiguous(members);
   }
 
   /**

@@ -31,6 +31,34 @@ public class MultiSurface extends MultiPolygon implements Linearizable {
     return "MultiSurface";
   }
 
+  /**
+   * ISO/IEC 13249-3 MultiSurface member: {@link Polygon} or
+   * {@link CurvePolygon}.
+   */
+  public static boolean isSqlMmSurface(Polygon member) {
+    if (member == null) {
+      return false;
+    }
+    return member.getClass() == Polygon.class || member instanceof CurvePolygon;
+  }
+
+  @Override
+  public boolean isValid() {
+    if (isEmpty()) {
+      return true;
+    }
+    for (int i = 0; i < getNumGeometries(); i++) {
+      Geometry m = getGeometryN(i);
+      if (!(m instanceof Polygon) || !isSqlMmSurface((Polygon) m)) {
+        return false;
+      }
+      if (!m.isValid()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   @Override
   protected MultiSurface copyInternal() {
     int n = getNumGeometries();

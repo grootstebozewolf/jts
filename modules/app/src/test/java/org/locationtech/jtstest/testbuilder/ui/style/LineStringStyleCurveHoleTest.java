@@ -12,13 +12,15 @@
 package org.locationtech.jtstest.testbuilder.ui.style;
 
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.geom.curve.CurvePolygon;
+import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.curve.CurveWKTReader;
+import org.locationtech.jtstest.testbuilder.geom.GeometryCombiner;
 
 import junit.framework.TestCase;
 import junit.textui.TestRunner;
@@ -28,11 +30,14 @@ import junit.textui.TestRunner;
  * LinearRing. {@code getInteriorRingN} is the 3-point chord triangle.
  * ISO/IEC 13249-3: the hole stays {@code CIRCULARSTRING}.
  * <p>
- * Witness is the PO-attached WKT (do not invent another).
+ * The PO-attached witness WKT used 4-control {@code (A,B,C,A)} rings.
+ * That form is rejected on I/O (do not invent a fifth control on read).
+ * Style pins construct the 5-token first=last circle instead.
  */
 public class LineStringStyleCurveHoleTest extends TestCase {
 
-  private static final String WITNESS =
+  /** Illegal I/O fixture: 4-control closed CIRCULARSTRING rings. */
+  private static final String ILLEGAL_FOUR_CONTROL_WITNESS =
       "CURVEPOLYGON (CIRCULARSTRING (60 380, 240 440, 404 326, 60 380), "
       + "CIRCULARSTRING (141 84, 270 28, 170 290, 141 84))";
 
@@ -42,22 +47,30 @@ public class LineStringStyleCurveHoleTest extends TestCase {
 
   public LineStringStyleCurveHoleTest(String name) { super(name); }
 
-  public void testWitnessInteriorRingIsStructuralCircularString() throws Exception {
-    Geometry g = new CurveWKTReader().read(WITNESS);
-    assertTrue(g instanceof CurvePolygon);
-    LineString painted = LineStringStyle.interiorRing((Polygon) g, 0);
+  public void testIllegalFourControlWitnessWktIsParseException() {
+    try {
+      new CurveWKTReader().read(ILLEGAL_FOUR_CONTROL_WITNESS);
+      fail("ISO/IEC 13249-3: CIRCULARSTRING(A,B,C,A) must not parse");
+    } catch (ParseException e) {
+      assertTrue(e.getMessage(), e.getMessage().indexOf("13249-3") >= 0);
+    }
+  }
+
+  public void testWitnessInteriorRingIsStructuralCircularString() {
+    CurvePolygon g = constructFiveTokenWitness();
+    LineString painted = LineStringStyle.interiorRing(g, 0);
     assertTrue("canvas hole must be the CircularString, got "
         + painted.getGeometryType(), painted instanceof CircularString);
-    assertEquals(4, painted.getNumPoints());
+    assertEquals(5, painted.getNumPoints());
     assertFalse("must not hand the style the flat chord triangle",
         painted instanceof LinearRing);
   }
 
-  public void testWitnessExteriorRingIsStructuralCircularString() throws Exception {
-    Geometry g = new CurveWKTReader().read(WITNESS);
-    LineString painted = LineStringStyle.exteriorRing((Polygon) g);
+  public void testWitnessExteriorRingIsStructuralCircularString() {
+    CurvePolygon g = constructFiveTokenWitness();
+    LineString painted = LineStringStyle.exteriorRing(g);
     assertTrue(painted instanceof CircularString);
-    assertEquals(4, painted.getNumPoints());
+    assertEquals(5, painted.getNumPoints());
   }
 
   /** Guard: a plain polygon still uses the LinearRing views. */
@@ -75,5 +88,32 @@ public class LineStringStyleCurveHoleTest extends TestCase {
     Polygon p = factory.createPolygon(shell, new LinearRing[] { hole });
     assertSame(shell, LineStringStyle.exteriorRing(p));
     assertSame(hole, LineStringStyle.interiorRing(p, 0));
+  }
+
+  /**
+   * Construct-only 5-token rings from the PO witness controls.
+   * Type stays CIRCULARSTRING.
+   */
+  private static CurvePolygon constructFiveTokenWitness() {
+    CurveGeometryFactory gf = new CurveGeometryFactory();
+    CircularString shell = circularRing(gf, new Coordinate[] {
+        new Coordinate(60, 380), new Coordinate(240, 440),
+        new Coordinate(404, 326), new Coordinate(60, 380)
+    });
+    CircularString hole = circularRing(gf, new Coordinate[] {
+        new Coordinate(141, 84), new Coordinate(270, 28),
+        new Coordinate(170, 290), new Coordinate(141, 84)
+    });
+    return gf.createCurvePolygon(shell, new LineString[] { hole });
+  }
+
+  private static CircularString circularRing(CurveGeometryFactory gf,
+      Coordinate[] closedFour) {
+    Coordinate[] five = GeometryCombiner.expandConstructCircle(closedFour);
+    if (five == null || five.length != 5) {
+      throw new IllegalStateException(
+          "construct mid must exist for the witness circumcircle");
+    }
+    return gf.createCircularString(gf.getCoordinateSequenceFactory().create(five));
   }
 }

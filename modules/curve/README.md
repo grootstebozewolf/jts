@@ -85,10 +85,12 @@ algorithm program. Known limitations:
   `MultiSurface[CurvePolygon]`, because the writer does not yet emit
   inner-member tags. Tests use `Linearizable.toLinear(...)` for
   structural-fidelity comparison.
-- **Validation is best-effort.** CircularString control count is
-  enforced (odd ≥ 3, or closed `CIRCULARSTRING(A,B,C,A)` — V-CS / #86).
-  Triangle 4-point ring, CompoundCurve member connectivity, and Tin
-  triangle-only patches are not enforced.
+- **Validation (ISO/IEC 13249-3).** CircularString is empty or odd
+  control count `n > 1`. `CIRCULARSTRING(A,B,C,A)` is rejected (even
+  count; a full circle is 5 controls). CompoundCurve members must be
+  LineString or CircularString and contiguous. CurvePolygon rings must
+  be closed LineString / CircularString / CompoundCurve. Triangle
+  4-point ring and Tin triangle-only patches are not enforced.
 - **No WKB support.** Defer to a follow-up phase for the SFA-MM type
   codes (8/9/10/11/12/15/16/17 with Z/M/ZM variants).
 - **`copy()` preserves the subclass** for top-level types via

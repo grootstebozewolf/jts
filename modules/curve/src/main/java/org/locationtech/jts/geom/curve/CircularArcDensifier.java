@@ -405,8 +405,11 @@ public final class CircularArcDensifier {
   }
 
   /**
-   * Implicit complementary-close mid of a 4-control closed CircularString
-   * {@code (A, B, C, A)}. Null unless that shape.
+   * Overlay/render helper for a 4-control closed {@code (A, B, C, A)}
+   * window. Not a SQL/MM CircularString: ISO/IEC 13249-3 requires an
+   * odd control count, and a full circle is five controls. Do not use
+   * this to invent a fifth control on {@code CircularString} I/O or
+   * {@code isValid()}.
    */
   public static Coordinate threePointCircleCloseMid(CoordinateSequence seq) {
     if (seq == null || seq.size() != 4) {

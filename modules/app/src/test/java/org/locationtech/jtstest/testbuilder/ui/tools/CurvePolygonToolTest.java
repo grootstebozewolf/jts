@@ -115,16 +115,22 @@ public class CurvePolygonToolTest extends TestCase {
     List<Coordinate> shell = CurvePolygonTool.closeCircularShell(drawn);
     assertNotNull("double-click finish must auto-close, not drop", shell);
     assertTrue(shell.get(0).equals2D(shell.get(shell.size() - 1)));
-    assertEquals("3 clicks + close is (A,B,C,A), no invented mid", 4, shell.size());
+    assertEquals("3-click close emits construct-only 5-token first=last CIRCULARSTRING",
+        5, shell.size());
     assertTrue(shell.get(0).equals2D(A));
     assertTrue(shell.get(1).equals2D(B));
     assertTrue(shell.get(2).equals2D(C));
-    assertTrue(shell.get(3).equals2D(A));
-    assertFalse("must not insert complementary mid D", contains(shell, D));
+    Coordinate closeMid = GeometryCombiner.expandConstructCircle(
+        new Coordinate[] { A, B, C, new Coordinate(A) })[3];
+    assertTrue("construct mid is threePointCircleCloseMid, not a chord",
+        shell.get(3).equals2D(closeMid));
+    assertEquals("complementary south pole (angle mid may be slightly off integer D)",
+        0.0, shell.get(3).distance(D), 1e-9);
+    assertTrue(shell.get(4).equals2D(A));
 
     Geometry g = commit(shell);
     assertCurvePolygonCircularString(g);
-    assertEquals(4, ((CurvePolygon) g).getExteriorCurve().getNumPoints());
+    assertEquals(5, ((CurvePolygon) g).getExteriorCurve().getNumPoints());
     assertEquals(2.0 * Math.PI * RADIUS, g.getLength(), ARC_EPS);
     assertEquals(Math.PI * RADIUS * RADIUS, g.getArea(), ARC_EPS);
   }
@@ -137,13 +143,15 @@ public class CurvePolygonToolTest extends TestCase {
     List<Coordinate> shell = CurvePolygonTool.closeCircularShell(
         Arrays.asList(p0, p1, p2));
     assertNotNull(shell);
-    assertEquals(4, shell.size());
-    assertTrue(shell.get(3).equals2D(p0));
+    assertEquals("construct-only 5-token first=last circle", 5, shell.size());
+    assertTrue(shell.get(4).equals2D(p0));
+    Coordinate closeMid = GeometryCombiner.expandConstructCircle(
+        new Coordinate[] { p0, p1, p2, new Coordinate(p0) })[3];
+    assertTrue("exactly one complementary close mid", shell.get(3).equals2D(closeMid));
     String wkt = new CurveWKTWriter().write(commit(shell));
     assertTrue("got " + wkt, wkt.startsWith("CURVEPOLYGON (CIRCULARSTRING"));
-    assertFalse("must not invent complementary mid 239.6 486: " + wkt,
-        wkt.indexOf("239.6") >= 0 || wkt.indexOf("239.60000000000002") >= 0);
     Geometry g = commit(shell);
+    assertEquals(5, ((CurvePolygon) g).getExteriorCurve().getNumPoints());
     double r = circumradius(p0, p1, p2);
     assertEquals(2.0 * Math.PI * r, g.getLength(), 1e-6);
     assertEquals("laser disc area, not chainsaw", Math.PI * r * r, g.getArea(), 1e-6);
@@ -268,14 +276,15 @@ public class CurvePolygonToolTest extends TestCase {
   public void testEvenAfterNaiveCloseIsRepairedNotDropped() {
     List<Coordinate> naive = new ArrayList<Coordinate>(Arrays.asList(A, B, C));
     naive.add(new Coordinate(A));
-    assertEquals("3 pts + start = 4-control closed circle",
+    assertEquals("3 pts + start is the illegal 4-control I/O form",
         4, naive.size());
     assertEquals(0, naive.size() % 2);
 
     List<Coordinate> shell = CurvePolygonTool.closeCircularShell(
         Arrays.asList(A, B, C));
     assertNotNull("3-click close must commit, not drop", shell);
-    assertEquals(4, shell.size());
+    assertEquals("repaired to construct-only 5-token first=last circle",
+        5, shell.size());
     Geometry g = commit(shell);
     assertCurvePolygonCircularString(g);
     assertEquals(2.0 * Math.PI * RADIUS, g.getLength(), ARC_EPS);
@@ -306,15 +315,6 @@ public class CurvePolygonToolTest extends TestCase {
         wkt.startsWith("CURVEPOLYGON (COMPOUNDCURVE (CIRCULARSTRING"));
     assertFalse("must not linearize a compound shell to POLYGON: " + wkt,
         wkt.startsWith("POLYGON"));
-  }
-
-  private static boolean contains(List<Coordinate> coords, Coordinate pt) {
-    for (int i = 0; i < coords.size(); i++) {
-      if (coords.get(i).equals2D(pt)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   private static double circumradius(Coordinate a, Coordinate b, Coordinate c) {
