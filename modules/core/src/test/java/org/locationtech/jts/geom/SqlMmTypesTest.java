@@ -102,34 +102,11 @@ public class SqlMmTypesTest extends TestCase {
         new Coordinate[] { new Coordinate(0, 0), new Coordinate(1, 0) })));
   }
 
-  public void testRefuseCompoundCurveChordInCurvePolygonRing() {
-    GeometryFactory gf = new GeometryFactory();
-    final LineString shell = new LineString(
-        gf.getCoordinateSequenceFactory().create(new Coordinate[] {
-            new Coordinate(0, 0), new Coordinate(1, 0), new Coordinate(1, 1),
-            new Coordinate(0, 0)
-        }), gf) {
-      private static final long serialVersionUID = 1L;
-      public String getGeometryType() { return "CompoundCurve"; }
-    };
-    Polygon cp = new Polygon(
-        gf.createLinearRing(new Coordinate[] {
-            new Coordinate(0, 0), new Coordinate(1, 0), new Coordinate(1, 1),
-            new Coordinate(0, 0)
-        }), null, gf) {
-      private static final long serialVersionUID = 1L;
-      public String getGeometryType() { return "CurvePolygon"; }
-      public LineString getExteriorCurve() { return shell; }
-    };
-    assertTrue(SqlMmTypes.containsCompoundCurve(cp));
-    try {
-      SqlMmTypes.refuseCompoundCurveChord(cp, "OverlayNG");
-      fail("CurvePolygon CompoundCurve shell must refuse silent chord overlay");
-    }
-    catch (IllegalArgumentException e) {
-      assertTrue(e.getMessage().indexOf("ISO/IEC 13249-3") >= 0);
-    }
-  }
+  /**
+   * CurvePolygon ring walk is covered on a real CurvePolygon in
+   * OverlayNGCurveCompoundCurveFlattenHonestyTest (jts-curve). A
+   * Polygon subclass in jts-core is not a stand-in for that type.
+   */
 
   public void testLinearRingStillAllowed() {
     GeometryFactory gf = new GeometryFactory();

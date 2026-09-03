@@ -175,28 +175,60 @@ public final class SqlMmTypes {
    * hole is still a refuse, not a control-polygon overlay.
    */
   private static boolean curvePolygonHasCompoundCurveRing(Geometry geom) {
-    try {
-      Object shell = geom.getClass().getMethod("getExteriorCurve").invoke(geom);
-      if (shell instanceof Geometry
-          && "CompoundCurve".equals(((Geometry) shell).getGeometryType())) {
+    Object shell = invokeIfPresent(geom, "getExteriorCurve");
+    if (isCompoundCurveType(shell)) {
+      return true;
+    }
+    Object nHoles = invokeIfPresent(geom, "getNumInteriorRing");
+    int n = nHoles instanceof Integer ? ((Integer) nHoles).intValue() : 0;
+    for (int i = 0; i < n; i++) {
+      Object hole = invokeIfPresent(geom, "getInteriorCurveN",
+          new Class[] { int.class }, new Object[] { Integer.valueOf(i) });
+      if (isCompoundCurveType(hole)) {
         return true;
       }
-      Object nHoles = geom.getClass().getMethod("getNumInteriorRing").invoke(geom);
-      int n = nHoles instanceof Integer ? ((Integer) nHoles).intValue() : 0;
-      java.lang.reflect.Method holeN =
-          geom.getClass().getMethod("getInteriorCurveN", int.class);
-      for (int i = 0; i < n; i++) {
-        Object hole = holeN.invoke(geom, Integer.valueOf(i));
-        if (hole instanceof Geometry
-            && "CompoundCurve".equals(((Geometry) hole).getGeometryType())) {
-          return true;
-        }
-      }
-    }
-    catch (ReflectiveOperationException ex) {
-      return false;
     }
     return false;
+  }
+
+  private static boolean isCompoundCurveType(Object g) {
+    return g instanceof Geometry
+        && "CompoundCurve".equals(((Geometry) g).getGeometryType());
+  }
+
+  private static Object invokeIfPresent(Geometry geom, String name) {
+    return invokeIfPresent(geom, name, new Class[0], new Object[0]);
+  }
+
+  private static Object invokeIfPresent(Geometry geom, String name,
+      Class[] params, Object[] args) {
+    try {
+      java.lang.reflect.Method pub = geom.getClass().getMethod(name, params);
+      pub.setAccessible(true);
+      return pub.invoke(geom, args);
+    }
+    catch (NoSuchMethodException e) {
+      // CurvePolygon accessors are public; walk declared methods only if
+      // a package-private stand-in is ever used from tests.
+    }
+    catch (ReflectiveOperationException e) {
+      return null;
+    }
+    Class c = geom.getClass();
+    while (c != null) {
+      try {
+        java.lang.reflect.Method m = c.getDeclaredMethod(name, params);
+        m.setAccessible(true);
+        return m.invoke(geom, args);
+      }
+      catch (NoSuchMethodException e) {
+        c = c.getSuperclass();
+      }
+      catch (ReflectiveOperationException e) {
+        return null;
+      }
+    }
+    return null;
   }
 
   public static IllegalArgumentException compoundCurveChordRefused(

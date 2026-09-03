@@ -13,6 +13,7 @@ package org.locationtech.jts.operation.overlayng.curve;
 
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.SqlMmTypes;
 import org.locationtech.jts.geom.curve.CompoundCurve;
 import org.locationtech.jts.geom.curve.CurveGeometryFactory;
 import org.locationtech.jts.io.curve.CurveWKTReader;
@@ -93,6 +94,8 @@ public class OverlayNGCurveCompoundCurveFlattenHonestyTest
       throws Exception {
     final Geometry half = readCurve(HALF_DISC);
     final Geometry square = readCurve(SQUARE_CAP);
+    assertTrue("core type-name + ring reflect sees the CompoundCurve shell",
+        SqlMmTypes.containsCompoundCurve(half));
     assertRefused("OverlayNG.overlay CurvePolygon shell", new Runnable() {
       public void run() {
         OverlayNG.overlay(half, square, OverlayNG.INTERSECTION);
