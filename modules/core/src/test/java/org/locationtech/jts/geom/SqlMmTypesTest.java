@@ -79,6 +79,58 @@ public class SqlMmTypesTest extends TestCase {
     assertTrue(wkt.toUpperCase().startsWith("CIRCULARSTRING"));
   }
 
+  public void testRefuseCompoundCurveChordByTypeName() {
+    GeometryFactory gf = new GeometryFactory();
+    LineString cc = new LineString(
+        gf.getCoordinateSequenceFactory().create(new Coordinate[] {
+            new Coordinate(0, 0), new Coordinate(1, 1), new Coordinate(2, 0)
+        }), gf) {
+      private static final long serialVersionUID = 1L;
+      public String getGeometryType() { return "CompoundCurve"; }
+    };
+    try {
+      SqlMmTypes.refuseCompoundCurveChord(cc, "OverlayNG");
+      fail("CompoundCurve type name must refuse silent chord overlay");
+    }
+    catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().indexOf("ISO/IEC 13249-3") >= 0);
+      assertTrue(e.getMessage().indexOf("WKB 9") >= 0);
+      assertTrue(e.getMessage().indexOf("toLinear") >= 0);
+    }
+    assertTrue(SqlMmTypes.containsCompoundCurve(cc));
+    assertFalse(SqlMmTypes.containsCompoundCurve(gf.createLineString(
+        new Coordinate[] { new Coordinate(0, 0), new Coordinate(1, 0) })));
+  }
+
+  public void testRefuseCompoundCurveChordInCurvePolygonRing() {
+    GeometryFactory gf = new GeometryFactory();
+    final LineString shell = new LineString(
+        gf.getCoordinateSequenceFactory().create(new Coordinate[] {
+            new Coordinate(0, 0), new Coordinate(1, 0), new Coordinate(1, 1),
+            new Coordinate(0, 0)
+        }), gf) {
+      private static final long serialVersionUID = 1L;
+      public String getGeometryType() { return "CompoundCurve"; }
+    };
+    Polygon cp = new Polygon(
+        gf.createLinearRing(new Coordinate[] {
+            new Coordinate(0, 0), new Coordinate(1, 0), new Coordinate(1, 1),
+            new Coordinate(0, 0)
+        }), null, gf) {
+      private static final long serialVersionUID = 1L;
+      public String getGeometryType() { return "CurvePolygon"; }
+      public LineString getExteriorCurve() { return shell; }
+    };
+    assertTrue(SqlMmTypes.containsCompoundCurve(cp));
+    try {
+      SqlMmTypes.refuseCompoundCurveChord(cp, "OverlayNG");
+      fail("CurvePolygon CompoundCurve shell must refuse silent chord overlay");
+    }
+    catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().indexOf("ISO/IEC 13249-3") >= 0);
+    }
+  }
+
   public void testLinearRingStillAllowed() {
     GeometryFactory gf = new GeometryFactory();
     LinearRing ring = gf.createLinearRing(new Coordinate[] {

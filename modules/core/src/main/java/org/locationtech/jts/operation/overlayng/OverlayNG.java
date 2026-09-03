@@ -22,6 +22,7 @@ import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.SqlMmTypes;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geomgraph.Label;
 import org.locationtech.jts.noding.MCIndexNoder;
@@ -473,6 +474,8 @@ public class OverlayNG
    * @throws TopologyException if a robustness error occurs
    */
   public Geometry getResult() {
+    SqlMmTypes.refuseCompoundCurveChord(inputGeom.getGeometry(0), "OverlayNG");
+    SqlMmTypes.refuseCompoundCurveChord(inputGeom.getGeometry(1), "OverlayNG");
     // handle empty inputs which determine result
     if (OverlayUtil.isEmptyResult(opCode, 
         inputGeom.getGeometry(0), 

@@ -119,4 +119,93 @@ public final class SqlMmTypes {
         + "MultiSurface) must use a curve-aware path. "
         + "LinearRing→LineString is the only allowed collapse.");
   }
+
+  /**
+   * Overlay honesty (CRV-CC ticket 30): a SQL/MM
+   * {@code COMPOUNDCURVE} (ISO/IEC 13249-3 §4.2.13 / §7.10.1, WKB 9)
+   * must not be eaten as {@code Coordinate[]} / {@code LineString}
+   * chords. Named fallback is OverlayNGCurve
+   * {@code isApproximate()} or {@code toLinear} / {@code Linearize}.
+   * I/O refuse is a sibling ({@link #refuseFlatten}); this is the
+   * overlay / TestBuilder consume leftover.
+   *
+   * @param geom the geometry to check (null is ignored)
+   * @param site the overlay entry that would have flattened
+   */
+  public static void refuseCompoundCurveChord(Geometry geom, String site) {
+    if (geom == null || geom.isEmpty()) {
+      return;
+    }
+    if (containsCompoundCurve(geom)) {
+      throw compoundCurveChordRefused(geom, site);
+    }
+  }
+
+  /**
+   * True when {@code geom} is a CompoundCurve or a collection /
+   * CurvePolygon that still carries a CompoundCurve member or ring.
+   * Type-name walk so jts-core does not depend on jts-curve.
+   */
+  public static boolean containsCompoundCurve(Geometry geom) {
+    if (geom == null) {
+      return false;
+    }
+    if ("CompoundCurve".equals(geom.getGeometryType())) {
+      return true;
+    }
+    if ("CurvePolygon".equals(geom.getGeometryType())
+        && curvePolygonHasCompoundCurveRing(geom)) {
+      return true;
+    }
+    if (geom instanceof GeometryCollection) {
+      for (int i = 0; i < geom.getNumGeometries(); i++) {
+        Geometry g = geom.getGeometryN(i);
+        if (g != geom && containsCompoundCurve(g)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * CurvePolygon lives in jts-curve. Structural rings are not the
+   * {@link Polygon#getExteriorRing()} LinearRing OverlayNG would
+   * node. Reflect the curve accessors so a CompoundCurve shell or
+   * hole is still a refuse, not a control-polygon overlay.
+   */
+  private static boolean curvePolygonHasCompoundCurveRing(Geometry geom) {
+    try {
+      Object shell = geom.getClass().getMethod("getExteriorCurve").invoke(geom);
+      if (shell instanceof Geometry
+          && "CompoundCurve".equals(((Geometry) shell).getGeometryType())) {
+        return true;
+      }
+      Object nHoles = geom.getClass().getMethod("getNumInteriorRing").invoke(geom);
+      int n = nHoles instanceof Integer ? ((Integer) nHoles).intValue() : 0;
+      java.lang.reflect.Method holeN =
+          geom.getClass().getMethod("getInteriorCurveN", int.class);
+      for (int i = 0; i < n; i++) {
+        Object hole = holeN.invoke(geom, Integer.valueOf(i));
+        if (hole instanceof Geometry
+            && "CompoundCurve".equals(((Geometry) hole).getGeometryType())) {
+          return true;
+        }
+      }
+    }
+    catch (ReflectiveOperationException ex) {
+      return false;
+    }
+    return false;
+  }
+
+  public static IllegalArgumentException compoundCurveChordRefused(
+      Geometry geom, String site) {
+    String type = geom == null ? "CompoundCurve" : geom.getGeometryType();
+    return new IllegalArgumentException(
+        site + " cannot flatten " + type
+        + " to Coordinate[] chords. SQL/MM ISO/IEC 13249-3 COMPOUNDCURVE "
+        + "(WKB 9) stays a COMPOUNDCURVE. Use OverlayNGCurve "
+        + "(isApproximate) or named toLinear / Linearize.");
+  }
 }

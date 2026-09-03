@@ -26,6 +26,7 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.SqlMmTypes;
 import org.locationtech.jts.noding.IntersectionAdder;
 import org.locationtech.jts.noding.MCIndexNoder;
 import org.locationtech.jts.noding.Noder;
@@ -36,7 +37,21 @@ import org.locationtech.jts.operation.overlayng.RingClipper;
 
 public class OverlayNGTestFunctions {
   
+  /**
+   * TestBuilder OverlayNG inspect stays raw for core internals.
+   * A COMPOUNDCURVE (or a CurvePolygon whose ring is one) is not
+   * that inspect: stock OverlayNG would node the control polygon.
+   * Fail closed (ISO/IEC 13249-3 WKB 9). Named path is
+   * OverlayNGCurve / Curve → toLinear.
+   */
+  static Geometry refuseCompoundCurve(Geometry g) {
+    SqlMmTypes.refuseCompoundCurveChord(g, "OverlayNGTest");
+    return g;
+  }
+
   static Geometry sameOrEmpty(Geometry a, Geometry b) {
+    refuseCompoundCurve(a);
+    refuseCompoundCurve(b);
     if (a != null) return a;
     // return empty geom of same type
     if (b.getDimension() == 2) {
