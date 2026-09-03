@@ -92,6 +92,16 @@ public class OverlayNGTestFunctionsCompoundCurveFlattenTest extends TestCase {
         20, edges.getNumPoints());
   }
 
+  public void testUnionIntSymDiffRefusesCompoundCurveShell() throws Exception {
+    final Geometry half = read(HALF_DISC);
+    final Geometry square = read("POLYGON ((-6 2, 6 2, 6 10, -6 10, -6 2))");
+    assertRefused("OverlayNGTest.unionIntSymDiff CC shell", new Runnable() {
+      public void run() {
+        OverlayNGTestFunctions.unionIntSymDiff(half, square, 10.0);
+      }
+    });
+  }
+
   public void testNamedOverlayNGFunctionsPathStillRuns() throws Exception {
     Geometry cc = read(COMPOUND);
     Geometry line = read("LINESTRING (0 1, 20 1)");

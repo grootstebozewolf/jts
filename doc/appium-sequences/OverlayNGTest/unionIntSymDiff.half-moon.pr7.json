@@ -11,7 +11,7 @@
     "half-moon"
   ],
   "golden": false,
-  "skipped": false,
+  "skipped": true,
   "playbackOf": "OverlayNGTest.unionIntSymDiff.polygon.upstream",
   "fixtureFile": "_fixtures/pr7-half-moon.wkt",
   "fixtureFileB": "_fixtures/pr7-half-moon.wkt",
@@ -65,7 +65,7 @@
     "resultNotEmpty": true,
     "preserveCurveAware": true
   },
-  "notes": "unionIntSymDiff \u00b7 pr7 half-moon",
+  "notes": "unionIntSymDiff · pr7 half-moon | CRV-CC ticket 30: OverlayNGTest inspect refuses a COMPOUNDCURVE shell (ISO/IEC 13249-3 WKB 9). Fail closed. Named path is OverlayNGCurve / OverlayNGFunctions.toLinear.",
   "optionB": {
     "contract": "Draft v6 MMF Option B",
     "defaultStrategy": "LINEARIZED",

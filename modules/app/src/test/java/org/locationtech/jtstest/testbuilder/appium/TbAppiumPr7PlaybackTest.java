@@ -113,6 +113,12 @@ public class TbAppiumPr7PlaybackTest extends TestCase {
         played++;
         assertNotNull(out);
       } catch (Throwable ex) {
+        // OverlayNGTest inspect of a COMPOUNDCURVE (or CC-shelled
+        // CurvePolygon) is a refuse, not a silent chord flatten.
+        if ("OverlayNGTest".equals(cat) && isCompoundCurveRefuse(ex)) {
+          played++;
+          continue;
+        }
         fails.append("EXC ").append(f.getName()).append(' ')
             .append(ex.getClass().getSimpleName()).append(": ")
             .append(ex.getMessage()).append('\n');
@@ -164,6 +170,21 @@ public class TbAppiumPr7PlaybackTest extends TestCase {
       }
     }
     return f.invoke(g, args.toArray());
+  }
+
+  private static boolean isCompoundCurveRefuse(Throwable ex) {
+    Throwable t = ex;
+    while (t != null) {
+      String msg = t.getMessage();
+      if (msg != null
+          && msg.indexOf("ISO/IEC 13249-3") >= 0
+          && (msg.indexOf("COMPOUNDCURVE") >= 0
+              || msg.indexOf("CompoundCurve") >= 0)) {
+        return true;
+      }
+      t = t.getCause();
+    }
+    return false;
   }
 
   private static String field(String json, String name) {
