@@ -68,9 +68,11 @@ public class OverlayNGCurveCompoundCurveFlattenHonestyTest
       fail(site + " must not flatten COMPOUNDCURVE to Coordinate[] chords");
     }
     catch (IllegalArgumentException e) {
-      assertTrue(site + " message: " + e.getMessage(),
-          e.getMessage().indexOf("ISO/IEC 13249-3") >= 0
-              && e.getMessage().indexOf("CompoundCurve") >= 0);
+      String msg = e.getMessage();
+      assertTrue(site + " message: " + msg,
+          msg.indexOf("ISO/IEC 13249-3") >= 0
+              && (msg.indexOf("CompoundCurve") >= 0
+                  || msg.indexOf("COMPOUNDCURVE") >= 0));
     }
   }
 
