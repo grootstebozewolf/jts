@@ -115,17 +115,20 @@ public class LengthIndexedLine
 
   /**
    * Computes the minimum index for a point on the line.
-   * If the line is not simple (i.e. loops back on itself)
-   * a single point may have more than one possible index.
-   * In this case, the smallest index is returned.
+   * <p>
+   * The index computed is for the point on the line
+   * closest to the supplied point;
+   * the supplied point does not <i>necessarily</i> have to lie on the line itself.
+   * If the closest point occurs at more than one location along the line
+   * (which is possible if the line is not simple and loops back on itself,
+   * or if the supplied point is equidistant from several nearest points),
+   * the smallest index is returned.
+   * <p>
+   * This method computes the same result as {@link #project(Coordinate)}.
+   * Use {@link #indexOfAfter(Coordinate, double)} to enumerate
+   * all indices of a point which occurs more than once on a non-simple line.
    *
-   * The supplied point does not <i>necessarily</i> have to lie precisely
-   * on the line, but if it is far from the line the accuracy and
-   * performance of this function is not guaranteed.
-   * Use {@link #project} to compute a guaranteed result for points
-   * which may be far from the line.
-   *
-   * @param pt a point on the line
+   * @param pt the point to compute the index for
    * @return the minimum index of the point
    *
    * @see #project(Coordinate)
@@ -145,13 +148,11 @@ public class LengthIndexedLine
    * slightly off the line and is equidistant from two different
    * points on the line.
    *
-   * The supplied point does not <i>necessarily</i> have to lie precisely
-   * on the line, but if it is far from the line the accuracy and
-   * performance of this function is not guaranteed.
-   * Use {@link #project} to compute a guaranteed result for points
-   * which may be far from the line.
+   * The supplied point does not <i>necessarily</i> have to lie on the line;
+   * the index computed is for the point on the line closest to the
+   * supplied point which is beyond the given minimum index.
    *
-   * @param pt a point on the line
+   * @param pt the point to compute the index for
    * @param minIndex the value the returned index must be greater than
    * @return the index of the point greater than the given minimum index
    *
@@ -183,13 +184,16 @@ public class LengthIndexedLine
 
 
   /**
-   * Computes the index for the closest point on the line to the given point.
-   * If more than one point has the closest distance the first one along the line
-   * is returned.
-   * (The point does not necessarily have to lie precisely on the line.)
+   * Computes the index for the point on the line closest to the given point.
+   * If more than one point on the line has the closest distance,
+   * the smallest index (the first one along the line) is returned.
+   * (The given point does not necessarily have to lie on the line.)
+   * <p>
+   * This method computes the same result as {@link #indexOf(Coordinate)}.
    *
-   * @param pt a point on the line
-   * @return the index of the point
+   * @param pt the point to project onto the line
+   * @return the index of the closest point on the line
+   * @see #indexOf(Coordinate)
    */
   public double project(Coordinate pt)
   {
