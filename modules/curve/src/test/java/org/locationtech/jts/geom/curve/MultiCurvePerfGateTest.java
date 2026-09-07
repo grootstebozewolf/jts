@@ -18,6 +18,7 @@ import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
+import test.jts.perf.LaserRatchetSink;
 
 /**
  * PERF-GATE for MultiCurve of CircularString members (ticket 111 / map 103).
@@ -88,6 +89,8 @@ public class MultiCurvePerfGateTest extends GeometryTestCase {
     }
     long lm = median(L);
     long cm = median(C);
+    LaserRatchetSink.recordOperation("MultiCurvePerfGateTest",
+        "geom/curve", label, lm, cm, false);
     if (cm == 0) {
       return;
     }

@@ -23,6 +23,7 @@ import org.locationtech.jts.geom.curve.CircularArcDensifier;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
+import test.jts.perf.LaserRatchetSink;
 
 /**
  * Million-trial pack for the optional OrientableSegment adapters
@@ -85,6 +86,11 @@ public class PredicateOptionBMillionTrialTest extends GeometryTestCase {
 
     PerfResult p1 = perfArcOrient(rnd);
     report.append(p1.toMarkdown("P1 arc orientationIndex latency vs densify"));
+    LaserRatchetSink.recordPrimitive("P1-B", "ExactCircularArc",
+        "arc orientationIndex vs densified", p1.bNs, p1.refNs, 50000, "p50",
+        "PredicateOptionBMillionTrialTest.java",
+        "straight parity 100%; arc-vs-densify agreement A1=" + agree1
+            + ", A2=" + agree2);
     if (p1.refNs > 0) {
       assertTrue("PERF-GATE p50 B/ref=" + p1.ratio50,
           p1.ratio50 <= PERF_SLACK);

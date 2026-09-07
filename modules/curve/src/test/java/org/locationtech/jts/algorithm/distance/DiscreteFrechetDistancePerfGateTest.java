@@ -19,6 +19,7 @@ import org.locationtech.jts.io.curve.CurveWKTReader;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
+import test.jts.perf.LaserRatchetSink;
 
 /**
  * PERF-GATE: public {@link DiscreteFrechetDistance} on the two
@@ -88,6 +89,8 @@ public class DiscreteFrechetDistancePerfGateTest extends GeometryTestCase {
     Arrays.sort(cs);
     long lm = ls[ls.length / 2];
     long cm = cs[cs.length / 2];
+    LaserRatchetSink.recordOperation("DiscreteFrechetDistancePerfGateTest",
+        "algorithm/distance", label, lm, cm, samePath);
     if (cm == 0 || samePath) return;
     double ratio = (double) lm / (double) cm;
     if (ratio > NOISE) {

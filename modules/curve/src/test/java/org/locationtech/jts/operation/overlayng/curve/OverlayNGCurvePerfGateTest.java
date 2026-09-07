@@ -21,6 +21,7 @@ import org.locationtech.jts.operation.overlayng.OverlayNGRobust;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
+import test.jts.perf.LaserRatchetSink;
 
 /**
  * PERF-GATE: the curve path (laser) may run only when it is no slower than
@@ -171,6 +172,8 @@ public class OverlayNGCurvePerfGateTest extends GeometryTestCase {
     }
     long lm = median(L);
     long cm = median(C);
+    LaserRatchetSink.recordOperation("OverlayNGCurvePerfGateTest",
+        "operation/overlayng/curve", label, lm, cm, samePath);
     // A 0 ns chainsaw median is timer resolution, not a laser loss.
     if (cm == 0 || samePath) return;
     double ratio = (double) lm / (double) cm;
