@@ -52,6 +52,7 @@ Sequence M.5 → ML.2 → HP.4 → N-SS expand remains **STOPPED**. Not resumed.
 
 ## Related
 
+Year-1 circular honesty stop (not epic close): [1195-QED-STOP.md](1195-QED-STOP.md).
 - Program: [CHAINSAW_LASER_PROGRAM.md](CHAINSAW_LASER_PROGRAM.md)
 - Seams: [OVERLAYNGCURVE_P2_SEAMS.md](OVERLAYNGCURVE_P2_SEAMS.md)
 - Metric: [METRIC_KIT_MX.md](METRIC_KIT_MX.md)
