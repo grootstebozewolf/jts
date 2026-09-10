@@ -13,17 +13,19 @@
 package org.locationtech.jts.operation.distance;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
+import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.index.strtree.ItemBoundable;
 import org.locationtech.jts.index.strtree.ItemDistance;
 import org.locationtech.jts.index.strtree.STRtree;
 
 /**
- * Computes the distance between the facets (segments and vertices) 
- * of two {@link Geometry}s
+ * Computes the distance to the facets (segments and vertices) 
+ * of a {@link Geometry}
  * using a Branch-and-Bound algorithm.
  * The Branch-and-Bound algorithm operates over a 
  * traversal of R-trees built
@@ -87,7 +89,7 @@ public class IndexedFacetDistance
    * 
    * @param g1 a geometry
    * @param g2 a geometry
-   * @return the nearest points on the facets of the geometries
+   * @return the nearest points on the facets of geometry g1 and g2
    */
   public static Coordinate[] nearestPoints(Geometry g1, Geometry g2) {
     IndexedFacetDistance dist = new IndexedFacetDistance(g1);
@@ -115,8 +117,55 @@ public class IndexedFacetDistance
     cachedTree = FacetSequenceTreeBuilder.build(geom);
   }
 
+  private Object[] nearestFacets(Geometry g) {
+    STRtree tree2 = FacetSequenceTreeBuilder.build(g);
+    Object[] obj = cachedTree.nearestNeighbour(tree2, 
+        FACET_SEQ_DIST);
+    return obj;
+  }
+  
   /**
-   * Computes the distance from the base geometry to 
+   * Computes the nearest points on the target geometry
+   * and another geometry.
+   * 
+   * @param g the geometry to compute the nearest location to
+   * @return the nearest points on the target and the argument geometry
+   */
+  public Coordinate[] nearestPoints(Geometry g)
+  {
+    Object[] obj = nearestFacets(g);
+    FacetSequence fs1 = (FacetSequence) obj[0];
+    FacetSequence fs2 = (FacetSequence) obj[1];
+    return fs1.nearestLocations(fs2);
+  }
+
+  public CoordinateSequenceLocation nearestLocation(Coordinate p) {
+    CoordinateSequence seq = new CoordinateArraySequence(new Coordinate[] { p });
+    FacetSequence fs = new FacetSequence(seq, 0);
+    Object nearest = cachedTree.nearestNeighbour(fs.getEnvelope(), fs, FACET_SEQ_DIST);
+    FacetSequence fsN = (FacetSequence) nearest;
+    return fsN.nearestLocation(p);
+ 
+  }
+  
+  /**
+   * Computes the nearest point on the target geometry
+   * to a point.
+   * 
+   * @param p the point coordinate
+   * @return the nearest point on the target geometry
+   */
+  public Coordinate nearestPoint(Coordinate p)
+  {
+    CoordinateSequence seq = new CoordinateArraySequence(new Coordinate[] { p });
+    FacetSequence fs = new FacetSequence(seq, 0);
+    Object nearest = cachedTree.nearestNeighbour(fs.getEnvelope(), fs, FACET_SEQ_DIST);
+    FacetSequence fsN = (FacetSequence) nearest;
+    return fsN.nearestLocation(p).getCoordinate();
+  }
+  
+  /**
+   * Computes the distance from the target geometry to 
    * the given geometry.
    *  
    * @param g the geometry to compute the distance to
@@ -125,55 +174,28 @@ public class IndexedFacetDistance
    */
   public double distance(Geometry g)
   {
-    STRtree tree2 = FacetSequenceTreeBuilder.build(g);
-    Object[] obj = cachedTree.nearestNeighbour(tree2, 
-        FACET_SEQ_DIST);
+    Object[] obj = nearestFacets(g);
     FacetSequence fs1 = (FacetSequence) obj[0];
     FacetSequence fs2 = (FacetSequence) obj[1];
     return fs1.distance(fs2);
   }
   
-  /**
-   * Computes the nearest locations on the base geometry
-   * and the given geometry.
-   * 
-   * @param g the geometry to compute the nearest location to
-   * @return the nearest locations
-   */
-  public GeometryLocation[] nearestLocations(Geometry g)
+  public double distance(Coordinate p) {
+    return p.distance(nearestPoint(p));
+  }
+  
+  public double distance(Coordinate p0, Coordinate p1)
   {
-    STRtree tree2 = FacetSequenceTreeBuilder.build(g);
-    Object[] obj = cachedTree.nearestNeighbour(tree2, 
-        FACET_SEQ_DIST);
-    FacetSequence fs1 = (FacetSequence) obj[0];
-    FacetSequence fs2 = (FacetSequence) obj[1];
-    return fs1.nearestLocations(fs2);
+    CoordinateSequence seq = new CoordinateArraySequence(new Coordinate[] { p0, p1 });
+    FacetSequence fs2 = new FacetSequence(seq, 0, 2);
+    Object nearest = cachedTree.nearestNeighbour(fs2.getEnvelope(), fs2, FACET_SEQ_DIST);
+    FacetSequence fs1 = (FacetSequence) nearest;
+    Coordinate[] loc = fs1.nearestLocations(fs2);
+    return loc[0].distance(loc[1]);
   }
-
+  
   /**
-   * Compute the nearest locations on the target geometry
-   * and the given geometry.
-   * 
-   * @param g the geometry to compute the nearest point to
-   * @return the nearest points
-   */
-  public Coordinate[] nearestPoints(Geometry g) {
-    GeometryLocation[] minDistanceLocation = nearestLocations(g);
-    Coordinate[] nearestPts = toPoints(minDistanceLocation);
-    return nearestPts;
-  }
-
-  private static Coordinate[] toPoints(GeometryLocation[] locations) {
-    if (locations == null) 
-      return null;
-    Coordinate[] nearestPts = new Coordinate[] {
-        locations[0].getCoordinate(),
-      locations[1].getCoordinate() };
-    return nearestPts;
-  }
-
-  /**
-   * Tests whether the base geometry lies within
+   * Tests whether the target geometry lies within
    * a specified distance of the given geometry.
    * 
    * @param g the geometry to test
@@ -200,8 +222,6 @@ public class IndexedFacetDistance
       return fs1.distance(fs2);    
     }
   }
-
-
 
 }
 

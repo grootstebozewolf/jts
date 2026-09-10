@@ -11,6 +11,7 @@
  */
 package org.locationtech.jts.triangulate.tri;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.locationtech.jts.algorithm.Orientation;
@@ -19,6 +20,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Triangle;
 import org.locationtech.jts.io.WKTWriter;
 import org.locationtech.jts.util.Assert;
 
@@ -27,28 +29,49 @@ import org.locationtech.jts.util.Assert;
  * Contains three vertices, and links to adjacent Tris for each edge.
  * Tris are constructed independently, and if needed linked
  * into a triangulation using {@link TriangulationBuilder}.
+ * <p>
+ * An edge of a Tri in a triangulation is called a boundary edge
+ * if it has no adjacent triangle.
+ * The set of Tris containing boundary edges are called the triangulation border. 
  * 
- * @author mdavis
+ * @author Martin Davis
  *
  */
 public class Tri {
   
+  private static final String INVALID_TRI_INDEX = "Invalid Tri index";
+
   /**
    * Creates a {@link GeometryCollection} of {@link Polygon}s
    * representing the triangles in a list.
    * 
-   * @param triList a list of Tris
+   * @param tris a collection of Tris
    * @param geomFact the GeometryFactory to use
    * @return the polygons for the triangles
    */
-  public static Geometry toGeometry(List<Tri> triList, GeometryFactory geomFact) {
-    Geometry[] geoms = new Geometry[triList.size()];
-    for (int i = 0; i < triList.size(); i++) {
-      geoms[i] = triList.get(i).toPolygon(geomFact);
+  public static Geometry toGeometry(Collection<Tri> tris, GeometryFactory geomFact) {
+    Geometry[] geoms = new Geometry[tris.size()];
+    int i = 0;
+    for (Tri tri : tris) {
+      geoms[i++] = tri.toPolygon(geomFact);
     }
     return geomFact.createGeometryCollection(geoms);
   }
 
+  /**
+   * Computes the area of a set of Tris.
+   * 
+   * @param triList a set of Tris
+   * @return the total area of the triangles
+   */
+  public static double area(List<? extends Tri> triList) {
+    double area = 0;
+    for (Tri tri : triList) {
+      area += tri.getArea();
+    }
+    return area;
+  }
+  
   /**
    * Validates a list of Tris.
    * 
@@ -84,17 +107,17 @@ public class Tri {
     return new Tri(pts[0], pts[1], pts[2]);
   }
   
-  private Coordinate p0;
-  private Coordinate p1;
-  private Coordinate p2;
+  protected Coordinate p0;
+  protected Coordinate p1;
+  protected Coordinate p2;
   
   /**
    * triN is the adjacent triangle across the edge pN - pNN.
    * pNN is the next vertex CW from pN.
    */
-  private Tri tri0;
-  private Tri tri1;
-  private Tri tri2;
+  protected Tri tri0;
+  protected Tri tri1;
+  protected Tri tri2;
 
   /**
    * Creates a triangle with the given vertices.
@@ -155,7 +178,7 @@ public class Tri {
     case 1: tri1 = tri; return;
     case 2: tri2 = tri; return;
     }
-    Assert.shouldNeverReachHere();
+    throw new IllegalArgumentException(INVALID_TRI_INDEX);
   }
 
   private void setCoordinates(Coordinate p0, Coordinate p1, Coordinate p2) {
@@ -244,6 +267,56 @@ public class Tri {
     } else if ( tri2 != null && tri2 == triOld ) {
       tri2 = triNew;
     }
+  }
+  
+  /**
+   * Computes the degree of a Tri vertex, which is the number of tris containing it.
+   * This must be done by searching the entire triangulation, 
+   * since the containing tris may not be adjacent or edge-connected. 
+   * 
+   * @param index the vertex index
+   * @param triList the triangulation
+   * @return the degree of the vertex
+   */
+  public int degree(int index, List<? extends Tri> triList) {
+    Coordinate v = getCoordinate(index);
+    int degree = 0;
+    for (Tri tri : triList) {
+      for (int i = 0; i < 3; i++) {
+        if (v.equals2D(tri.getCoordinate(i)))
+          degree++;
+      }
+    }
+    return degree;
+  }
+  
+  /**
+   * Removes this tri from the triangulation containing it.
+   * All links between the tri and adjacent ones are nulled.
+   * 
+   * @param triList the triangulation
+   */
+  public void remove(List<? extends Tri> triList) {
+    remove();
+    triList.remove(this);
+  }
+  
+  /**
+   * Removes this triangle from a triangulation.
+   * All adjacent references and the references to this
+   * Tri in the adjacent Tris are set to <code>null</code.
+   */
+  public void remove() {
+    remove(0);
+    remove(1);
+    remove(2);
+  }
+
+  private void remove(int index) {
+    Tri adj = getAdjacent(index);
+    if (adj == null) return;
+    adj.setTri(adj.getIndex(this), null);
+    setTri(index, null);
   }
   
   /**
@@ -365,13 +438,12 @@ public class Tri {
    * @return the vertex coordinate
    */
   public Coordinate getCoordinate(int index) {
-    if ( index == 0 ) {
-      return p0;
+    switch(index) {
+    case 0: return p0;
+    case 1: return p1;
+    case 2: return p2;
     }
-    if ( index == 1 ) {
-      return p1;
-    }
-    return p2;
+    throw new IllegalArgumentException(INVALID_TRI_INDEX);
   }
 
   /**
@@ -420,10 +492,19 @@ public class Tri {
     case 1: return tri1;
     case 2: return tri2;
     }
-    Assert.shouldNeverReachHere();
-    return null;
+    throw new IllegalArgumentException(INVALID_TRI_INDEX);
   }
 
+  /**
+   * Tests if this tri has any adjacent tris.
+   * 
+   * @return true if there is at least one adjacent tri
+   */
+  public boolean hasAdjacent() {
+    return hasAdjacent(0) 
+        || hasAdjacent(1) || hasAdjacent(2);
+  }
+  
   /**
    * Tests if there is an adjacent triangle to an edge.
    * 
@@ -462,6 +543,51 @@ public class Tri {
     return num;
   }
 
+  /**
+   * Tests if a tri vertex is interior.
+   * A vertex of a triangle is interior if it 
+   * is fully surrounded by other triangles.
+   * 
+   * @param index the vertex index
+   * @return true if the vertex is interior
+   */
+  public boolean isInteriorVertex(int index) {
+    Tri curr = this;
+    int currIndex = index;
+    do {
+      Tri adj = curr.getAdjacent(currIndex);
+      if (adj == null) return false;
+      int adjIndex = adj.getIndex(curr);
+      if (adjIndex < 0) {
+        throw new IllegalStateException("Inconsistent adjacency - invalid triangulation");
+      }
+      curr = adj;
+      currIndex = Tri.next(adjIndex);
+    }
+    while (curr != this);
+    return true;
+  }
+  
+  /**
+   * Tests if a tri contains a boundary edge,
+   * and thus on the border of the triangulation containing it.
+   * 
+   * @return true if the tri is on the border of the triangulation
+   */
+  public boolean isBorder() {
+    return isBoundary(0) || isBoundary(1) || isBoundary(2);
+  }
+  
+  /**
+   * Tests if an edge is on the boundary of a triangulation.
+   * 
+   * @param index index of an edge
+   * @return true if the edge is on the boundary
+   */
+  public boolean isBoundary(int index) {
+    return ! hasAdjacent(index);
+  }
+  
   /**
    * Computes the vertex or edge index which is the next one
    * (clockwise) around the triangle.
@@ -526,6 +652,34 @@ public class Tri {
     double midX = (p0.getX() + p1.getX()) / 2;
     double midY = (p0.getY() + p1.getY()) / 2;
     return new Coordinate(midX, midY);
+  }
+  
+  /**
+   * Gets the area of the triangle.
+   * 
+   * @return the area of the triangle
+   */
+  public double getArea() {
+    return Triangle.area(p0, p1, p2);
+  }
+  
+  /**
+   * Gets the perimeter length of the triangle.
+   * 
+   * @return the perimeter length
+   */
+  public double getLength() {
+    return Triangle.length(p0, p1, p2);
+  }
+  
+  /**
+   * Gets the length of an edge of the triangle.
+   * 
+   * @param edgeIndex the edge index
+   * @return the edge length
+   */
+  public double getLength(int edgeIndex) {
+    return getCoordinate(edgeIndex).distance(getCoordinate(next(edgeIndex)));
   }
   
   /**

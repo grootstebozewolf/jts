@@ -90,16 +90,64 @@ public class LinearIterator
   	if (! (linearGeom instanceof Lineal))
   			throw new IllegalArgumentException("Lineal geometry is required");
     this.linearGeom = linearGeom;
-    numLines = linearGeom.getNumGeometries();
+    numLines = numComponents(linearGeom);
     this.componentIndex = componentIndex;
     this.vertexIndex = vertexIndex;
     loadCurrentLine();
+  }
+
+  /**
+   * LRF-LOC (#1195): a CompoundCurve's members are components, like
+   * MultiLineString parts. Detected by class name so core does not
+   * import jts-curve.
+   */
+  private static int numComponents(Geometry g) {
+    Integer n = compoundCurveNumMembers(g);
+    if (n != null) {
+      return n.intValue();
+    }
+    return g.getNumGeometries();
+  }
+
+  private static Integer compoundCurveNumMembers(Geometry g) {
+    if (g == null || !g.getClass().getName().endsWith(".CompoundCurve")) {
+      return null;
+    }
+    try {
+      java.lang.reflect.Method m = g.getClass().getMethod("getNumMembers");
+      Object out = m.invoke(g);
+      if (out instanceof Integer) {
+        return (Integer) out;
+      }
+    }
+    catch (ReflectiveOperationException ex) {
+      return null;
+    }
+    return null;
+  }
+
+  private static LineString compoundCurveMember(Geometry g, int i) {
+    try {
+      java.lang.reflect.Method m = g.getClass().getMethod("getMemberN", int.class);
+      Object out = m.invoke(g, Integer.valueOf(i));
+      if (out instanceof LineString) {
+        return (LineString) out;
+      }
+    }
+    catch (ReflectiveOperationException ex) {
+      return null;
+    }
+    return null;
   }
 
   private void loadCurrentLine()
   {
     if (componentIndex >= numLines) {
       currentLine = null;
+      return;
+    }
+    if (compoundCurveNumMembers(linearGeom) != null) {
+      currentLine = compoundCurveMember(linearGeom, componentIndex);
       return;
     }
     currentLine = (LineString) linearGeom.getGeometryN(componentIndex);

@@ -1,0 +1,58 @@
+{
+  "id": "Triangle.centroid.disc.pr7",
+  "claimId": "TB-AP-TRIANGLE-CENTROID",
+  "category": "Triangle",
+  "function": "centroid",
+  "branch": "pr7",
+  "tags": [
+    "tb-appium",
+    "Triangle",
+    "centroid",
+    "disc"
+  ],
+  "golden": false,
+  "skipped": false,
+  "playbackOf": "Triangle.centroid.polygon.upstream",
+  "fixtureFile": "_fixtures/pr7-disc.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "Triangle",
+        "centroid"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "centroid",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "preserveCurveAware": true
+  },
+  "notes": "centroid \u00b7 pr7 disc",
+  "optionB": {
+    "contract": "Draft v6 MMF Option B",
+    "defaultStrategy": "LINEARIZED",
+    "requiresWarnOnDensify": true,
+    "overlayName": "OverlayNGCurve"
+  }
+}

@@ -66,18 +66,18 @@ public class UnionInteracting
 		
 //		System.out.println(int0);
 //		System.out.println(int1);
-
+/*
 		if (int0.isEmpty() || int1.isEmpty()) {
 			System.out.println("found empty!");
 //			computeInteracting();
 		}
+		*/
 //		if (! int0.isValid()) {
 			//System.out.println(int0);
 			//throw new RuntimeException("invalid geom!");
 //		}
 		
 		Geometry union = int0.union(int1);
-		//Geometry union = bufferUnion(int0, int1);
 		
 		Geometry disjoint0 = extractElements(g0, interacts0, false);
 		Geometry disjoint1 = extractElements(g1, interacts1, false);
@@ -87,14 +87,6 @@ public class UnionInteracting
   	return overallUnion;
 
 	}
-	
-  private Geometry bufferUnion(Geometry g0, Geometry g1)
-  {
-  	GeometryFactory factory = g0.getFactory();
-  	Geometry gColl = factory.createGeometryCollection(new Geometry[] { g0, g1 } );
-  	Geometry unionAll = gColl.buffer(0.0);
-    return unionAll;
-  }
 
 	private void computeInteracting()
 	{

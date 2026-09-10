@@ -1,0 +1,402 @@
+[
+  {
+    "category": "Boundary",
+    "function": "boundary",
+    "claimId": "TB-AP-BOUNDARY-BOUNDARY",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "Buffer",
+    "function": "buffer",
+    "claimId": "TB-AP-BUFFER-BUFFER",
+    "pr7Only": false,
+    "params": [
+      "1"
+    ],
+    "hasB": false
+  },
+  {
+    "category": "BufferByUnion",
+    "function": "bufferByComponents",
+    "claimId": "TB-AP-BUFFERBYUNION-BUFFERBYCOMPONENTS",
+    "pr7Only": false,
+    "params": [
+      "1"
+    ],
+    "hasB": false
+  },
+  {
+    "category": "Construction",
+    "function": "boundary",
+    "claimId": "TB-AP-CONSTRUCTION-BOUNDARY",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "Conversion",
+    "function": "pointsToLine",
+    "claimId": "TB-AP-CONVERSION-POINTSTOLINE",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "Coverage",
+    "function": "union",
+    "claimId": "TB-AP-COVERAGE-UNION",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "CreateFractalShape",
+    "function": "kochSnowflake",
+    "claimId": "TB-AP-CREATEFRACTALSHAPE-KOCHSNOWFLAKE",
+    "pr7Only": false,
+    "params": [
+      "2"
+    ],
+    "hasB": false
+  },
+  {
+    "category": "CreateRandomShape",
+    "function": "randomPointsInGrid",
+    "claimId": "TB-AP-CREATERANDOMSHAPE-RANDOMPOINTSINGRID",
+    "pr7Only": false,
+    "params": [
+      "4"
+    ],
+    "hasB": false
+  },
+  {
+    "category": "Curve",
+    "function": "toLinear",
+    "claimId": "TB-AP-CURVE-TOLINEAR",
+    "pr7Only": true,
+    "params": [
+      "0.1"
+    ],
+    "hasB": false
+  },
+  {
+    "category": "CurveExample",
+    "function": "clothoidRailBend",
+    "claimId": "TB-AP-CURVEEXAMPLE-CLOTHOIDRAILBEND",
+    "pr7Only": true,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "Dissolve",
+    "function": "dissolve",
+    "claimId": "TB-AP-DISSOLVE-DISSOLVE",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "Distance",
+    "function": "nearestPoints",
+    "claimId": "TB-AP-DISTANCE-NEARESTPOINTS",
+    "pr7Only": false,
+    "params": [],
+    "hasB": true
+  },
+  {
+    "category": "Geometry",
+    "function": "reverse",
+    "claimId": "TB-AP-GEOMETRY-REVERSE",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "Hull",
+    "function": "convexHull",
+    "claimId": "TB-AP-HULL-CONVEXHULL",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "JTS",
+    "function": "logoLines",
+    "claimId": "TB-AP-JTS-LOGOLINES",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "Labelling",
+    "function": "labelPoint",
+    "claimId": "TB-AP-LABELLING-LABELPOINT",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "LineHandling",
+    "function": "mergeLines",
+    "claimId": "TB-AP-LINEHANDLING-MERGELINES",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "LineSegment",
+    "function": "intersection",
+    "claimId": "TB-AP-LINESEGMENT-INTERSECTION",
+    "pr7Only": false,
+    "params": [],
+    "hasB": true
+  },
+  {
+    "category": "LinearReferencing",
+    "function": "extractPoint",
+    "claimId": "TB-AP-LINEARREFERENCING-EXTRACTPOINT",
+    "pr7Only": false,
+    "params": [
+      "0.5"
+    ],
+    "hasB": false
+  },
+  {
+    "category": "Noding",
+    "function": "findOneNode",
+    "claimId": "TB-AP-NODING-FINDONENODE",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "OffsetCurve",
+    "function": "offsetCurve",
+    "claimId": "TB-AP-OFFSETCURVE-OFFSETCURVE",
+    "pr7Only": false,
+    "params": [
+      "1"
+    ],
+    "hasB": false
+  },
+  {
+    "category": "Overlay",
+    "function": "union",
+    "claimId": "TB-AP-OVERLAY-UNION",
+    "pr7Only": false,
+    "params": [],
+    "hasB": true
+  },
+  {
+    "category": "OverlayCommonBitsRemoved",
+    "function": "union",
+    "claimId": "TB-AP-OVERLAYCOMMONBITSREMOVED-UNION",
+    "pr7Only": false,
+    "params": [],
+    "hasB": true
+  },
+  {
+    "category": "OverlayEnhancedPrecision",
+    "function": "union",
+    "claimId": "TB-AP-OVERLAYENHANCEDPRECISION-UNION",
+    "pr7Only": false,
+    "params": [],
+    "hasB": true
+  },
+  {
+    "category": "OverlayNG",
+    "function": "union",
+    "claimId": "TB-AP-OVERLAYNG-UNION",
+    "pr7Only": false,
+    "params": [],
+    "hasB": true
+  },
+  {
+    "category": "OverlayNGCurve",
+    "function": "union",
+    "claimId": "TB-AP-OVERLAYNGCURVE-UNION",
+    "pr7Only": true,
+    "params": [],
+    "hasB": true
+  },
+  {
+    "category": "OverlayNGOpt",
+    "function": "intersectionOrigClassic",
+    "claimId": "TB-AP-OVERLAYNGOPT-INTERSECTIONORIGCLASSIC",
+    "pr7Only": false,
+    "params": [],
+    "hasB": true
+  },
+  {
+    "category": "OverlayNGRobust",
+    "function": "union",
+    "claimId": "TB-AP-OVERLAYNGROBUST-UNION",
+    "pr7Only": false,
+    "params": [],
+    "hasB": true
+  },
+  {
+    "category": "OverlayNGSR",
+    "function": "union",
+    "claimId": "TB-AP-OVERLAYNGSR-UNION",
+    "pr7Only": false,
+    "params": [
+      "1"
+    ],
+    "hasB": true
+  },
+  {
+    "category": "OverlayNGSnapping",
+    "function": "union",
+    "claimId": "TB-AP-OVERLAYNGSNAPPING-UNION",
+    "pr7Only": false,
+    "params": [
+      "0.1"
+    ],
+    "hasB": true
+  },
+  {
+    "category": "OverlayNGStrict",
+    "function": "union",
+    "claimId": "TB-AP-OVERLAYNGSTRICT-UNION",
+    "pr7Only": false,
+    "params": [],
+    "hasB": true
+  },
+  {
+    "category": "OverlayNGTest",
+    "function": "unionIntSymDiff",
+    "claimId": "TB-AP-OVERLAYNGTEST-UNIONINTSYMDIFF",
+    "pr7Only": false,
+    "params": [
+      "1"
+    ],
+    "hasB": true
+  },
+  {
+    "category": "OverlayNoSnap",
+    "function": "union",
+    "claimId": "TB-AP-OVERLAYNOSNAP-UNION",
+    "pr7Only": false,
+    "params": [],
+    "hasB": true
+  },
+  {
+    "category": "PolygonOverlay",
+    "function": "overlaySR",
+    "claimId": "TB-AP-POLYGONOVERLAY-OVERLAYSR",
+    "pr7Only": false,
+    "params": [
+      "1"
+    ],
+    "hasB": true
+  },
+  {
+    "category": "Polygonize",
+    "function": "polygonize",
+    "claimId": "TB-AP-POLYGONIZE-POLYGONIZE",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "Precision",
+    "function": "reducePrecisionPointwise",
+    "claimId": "TB-AP-PRECISION-REDUCEPRECISIONPOINTWISE",
+    "pr7Only": false,
+    "params": [
+      "1"
+    ],
+    "hasB": false
+  },
+  {
+    "category": "Selection",
+    "function": "lengthGreaterThan",
+    "claimId": "TB-AP-SELECTION-LENGTHGREATERTHAN",
+    "pr7Only": false,
+    "params": [
+      "0"
+    ],
+    "hasB": false
+  },
+  {
+    "category": "SelectionNG",
+    "function": "intersects",
+    "claimId": "TB-AP-SELECTIONNG-INTERSECTS",
+    "pr7Only": false,
+    "params": [],
+    "hasB": true
+  },
+  {
+    "category": "Simplification",
+    "function": "simplifyDP",
+    "claimId": "TB-AP-SIMPLIFICATION-SIMPLIFYDP",
+    "pr7Only": false,
+    "params": [
+      "1"
+    ],
+    "hasB": false
+  },
+  {
+    "category": "Snapping",
+    "function": "snapAtoB",
+    "claimId": "TB-AP-SNAPPING-SNAPATOB",
+    "pr7Only": false,
+    "params": [
+      "0.1"
+    ],
+    "hasB": true
+  },
+  {
+    "category": "Sorting",
+    "function": "sortByLength",
+    "claimId": "TB-AP-SORTING-SORTBYLENGTH",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "TestCaseGeometry",
+    "function": "bufferMitredJoin",
+    "claimId": "TB-AP-TESTCASEGEOMETRY-BUFFERMITREDJOIN",
+    "pr7Only": false,
+    "params": [
+      "1"
+    ],
+    "hasB": false
+  },
+  {
+    "category": "Triangle",
+    "function": "centroid",
+    "claimId": "TB-AP-TRIANGLE-CENTROID",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "TriangulatePoly",
+    "function": "triangulate",
+    "claimId": "TB-AP-TRIANGULATEPOLY-TRIANGULATE",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "Triangulation",
+    "function": "delaunayEdges",
+    "claimId": "TB-AP-TRIANGULATION-DELAUNAYEDGES",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  },
+  {
+    "category": "Validation",
+    "function": "invalidLocations",
+    "claimId": "TB-AP-VALIDATION-INVALIDLOCATIONS",
+    "pr7Only": false,
+    "params": [],
+    "hasB": false
+  }
+]

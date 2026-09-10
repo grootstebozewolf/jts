@@ -17,47 +17,231 @@ Distributions for older JTS versions can be obtained at the
 
 <!-- ================================================================ -->
 
-# Version 1.18.3
+# Version 1.21
 
-* Release Date: TBD *
+*Release Date: TBD**
+
+### New Features
+
+* Add `CoverageCleaner` (#1126)
+* Add `MinimumBoundingTriangle` (#1160)
+* Add `DirectedHausdorffDistance` class (#1182)
+
+### SQL-MM / SFA Curves
+
+* Add `CircularString`, `CompoundCurve`, and `CurvePolygon`
+* Read ISO WKB types 8–12 in core `WKBReader`; write via `CurveWKBWriter` (bare `WKBWriter` still emits types 2/3); default/export paths use `CurveWKBWriter` (#44)
+* Closed-form convex hull for discs and single arcs
+* Laser convex hull of circular-plus-straight members (H-CC) (#41 via #42)
+* `DiscreteHausdorffDistance` closed-form for two pairs only: single-arc `CircularString` vs single-segment `LineString` (apex √949/6 − 7/6); two circular discs (a single-member `MultiSurface` of one disc is the same pair). Public DHD still sees chords. Exact path skips densify. Densify 0.05 is not the laser.
+* Point-site `LargestEmptyCircle` candidate completeness (#22)
+* Stadium `MaximumInscribedCircle` certified cell (#31)
+* Clothoid playground extras (editor/inspect/WKT; not a laser) (#39)
+
+### Functionality Improvements
+
+* Improve `DouglasPeuckerSimplifier` to preserve XYZM coordinates (#1045)
+* Improve `OffsetCurve` to support miter joins for polygonal input (#1109)
+* Add `MaximumInscribedCircle` fast exact calculation for simple shapes (#1123)
+* Add `MaximumInscribedCircle.isRadiusWithin` function (#1125)
+* Add auto-tolerance to `MaximumInscribedCircle` and `LargestEmptyCircle` (#1128)
+* Add `KdTree` methods `nearestNeighbor` and `nearestNeighbors` (#1114)
+* Allow `WKTReader` to read `Inf` and `-Inf` ordinates (#1166, #1167)
+* Fix `KMLReader` XML parser security hole (#1204)
+
+### Bug Fixes
+
+* Fix `ConcaveHullOfPolygons` nested shell handling (#1081)
+* Fix `ConvexHull` to avoid modifying input (#1083)
+* Fix `TopologyPreservingSimplifier` to avoid jumping components (#1096)
+* Fix `VWSimplifier` coordinate aliasing (#1107)
+* Add `BufferOp` hole erosion heuristic for rings (#1117)
+* Fix `BufferOp` element erosion for negative distance (#1119)
+* Fix writing XYM geometries as WKB (#1092)
+* Fix `DepthSegment` comparator (#1132)
+* Fix `BoundaryChainNoder` to split chains at self-touch nodes (also fixes `CoverageUnion`) (#1134)
+* Fix `OffsetCurve` `simplifyFactor` parameter handling (#1151)
+* Fix `CoordinateArrays.hasRepeatedOrInvalidPoints` to check first point (#1157)
+* Fix `GeometryFactory.create` to deep-copy polygonal geometry (#1158)
+* Add buffer artifact removal heuristic for single-element inputs (#1161)
+* Fix `BufferOp` to handle geometries with all-invalid coordinate lists (#1165)
+* Fix CoordinateList.clone() to copy correctly (#1168)
+* Add Voronoi snapping heuristic to fix invalid diagram topology (#1174)
+* Fix `LineSegment.project` to handle segments projecting onto a single endpoint (#1179)
+* Fix DD equals and compareTo (#1186)
+* Fix `RelateNG.computeLineEnds` incorrectly skipping boundary points for disjoint line components (#1175)
+* Add `equals` and `hashCode` consistent with `compareTo` for value-semantics `Comparable` classes (`LinearLocation`, `EdgeIntersection`, `NodeSection`, `OrientedCoordinateArray`) (#1184)
+* Add `DD.hashCode` consistent with `DD.equals` (#1186)
+* Fix `OverlayEdge` to include first point when adding coordinates (#1187)
+
+### Performance Improvements
+
+* Fix `RelateNG` to cache in prepared A-L cases (#1099)
+* Add `GeometryCollection` dimension cache (#1103)
+* Add `MathUtil.hypot` function and use it for length calculations (#1112)
+* Improve `LineStringSnapper` performance by using squared distance (#1111)
+* Add spatial index to OverlayNG `PolygonBuilder.placeFreeHoles` (#1173)
+
+## JTS TestBuilder
+
+### Functionality Improvements
+
+* Add Select Elements tool with virtual layer
+* Add Layer style presets
+* Add Layer List Zoom to Geometry button
+* Add Layer List Copy Geometry button
+* TB-IN: Enter loads A/B WKT; labeled Clear does not wipe on apply (#35)
+* JTS logoLines as curves, not densified polylines (#42)
+* A/B draw-tool colors and honest `CircularString` (#43)
+
+### Bug Fixes
+
+* Fix `BaseGeometryFunction.hashCode` to be consistent with `equals` (exclude parameter names)
+
+## JTS TestRunner
+### Functionality Improvements
+* Process XML tests in a stable order (sorted by filename)
+
+# Version 1.20.0
+
+*Release Date: 09/18/2024*
+
+### New Features
+* Add `CoverageValidator` `CoveragePolygonValidator` (#900)
+* Add `CoverageGapFinder` (#900)
+* Add `CoverageUnion` (#900)
+* Add `CoverageSimplifier` (#911)
+* Add `OverlayNG` support for simple GeometryCollection inputs (#915)
+* Add `Geometry.hasDimension(int dim)` method {#944}
+* Add `ConcaveHull.alphaShape` function (#952)
+* Add `OffsetCurve` Joined mode (#956)
+* Add `PointLocation.isOnSegment` function (#1048)
+* Add `RelateNG` API for improved topological relationship functionality and performance (#1052, #1055)
+* Add system property `jts.relate=ng` to enable use of RelateNG in `Geometry` methods (#1073)
+
+### Functionality Improvements
+* Improve `TopologyPreservingSimplifier` to prevent edge-disjoint line collapse (#925)
+* Improve `OffsetCurve` to return more linework for some input situations (#956)
+* Reduce buffer curve short fillet segments (#960)
+* Added ability to specify boundary for `LargestEmptyCircle` (#973)
+* Improve `DouglaPeuckerSimplifier` and `TopologyPreservingSimplifier` to handle ring endpoints (#1013)
+* Add `Angle` functions `sinSnap` and `cosSnap` to avoid small errors, e.g. with buffer operations (#1016)
+* Improve Buffer input simplification for rings (#1022)
+* Improve CoverageSimplifier with ring removal, smoothing, inner/outer and per-feature tolerances (#1060)
+
+### Bug Fixes
+* Fix `WKBReader` and `WKBWriter` handling of M measures when writing to WKB and reading from WKB (#734)
+* Fix `PreparedGeometry` handling of EMPTY elements (#904)
+* Fix `WKBReader` parsing of WKB containing multiple empty elements (#905)
+* Fix `LineSegment.orientationIndex(LineSegment)` to correct orientation for non-collinear segments on right (#914)
+* Fix `DepthSegment` compareTo method (#920)
+* Ensure `GeometryFixer` does not change coordinate dimension (#922)
+* Improve `ConvexHull` radial sort robustness (#927)
+* Improve robustness of Delaunay Triangulation frame size heuristic (#931)
+* Fix `PreparedLineString.intersects` to handle mixed GCs correctly (#944)
+* Fix `QuadEdgeSubdivision.TriangleEdgesListVisitor` (#945)
+* Fix `PolygonHoleJoiner` to handle all valid inputs
+  (allows `PolygonTriangulator`, `ConstrainedDelaunayTriangulator`, and `ConcaveHullOfPolygons` to work correctly) (#946)
+* Fix `OffsetCurve` handling of input with repeated points (#956)
+* Fix `OffsetCurve` handling zero offset distance (#971)
+* Fix `MaximumInscribedCircle` and `LargestEmptyCircle` to avoid long looping for thin inputs (#978)
+* Fix `OffsetCurve` to use a minimum QuadrantSegs value (#981)
+* Fix `HilbertEncoder` Y extent handling
+* Fix `Geometry.getCoordinate` to return non-null coordinate for collections with empty first element (#987)
+* Fix `LargestEmptyCircle` to handle polygonal obstacles (#988)
+* Make intersection computation more robust (#989)
+* Fix `VariableBuffer` to handle zero vertex buffer distances correctly (#997)
+* Fix `IncrementalDelaunayTriangulator` to ensure triangulation boundary is convex (#1004)
+* Fix OverlayNG Area Check heuristic for difference (#1005)
+* Fix `InteriorPointPoint` to handle empty elements
+* Fix `DistanceOp` for empty elements (#1010)
+* Fix predicates for MultiPoint with EMPTY (#1015)
+* Fix `InteriorPoint` for MultiLineString with EMPTY (#1023)
+* Fix TopologyPreservingSimplifier to prevent incorrect topology from jumping components (#1024)
+* Fix OffsetCurve to ensure end segments are included (#1029)
+* Fix `PointLocator` to respect `BoundaryNodeRule` for single lines (#1031)
+* Fix `BufferOp` Inverted Ring Removal check (#1038)
+* Improve `VariableBuffer` segment buffer cap generation (#1041)
+* Fix `TopologyPreservingSimplifier` ring endpoint removal indexing (#1059)
+
+### Performance Improvements
+
+* Improve `Polygonizer` performance in some cases with many islands (#906)
+* Improve Convex Hull performance by avoiding duplicate uniquing (#985)
+* Improve `HPRtree` performance (#1012)
+* Improve performance of noding and overlay via `HPRtree` (#1012) 
+* Improve `DistanceOp` performance for Point-Point (#1049)
+* Improve `CoveragePolygonValidator` via section performance optimization (#1053)
+
+# Version 1.19
+
+*Release Date: 06/21/2022*
+
+### New Features
+
+* Add `ConstrainedDelaunayTriangulator` and `PolygonTriangulator` (#775, #862)
+* Add `Tri` data structure for representing triangulations (#775)
+* Add `DiscreteFrechetDistance` (#764, #783)
+* Add `OffsetCurve` class (#810, #816)
+* Add `ConcaveHull` class for points (#823, #829)
+* Add `ConcaveHullOfPolygons` class (#870)
+* Add `PolygonHullSimplifier` class (#861, #880)
+* TWKB read and write implementation (#854)
+* Add `CubicBezierCurve` class
 
 ### Functionality Improvements
 
 * Improve `GeometryFixer` behaviour for holes outside polygons (#772)
-* Add `ConstrainedDelaunayTriangulator` and `PolygonTriangulator` (#775)
-* Add `Tri` data structure for representing triangulations (#775)
 * Simplify and fix logic of `BufferParameters.setQuadSegs` (#778)
 * Improve `KdTree` query code to avoid recursion (#779)
 * Add `KdTree` seeding to`SnappingNoder` (#780)
-* Add `DiscreteFrechetDistance` (#764, #783)
 * Add `GeometryFixer` option to preserve `Multi` geometry types when collapses occur (#791)
 * Make `QuadTree` thread-safe (#792)
 * Allow specifying a fixed `PrecisionModel` via grid size (#804)
-* Add `OffsetCurve` class (#810, #816)
+* Improve `Densifier` to interpolate Z values (#835)
+* Add support for GeoJSON `Feature` and `FeatureCollection` types (#837)
+* Add `WKTReader.setFixStructure` to fix WKT input (#848)
+* Improve `LineSegment.hashCode` to reduce collisions (#872)
+
+### Performance Improvements
+
+* Improve performance of `CoverageUnion` by using boundary chains (#891)
 
 ### Bug Fixes
 
 * Fix `WKTReader` geometry typename parsing (#786)
-* Fix `CoordinateArrays.reverse` to handle zero-length arrays #787
+* Fix `CoordinateArrays.reverse` to handle zero-length arrays (#787)
 * Fix `GeometryFixer` to appply `isKeepCollapsed` flag to `GeometryCollection` elements (#790)
-* Fix `RectangleIntersects` to handle XYZM geometry (#794) 
+* Fix `RectangleIntersects` to handle XYZM geometry (#794)
 * Fix various operations to handle XYZM geometry (#795)
 * Fix `SnapRoundingNoder` to use tolerance in noding (also fixes `GeometryPrecisionReducer`) (#802)
 * Fix `MaximumInscribedCircle` to avoid infinite-looping on flat collapsed input (#807)
-* Add OverlayNG result area heuristic check (#812)
-* Fix the buffer generated for Mitred Joins (#818)
+* Add `OverlayNG` result area heuristic check (#812)
+* Fix the buffers generated for mitred joins (#818)
+* Fix `WKTReader` to produce correct XY coordinate dimension for POLYGON EMPTY (#828)
+* Fix `RelateOp` for a snapped line boundary point (#839)
+* Fix IsValidOp for repeated node points (#845)
+* Fix `IsSimpleOp` for repeated endpoints (#851)
+* Fix `GeometryFixer` via noding check for zero-distance buffers (#867)
+* Fix `MinimumDiameter.minimumRectangle` for flat inputs (#875)
+* Fix `BufferOp` inverted ring check optimization (#878)
+* Fix `STRtree` nearest-neighbour queries on empty trees to avoid NPE (#886)
+* Remove transitive compile dependency on `junit` from `jts-io-commmon` (#855)
 
 # Version 1.18.2
 
-*Release Date: 08/27/2021* 
+*Release Date: 08/27/2021*
 
 ### API Changes
 
 * Move `IsSimpleOp` to `org.locationtech.jts.operation.valid` package (#717)
 
-### Functionality Improvements
+### New Features
 
 * Add `GeometryFixer` class (#704)
+
+### Functionality Improvements
+
 * Improve design and performance of `IsSimpleOp` (#717, #754)
 * Improve design and perforance of `IsValidOp` (#743, #748, #755, #756, #757)
 * Fix `SortedPackedIntervalRtree` to be thread-safe (fixes `PreparedPolygon` too) (#746)
@@ -68,7 +252,7 @@ Distributions for older JTS versions can be obtained at the
 * Fix `MultiPoint.isValid` to check validity correctly (#700)
 * Fix `WKTReader` and `WKTWriter` handling of collections with all empty elements (#702)
 * Fix `HalfEdge.prev()` method (#703)
-* Fix `BufferOp` to remove invalid elements caused by inverted ring curves (#706) 
+* Fix `BufferOp` to remove invalid elements caused by inverted ring curves (#706)
 * Fix `IsSimpleOp` duplicate lines bug (#716)
 * Fix `Angle.interiorAngle` to produce interior angle correctly (#721)
 * Fix `IsValidOp` to correctly report invalidity for certain kinds of LinearRings (#737)
@@ -92,7 +276,7 @@ Distributions for older JTS versions can be obtained at the
 * Improve `Densifier` splitting algorithm to create longer segments (#677)
 * Allow constructing invalid `Polygon`s and `LinearRing`s with only 3 vertices (#682)
 * Ensure invalid 3-point polygons and rings are handled correctly (#683)
-* Fix `GeoJSONReader` to parse null and empty coordinates as empty geometry (#687) 
+* Fix `GeoJSONReader` to parse null and empty coordinates as empty geometry (#687)
 * Fix `GeoJSONWriter` to emit empty coordinates array for empty point and linestring (#688)
 * Add `MaximumInscribedCircle` check for invalid tolerance, to avoid infinite loops (#696)
 * Add `GeoJsonWriter.setForceCCW` method to emit polygons with CCW orientation, as per GeoJSON specification (#694)
@@ -102,7 +286,7 @@ Distributions for older JTS versions can be obtained at the
 * Ensure `Densifier` creates `Coordinate`s with same class as input (#637)
 * Fix Relate for cases with closed linear geometry and empty geometry (#671)
 * Fix `Densifier` to avoid splitting segments with length equal to distance tolerance (#676)
-* Fix `Geometry.compareTo` to test polygon holes (#678) 
+* Fix `Geometry.compareTo` to test polygon holes (#678)
 * Fix OverlayNG handling of polygons with interior flat lines (#685)
 * Fix `Polygonizer` to avoid NPE on invalid input (#692)
 
@@ -123,23 +307,26 @@ Distributions for older JTS versions can be obtained at the
 * Removed `SimpleSnapRounder` - use `SnapRoundingNoder` instead
 * Deprecated `MCIndexSnapRounder` - use `SnapRoundingNoder` instead
 
-### Functionality Improvements
+### New Features
 
-* Improve Orientation.isCCW to handle flat topology collapse (#588)
 * Add `KMLReader` (#593)
-* Add `Densifier.setValidated` method to allow disabling expensive polygon validation (#595)
 * Add `OverlayNG` codebase (#599)
 * Add Z support in OverlayNG (#645)
 * Add system property `jts.overlay=ng` to enable use of OverlayNG in `Geometry` methods (#615)
 * Add `SnapRoundingNoder` (#599)
 * Add `SnappingNoder` (#599)
+* Add `Orientation.isCCWArea` (#655)
+
+### Functionality Improvements
+
+* Improve `Orientation.isCCW` to handle flat topology collapse (#588)
+* Add `Densifier.setValidated` method to allow disabling expensive polygon validation (#595)
 * Change `GeometryPrecisionReducer` to use OverlayNG with Snap-Rounding
 * Change `GeometryNoder` to use `SnapRoundingNoder`
 * Add `KdTree` `size` and `depth` methods (#603)
 * Improve `WKBWriter` to write empty Polygons using a more compact representation (#623)
 * Support read and initialize internal structure of `STRtree` and `Quadtree` (#634)
 * Improve `GeometryPrecisionReducer` to handle GeometryCollections (#648)
-* Add `Orientation.isCCWArea` (#655)
 
 ### Performance Improvements
 
@@ -200,7 +387,7 @@ Distributions for older JTS versions can be obtained at the
 * Enhance `-geomfunc` to load multiple function classes
 * Fix function registry to replace matching loaded functions (#569)
 
-## JtsOp 
+## JtsOp
 
 * Added `-limit` and `-offset` options for reading from file inputs (#617)
 
@@ -215,10 +402,10 @@ Distributions for older JTS versions can be obtained at the
 
 ### API Changes
 
-* Change `Polygon` `getExteriorRing` and `getInteriorRingN` accessors to return `LinearRing`. 
+* Change `Polygon` `getExteriorRing` and `getInteriorRingN` accessors to return `LinearRing`.
   * *This is a binary incompatible change to the method signature.  Recompilation is necessary. No source code changes are required.*
 
-### Functionality Improvements
+### New Features
 
 * Added `IndexedFacetDistance.isWithinDistance`
 * Added `OrdinateFormat` to ensure that ordinate text output is accurate and consistent
@@ -226,21 +413,24 @@ Distributions for older JTS versions can be obtained at the
 * Added `DD.determinant` methods
 * Added `Envelope` methods `getDiameter`, `copy`, `disjoint` (#483)
 * Added `Intersection` class, refactored library to use it (#468)
-* Added `CascadedPolygonUnion` union-by-buffer on error capability (#470)
-* Added `HalfEdge` support for direction points (#479)
 * Added `CoordinateList.toCoordinateArray(isForward)` (#482)
-* Addded `HPRtree` Hilbert Packed R-tree (#494)
+* Added `HPRtree` Hilbert Packed R-tree (#494)
 * Added `VariableBuffer` class for computing varying-distance buffers (#495)
 * Added `LineSegment.reflect` method (#495)
 * Added `MaximumInscribedCircle` algorithm (#530)
 * Added `LargestEmptyCircle` algorithm (#530)
+
+### Functionality Improvements
+
+* Added `CascadedPolygonUnion` union-by-buffer on error capability (#470)
+* Added `HalfEdge` support for direction points (#479)
 
 ### Performance Improvements
 
 * Improve performance of `UniqueCoordinateFilter` (#422)
 * Improve performance of `Polygonizer` (#431)
 * Avoid use of `ArrayList` in MonotoneChain builders
-* Add DistanceOp line-line envelope short-circuit optimizations (#534)
+* Add `DistanceOp` line-line envelope short-circuit optimizations (#534)
 
 ### Bug Fixes
 
@@ -252,10 +442,10 @@ Distributions for older JTS versions can be obtained at the
 * Fix bug in `HalfEdge.insert` method which caused CCW order not to be preserved in some cases
 * Fix generation of Voronoi diagrams for cases with sites in a square (#447)
 * Fix use of clipping envelope in `VoronoiDiagramBuilder`
-* Fix infinite loop on empty input in `IndexedPointInAreaLocator` and `SortedPackedIntervalRTree` (#462) 
+* Fix infinite loop on empty input in `IndexedPointInAreaLocator` and `SortedPackedIntervalRTree` (#462)
 * Fix WKT parsing in Turkish locale (#456)
 * Improve accuracy of `LineSegment.lineIntersection` (#468)
-* Fix `Distance3DOp` coordinate ordering (#480) 
+* Fix `Distance3DOp` coordinate ordering (#480)
 * Fix `Geometry.reverse()` to have consistent behaviour and to copy all fields (#513)
 * Fix `MinimumBoundingCircle.farthestPoints` to work correctly (#522 and #533)
 * Fix `DistanceOp` handling of geometry collections with empty components (#524)
@@ -278,7 +468,7 @@ Distributions for older JTS versions can be obtained at the
 * Allow test files/dirs to be specified as free args
 * Only load `.xml` files from directories
 
-## JtsOp 
+## JtsOp
 
 * Added command-line utility to run JTS operations
 

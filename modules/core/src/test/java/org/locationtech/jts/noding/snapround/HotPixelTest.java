@@ -210,4 +210,20 @@ public class HotPixelTest extends TestCase {
     boolean actual = hp.intersects(p1, p2);
     assertEquals(expected, actual);
   }
+
+  /**
+   * Sub-ulp passes-through vectors from Proofs
+   * {@code passes_through_proof_vectors.txt}. Current HotPixel returns
+   * true (matches the rounded filter). Full rejection to match the exact
+   * relation is a later hardening.
+   */
+  public void testSubUlpAdversarialBR() {
+    checkIntersects(true, 0, -1, 1,
+        1.0, -1.0000000000002, 0.4999999999998, -1.4000000000002);
+  }
+
+  public void testSubUlpAdversarialBL() {
+    checkIntersects(true, 0, -1, 1,
+        -1.0, -1.0000000000002, -0.4999999999998, -1.4000000000002);
+  }
 }

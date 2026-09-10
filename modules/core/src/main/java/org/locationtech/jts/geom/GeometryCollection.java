@@ -31,6 +31,7 @@ public class GeometryCollection extends Geometry {
    *  Internal representation of this <code>GeometryCollection</code>.
    */
   protected Geometry[] geometries;
+  private transient GeometryCollectionDimension geomCollDim;
 
   /** @deprecated Use GeometryFactory instead */
   public GeometryCollection(Geometry[] geometries, PrecisionModel precisionModel, int SRID) {
@@ -57,8 +58,12 @@ public class GeometryCollection extends Geometry {
   }
 
   public Coordinate getCoordinate() {
-    if (isEmpty()) return null;
-    return geometries[0].getCoordinate();
+    for (int i = 0; i < geometries.length; i++) {
+      if (! geometries[i].isEmpty()) {
+        return geometries[i].getCoordinate();
+      }
+    }
+    return null;
   }
 
   /**
@@ -93,13 +98,28 @@ public class GeometryCollection extends Geometry {
   }
 
   public int getDimension() {
+    /*
     int dimension = Dimension.FALSE;
     for (int i = 0; i < geometries.length; i++) {
       dimension = Math.max(dimension, geometries[i].getDimension());
     }
     return dimension;
+    //*/
+ //*
+    if (geomCollDim == null) {
+      geomCollDim = new GeometryCollectionDimension(this);
+    }
+    return geomCollDim.getDimension();
+    //*/
   }
 
+  public boolean hasDimension(int dim) {
+    if (geomCollDim == null) {
+      geomCollDim = new GeometryCollectionDimension(this);
+    }
+    return geomCollDim.hasDimension(dim);
+  }
+  
   public int getBoundaryDimension() {
     int dimension = Dimension.FALSE;
     for (int i = 0; i < geometries.length; i++) {

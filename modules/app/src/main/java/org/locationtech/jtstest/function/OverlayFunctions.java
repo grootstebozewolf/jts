@@ -17,7 +17,34 @@ import java.util.List;
 import org.locationtech.jts.geom.Geometry;
 
 
+/**
+ * Overlay via the instance methods, so curve awareness rides on virtual
+ * dispatch: a curve-typed A routes through its CRV-OPS override into the
+ * OverlayNGCurve ratchet. A plain A with a curve B is flipped in
+ * {@code Geometry} onto that same path (CAP / CUP / XOR). Difference is
+ * not symmetric; {@code Geometry.difference} sends {@code (A, B)} to
+ * {@code OverlayNGCurve.difference} so the ratchet still runs.
+ */
 public class OverlayFunctions {
+  /**
+   * Densifies curve operands before handing them to core.
+   * <p>
+   * These are static entry points taking a {@link Geometry}, so a curve type has
+   * no virtual call to override, and left alone they node the chords through the
+   * control points: two concentric circles of radius 5 and 3 intersected in 18
+   * rather than 9*pi. Worse, a CurvePolygon reports an arc-aware area while its
+   * coordinates enclose the chord area, and OverlayNG's own cross-check rejected
+   * that contradiction with
+   * {@code TopologyException("Result area inconsistent with overlay operation")}.
+   * <p>
+   * Non-curve input is returned as the same object, so nothing without an arc is
+   * affected. The arc cannot survive an overlay at any tolerance -- see
+   * {@code CurveOps} -- so the result is a densified plain geometry by necessity.
+   */
+  private static Geometry arc(Geometry g) {
+    return CurveFunctions.linearizeForOps(g);
+  }
+
 	public static Geometry intersection(Geometry a, Geometry b)		{		return a.intersection(b);	}
 	public static Geometry union(Geometry a, Geometry b)					{		return a.union(b);	}
 	public static Geometry symDifference(Geometry a, Geometry b)	{		return a.symDifference(b);	}
@@ -28,7 +55,7 @@ public class OverlayFunctions {
   public static Geometry unionUsingGeometryCollection(Geometry a, Geometry b)                 
   {   
     Geometry gc = a.getFactory().createGeometryCollection(
-        new Geometry[] { a, b});
+        new Geometry[] { arc(a), arc(b)});
     return gc.union(); 
   }
 

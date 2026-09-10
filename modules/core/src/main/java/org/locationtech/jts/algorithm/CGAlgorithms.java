@@ -179,12 +179,10 @@ public class CGAlgorithms
    */
   public static boolean isOnLine(Coordinate p, Coordinate[] pt)
   {
-    LineIntersector lineIntersector = new RobustLineIntersector();
     for (int i = 1; i < pt.length; i++) {
       Coordinate p0 = pt[i - 1];
       Coordinate p1 = pt[i];
-      lineIntersector.computeIntersection(p, p0, p1);
-      if (lineIntersector.hasIntersection()) {
+      if (PointLocation.isOnSegment(p, p0, p1)) {
         return true;
       }
     }
@@ -607,7 +605,7 @@ public class CGAlgorithms
       double dx = x1 - x0;
       double dy = y1 - y0;
 
-      len += Math.sqrt(dx * dx + dy * dy);
+      len += MathUtil.hypot(dx, dy);
 
       x0 = x1;
       y0 = y1;

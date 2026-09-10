@@ -12,6 +12,7 @@
 package org.locationtech.jts.operation.overlayng;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateArrays;
 import org.locationtech.jts.geom.Dimension;
 import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.io.WKTWriter;
@@ -69,7 +70,9 @@ class Edge {
   private boolean bIsHole = false;
 
   public Edge(Coordinate[] pts, EdgeSourceInfo info) {
-    this.pts = pts;
+    // Deep copy so OverlayNG cannot alias caller coordinates
+    // (linear inputs and snap-rounding noding paths).
+    this.pts = CoordinateArrays.copyDeep(pts);
     copyInfo(info);
   }
   

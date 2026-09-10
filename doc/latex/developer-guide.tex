@@ -1,0 +1,558 @@
+\documentclass[11pt]{article}
+\usepackage{jtsguide}
+\setshorttitle{Developer's Guide}
+
+\title{JTS Topology Suite --- Developer's Guide}
+\author{Jonathan Aquino (v1.4) \\ rebuilt from the 2003 text}
+\date{}
+
+\begin{document}
+\jtscover{Developer's Guide}{Version 1.4, rebuilt}{Base text: 17 October 2003 \textperiodcentered\ rebuild: 16 August 2026}
+
+\noindent
+The JTS Topology Suite is a Java API for spatial data operations. This
+manual keeps the 2003 Developer's Guide chapter plan (getting started,
+relate, overlay, buffer, polygonize, line merge, custom coordinates,
+tips) and adds a short honest account of the SQL/MM Spatial
+(ISO/IEC 13249-3) curve types that are on this tree.
+
+Package names in this tree are \texttt{org.locationtech.jts}. The 2003
+copies used \texttt{com.vividsolutions.jts}. LocationTech JTS remains
+the upstream project; this fork is not described as if it were already
+upstream.
+
+\clearpage
+\changectrl{%
+  1.4 & 17 Oct 2003 & Jonathan Aquino & Initial draft, created for JTS 1.4. \\
+  1.4-rebuild & 16 Aug 2026 & This tree & LaTeX rebuild of the 2003 guide.
+    Curve, I/O, overlay, and Hausdorff claims match the code on this
+    tree. ACME licence text is not the project licence. \\
+}
+
+\tableofcontents
+\clearpage
+
+\section{Overview}
+The JTS Topology Suite is a Java API that implements a core set of
+spatial data operations using an explicit precision model and robust
+geometric algorithms. It provides a complete model for specifying 2-D
+linear Geometry. Many common operations in computational geometry and
+spatial data processing are exposed in a clear, consistent and
+integrated API. JTS is intended to be used in the development of
+applications that support the validation, cleaning, integration and
+querying of spatial datasets.
+
+This document is intended for developers who would like to use JTS to
+accomplish their spatial data processing requirements. It describes
+common uses of the JTS API and gives code examples.
+
+The 2003 note ``this document is under construction'' is left as
+history. The linear API walkthrough is still the right starting point.
+An opt-in curve module sits beside that model; it does not replace it.
+
+\subsection{Other resources}
+\begin{itemize}
+  \item OpenGIS Simple Features Specification For SQL Revision 1.1
+        (SFS). The reference specification for the linear spatial data
+        model and the spatial predicates and functions implemented by
+        JTS.
+  \item SQL/MM Spatial (ISO/IEC 13249-3) --- CircularString,
+        CompoundCurve, CurvePolygon, and WKB codes 8--12 used by the
+        opt-in curve module. No 13249-3 DOI is cited.
+  \item \emph{JTS Technical Specifications}. The design specification
+        for the classes, methods and algorithms.
+  \item JTS JavaDoc for packages under \texttt{org.locationtech.jts}.
+\end{itemize}
+
+\section{Getting started}
+The most common JTS tasks involve creating and using Geometry objects.
+The easiest way to create a linear Geometry by hand is to use a
+\texttt{WKTReader} to generate one from a Well-Known Text (WKT)
+string. For example:
+
+\begin{lstlisting}
+Geometry g1 = new WKTReader().read(
+    "LINESTRING (0 0, 10 10, 20 20)");
+\end{lstlisting}
+
+A precise specification for WKT is given in the JTS Technical
+Specifications. Many examples of WKT may be found in the files in the
+test directory.
+
+In a real program, it is easier to use a \texttt{GeometryFactory},
+because you do not need to build up a WKT string; rather, you work
+with the objects directly:
+
+\begin{lstlisting}
+Coordinate[] coordinates = new Coordinate[] {
+    new Coordinate(0, 0), new Coordinate(10, 10),
+    new Coordinate(20, 20) };
+Geometry g1 = new GeometryFactory().createLineString(coordinates);
+\end{lstlisting}
+
+Once you have a Geometry you can compute intersection, area, envelope,
+centroid, and buffer. See the JavaDoc for
+\texttt{org.locationtech.jts.geom.Geometry}.
+
+\begin{amendment}
+On this tree the concrete SQL/MM Spatial (ISO/IEC 13249-3) curve
+types live in the
+\texttt{jts-curve} module
+(\texttt{org.locationtech.jts.geom.curve}):
+\texttt{CircularString}, \texttt{CompoundCurve},
+\texttt{CurvePolygon}, and the collections \texttt{MultiCurve} and
+\texttt{MultiSurface}. Construction is opt-in: the default
+\texttt{GeometryFactory} throws on \texttt{createCircularString} /
+\texttt{createCompoundCurve} / \texttt{createCurvePolygon} /
+\texttt{createMultiCurve} / \texttt{createMultiSurface}. Use
+\texttt{CurveGeometryFactory}. Constructors do not linearise.
+
+A core \texttt{WKTReader} still throws \texttt{ParseException} on
+\texttt{CIRCULARSTRING}. Opt in:
+\end{amendment}
+
+\begin{lstlisting}
+CurveGeometryFactory gf = new CurveGeometryFactory();
+CurveWKTReader rdr = new CurveWKTReader(gf);
+Geometry arc = rdr.read("CIRCULARSTRING (0 0, 5 5, 10 0)");
+// arc.getGeometryType() == "CircularString"
+\end{lstlisting}
+
+\figshot{ug1_dg1_draw_cs.png}{DG-1. Draw CircularString.}
+
+\section{Computing spatial relationships}
+An important application of JTS is computing the spatial relationships
+between Geometries. JTS follows the Dimensionally Extended
+9-Intersection Matrix (DE-9IM) model specified by the OGC. To compute
+the DE-9IM for two Geometries, use the \texttt{relate} method:
+
+\begin{lstlisting}
+Geometry a = /* ... */;
+Geometry b = /* ... */;
+IntersectionMatrix m = a.relate(b);
+\end{lstlisting}
+
+Most relationships of interest can be specified as a pattern which
+matches a set of intersection matrices. JTS also provides a set of
+boolean predicates which compute common spatial relationships
+directly:
+
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{2.6cm}p{10.6cm}}
+  \toprule
+  \textbf{Method} & \textbf{Meaning} \\
+  \midrule
+  Equals     & The Geometries are topologically equal. \\
+  Disjoint   & The Geometries have no point in common. \\
+  Intersects & The Geometries have at least one point in common
+               (the inverse of Disjoint). \\
+  Touches    & The Geometries have at least one boundary point in
+               common, but no interior points. \\
+  Crosses    & The Geometries share some but not all interior points,
+               and the dimension of the intersection is less than that
+               of at least one of the Geometries. \\
+  Within     & Geometry A lies in the interior of Geometry B. \\
+  Contains   & Geometry B lies in the interior of Geometry A
+               (the inverse of Within). \\
+  Overlaps   & The Geometries share some but not all points in common,
+               and the intersection has the same dimension as the
+               Geometries themselves. \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+In some cases the precise definition of the predicates is subtle.
+Refer to the JTS Technical Specifications. On curve operands, public
+\texttt{relate} / predicates that have not taken a certified-disc path
+still see control-point chords unless the caller linearises explicitly
+via \texttt{Linearizable.toLinear(tolerance)}.
+
+\section{Computing overlay operations}
+The previous section discussed functions that return true or false,
+like Intersects and Contains. The JTS overlay operations, some of
+which the 2003 guide illustrated as a six-panel cartoon, are:
+
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{3.2cm}p{10.0cm}}
+  \toprule
+  \textbf{Method} & \textbf{Meaning} \\
+  \midrule
+  Buffer         & The Polygon or MultiPolygon which contains all
+                   points within a specified distance of the Geometry.
+                   See Section~\ref{sec:buffers}. \\
+  ConvexHull     & The smallest convex Polygon that contains all the
+                   points in the Geometry. \\
+  Intersection   & The set of all points which lie in both A and B. \\
+  Union          & The set of all points which lie in A or B. \\
+  Difference     & The set of all points which lie in A but not in B. \\
+  SymDifference  & The set of all points which lie in either A or B
+                   but not both. \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+As with the spatial relationships, these operations have precise
+definitions given in the JTS Technical Specifications.
+
+On linear Geometry the production overlay is OverlayNG
+(\texttt{org.locationtech.jts.operation.overlayng}). The 2003
+noding-graph overlay is historical.
+
+\begin{amendment}
+The curve overlay type is \texttt{OverlayNGCurve}. It lives in
+\texttt{jts-curve}
+(\texttt{org.locationtech.jts.operation.overlayng.curve}). There is
+no public noder. Closed-form answers are limited to certified discs.
+Anything else densifies and delegates to core OverlayNG.
+\texttt{Geometry.intersection} / \texttt{union} / \texttt{difference}
+/ \texttt{symDifference} on a curve type are not a general circular
+overlay.
+
+Closed-form constructions on this tree are certified discs, the
+single-arc hull, and the compound-curve hull of circular-plus-straight
+members (including a stadium). Disc buffer of a full circular disc is
+a disc of radius $r+d$ (or empty if $r+d \le 0$). An open arc stays
+on \texttt{BufferOp} chords. Anything that is not a certified closed
+form uses \texttt{toLinear} and the linear algorithm --- a fallback,
+not a fail, and not a closed form.
+\end{amendment}
+
+\begin{lstlisting}
+import org.locationtech.jts.operation.overlayng.curve.OverlayNGCurve;
+Geometry cap = OverlayNGCurve.intersection(a, b);
+Geometry cup = OverlayNGCurve.union(a, b);
+Geometry sub = OverlayNGCurve.difference(a, b);
+Geometry xor = OverlayNGCurve.symDifference(a, b);
+\end{lstlisting}
+
+A certified disc of radius 5 has convex-hull area $25\pi$. That hull
+is the disc itself, not a densified polygon.
+
+\figshot{ug7_dg3_ts2_disc_hull.png}{DG-3. Disc hull area $25\pi$. Circular-plus-straight laser hull shipped.}
+
+\section{Computing buffers}
+\label{sec:buffers}
+In GIS, buffering is an operation used to compute the area containing
+all points within a given distance of a Geometry. In mathematical
+terms, this is computing the Minkowski sum of the Geometry with a
+disc of radius equal to the buffer distance. Finding positive and
+negative buffers is sometimes referred to as erosion and dilation. In
+CAD/CAM buffer curves are called offset curves.
+
+You can use JTS to compute the buffer of a Geometry using the
+\texttt{Geometry.buffer} method or the \texttt{BufferOp} class. The
+input Geometry may be of any type (including arbitrary
+GeometryCollections). The result of a buffer operation is always an
+area type (Polygon or MultiPolygon). The result may be empty (for
+example, a negative buffer of a LineString).
+
+You can compute buffers with both positive and negative buffer
+distances. Buffers with a positive buffer distance always contain the
+input Geometry. Buffers with a negative buffer distance are always
+contained within the input Geometry. A negative buffer of a
+LineString or a Point results in an empty Geometry.
+
+Buffer distances of 0 are also supported. You can use this to perform
+an efficient union of multiple polygons.
+
+\subsection{Basic buffering}
+To compute a buffer for a given distance, call \texttt{buffer()} on
+the Geometry:
+
+\begin{lstlisting}
+Geometry g = /* ... */;
+Geometry buffer = g.buffer(100.0);
+\end{lstlisting}
+
+\subsection{End cap styles}
+Buffer polygons can be computed with different line end-cap styles.
+The end-cap style determines how the linework for the buffer polygon
+is constructed at the ends of linestrings.
+
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{3.6cm}p{9.6cm}}
+  \toprule
+  \textbf{Style} & \textbf{Description} \\
+  \midrule
+  CAP\_ROUND          & The usual round end caps. \\
+  CAP\_FLAT / CAP\_BUTT & End caps truncated flat at the line ends
+                         (the 2003 name was CAP\_BUTT). \\
+  CAP\_SQUARE         & End caps squared off at the buffer distance
+                         beyond the line ends. \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+To specify the buffer end-cap style, the \texttt{BufferOp} class in
+\texttt{org.locationtech.jts.operation.buffer} is used directly:
+
+\begin{lstlisting}
+Geometry g = /* ... */;
+BufferOp bufOp = new BufferOp(g);
+bufOp.setEndCapStyle(BufferParameters.CAP_FLAT);
+Geometry buffer = bufOp.getResultGeometry(distance);
+\end{lstlisting}
+
+\subsection{Specifying the approximation quantization}
+Since the exact buffer outline of a linear Geometry usually contains
+circular sections, the buffer must be approximated by the linear
+Geometry supported by JTS. The degree of approximation may be
+controlled by specifying the number of quadrant segments used to
+approximate a quarter-circle. Specifying a larger number of segments
+results in a better approximation to the actual area, but also
+results in a larger number of line segments in the computed polygon.
+
+The default number of segments is 8. This gives less than a 2\%
+maximum error in the distance of the computed curve approximation to
+the actual buffer curve. This error can be reduced to less than 1\%
+by using a value of 12.
+
+\begin{lstlisting}
+Geometry buffer = g.buffer(100.0, 16);
+\end{lstlisting}
+
+\begin{amendment}
+A full circular disc (certified \texttt{CurvePolygon}) has a
+closed-form buffer: another disc of radius $r+d$, or empty if
+$r+d \le 0$. An open \texttt{CircularString} is not a disc. Its
+buffer is \texttt{BufferOp} on chords. That is not a closed form.
+\end{amendment}
+
+\section{Polygonization}
+Polygonization is the process of forming polygons from linework which
+encloses areas. Linework to be formed into polygons must be fully
+noded --- that is, linestrings must not cross and must touch only at
+endpoints.
+
+JTS provides the \texttt{Polygonizer} class to perform
+polygonization. The Polygonizer takes a set of fully noded
+LineStrings and forms all the polygons which are enclosed by the
+lines. Polygonization errors such as dangling lines or cut lines can
+be identified and reported.
+
+\begin{lstlisting}
+Polygonizer polygonizer = new Polygonizer();
+polygonizer.add(lines);
+Collection polys   = polygonizer.getPolygons();
+Collection dangles = polygonizer.getDangles();
+Collection cuts    = polygonizer.getCutEdges();
+\end{lstlisting}
+
+If the set of lines is not correctly noded the Polygonizer will still
+operate on them, but the resulting polygonal Geometries will not be
+valid. The MultiLineString union technique can be used to node a set
+of LineStrings (see Section~\ref{sec:noding}).
+
+\section{Merging a set of LineStrings}
+Sometimes a spatial operation such as union will produce chains of
+small LineStrings. The JTS \texttt{LineMerger} is a simple utility to
+sew these small LineStrings together.
+
+The LineMerger assumes that the input LineStrings are noded (they do
+not cross; only their endpoints can touch). The output LineStrings
+are also noded. If LineStrings to be merged do not have the same
+direction, the direction of the resulting LineString will be that of
+the majority.
+
+\begin{lstlisting}
+LineMerger lineMerger = new LineMerger();
+lineMerger.add(lineStrings);
+Collection merged = lineMerger.getMergedLineStrings();
+\end{lstlisting}
+
+\section{Using custom CoordinateSequences}
+By default JTS uses arrays of Coordinates to represent the points and
+lines of Geometries. There are some cases in which you might want
+Geometries to store their points using some other implementation. For
+example, to save memory you may want to use a more compact sequence
+implementation, such as an array of $x$'s and an array of $y$'s.
+Another possibility is to use a custom coordinate class to store
+extra information on each coordinate, such as measures for linear
+referencing.
+
+You can do this by implementing the \texttt{CoordinateSequence} and
+\texttt{CoordinateSequenceFactory} interfaces. You would then create
+a \texttt{GeometryFactory} parameterized by your
+\texttt{CoordinateSequenceFactory}, and use this GeometryFactory to
+create new Geometries. All of these new Geometries will use your
+CoordinateSequence implementation.
+
+If your CoordinateSequence is not based on an array of the standard
+JTS Coordinates (or a subclass of Coordinate), it may incur a small
+performance penalty due to marshalling. Curve types use the same
+factory hook; \texttt{CurveGeometryFactory} can be constructed with a
+custom \texttt{CoordinateSequenceFactory}.
+
+\section{Tips and techniques}
+
+\subsection{Noding a set of LineStrings}
+\label{sec:noding}
+Many spatial operations assume that their input data is noded,
+meaning that LineStrings never cross. For example, the JTS
+Polygonizer and the JTS LineMerger assume that their input is noded.
+
+The noding process splits LineStrings that cross into smaller
+LineStrings that meet at a point, or node. A simple trick for noding
+a group of LineStrings is to union them together; the unioning
+process will node the LineStrings.
+
+\begin{lstlisting}
+Collection lineStrings = /* ... */;
+Geometry noded = (LineString) lineStrings.get(0);
+for (int i = 1; i < lineStrings.size(); i++) {
+    noded = noded.union((LineString) lineStrings.get(i));
+}
+\end{lstlisting}
+
+Unary union / OverlayNG is the current production path for many
+polygons. The 2003 ``buffer of a GeometryCollection at distance 0''
+trick still works but is no longer the first recommendation.
+
+\subsection{Unioning many polygons efficiently}
+Calling \texttt{Polygon.union} repeatedly is one way to union several
+Polygons together. Prefer \texttt{UnaryUnionOp} / OverlayNG union on
+a collection. The 2003 \texttt{GeometryCollection.buffer(0)} trick
+remains documented as history.
+
+\section{Curve types on this tree}
+\label{sec:curves}
+On this tree the concrete SQL/MM Spatial (ISO/IEC 13249-3) curve
+types live in the
+\texttt{jts-curve} module
+(\texttt{org.locationtech.jts.geom.curve}):
+
+\begin{center}
+\begin{tabular}{lll}
+  \toprule
+  \textbf{WKT keyword} & \textbf{Java class} & \textbf{Extends} \\
+  \midrule
+  CIRCULARSTRING & \texttt{...geom.curve.CircularString} & LineString \\
+  COMPOUNDCURVE  & \texttt{...geom.curve.CompoundCurve}  & LineString \\
+  CURVEPOLYGON   & \texttt{...geom.curve.CurvePolygon}   & Polygon \\
+  MULTICURVE     & \texttt{...geom.curve.MultiCurve}     & MultiLineString \\
+  MULTISURFACE   & \texttt{...geom.curve.MultiSurface}   & MultiPolygon \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+Maven artifact: \texttt{org.locationtech.jts:jts-curve}. Callers
+instantiate \texttt{CurveGeometryFactory} / \texttt{CurveWKTReader} /
+\texttt{CurveWKBWriter} explicitly. The module does not auto-register
+via ServiceLoader.
+
+\texttt{Linearizable.toLinear(tolerance)} is the explicit densify.
+Spatial methods that have not taken a certified closed form still
+fall through to the parent linear type or to a linearised copy. That
+is not hidden linearise-on-construct.
+
+Closed-form constructions on this tree:
+\begin{itemize}
+  \item Certified disc: area, envelope, disc-buffer, disc hull
+        (radius-5 disc hull area $25\pi$).
+  \item Single-arc convex hull: the slice bounded by the arc and its
+        chord, kept as a \texttt{CurvePolygon}.
+  \item Compound-curve hull of circular-plus-straight members
+        (H-CC), including a stadium. The exposed arc stays a
+        \texttt{CircularString}; the result is a
+        \texttt{CurvePolygon}, not a densified polygon. A clothoid
+        hull stays the linear fallback
+        (\texttt{CurveExact} null $\rightarrow$
+        \texttt{linearise().convexHull()}), not a laser.
+  \item \texttt{MaximumInscribedCircle} on a certified disc and on a
+        stadium; \texttt{LargestEmptyCircle} on legal curve
+        obstacles. These are constructions, not a general circular
+        noder.
+\end{itemize}
+
+The curve overlay type is \texttt{OverlayNGCurve}. There is no public
+noder. Closed-form overlay answers are limited to certified discs.
+TestBuilder can draw \texttt{logoLines} as curves.
+
+\section{WKT and WKB on this tree}
+Core \texttt{WKTReader} still rejects \texttt{CIRCULARSTRING} and the
+other SQL/MM keywords. Read them with \texttt{CurveWKTReader}. Write
+structured members with \texttt{CurveWKTWriter}. Core
+\texttt{WKTWriter} already emits the subclass keyword via
+\texttt{getGeometryType()} for a flat \texttt{CircularString};
+composite types need the curve writer to keep member tags.
+
+\texttt{CLOTHOID} / \texttt{BEZIER} / \texttt{ELLIPSE} / \texttt{NURBS}
+are preview HOLD keywords (not SIGNED I/O, not the curve SoT).
+Clothoid may also appear as a non-leading \texttt{COMPOUNDCURVE}
+member. B\'ezier is a named fallback, not type 19.
+
+WKB type codes 8--12 are the signed I/O set in core
+\texttt{WKBReader} and \texttt{WKBConstants} (ISO/IEC 13249-3).
+Preview 18--21 is HOLD: not SIGNED I/O. Construction still
+requires a curve-capable factory; otherwise the reader throws.
+\texttt{CurveWKBWriter} emits 8--12 and the preview HOLD layouts. A
+bare \texttt{WKBWriter} still walks the parent \texttt{instanceof}
+ladder for 8--12 and \textbf{refuses} to flatten preview 18--21.
+ISO flavour adds $+1000/+2000/+3000$ for Z/M/ZM. EWKB default is
+not ISO.
+
+\textbf{Option B.} Public \texttt{SegmentString} names each span as
+\texttt{LINEARIZED} / \texttt{ARC} / \texttt{CERTIFIED}. Default is
+linearized. Exact consumers ask \texttt{mayCollapseToChord}. Indexes
+may lie under \texttt{PrecisionModel} without renaming the kind.
+
+\textbf{No silent densify.} \texttt{CurveLinearizationStrategy}
+defaults to \texttt{LINEARIZED} and warns; \texttt{PRESERVE} keeps
+type. TestBuilder Edit menu toggles the default; the Log tab shows
+warn-sink lines.
+
+Default and export WKB paths (JtsOp, TestBuilder XML export) route
+through \texttt{CurveWKBWriter} so those writers do not flatten
+signed I/O 8--12. Preview 18--21 is HOLD, not SIGNED I/O.
+
+\begin{lstlisting}
+// Read signed I/O 8-12 (ISO/IEC 13249-3):
+Geometry g = new WKBReader(new CurveGeometryFactory()).read(bytes);
+Geometry g2 = new CurveWKBReader().read(bytes);
+
+// Write signed I/O 8-12:
+byte[] wkb = new CurveWKBWriter().write(g);
+
+// Bare writer: 8-12 may emit 2/3; preview 18-21 refuse flatten
+byte[] flat = new WKBWriter().write(g); // CircularString -> type 2
+\end{lstlisting}
+
+\fighole{DG-2 WKB type 8 (CurveWKBWriter)}
+
+\section{Hausdorff on this tree}
+The 2003 Developer's Guide did not document Hausdorff. It is recorded
+here so a reader is not left with the public-API chord behaviour as
+an unspoken surprise.
+
+Public \texttt{DiscreteHausdorffDistance} on this tree (commit
+\texttt{0ca71b}) has a closed form for two pairs only:
+\begin{enumerate}
+  \item A single-arc \texttt{CircularString} toward a single-segment
+        \texttt{LineString}, apex $\sqrt{949}/6 - 7/6 = 3.967640600249787$
+        for the witness
+        \texttt{CIRCULARSTRING (0 0, 2 3, 10 0)} vs
+        \texttt{LINESTRING (0 0, 10 0)}.
+  \item Two circular discs. A
+        \texttt{MultiSurface} unwrap of one disc is the same disc
+        pair, not a third.
+\end{enumerate}
+The exact path skips densify; densify is not the laser. For every
+other pair the public API still sees vertices / chords. Tests keep
+\texttt{fail()} on the general case. Fr\'echet remains open.
+
+\fighole{DG-4 D-HF discs}
+
+\section{Licence}
+JTS is dual-licensed under the Eclipse Public License 2.0 and the
+Eclipse Distribution License 1.0. See \texttt{LICENSE\_EPLv2.txt},
+\texttt{LICENSE\_EDLv1.txt}, and \texttt{LICENSES.md}. The 2005
+TestBuilder guide's ACME licence appendix is historical and is not
+the project licence.
+
+\vspace{1.2em}
+\noindent\textit{End of Developer's Guide. Remaining named holes
+(WKB, D-HF) are empty 4:3 slots (target 1600$\times$1200, full
+TestBuilder window). 2003 Amyuni conversion cartoons are omitted;
+the prose they illustrated is kept.}
+
+\end{document}

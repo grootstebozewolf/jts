@@ -156,7 +156,14 @@ public class WKBDumper
       case WKBConstants.wkbMultiLineString :
       case WKBConstants.wkbMultiPolygon :
       case WKBConstants.wkbGeometryCollection :
+      case WKBConstants.wkbCompoundCurve :
+      case WKBConstants.wkbCurvePolygon :
+      case WKBConstants.wkbMultiCurve :
+      case WKBConstants.wkbMultiSurface :
         readGeometryCollection(SRID);
+        break;
+      case WKBConstants.wkbCircularString :
+        readLineString();
         break;
       default: 
         //throw new ParseException("Unknown WKB type " + geometryType);
@@ -172,6 +179,11 @@ public class WKBDumper
     case WKBConstants.wkbMultiLineString : return "MULTILINESTRING";
     case WKBConstants.wkbMultiPolygon : return "MULTIPOLYGON";
     case WKBConstants.wkbGeometryCollection : return "GEOMETRYCOLLECTION";
+    case WKBConstants.wkbCircularString : return "CIRCULARSTRING";
+    case WKBConstants.wkbCompoundCurve : return "COMPOUNDCURVE";
+    case WKBConstants.wkbCurvePolygon : return "CURVEPOLYGON";
+    case WKBConstants.wkbMultiCurve : return "MULTICURVE";
+    case WKBConstants.wkbMultiSurface : return "MULTISURFACE";
     default: 
       return "Unknown";
     }

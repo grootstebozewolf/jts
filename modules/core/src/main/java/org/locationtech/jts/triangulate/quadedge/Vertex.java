@@ -16,6 +16,7 @@ package org.locationtech.jts.triangulate.quadedge;
 import org.locationtech.jts.algorithm.HCoordinate;
 import org.locationtech.jts.algorithm.NotRepresentableException;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.math.MathUtil;
 
 /**
  * Models a site (node) in a {@link QuadEdgeSubdivision}. 
@@ -161,7 +162,7 @@ public class Vertex
 
     /* magnitude of vector */
     double magn() {
-        return (Math.sqrt(p.x * p.x + p.y * p.y));
+        return (MathUtil.hypot(p.x, p.y));
     }
 
     /* returns k X v (cross product). this is a vector perpendicular to v */
@@ -300,8 +301,8 @@ public class Vertex
         try {
             cc = new Vertex(hcc.getX(), hcc.getY());
         } catch (NotRepresentableException nre) {
-            System.err.println("a: " + a + "  b: " + b + "  c: " + c);
-            System.err.println(nre);
+            //Debug.println("a: " + a + "  b: " + b + "  c: " + c);
+            //Debug.println(nre);
         }
         return cc;
     }

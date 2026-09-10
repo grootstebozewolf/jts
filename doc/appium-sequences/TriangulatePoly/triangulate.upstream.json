@@ -1,0 +1,55 @@
+{
+  "id": "TriangulatePoly.triangulate.polygon.upstream",
+  "claimId": "TB-AP-TRIANGULATEPOLY-TRIANGULATE",
+  "category": "TriangulatePoly",
+  "function": "triangulate",
+  "branch": "upstream",
+  "tags": [
+    "tb-appium",
+    "TriangulatePoly",
+    "triangulate",
+    "polygon"
+  ],
+  "golden": true,
+  "skipped": false,
+  "fixtureFile": "_fixtures/upstream-polygon.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "TriangulatePoly",
+        "triangulate"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "triangulate",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "resultWktContainsAny": [
+      "GEOMETRYCOLLECTION",
+      "MULTIPOLYGON",
+      "POLYGON"
+    ]
+  },
+  "notes": "triangulate"
+}

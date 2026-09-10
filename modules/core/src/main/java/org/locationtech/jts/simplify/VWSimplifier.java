@@ -58,6 +58,11 @@ public class VWSimplifier
    */
   public static Geometry simplify(Geometry geom, double distanceTolerance)
   {
+    if (geom != null
+        && "CircularString".equals(geom.getGeometryType())
+        && geom.getNumPoints() <= 3) {
+      return geom.copy();
+    }
     VWSimplifier simp = new VWSimplifier(geom);
     simp.setDistanceTolerance(distanceTolerance);
     return simp.getResultGeometry();

@@ -15,7 +15,6 @@ package org.locationtech.jtstest.testbuilder.controller;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.text.NumberFormat;
-
 import javax.swing.Timer;
 
 import org.locationtech.jts.geom.Geometry;
@@ -169,7 +168,7 @@ public class ResultController
         Object result = getValue();
         if (createNew) {
           String desc = "Result of " + functionInvoc.getSignature();
-          JTSTestBuilder.controller().addTestCase(new Geometry[] { (Geometry) result, null }, desc);          
+          JTSTestBuilder.controller().caseAdd(new Geometry[] { (Geometry) result, null }, desc);          
         } else {
           updateResult(functionInvoc, result, timer);
         }
@@ -177,11 +176,6 @@ public class ResultController
       }
     };
     worker.start();
-  }
-  
-  private void clearFunctionWorker()
-  {
-    
   }
   
   private Timer funcTimer;
@@ -233,10 +227,13 @@ public class ResultController
     Object result = scalarPanel.getResult();
     frame().setCursorNormal();
     
+    // Belt and braces with ScalarFunctionPanel.getResult(), which now sets the
+    // timer on every path: a null here must degrade to a blank time, not an NPE
+    // on the event thread.
     Stopwatch timer = scalarPanel.getTimer();
-    String timeString = timer.getTimeString();
-    
-    frame().getResultValuePanel().setResult(opName, timer.getTimeString(), result);
+    String timeString = timer == null ? "" : timer.getTimeString();
+
+    frame().getResultValuePanel().setResult(opName, timeString, result);
 
     resultLogEntry(functionInvocation(scalarPanel), timeString, result);
   }

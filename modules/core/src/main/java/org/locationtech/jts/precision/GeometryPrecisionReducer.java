@@ -11,8 +11,13 @@
  */
 package org.locationtech.jts.precision;
 
+import org.locationtech.jts.densify.Densifier;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.util.GeometryEditor;
 
@@ -79,9 +84,99 @@ public class GeometryPrecisionReducer
 	 */
 	public static Geometry reduce(Geometry g, PrecisionModel precModel)
 	{
+    Geometry curveReduced = reduceCurveIfPresent(g, precModel);
+    if (curveReduced != null) {
+      return curveReduced;
+    }
 		GeometryPrecisionReducer reducer = new GeometryPrecisionReducer(precModel);
 		return reducer.reduce(g);
 	}
+
+  /**
+   * PRC-SN (#1195): snap CircularString controls; keep CircularString when
+   * the snapped circumcentre also lies on the grid, otherwise densify then
+   * reduce. Detection by geometry type name so core does not import jts-curve.
+   */
+  private static Geometry reduceCurveIfPresent(Geometry g, PrecisionModel pm) {
+    if (g == null || !"CircularString".equals(g.getGeometryType())) {
+      return null;
+    }
+    if (!(g instanceof LineString) || g.getNumPoints() < 3) {
+      return null;
+    }
+    LineString cs = (LineString) g;
+    CoordinateSequence seq = cs.getCoordinateSequence();
+    // Only single-arc 3-control case for preserve path
+    if (cs.getNumPoints() != 3) {
+      Geometry dens = Densifier.densify(g, densifyTol(g));
+      GeometryPrecisionReducer reducer = new GeometryPrecisionReducer(pm);
+      return reducer.reduce(dens);
+    }
+    Coordinate[] snapped = new Coordinate[3];
+    for (int i = 0; i < 3; i++) {
+      snapped[i] = seq.getCoordinate(i).copy();
+      pm.makePrecise(snapped[i]);
+    }
+    if (isCollinear(snapped[0], snapped[1], snapped[2])) {
+      GeometryPrecisionReducer reducer = new GeometryPrecisionReducer(pm);
+      return reducer.reduce(Densifier.densify(g, densifyTol(g)));
+    }
+    if (!isCentreOnGrid(snapped[0], snapped[1], snapped[2], pm)) {
+      GeometryPrecisionReducer reducer = new GeometryPrecisionReducer(pm);
+      return reducer.reduce(Densifier.densify(g, densifyTol(g)));
+    }
+    try {
+      java.lang.reflect.Method m = g.getFactory().getClass()
+          .getMethod("createCircularString", CoordinateSequence.class);
+      CoordinateSequence newSeq = g.getFactory().getCoordinateSequenceFactory()
+          .create(snapped);
+      Object out = m.invoke(g.getFactory(), newSeq);
+      if (out instanceof Geometry) {
+        return (Geometry) out;
+      }
+    }
+    catch (ReflectiveOperationException ex) {
+      // rebuild via same class constructor
+      try {
+        java.lang.reflect.Constructor<?> ctor = g.getClass().getConstructor(
+            CoordinateSequence.class, GeometryFactory.class);
+        CoordinateSequence newSeq = g.getFactory().getCoordinateSequenceFactory()
+            .create(snapped);
+        return (Geometry) ctor.newInstance(newSeq, g.getFactory());
+      }
+      catch (ReflectiveOperationException ex2) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  private static double densifyTol(Geometry g) {
+    Envelope env = g.getEnvelopeInternal();
+    double extent = Math.max(env.getWidth(), env.getHeight());
+    return (extent > 0.0 ? extent : 1.0) * 1.0e-6;
+  }
+
+  private static boolean isCollinear(Coordinate a, Coordinate b, Coordinate c) {
+    return Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) < 1.0e-15;
+  }
+
+  private static boolean isCentreOnGrid(Coordinate a, Coordinate b, Coordinate c,
+      PrecisionModel pm) {
+    double det = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+    if (det == 0.0) {
+      return false;
+    }
+    double a2 = a.x * a.x + a.y * a.y;
+    double b2 = b.x * b.x + b.y * b.y;
+    double c2 = c.x * c.x + c.y * c.y;
+    double cx = (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / det;
+    double cy = (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / det;
+    Coordinate centre = new Coordinate(cx, cy);
+    Coordinate snapped = centre.copy();
+    pm.makePrecise(snapped);
+    return centre.equals2D(snapped);
+  }
 	
   /**
    * Reduces precision of a geometry, ensuring output polygonal geometry is valid,

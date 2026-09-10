@@ -31,7 +31,6 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.text.NumberFormat;
 import java.util.List;
-
 import javax.swing.BorderFactory;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -194,6 +193,12 @@ public class GeometryEditPanel extends JPanel
   private LayerList getLayerList()
   {
     return tbModel.getLayers();
+  }
+  
+  public void setShowingGrid(boolean isEnabled)
+  {
+    viewStyle.setGridEnabled(isEnabled);
+    forceRepaint();
   }
   
   public void setShowingInput(boolean isEnabled)
@@ -429,6 +434,11 @@ public class GeometryEditPanel extends JPanel
     g.fill(mask);
   }
 
+  public void draw(Geometry geom, Color lineClr, Color fillClr) {
+    Graphics2D gr = (Graphics2D) getGraphics();
+    GeometryPainter.paint(geom, getViewport(), gr, lineClr, fillClr);
+  }
+  
   public void flash(Geometry g)
   {
     Graphics2D gr = (Graphics2D) getGraphics();
@@ -613,6 +623,7 @@ public class GeometryEditPanel extends JPanel
       renderLayersTheme(tbModel.getLayersBase(), g2);
       renderLayersCore(getLayerList(), g2);
       renderLayersTheme(tbModel.getLayersTop(), g2);
+      renderLayersTheme(tbModel.getLayersFloating(), g2);
       
       if (isRevealingTopology && isRenderingStretchVertices) {
       	renderMagnifiedVertices(g2);
@@ -627,6 +638,7 @@ public class GeometryEditPanel extends JPanel
       if (viewStyle.isLegendEnabled()) {
         legendElement.setBorderEnabled(viewStyle.isLegendBorderEnabled());
         legendElement.setStatsEnabled(viewStyle.isLegendStatsEnabled());
+        legendElement.setMetricsEnabled(viewStyle.isLegendMetricsEnabled());
         legendElement.setBorderColor(viewStyle.getBorderColor());
         legendElement.setFill(viewStyle.getLegendFill());
         legendElement.paint(tbModel.getLayersLegend(), g2);
@@ -722,8 +734,8 @@ public class GeometryEditPanel extends JPanel
         for (int j = 0; j < stretchedVerts.size(); j++) {
           Coordinate p = (Coordinate) stretchedVerts.get(j);
           drawHighlightedVertex(g, p, 
-            i == 0 ? GeometryDepiction.GEOM_A_HIGHLIGHT_CLR :
-              GeometryDepiction.GEOM_B_HIGHLIGHT_CLR);
+            i == 0 ? AppColors.GEOM_A_HIGHLIGHT_CLR :
+              AppColors.GEOM_B_HIGHLIGHT_CLR);
         } 
       }
     }

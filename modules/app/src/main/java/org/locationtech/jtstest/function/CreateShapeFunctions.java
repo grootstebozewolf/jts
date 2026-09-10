@@ -18,9 +18,18 @@ import java.util.Collections;
 import java.util.List;
 
 import org.locationtech.jts.algorithm.Angle;
-import org.locationtech.jts.awt.*;
-import org.locationtech.jts.geom.*;
-import org.locationtech.jts.geom.util.*;
+import org.locationtech.jts.awt.FontGlyphReader;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateArrays;
+import org.locationtech.jts.geom.CoordinateList;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.geom.util.AffineTransformationFactory;
+import org.locationtech.jts.geom.util.SineStarFactory;
+import org.locationtech.jts.shape.CubicBezierCurve;
 import org.locationtech.jts.util.GeometricShapeFactory;
 import org.locationtech.jtstest.geomfunction.Metadata;
 
@@ -178,6 +187,7 @@ public class CreateShapeFunctions {
       gsf.setEnvelope(new Envelope(0, 1, 0, 1));
     return gsf.createCircle();
   }
+  
   public static Geometry ellipseRotate(Geometry g, int nPts, 
       @Metadata(title="Angle")
       double ang)
@@ -332,5 +342,88 @@ public class CreateShapeFunctions {
       pts[i] = pt;
     }
     return pts;
+  }
+  
+  @Metadata(description="Construct a geometry using cubic Bezier curves")
+  public static Geometry bezierCurve(Geometry geom, 
+      @Metadata(title="Alpha (curveness)")
+      double alpha) {
+    return CubicBezierCurve.bezierCurve(geom, alpha);
+  }
+  
+  @Metadata(description="Construct a geometry using cubic Bezier curves with a skew")
+  public static Geometry bezierCurveSkew(Geometry geom, 
+      @Metadata(title="Alpha (curveness)")
+      double alpha,
+    @Metadata(title="Skew factor")
+    double skew) {
+    return CubicBezierCurve.bezierCurve(geom, alpha, skew);
+  }
+  
+  @Metadata(description="Construct a geometry using cubic Bezier curves with control points")
+  public static Geometry bezierCurveControl(Geometry geom, Geometry controlPoints) {
+    return CubicBezierCurve.bezierCurve(geom, controlPoints);
+  }
+  
+  @Metadata(description="Get the generated control points for a Bezier curve")
+  public static Geometry bezierControl(Geometry geom, 
+      @Metadata(title="Alpha (curveness)")
+      double alpha) {
+    return CubicBezierCurve.controlPoints(geom, alpha);
+  }
+  
+  @Metadata(description="Get the generated control points for a Bezier curve with a skew")
+  public static Geometry bezierControlSkew(Geometry geom, 
+      @Metadata(title="Alpha (curveness)")
+      double alpha,
+    @Metadata(title="Skew factor")
+    double skew) {
+    return CubicBezierCurve.controlPoints(geom, alpha, skew);
+  }
+  
+  public static Geometry nGon(Geometry g, 
+      @Metadata(title="Num sides")
+      int sides) {
+    Envelope env = FunctionsUtil.getEnvelopeOrDefault(g);
+    Coordinate centre = env.centre();
+    double radius = Math.max(env.getHeight(), env.getWidth()) / 2;
+    CoordinateList pts = new CoordinateList();
+    double angInc = 2 * Math.PI / sides;
+    for (int i = 0; i < sides; i++) {
+      double x = centre.getX() + radius * Math.cos(i * angInc);
+      double y = centre.getY() + radius * Math.sin(i * angInc);
+      pts.add(new Coordinate(x, y));
+    }
+    pts.closeRing();
+    return FunctionsUtil.getFactoryOrDefault(g).createPolygon(pts.toCoordinateArray());
+  }
+  
+  public static Geometry diagonals(Geometry g) {
+    Coordinate[] pts = g.getCoordinates();
+    int n = pts.length - 1;
+    
+    List<Geometry> chords = new ArrayList<Geometry>();
+    
+    for (int i = 0; i < n; i++) {
+      for (int j = i + 2; j < n; j++) {
+        if (i == j) continue;
+        if (i == 0 && j == n-1) continue;
+        
+        Coordinate[] chordPts = new Coordinate[] {
+            pts[i].copy(), pts[j].copy() };
+        LineString chord = g.getFactory().createLineString(chordPts);
+        //-- only keep internal chords
+        if (g.covers(chord)) {
+          chords.add(chord);
+        }
+      }
+    }
+    return g.getFactory().buildGeometry(chords);
+  }
+  
+  public static Geometry diagonalPartition(Geometry g) {
+    Geometry chords = diagonals(g);
+    Geometry noded = NodingFunctions.MCIndexNoding(g, chords);
+    return PolygonizeFunctions.polygonize(noded);
   }
 }

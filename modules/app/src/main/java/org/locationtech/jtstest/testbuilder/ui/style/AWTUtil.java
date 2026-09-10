@@ -12,8 +12,12 @@
 
 package org.locationtech.jtstest.testbuilder.ui.style;
 
-import java.awt.*;
-import java.awt.geom.*;
+import java.awt.BasicStroke;
+import java.awt.Graphics2D;
+import java.awt.Stroke;
+import java.awt.geom.Point2D;
+
+import org.locationtech.jts.math.MathUtil;
 
 public class AWTUtil 
 {
@@ -33,7 +37,7 @@ public class AWTUtil
   public static Point2D vector(Point2D a, Point2D b, double size) {
     double dx = b.getX() - a.getX();
     double dy = b.getY() - a.getY();
-    double len = Math.sqrt(dx*dx + dy*dy);
+    double len = MathUtil.hypot(dx, dy);
     return new Point2D.Double(size * dx/len, size * dy/len);
   }
 

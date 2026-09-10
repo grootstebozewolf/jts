@@ -14,6 +14,8 @@ package org.locationtech.jtstest.testbuilder.io;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.WKBWriter;
 import org.locationtech.jts.io.WKTWriter;
+import org.locationtech.jts.io.curve.CurveWKBWriter;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 import org.locationtech.jts.io.gml2.GMLWriter;
 
 public class IOUtil {
@@ -21,21 +23,30 @@ public class IOUtil {
   public static String toWKBHex(Geometry g)
   {
     if (g == null) return "";
-    return WKBWriter.toHex((new WKBWriter().write(g)));
+    return WKBWriter.toHex((new CurveWKBWriter().write(g)));
   }
   
+  /**
+   * GML2 cannot carry SQL/MM ISO/IEC 13249-3 arcs. Core
+   * {@link GMLWriter} refuses CircularString / CompoundCurve
+   * rather than emit a control-point LineString.
+   */
   public static String toGML(Geometry g)
   {
     if (g == null) return "";
     return (new GMLWriter()).write(g);
   }
   
+  /**
+   * Uses {@link CurveWKTWriter} so COMPOUNDCURVE members survive
+   * (SQL/MM ISO/IEC 13249-3). Core {@link WKTWriter} refuses that flatten.
+   */
   public static String toWKT(Geometry g, boolean isFormatted)
   {
     if (g == null) return "";
     if (! isFormatted)
       return g.toString();
-    WKTWriter writer = new WKTWriter();
+    WKTWriter writer = new CurveWKTWriter();
     writer.setFormatted(isFormatted);
     writer.setMaxCoordinatesPerLine(5);
     return writer.write(g);

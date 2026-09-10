@@ -12,15 +12,20 @@
 package org.locationtech.jtstest.testbuilder;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
-import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Vector;
-
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.ComboBoxModel;
@@ -48,7 +53,6 @@ import org.locationtech.jtstest.testbuilder.event.GeometryFunctionEvent;
 import org.locationtech.jtstest.testbuilder.event.GeometryFunctionListener;
 import org.locationtech.jtstest.testbuilder.event.SpatialFunctionPanelEvent;
 import org.locationtech.jtstest.testbuilder.event.SpatialFunctionPanelListener;
-import org.locationtech.jtstest.testbuilder.model.GeometryEvent;
 import org.locationtech.jtstest.testbuilder.ui.SwingUtil;
 import org.locationtech.jtstest.util.ClassUtil;
 
@@ -88,6 +92,7 @@ extends JPanel implements FunctionPanel
   BorderLayout borderLayout1 = new BorderLayout();
   BorderLayout borderLayout2 = new BorderLayout();
 
+  JPanel panelFunction = new JPanel();
   JPanel panelParam = new JPanel();
   JPanel panelExec = new JPanel();
   JPanel panelExecMeta = new JPanel();
@@ -126,6 +131,7 @@ extends JPanel implements FunctionPanel
   
   private GeometryFunction currentFunc = null;
   private Stopwatch timer;
+  private Map<GeometryFunction, String[]> funcParamMap = new HashMap<GeometryFunction, String[]>();
   
   public SpatialFunctionPanel() {
     try {
@@ -143,7 +149,7 @@ extends JPanel implements FunctionPanel
     geomFuncPanel.populate(JTSTestBuilder.getFunctionRegistry().getCategorizedGeometryFunctions());
 
     panelParam.setLayout(gridLayout2);
-    gridLayout2.setRows(6);
+    gridLayout2.setRows(5);
     gridLayout2.setColumns(2);
     panelExec.setLayout(new FlowLayout());
     panelExecParam.setLayout(borderLayout2);
@@ -153,7 +159,9 @@ extends JPanel implements FunctionPanel
     lblFunction.setBorder(LABEL_BORDER);//top,left,bottom,right
     
     lblFunctionName.setHorizontalAlignment(SwingConstants.LEFT);
-    lblFunctionName.setFont(new java.awt.Font("Dialog", Font.BOLD, 12));
+    lblFunctionName.setFont(new java.awt.Font("Dialog", Font.PLAIN, 14));
+    lblFunctionName.setForeground(Color.BLUE);
+    lblFunctionName.setBorder(new EmptyBorder(0,10,2,0));
     
     lblDistance.setText("Distance");
     
@@ -162,6 +170,9 @@ extends JPanel implements FunctionPanel
     txtDistance.setPreferredSize(new Dimension(25, 17));
     txtDistance.setText(PARAM_DEFAULT[0]);
     txtDistance.setHorizontalAlignment(SwingConstants.RIGHT);
+    pinParamFocus(txtDistance);
+    pinParamFocus(txtQuadrantSegs);
+    pinParamFocus(txtMitreLimit);
 
     lblQuadSegs.setText("Quadrant Segs");
     txtQuadrantSegs.setHorizontalAlignment(SwingConstants.RIGHT);
@@ -180,8 +191,8 @@ extends JPanel implements FunctionPanel
     initLabels(paramLabel);
 
 
-    panelParam.add(lblFunction);
-    panelParam.add(lblFunctionName);
+    //panelParam.add(lblFunction);
+    //panelParam.add(lblFunctionName);
     panelParam.add(lblDistance);
     panelParam.add(txtDistance);
     panelParam.add(lblQuadSegs);
@@ -193,6 +204,10 @@ extends JPanel implements FunctionPanel
     panelParam.add(lblMitreLimit);
     panelParam.add(txtMitreLimit);
 
+    panelFunction.setLayout(new BorderLayout());
+    panelFunction.add(lblFunctionName, BorderLayout.NORTH);
+    panelFunction.add(panelParam, BorderLayout.CENTER);
+    
     cbExecEachA.setToolTipText("Compute for each A geometry element");
     cbExecEachA.setText("Each A");
     
@@ -270,7 +285,7 @@ extends JPanel implements FunctionPanel
     panelExecControl.add(panelExecHolder);
     panelExecControl.add(panelExecMeta);
     
-    panelExecParam.add(panelParam, BorderLayout.CENTER);
+    panelExecParam.add(panelFunction, BorderLayout.CENTER);
     panelExecParam.add(panelExecControl, BorderLayout.SOUTH);
     
     this.add(geomFuncPanel, BorderLayout.CENTER);
@@ -287,6 +302,23 @@ extends JPanel implements FunctionPanel
     geomFuncPanel.addGeometryFunctionListener(gfListener);
     
     hideAllParams(paramComp, paramLabel);
+
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        geomFuncPanel, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_TREE);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        execButton, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_EXEC);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        execToNewButton, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_EXEC_NEW);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        txtDistance, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_PARAM_0);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        txtQuadrantSegs, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_PARAM_1);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        cbCapStyle, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_PARAM_2);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        cbJoinStyle, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_PARAM_3);
+    org.locationtech.jtstest.testbuilder.ui.AutomationIds.set(
+        txtMitreLimit, org.locationtech.jtstest.testbuilder.ui.AutomationIds.FN_PARAM_4);
   }
 
   static void initLabels(JLabel[] paramLabel)
@@ -309,7 +341,11 @@ extends JPanel implements FunctionPanel
   }
 
   GeometryFunction getMetaFunction() {
-    GeometryFunction funToRun = geomFuncPanel.getFunction();
+    // Prefer the function the UI last selected (currentFunc) over the
+    // tree's live selection. Clicking a param field must not re-bind
+    // Exec to a different tree node (TB-FN #60: dX focus must not
+    // silently run Buffer.buffer).
+    GeometryFunction funToRun = boundExec(currentFunc, geomFuncPanel.getFunction());
     if (! isMetaFunctionEnabled()) return funToRun;
     
     if (isFunctionRepeated()) {
@@ -364,17 +400,119 @@ extends JPanel implements FunctionPanel
 
   private void functionChanged(GeometryFunction func)
   {
+    if (func == null) {
+      return;
+    }
+    // Re-select of the same node must not rewrite dX while 10 / 8 are
+    // being typed (leftover mash 810). Wipe SIGN is unchanged: Exec
+    // still prefers currentFunc over a leaked tree selection.
+    if (currentFunc != null && currentFunc.equals(func)) {
+      return;
+    }
+    saveParameter(currentFunc);
     currentFunc = func;
     lblFunctionName.setText(func.getName());
     lblFunctionName.setToolTipText( GeometryFunctionRegistry.functionDescriptionHTML(func) );
     
     updateParameters(func, paramComp, paramLabel);
-    
+    recallParameter(func);
+
     execButton.setEnabled(true);
     execToNewButton.setEnabled(true); 
+    // Selecting a new function must not inherit Live Exec from a prior
+    // Buffer run (TB-FN #60: focus into dX must not auto-fire Buffer).
     cbExecAuto.setSelected(false);
   }
+
+  /**
+   * TB-FN #60: a click on a scalar param field must focus that field and
+   * must not be interpreted as a Geometry-function tree selection (which
+   * previously could re-bind Exec to Buffer.buffer / Distance).
+   * Leftover (UX RC4): select-all so typed 10 replaces the Distance
+   * default instead of a stray 8 prepending to 10 (810).
+   */
+  private static void pinParamFocus(final JTextField field) {
+    field.addMouseListener(new MouseAdapter() {
+      public void mousePressed(MouseEvent e) {
+        field.requestFocusInWindow();
+        field.selectAll();
+      }
+    });
+    field.addFocusListener(new FocusAdapter() {
+      public void focusGained(FocusEvent e) {
+        field.selectAll();
+      }
+    });
+  }
+
+  /**
+   * Typed digits replace the field. They must not prepend to the shared
+   * Distance default {@code 10} (translate dX 10 + dY 8 must not mash
+   * dX to 810).
+   */
+  static void keepParamKeystrokes(JTextField field, String typed) {
+    if (field == null) {
+      return;
+    }
+    field.setText(typed == null ? "" : typed);
+  }
+
+  /**
+   * Wipe SIGN: Exec stays on the selected function when a param field
+   * is focused. Tree selection is used only when nothing is bound.
+   */
+  static GeometryFunction boundExec(GeometryFunction currentFunc,
+      GeometryFunction treeSelection) {
+    if (currentFunc != null) {
+      return currentFunc;
+    }
+    return treeSelection;
+  }
+
+  static String[] snapshotTextParams(JComponent[] comps) {
+    String[] vals = new String[comps.length];
+    for (int i = 0; i < comps.length; i++) {
+      if (comps[i] instanceof JTextField) {
+        vals[i] = SwingUtil.value((JTextField) comps[i]);
+      }
+    }
+    return vals;
+  }
+
+  static void restoreTextParams(JComponent[] comps, String[] vals) {
+    if (vals == null) {
+      return;
+    }
+    for (int i = 0; i < vals.length && i < comps.length; i++) {
+      if (vals[i] != null && comps[i] instanceof JTextField) {
+        ((JTextField) comps[i]).setText(vals[i]);
+      }
+    }
+  }
+
+  private void recallParameter(GeometryFunction func) {
+    restoreTextParams(paramComp, funcParamMap.get(func));
+  }
   
+  private void saveParameter(GeometryFunction func) {
+    if (func == null) {
+      return;
+    }
+    funcParamMap.put(func, snapshotTextParams(paramComp));
+  }
+
+  boolean selectFunction(String category, String name) {
+    return geomFuncPanel.selectFunction(category, name);
+  }
+
+  JTextField paramTextField(int index) {
+    return (JTextField) paramComp[index];
+  }
+
+  void acceptParamKeystrokes(int index, String typed) {
+    keepParamKeystrokes((JTextField) paramComp[index], typed);
+  }
+
   static void updateParameters(GeometryFunction func, JComponent[] paramComp, JLabel[] paramLabel) {
     int numNonGeomParams = numNonGeomParams(func);
     int indexOffset = BaseGeometryFunction.firstScalarParamIndex(func);
@@ -382,7 +520,7 @@ extends JPanel implements FunctionPanel
       boolean isUsed = numNonGeomParams > i;
       if (isUsed) {
         paramLabel[i].setText(func.getParameterNames()[i+indexOffset]);
-      }      
+      } 
       paramComp[i].setVisible(isUsed);
       paramLabel[i].setVisible(isUsed);
       SpatialFunctionPanel.setToolTipText(paramComp[i], func, i);      

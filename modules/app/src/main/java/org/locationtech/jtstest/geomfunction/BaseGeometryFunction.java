@@ -15,7 +15,7 @@ package org.locationtech.jtstest.geomfunction;
 import java.util.Arrays;
 
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jtstest.util.*;
+import org.locationtech.jtstest.util.ClassUtil;
 
 
 /**
@@ -52,6 +52,7 @@ implements GeometryFunction, Comparable
 	protected Class[] parameterTypes;
 	protected Class returnType;
 	protected boolean isRequiredB = true;
+	protected String curveAwareness = "flattens";
 	
 	public BaseGeometryFunction(
 			String category,
@@ -126,6 +127,17 @@ implements GeometryFunction, Comparable
   public boolean isRequiredB() {
     return isRequiredB;
   }
+
+  public String getCurveAwareness() {
+    return curveAwareness == null || curveAwareness.length() == 0
+        ? "flattens" : curveAwareness;
+  }
+
+  protected void setCurveAwareness(String level) {
+    if (level != null && level.length() > 0) {
+      this.curveAwareness = level;
+    }
+  }
   
 	public String getSignature()
 	{
@@ -184,10 +196,12 @@ implements GeometryFunction, Comparable
    */
   @Override
   public int hashCode() {
+    // Must use the same fields as equals() (the function signature:
+    // name, parameter types, return type). Parameter names are not part
+    // of equality, so they must not contribute to the hash code.
     final int prime = 31;
     int result = 1;
     result = prime * result + ((name == null) ? 0 : name.hashCode());
-    result = prime * result + Arrays.hashCode(parameterNames);
     result = prime * result + Arrays.hashCode(parameterTypes);
     result = prime * result + ((returnType == null) ? 0 : returnType.hashCode());
     return result;

@@ -11,9 +11,12 @@
  */
 package org.locationtech.jts.operation.buffer;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
 
@@ -532,18 +535,18 @@ public class BufferTest extends GeometryTestCase {
 
   public void testPolygon4NegBufferEmpty() {
     String wkt = "POLYGON ((666360.09 429614.71, 666344.4 429597.12, 666358.47 429584.52, 666374.5 429602.33, 666360.09 429614.71))";
-    checkBufferEmpty(wkt, -9, false);
-    checkBufferEmpty(wkt, -10, true);
-    checkBufferEmpty(wkt, -15, true);
-    checkBufferEmpty(wkt, -18, true);
+    checkBufferPolygonEmpty(wkt, -9, false);
+    checkBufferPolygonEmpty(wkt, -10, true);
+    checkBufferPolygonEmpty(wkt, -15, true);
+    checkBufferPolygonEmpty(wkt, -18, true);
   }
 
   public void testPolygon5NegBufferEmpty() {
     String wkt = "POLYGON ((6 20, 16 20, 21 9, 9 0, 0 10, 6 20))";
-    checkBufferEmpty(wkt, -8, false);
-    checkBufferEmpty(wkt, -8.6, true);
-    checkBufferEmpty(wkt, -9.6, true);
-    checkBufferEmpty(wkt, -11, true);
+    checkBufferPolygonEmpty(wkt, -8, false);
+    checkBufferPolygonEmpty(wkt, -8.6, true);
+    checkBufferPolygonEmpty(wkt, -9.6, true);
+    checkBufferPolygonEmpty(wkt, -11, true);
   }
 
   public void testPolygonHole5BufferNoHole() {
@@ -565,9 +568,198 @@ public class BufferTest extends GeometryTestCase {
     checkBufferNumGeometries(wkt, -18, 1);
   }
 
-  private void checkBufferEmpty(String wkt, double dist, boolean isEmptyExpected) {
+  /**
+   * Checks a bug in the inverted-ring-removal heuristic.
+   * See https://github.com/locationtech/jts/issues/876
+   */
+  public void testLineClosedNoHole() {
+    String wkt = "LINESTRING (-20 0, 0 20, 20 0, 0 -20, -20 0)";
+    checkBufferHasHole(wkt, 70, false);
+  }
+  
+  public void testSmallPolygonNegativeBuffer_1() {
+    String wkt = "MULTIPOLYGON (((833454.7163917861 6312507.405413097, 833455.3726665961 6312510.208920742, 833456.301153878 6312514.207390314, 833492.2432584754 6312537.770332065, 833493.0901320165 6312536.098774815, 833502.6580673696 6312517.561360772, 833503.9404352929 6312515.0542803425, 833454.7163917861 6312507.405413097)))";
+    checkBuffer(wkt, -3.8, 
+        "POLYGON ((833459.9671068499 6312512.066918822, 833490.7876785189 6312532.272283619, 833498.1465258132 6312517.999574621, 833459.9671068499 6312512.066918822))");
+    checkBuffer(wkt, -7, 
+        "POLYGON ((833474.0912127121 6312517.50004999, 833489.5713439264 6312527.648521655, 833493.2674441456 6312520.479822435, 833474.0912127121 6312517.50004999))");
+  }
+  
+  public void testSmallPolygonNegativeBuffer_2() {
+    String wkt = "POLYGON ((182719.04521570954238996 224897.14115349075291306, 182807.02887436276068911 224880.64421749324537814, 182808.47314301913138479 224877.25002362736267969, 182718.38701137207681313 224740.00115247094072402, 182711.82697281913715415 224742.08599378637154587, 182717.1393717635946814 224895.61432328051887453, 182719.04521570954238996 224897.14115349075291306))";
+    checkBuffer(wkt, -5, 
+        "POLYGON ((182717 224746.99999999997, 182722.00000000003 224891.5, 182801.99999999997 224876.49999999997, 182717 224746.99999999997))");
+    checkBuffer(wkt, -30, 
+        "POLYGON ((182745.07127364463 224835.32741176756, 182745.97926048582 224861.56823147752, 182760.5070499446 224858.844270954, 182745.07127364463 224835.32741176756))");
+  }
+  
+  /**
+   * See GEOS PR https://github.com/libgeos/geos/pull/978
+   */
+  public void testDefaultBuffer() {
+    Geometry g = read("POINT (0 0)").buffer(1.0);
+    Geometry b = g.getBoundary();
+    Coordinate[] coords = b.getCoordinates();
+    assertEquals(33, coords.length);
+    assertEquals(coords[0].x, 1.0);
+    assertEquals(coords[0].y, 0.0);
+    assertEquals(coords[8].x, 0.0);
+    assertEquals(coords[8].y, -1.0);
+    assertEquals(coords[16].x, -1.0);
+    assertEquals(coords[16].y, 0.0);
+    assertEquals(coords[24].x, 0.0);
+    assertEquals(coords[24].y, 1.0);
+  }
+  
+  public void testRingStartSimplified() {
+    checkBuffer("POLYGON ((200 300, 200 299.9999, 350 100, 30 40, 200 300))",
+        20, bufParamRoundMitre(5),
+        "POLYGON ((198.88 334.83, 385.3 86.27, -12.4 11.7, 198.88 334.83))"
+        );
+  }
+  
+  public void testRingEndSimplified() {
+    checkBuffer("POLYGON ((200 300, 350 100, 30 40, 200 299.9999, 200 300))",
+        20, bufParamRoundMitre(5),
+        "POLYGON ((198.88 334.83, 385.3 86.27, -12.4 11.7, 198.88 334.83))"
+        );
+  }
+  
+  //See https://github.com/libgeos/geos/issues/1125
+  public void testPolygonQS_1KeepHoles() {
+    String wkt = "POLYGON ((-148960.40471687025 6579513.659178475, -148928.0396648308 6581180.350337651, -148245.02968781325 6581451.972854649, -147792.6996258908 6581746.752358279, -147401.9935929195 6581835.62069549, -147210.88713646092 6581715.340847257, -147165.89525315163 6581718.457436403, -147051.42047418532 6581994.824000333, -146383.20456596403 6582271.6080921125, -145714.98865774274 6581994.824000333, -145614.3328386122 6581751.819356657, -145289.96567509088 6581774.313783639, -145251.8481557473 6581761.53544856, -144930.85553391272 6582023.429998221, -144801.3009350866 6582062.324487534, -144649.32383366008 6582200.989144345, -144370.39842075115 6582625.956584843, -144433.62830795025 6582865.17530117, -144245.21925823047 6582676.803607282, -144190.80928273257 6582650.46537934, -143612.84111259945 6583156.449299466, -142975.83638477212 6583147.740058781, -141662.4868972855 6583201.722177097, -141223.96080593477 6583368.877966974, -140134.42107956257 6583317.889953656, -137814.4023306831 6583217.287998203, -136584.74750088027 6583197.764287264, -135440.77723176708 6583205.617216827, -135255.13229718836 6583263.689916569, -135023.58923930765 6582294.773113748, -135333.8024011954 6581864.155949903, -135352.36464941013 6581737.1950687375, -134265.49708919087 6581601.806132041, -134171.3524065637 6581457.461614907, -135439.24541688355 6581616.609798272, -135680.42426915234 6581646.652426795, -136232.904152299 6581417.807766258, -136858.69365364907 6581677.018264907, -136920.3618201151 6581825.898388756, -138060.72504741614 6581967.966335978, -138065.18112161517 6581962.887387468, -138068.72528765528 6581957.509991399, -137927.47673898126 6581707.240832043, -137979.72909569443 6581677.750304447, -138121.13852736415 6581928.304521968, -138125.10691505377 6581928.045287478, -138155.67610065715 6581921.763837175, -138161.590592191 6581925.661995275, -138170.6137036581 6581926.915151091, -138241.9787318571 6581930.376680339, -138796.47362927152 6581702.315792638, -138854.79457708073 6581727.268957612, -138922.92404225498 6581954.795898342, -138946.8159847242 6581964.41530986, -139938.37021221558 6581949.812286194, -139952.45944417492 6581955.406612265, -140868.0275192552 6581942.000814841, -140881.49168103898 6581925.799237404, -141370.63532938264 6581378.75940714, -140611.15578408277 6581049.475858836, -139690.6039836331 6580651.2692048885, -140701.38102529195 6580840.959081494, -141466.3464917169 6581171.3088895, -141779.4716755202 6581271.496093299, -142011.00981524787 6581635.151657183, -142357.03529671414 6581674.463083764, -142838.53214884375 6581404.193874537, -142879.22310559888 6581262.5084437225, -142930.87216570028 6580987.212411177, -143534.5331121017 6580882.981201922, -143430.70803588207 6581258.626695622, -143473.24118656976 6581352.886717385, -143492.18998812925 6581960.431922508, -144142.78527346236 6582035.092768761, -144146.60338361078 6581637.428135656, -144191.08020551776 6581601.260220021, -144537.44044373164 6581705.61685815, -144590.74628867855 6581606.573066762, -144763.58673427685 6581465.554340523, -144954.41934581465 6580944.824934003, -145151.23516586225 6581077.603417352, -145568.85455018 6581011.191128295, -145714.98865774274 6580658.3921838915, -146383.20456596403 6580381.6080921125, -147120.06182660736 6580824.107067849, -148440.1510719309 6579967.272995219, -148960.40471687025 6579513.659178475), (-143109.908378959 6582619.958897926, -142984.1537920762 6583123.483449154, -143587.23572115527 6583134.1575482, -143327.76122149464 6582574.317202426, -143109.908378959 6582619.958897926), (-141937.54728911287 6582399.340431561, -141701.905174685 6583118.585429914, -142423.06886593942 6583134.765523819, -142134.0212542649 6582436.348369016, -141937.54728911287 6582399.340431561), (-136955.57202899482 6581910.903352568, -137006.19392140477 6582033.115411777, -137716.5705505733 6582951.997047175, -138024.97013314272 6582044.130371629, -136955.57202899482 6581910.903352568))";
+    Polygon geom = (Polygon) read(wkt);
+    Polygon buf = (Polygon) geom.buffer(0.00001, 1);
+    assertEquals(geom.getNumInteriorRing(), buf.getNumInteriorRing());
+  }
+  
+  //See https://github.com/libgeos/geos/issues/1223
+  public void testRingHoleEroded() {
+    String wkt = "LINESTRING (25 44, 31 44, 32 38, 29 37, 25 37, 25 38, 24 40, 24 44, 25 44)";
+    checkBuffer(wkt, 100, 
+"POLYGON ((50.95 141.99, 70.09 136.04, 87.66 126.4, 102.96 113.44, 115.36 97.69, 124.38 79.78, 129.64 60.44, 130.64 54.44, 131.93 34.31, 129.16 14.34, 122.44 -4.68, 112.03 -21.96, 98.37 -36.8, 82.02 -48.59, 63.62 -56.87, 60.62 -57.87, 45.02 -61.71, 29 -63, 25 -63, 4.33 -60.84, -15.44 -54.46, -33.47 -44.12, -48.97 -30.29, -61.28 -13.55, -69.87 5.38, -70.87 8.38, -74.71 23.98, -76 40, -76 44, -74.08 63.51, -68.39 82.27, -59.15 99.56, -46.71 114.71, -31.56 127.15, -14.27 136.39, 4.49 142.08, 24 144, 31 144, 50.95 141.99))");
+    checkBuffer(wkt, 10,
+        "POLYGON ((15.06 35.53, 14.27 37.7, 14 40, 14 44, 14.19 45.95, 14.76 47.83, 15.69 49.56, 16.93 51.07, 18.44 52.31, 20.17 53.24, 22.05 53.81, 24 54, 31 54, 32.99 53.8, 34.91 53.2, 36.67 52.24, 38.2 50.94, 39.44 49.37, 40.34 47.58, 40.86 45.64, 41.86 39.64, 41.99 37.63, 41.72 35.63, 41.04 33.73, 40 32, 38.64 30.52, 37 29.34, 35.16 28.51, 32.16 27.51, 30.6 27.13, 29 27, 25 27, 23.05 27.19, 21.17 27.76, 19.44 28.69, 17.93 29.93, 16.69 31.44, 15.76 33.17, 15.19 35.05, 15.17 35.31, 15.06 35.53))");
+    checkBuffer(wkt, 2,
+        "POLYGON ((31.4 45.96, 31.78 45.84, 32.13 45.65, 32.44 45.39, 32.69 45.07, 32.87 44.72, 32.97 44.33, 33.97 38.33, 34 37.93, 33.94 37.53, 33.81 37.15, 33.6 36.8, 33.33 36.5, 33 36.27, 32.63 36.1, 29.63 35.1, 29.32 35.03, 29 35, 25 35, 24.61 35.04, 24.23 35.15, 23.89 35.34, 23.59 35.59, 23.34 35.89, 23.15 36.23, 23.04 36.61, 23 37, 23 37.53, 22.21 39.11, 22.05 39.54, 22 40, 22 44, 22.04 44.39, 22.15 44.77, 22.34 45.11, 22.59 45.41, 22.89 45.66, 23.23 45.85, 23.61 45.96, 24 46, 31 46, 31.4 45.96), (26 40.47, 26.74 39, 28.68 39, 29.75 39.36, 29.31 42, 26 42, 26 40.47))");
+  }
+  
+  // Checks that a CCW ring generates a correct buffer
+  // see https://github.com/libgeos/geos/issues/1236
+  public void testRingCCW() {
+    String wkt = "LINEARRING (-0.25 0.25, -0.25 0.75, -0.75 0.75, -0.75 0.25, -0.25 0.25)";
+    checkBuffer(wkt, 1, 
+"POLYGON ((0.73 0.05, 0.67 -0.13, 0.58 -0.31, 0.46 -0.46, 0.31 -0.58, 0.13 -0.67, -0.05 -0.73, -0.25 -0.75, -0.75 -0.75, -0.95 -0.73, -1.13 -0.67, -1.31 -0.58, -1.46 -0.46, -1.58 -0.31, -1.67 -0.13, -1.73 0.05, -1.75 0.25, -1.75 0.75, -1.73 0.95, -1.67 1.13, -1.58 1.31, -1.46 1.46, -1.31 1.58, -1.13 1.67, -0.95 1.73, -0.75 1.75, -0.25 1.75, -0.05 1.73, 0.13 1.67, 0.31 1.58, 0.46 1.46, 0.58 1.31, 0.67 1.13, 0.73 0.95, 0.75 0.75, 0.75 0.25, 0.73 0.05))");
+  }
+  
+  // Checks that a skinny element polygon is eroded with no internal predicision reduction due to topo exes
+  // see https://github.com/libgeos/geos/issues/1182
+  public void testElementErodedEx() {
+    String wkt = "MULTIPOLYGON (((48268.99938 -49048.29324, 44429.1 -55700.232847, 44429.1 -55107.317582, 44506.1 -54974, 44429.1 -54840, 44429.1 -51569.2, 42170.10515 -49316.27944, 48268.99938 -49048.29324)), ((43433.08324 -51823.15037, 42480.09977 -55494.96132, 42477.638798 -55504.400121, 42480.20715 -55494.547587, 42482.247919 -55485.931009, 42482.431666 -55485.976608, 43433.08324 -51823.15037)))";
+    checkBuffer(wkt, -1, 
+"POLYGON ((48267.2218198241 -49049.37231112561, 44430.1 -55696.500291383236, 44430.1 -55107.58561879013, 44506.96594366424 -54974.50014155032, 44507.05088958367 -54974.309530288774, 44507.09442572395 -54974.10543945913, 44507.09465615313 -54973.896756903174, 44507.05157083636 -54973.69257042533, 44506.96704607295 -54973.50177203271, 44430.1 -54839.73314639927, 44430.1 -51569.2, 44430.08071956347 -51569.00457958696, 44430.02362172434 -51568.81669475566, 44429.93090822513 -51568.64359050924, 44429.80615417933 -51568.49194189856, 42172.42282165639 -49317.178566110095, 48267.2218198241 -49049.37231112561))");    
+  }
+  
+  /**
+   * Test a buffer-by-zero case which revealed a bug in the DeptSegment comparator.
+   * See https://github.com/locationtech/jts/issues/1131
+   */
+  public void testBufferByZeroKeepsAllElements() {
+    String wkt = "MULTIPOLYGON (((24 95.239, 24 96, 24 99, 24.816 99, 24 95.239)), ((3 90, 3 93, 3 96, 3 99, 21 99, 21 96, 21 93, 21 90, 3 90)))";
+    checkBuffer(wkt, 0, 
+"MULTIPOLYGON (((24 95.239, 24 96, 24 99, 24.816 99, 24 95.239)), ((3 90, 3 93, 3 96, 3 99, 21 99, 21 96, 21 93, 21 90, 3 90)))");    
+  }
+  
+  //-- see https://github.com/libgeos/geos/issues/1321
+  public void testArtifactsRemovedFromLineBuffer() {
+    String wkt = "LINESTRING (29.979984761 71.879095724, 29.445974092 73.02148841, 29.002794006 73.679857725, 28.952197105 73.745389857, 28.676962154 74.089814544)";
+    checkBufferNumGeometries(wkt, 100, 1);
+  }
+  
+  //-- see https://github.com/r-spatial/sf/issues/2552
+  public void testArtifactsRemovedFromLineBufferFlatEnd() {
+    String wkt = "LINESTRING (245184.6 6045650, 245193.3 6045649, 245201.7 6045651, 245204.3 6045653)";
+    Geometry geom = read(wkt);
+    Geometry buf = BufferOp.bufferOp(geom, 50, bufParamEndCapFlat());
+    assertEquals(1, buf.getNumGeometries());
+  }
+  
+  //--------------------------------
+  
+  public void testInvalidCoordPoint() {
+    // works for Inf ordinates as well
+    Geometry geom = read("POINT (NaN NaN)");
+    checkBufferPolygonEmpty(geom, 1, true);
+  }
+
+  public void testInvalidCoordsLine() {
+    // works for Inf ordinates as well
+    Geometry geom = read("LINESTRING (Inf Inf, NaN NaN)");
+    checkBufferPolygonEmpty(geom, 1, true);
+  }
+  
+  public void testInvalidCoordShell() {
+    // using Inf ordinates creates a valid ring with equal endpoints
+    Geometry geom = (Polygon) read("POLYGON ((Inf Inf, Inf Inf, Inf Inf, Inf Inf, Inf Inf))");
+    checkBufferPolygonEmpty(geom, 1, true);
+  }
+  
+  public void testInvalidCoordHole() {
+    // using Inf ordinates creates a valid ring with equal endpoints
+    Polygon poly = (Polygon) read("POLYGON ((1 9, 9 9, 9 1, 1 1, 1 9), (3 7, 7 7, 7 3, 3 3, 3 7))");
+    Polygon polyInfHole = (Polygon) read("POLYGON ((1 9, 9 9, 9 1, 1 1, 1 9), (3 7, 7 7, 7 3, 3 3, 3 7), (Inf Inf, Inf Inf, Inf Inf, Inf Inf, Inf Inf))");
+
+    Geometry bufferOrig = poly.buffer(1);
+    Geometry bufferInf = polyInfHole.buffer(1);
+    // buffers should be same since inf hole is dropped
+    checkEqual(bufferOrig, bufferInf);
+  }
+  
+  //===================================================
+  
+  private static Coordinate[] infCoords(int size) {
+    Coordinate[] coords = new Coordinate[size];
+    for (int i = 0; i < size; i++) {
+      coords[i] = new Coordinate(Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+    }
+    return coords;
+  }
+  
+  private static BufferParameters bufParamRoundMitre(double mitreLimit) {
+    BufferParameters param = new BufferParameters();
+    param.setJoinStyle(BufferParameters.JOIN_MITRE);
+    param.setMitreLimit(mitreLimit);
+    return param;
+  }
+  
+  private static BufferParameters bufParamEndCapFlat() {
+    BufferParameters param = new BufferParameters();
+    param.setEndCapStyle(BufferParameters.CAP_FLAT);
+    return param;
+  }
+  
+  private void checkBuffer(String wkt, double dist, BufferParameters param, String wktExpected) {
+    Geometry geom = read(wkt);
+    Geometry result = BufferOp.bufferOp(geom, dist, param);
+    Geometry expected = read(wktExpected);
+    checkEqual(expected, result, 0.01);
+  }
+  
+  private void checkBuffer(String wkt, double dist, String wktExpected) {
+    Geometry geom = read(wkt);
+    Geometry result = BufferOp.bufferOp(geom, dist);
+    Geometry expected = read(wktExpected);
+    checkEqual(expected, result, 0.01);
+  }
+  
+  private void checkBufferPolygonEmpty(String wkt, double dist, boolean isEmptyExpected) {
     Geometry a = read(wkt);
-    Geometry result = a.buffer(dist);
+    checkBufferPolygonEmpty(a, dist, isEmptyExpected);
+  }
+
+  private void checkBufferPolygonEmpty(Geometry geom, double dist, boolean isEmptyExpected) {
+    Geometry result = geom.buffer(dist);
+    assertTrue(result instanceof Polygon);
     assertTrue(isEmptyExpected == result.isEmpty());
   }
 
@@ -580,7 +772,7 @@ public class BufferTest extends GeometryTestCase {
   private void checkBufferNumGeometries(String wkt, double dist, int numExpected) {
     Geometry a = read(wkt);
     Geometry result = a.buffer(dist);
-    assertTrue(numExpected == result.getNumGeometries());
+    assertEquals(numExpected, result.getNumGeometries());
   }
 
   private boolean hasHole(Geometry geom) {
@@ -589,6 +781,30 @@ public class BufferTest extends GeometryTestCase {
       if (poly.getNumInteriorRing() > 0) return true;
     }
     return false;
+  }
+
+  /**
+   * Buffer must not mutate input coordinates. BufferInputLineSimplifier
+   * (linear/ring offset, negative distance, collapse) previously returned
+   * shared Coordinate instances from collapseLine.
+   */
+  public void testBufferDoesNotMutateInputCoordinates() {
+    Geometry input = read("LINESTRING (0 0, 5 1, 10 0)");
+    org.locationtech.jts.geom.Coordinate orig1 = input.getCoordinates()[1].copy();
+    input.buffer(1.0);
+    assertTrue(input.getCoordinates()[1].equals2D(orig1));
+  }
+
+  /**
+   * Thin rectangle, small negative buffer: no spurious extra fragments.
+   */
+  public void testBufferThinLinearNoSpurious() {
+    Geometry thinRect = read("POLYGON((0 0, 100 0, 100 0.1, 0 0.1, 0 0))");
+    Geometry bufSmallNeg = thinRect.buffer(-0.01);
+    assertTrue(bufSmallNeg.getNumGeometries() <= 1);
+    if (!bufSmallNeg.isEmpty()) {
+      assertTrue(bufSmallNeg.getArea() > 0);
+    }
   }
 
 }

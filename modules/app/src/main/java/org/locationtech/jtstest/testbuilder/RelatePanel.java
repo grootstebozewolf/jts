@@ -12,16 +12,20 @@
 package org.locationtech.jtstest.testbuilder;
 
 
-
+import java.awt.Color;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import javax.swing.BorderFactory;
+import javax.swing.ImageIcon;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-
-
-import java.awt.*;
-
-import javax.swing.*;
 
 import org.locationtech.jts.geom.IntersectionMatrix;
 import org.locationtech.jts.geom.Location;
@@ -259,20 +263,20 @@ public class RelatePanel extends JPanel {
     relateIB.setText("F");
     jPanel1.setLayout(gridBagLayout2);
     jLabel14.setFont(new java.awt.Font("Dialog", 1, 12));
-    jLabel14.setForeground(Color.blue);
-    jLabel14.setText("A");
+    jLabel14.setForeground(AppColors.GEOM_A);
+    jLabel14.setText(AppStrings.GEOM_LABEL_A);
     jLabel13.setFont(new java.awt.Font("Dialog", 2, 12));
-    jLabel13.setForeground(Color.blue);
+    jLabel13.setForeground(AppColors.GEOM_A);
     jLabel13.setText("Ext");
     jLabel12.setFont(new java.awt.Font("Dialog", 2, 12));
-    jLabel12.setForeground(Color.blue);
+    jLabel12.setForeground(AppColors.GEOM_A);
     jLabel12.setText("Bdy");
     jLabel11.setFont(new java.awt.Font("Dialog", 2, 12));
-    jLabel11.setForeground(Color.blue);
+    jLabel11.setForeground(AppColors.GEOM_A);
     jLabel11.setToolTipText("");
     jLabel11.setText("Int");
     jLabel10.setFont(new java.awt.Font("Dialog", 2, 12));
-    jLabel10.setForeground(Color.red);
+    jLabel10.setForeground(AppColors.GEOM_B);
     jLabel10.setToolTipText("");
     jLabel10.setText("Ext");
     txtAB.setBackground(AppColors.BACKGROUND);
@@ -284,25 +288,25 @@ public class RelatePanel extends JPanel {
     txtAB.setEditable(false);
     txtAB.setHorizontalAlignment(SwingConstants.LEFT);
     jLabel23.setFont(new java.awt.Font("Dialog", 1, 12));
-    jLabel23.setForeground(Color.red);
-    jLabel23.setText("B");
+    jLabel23.setForeground(AppColors.GEOM_B);
+    jLabel23.setText(AppStrings.GEOM_LABEL_B);
     relateBI.setFont(new java.awt.Font("Dialog", 1, 12));
     relateBI.setText("F");
     jLabel22.setFont(new java.awt.Font("Dialog", 1, 12));
-    jLabel22.setForeground(Color.blue);
+    jLabel22.setForeground(AppColors.GEOM_A);
     jLabel22.setToolTipText("");
-    jLabel22.setText("A");
+    jLabel22.setText(AppStrings.GEOM_LABEL_A);
     relateEI.setFont(new java.awt.Font("Dialog", 1, 12));
     relateEI.setText("F");
     jLabel21.setToolTipText("");
     jLabel21.setFont(new java.awt.Font("Dialog", 1, 12));
-    jLabel21.setForeground(Color.blue);
+    jLabel21.setForeground(AppColors.GEOM_A);
     jLabel21.setToolTipText("");
-    jLabel21.setText("A");
+    jLabel21.setText(AppStrings.GEOM_LABEL_A);
     jLabel20.setFont(new java.awt.Font("Dialog", 1, 12));
-    jLabel20.setForeground(Color.red);
+    jLabel20.setForeground(AppColors.GEOM_B);
     jLabel20.setToolTipText("");
-    jLabel20.setText("B");
+    jLabel20.setText(AppStrings.GEOM_LABEL_B);
     relateBE.setFont(new java.awt.Font("Dialog", 1, 12));
     relateBE.setText("F");
     relateEE.setFont(new java.awt.Font("Dialog", 1, 12));
@@ -317,18 +321,18 @@ public class RelatePanel extends JPanel {
     relateBB.setFont(new java.awt.Font("Dialog", 1, 12));
     relateBB.setText("F");
     jLabel9.setFont(new java.awt.Font("Dialog", 2, 12));
-    jLabel9.setForeground(Color.red);
+    jLabel9.setForeground(AppColors.GEOM_B);
     jLabel9.setToolTipText("");
     jLabel9.setText("Bdy");
     relateEB.setFont(new java.awt.Font("Dialog", 1, 12));
     relateEB.setText("F");
     jLabel8.setFont(new java.awt.Font("Dialog", 2, 12));
-    jLabel8.setForeground(Color.red);
+    jLabel8.setForeground(AppColors.GEOM_B);
     jLabel8.setToolTipText("");
     jLabel8.setText("Int");
     jLabel7.setFont(new java.awt.Font("Dialog", 1, 12));
-    jLabel7.setForeground(Color.red);
-    jLabel7.setText("B");
+    jLabel7.setForeground(AppColors.GEOM_B);
+    jLabel7.setText(AppStrings.GEOM_LABEL_B);
     relateII.setBackground(Color.white);
     relateII.setFont(new java.awt.Font("Dialog", 1, 12));
     relateII.setText("F");

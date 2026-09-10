@@ -13,13 +13,24 @@ package org.locationtech.jtstest.testbuilder;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
-import java.awt.event.*;
-import java.util.*;
-
-import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.border.*;
-import javax.swing.tree.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.Comparator;
+import javax.swing.BorderFactory;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTree;
+import javax.swing.border.Border;
+import javax.swing.event.TreeExpansionEvent;
+import javax.swing.event.TreeSelectionEvent;
+import javax.swing.event.TreeSelectionListener;
+import javax.swing.event.TreeWillExpandListener;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeCellRenderer;
+import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.ExpandVetoException;
+import javax.swing.tree.TreePath;
+import javax.swing.tree.TreeSelectionModel;
 
 import org.locationtech.jts.geom.Geometry;
 
@@ -92,7 +103,7 @@ public class GeometryTreePanel extends JPanel implements TreeWillExpandListener
         }
         // would be nice to flash as well as zoom, but zooming drawing is too slow
         if (e.getClickCount() == 1) {
-          JTSTestBuilderFrame.getGeometryEditPanel().flash(geom);
+          JTSTestBuilder.controller().flash(geom);
         }
 			}
 		});
@@ -104,12 +115,19 @@ public class GeometryTreePanel extends JPanel implements TreeWillExpandListener
 			}
 		});
 	}
+	/**
+	 * Gets currently selected geometry, if any.
+	 * 
+	 * @return selected geometry, or null if none selected
+	 */
   public Geometry getSelectedGeometry() {
     return getGeometryFromNode(tree.getLastSelectedPathComponent());
   }
   public void moveToNextNode(int direction) {
     direction = (int) Math.signum(direction);
     TreePath path = tree.getSelectionPath();
+    if (path == null)
+      return;
     
     TreePath nextPath2 = nextPath(path, 2 * direction);
     tree.scrollPathToVisible(nextPath2);
@@ -119,9 +137,20 @@ public class GeometryTreePanel extends JPanel implements TreeWillExpandListener
   }
 
   private TreePath nextPath(TreePath path, int offset) {
-    GeometricObjectNode node = (GeometricObjectNode) path.getLastPathComponent();
+    Object last = path.getLastPathComponent();
+    if (!(last instanceof GeometricObjectNode)) {
+      return path;
+    }
+    GeometricObjectNode node = (GeometricObjectNode) last;
     TreePath parentPath = path.getParentPath();
-    GeometricObjectNode parent = (GeometricObjectNode) parentPath.getLastPathComponent();
+    if (parentPath == null) {
+      return path;
+    }
+    Object parentObj = parentPath.getLastPathComponent();
+    if (!(parentObj instanceof GeometricObjectNode)) {
+      return path;
+    }
+    GeometricObjectNode parent = (GeometricObjectNode) parentObj;
     int index = parent.getIndexOfChild(node);
     int nextIndex = index + offset;
     if (nextIndex < 0) {
@@ -136,7 +165,7 @@ public class GeometryTreePanel extends JPanel implements TreeWillExpandListener
   }
 
   private static Geometry getGeometryFromNode(Object value) {
-    if (value == null) 
+    if (!(value instanceof GeometricObjectNode))
       return null;
     return ((GeometricObjectNode) value).getGeometry();
   }

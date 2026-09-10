@@ -13,20 +13,31 @@ package org.locationtech.jtstest.testbuilder;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
-import java.awt.event.*;
-import java.util.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Vector;
+import javax.swing.BorderFactory;
+import javax.swing.ImageIcon;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTree;
+import javax.swing.border.Border;
+import javax.swing.event.TreeSelectionEvent;
+import javax.swing.event.TreeSelectionListener;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeCellRenderer;
+import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreeModel;
+import javax.swing.tree.TreePath;
+import javax.swing.tree.TreeSelectionModel;
 
-import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.border.*;
-import javax.swing.tree.*;
-
-import org.locationtech.jtstest.function.*;
+import org.locationtech.jtstest.function.DoubleKeyMap;
 import org.locationtech.jtstest.geomfunction.GeometryFunction;
 import org.locationtech.jtstest.geomfunction.GeometryFunctionUtil;
 import org.locationtech.jtstest.testbuilder.event.GeometryFunctionEvent;
 import org.locationtech.jtstest.testbuilder.event.GeometryFunctionListener;
-import org.locationtech.jtstest.util.*;
 
 
 /**
@@ -75,13 +86,26 @@ public class GeometryFunctionTreePanel extends JPanel {
 				setIcon( computeIcon(func) );
         //String name = StringUtil.capitalize(func.getName());
         String name = func.getName();
-				setText(name);
-				setToolTipText(GeometryFunctionUtil.toolTipText(func)); 
+        String badge = curveBadge(func);
+				setText(badge + " " + name);
+				setToolTipText(GeometryFunctionUtil.toolTipText(func)
+            + " [" + func.getCurveAwareness() + "]"); 
 			} else {
 				setToolTipText(null); // no tool tip
 			}
 			return this;
 		}
+
+    private String curveBadge(GeometryFunction func) {
+      String level = func.getCurveAwareness();
+      if ("native".equalsIgnoreCase(level)) {
+        return "\u25CF"; // ●
+      }
+      if ("passthrough".equalsIgnoreCase(level)) {
+        return "\u25CB"; // ◯
+      }
+      return "\u2715"; // ✕
+    }
 
     private ImageIcon computeIcon(GeometryFunction func) {
       ImageIcon icon = unaryIcon;
@@ -137,6 +161,33 @@ public class GeometryFunctionTreePanel extends JPanel {
 
 	public GeometryFunction getFunction() {
 		return getFunctionFromNode(tree.getLastSelectedPathComponent());
+	}
+
+	/**
+	 * Select a categorized function by tree path (e.g. AffineTransformation /
+	 * translate). Used by leftover #60 tests; a real tree click still fires
+	 * {@code functionSelected}.
+	 */
+	public boolean selectFunction(String category, String name) {
+		if (category == null || name == null) {
+			return false;
+		}
+		DefaultMutableTreeNode top = (DefaultMutableTreeNode) tree.getModel().getRoot();
+		for (int i = 0; i < top.getChildCount(); i++) {
+			DefaultMutableTreeNode catNode = (DefaultMutableTreeNode) top.getChildAt(i);
+			if (!category.equals(String.valueOf(catNode.getUserObject()))) {
+				continue;
+			}
+			for (int j = 0; j < catNode.getChildCount(); j++) {
+				DefaultMutableTreeNode leaf = (DefaultMutableTreeNode) catNode.getChildAt(j);
+				GeometryFunction fun = getFunctionFromNode(leaf);
+				if (fun != null && name.equals(fun.getName())) {
+					tree.setSelectionPath(new TreePath(leaf.getPath()));
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	public void populate(DoubleKeyMap funcs) {

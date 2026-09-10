@@ -107,6 +107,9 @@ public class PointLocator
 
   private void computeLocation(Coordinate p, Geometry geom)
   {
+    if (geom.isEmpty())
+      return;
+    
     if (geom instanceof Point) {
       updateLocationInfo(locateOnPoint(p, (Point) geom));
     }
@@ -162,11 +165,11 @@ public class PointLocator
     if (! l.getEnvelopeInternal().intersects(p)) return Location.EXTERIOR;
     
     CoordinateSequence seq = l.getCoordinateSequence();
-    if (! l.isClosed()) {
-          if (p.equals(seq.getCoordinate(0))
+    if (p.equals(seq.getCoordinate(0))
           || p.equals(seq.getCoordinate(seq.size() - 1)) ) {
-        return Location.BOUNDARY;
-      }
+      int boundaryCount = l.isClosed() ? 2 : 1;
+      int loc = boundaryRule.isInBoundary(boundaryCount) ? Location.BOUNDARY : Location.INTERIOR;
+      return loc;
     }
     if (PointLocation.isOnLine(p, seq)) {
       return Location.INTERIOR;

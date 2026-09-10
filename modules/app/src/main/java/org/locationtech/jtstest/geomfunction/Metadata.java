@@ -11,7 +11,8 @@
  */
 package org.locationtech.jtstest.geomfunction;
 
-import java.lang.annotation.*;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Metadata
@@ -20,4 +21,10 @@ public @interface Metadata
   String title() default "";
   String description() default "";
   boolean isRequired() default true;
+  /**
+   * TB-FN (#1195): curve-awareness badge for the TestBuilder function tree.
+   * Values: {@code native} (●), {@code passthrough} (◯), {@code flattens} (✕).
+   * Empty means {@code flattens}.
+   */
+  String curveAwareness() default "";
 }

@@ -15,7 +15,6 @@ package org.locationtech.jtstest.testbuilder;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 
@@ -36,7 +35,7 @@ public class GeometryPopupMenu extends JPopupMenu
     extractComponentItem.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-              JTSTestBuilder.controller().extractComponentsToTestCase(clickCoord);
+              JTSTestBuilder.controller().copyElementsToTestCase(clickCoord);
             }
           });
     add(extractComponentItem);
@@ -45,7 +44,7 @@ public class GeometryPopupMenu extends JPopupMenu
     copyComponentItem.addActionListener(
           new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-              JTSTestBuilder.controller().copyComponentToClipboard(clickCoord);
+              JTSTestBuilder.controller().copyElementToClipboard(clickCoord);
             }
           });
     add(copyComponentItem);

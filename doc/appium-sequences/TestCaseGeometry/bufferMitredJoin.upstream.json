@@ -1,0 +1,61 @@
+{
+  "id": "TestCaseGeometry.bufferMitredJoin.polygon.upstream",
+  "claimId": "TB-AP-TESTCASEGEOMETRY-BUFFERMITREDJOIN",
+  "category": "TestCaseGeometry",
+  "function": "bufferMitredJoin",
+  "branch": "upstream",
+  "tags": [
+    "tb-appium",
+    "TestCaseGeometry",
+    "bufferMitredJoin",
+    "polygon"
+  ],
+  "golden": false,
+  "skipped": true,
+  "fixtureFile": "_fixtures/upstream-polygon.wkt",
+  "params": [
+    "1"
+  ],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "TestCaseGeometry",
+        "bufferMitredJoin"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.param.0",
+      "action": "setText",
+      "value": "1"
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "bufferMitredJoin",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "resultWktContainsAny": [
+      "POLYGON",
+      "MULTIPOLYGON"
+    ]
+  },
+  "notes": "bufferMitredJoin | PROMOTE SKIP: TestCaseGeometry.bufferMitredJoin"
+}

@@ -12,8 +12,10 @@
 package org.locationtech.jts.io;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateXYZM;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 
 import junit.textui.TestRunner;
@@ -124,6 +126,78 @@ public class WKBWriterTest extends GeometryTestCase {
         ByteOrderValues.LITTLE_ENDIAN,
         4326,
         "0107000020E61000000900000001010000000000000000000000000000000000F03F01010000000000000000000000000000000000F03F01010000000000000000000040000000000000084001020000000200000000000000000000400000000000000840000000000000104000000000000014400102000000020000000000000000000000000000000000F03F000000000000004000000000000008400102000000020000000000000000001040000000000000144000000000000018400000000000001C4001030000000200000005000000000000000000000000000000000000000000000000000000000000000000244000000000000024400000000000002440000000000000244000000000000000000000000000000000000000000000000005000000000000000000F03F000000000000F03F000000000000F03F0000000000002240000000000000224000000000000022400000000000002240000000000000F03F000000000000F03F000000000000F03F01030000000200000005000000000000000000000000000000000000000000000000000000000000000000244000000000000024400000000000002440000000000000244000000000000000000000000000000000000000000000000005000000000000000000F03F000000000000F03F000000000000F03F0000000000002240000000000000224000000000000022400000000000002240000000000000F03F000000000000F03F000000000000F03F0103000000010000000500000000000000000022C0000000000000000000000000000022C00000000000002440000000000000F0BF0000000000002440000000000000F0BF000000000000000000000000000022C00000000000000000");
+  }
+
+  public void testWkbLineStringM() {
+    checkWKB(
+        "LINESTRING M(1 2 3, 5 6 7)",
+        4,
+        ByteOrderValues.LITTLE_ENDIAN,
+        -1,
+        "010200004002000000000000000000F03F00000000000000400000000000000840000000000000144000000000000018400000000000001C40");
+  }
+  
+  public void testWkbLineStringZM() throws ParseException {
+      LineString lineZM = new GeometryFactory().createLineString(new Coordinate[]{new CoordinateXYZM(1,2,3,4), new CoordinateXYZM(5,6,7,8)});
+      byte[] write = new WKBWriter(4).write(lineZM);
+
+      LineString lineZMRead = (LineString) new WKBReader().read(write);
+
+      assertEquals(lineZM, lineZMRead);
+
+      assertEquals(1.0, lineZMRead.getPointN(0).getCoordinate().getX());
+      assertEquals(2.0, lineZMRead.getPointN(0).getCoordinate().getY());
+      assertEquals(3.0, lineZMRead.getPointN(0).getCoordinate().getZ());
+      assertEquals(4.0, lineZMRead.getPointN(0).getCoordinate().getM());
+
+      assertEquals(5.0, lineZMRead.getPointN(1).getCoordinate().getX());
+      assertEquals(6.0, lineZMRead.getPointN(1).getCoordinate().getY());
+      assertEquals(7.0, lineZMRead.getPointN(1).getCoordinate().getZ());
+      assertEquals(8.0, lineZMRead.getPointN(1).getCoordinate().getM());
+  }
+
+  public void testDefaultFlavorIsExtended() {
+    assertEquals(WKBConstants.wkbExtended, new WKBWriter().getFlavor());
+  }
+
+  public void testSetFlavorIsoOnlyWhenAsked() {
+    WKBWriter w = new WKBWriter(3);
+    assertEquals(WKBConstants.wkbExtended, w.getFlavor());
+    w.setFlavor(WKBConstants.wkbIso);
+    assertEquals(WKBConstants.wkbIso, w.getFlavor());
+  }
+
+  public void testInvalidFlavorThrows() {
+    try {
+      new WKBWriter().setFlavor(0);
+      fail("expected IllegalArgumentException");
+    }
+    catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().toLowerCase().indexOf("flavour") >= 0);
+    }
+  }
+
+  public void testIsoFlavorPointZIs1001() {
+    Point p = new GeometryFactory().createPoint(new Coordinate(1, 2, 3));
+    WKBWriter w = new WKBWriter(3);
+    w.setFlavor(WKBConstants.wkbIso);
+    byte[] wkb = w.write(p);
+    int type = ((wkb[1] & 0xff) << 24) | ((wkb[2] & 0xff) << 16)
+        | ((wkb[3] & 0xff) << 8) | (wkb[4] & 0xff);
+    assertEquals(1001, type);
+    assertEquals(WKBConstants.wkbIso, WKBReader.detectFlavor(type));
+  }
+
+  public void testIsoFlavorOmitsSrid() {
+    Point p = new GeometryFactory().createPoint(new Coordinate(1, 2));
+    p.setSRID(4326);
+    WKBWriter iso = new WKBWriter(2, ByteOrderValues.BIG_ENDIAN, true);
+    iso.setFlavor(WKBConstants.wkbIso);
+    byte[] wkb = iso.write(p);
+    int type = ((wkb[1] & 0xff) << 24) | ((wkb[2] & 0xff) << 16)
+        | ((wkb[3] & 0xff) << 8) | (wkb[4] & 0xff);
+    assertEquals(WKBConstants.wkbPoint, type);
+    assertEquals(21, wkb.length);
   }
 
   void checkWKB(String wkt, int dimension, String expectedWKBHex) {

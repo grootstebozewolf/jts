@@ -72,6 +72,16 @@ public class DiscreteFrechetDistanceTest extends GeometryTestCase {
     runTest("LINESTRING (0 0, 100 10, 0 20, 100 30, 0 40, 100 50, 0 60, 100 70, 0 80, 100 90, 0 100)",
       "LINESTRING (0 0, 50 100, 100 0)", 141.4213562373095);
   }
+
+  /**
+   * A plain LineString of the D-HF control points is not an arc: keep the
+   * control/chord discrete coupling (mid vertex to a segment endpoint),
+   * not the continuous apex ≈ 3.96764.
+   */
+  public void testPlainLineStringIsControlDiscrete() {
+    runTest("LINESTRING (0 0, 2 3, 10 0)",
+      "LINESTRING (0 0, 10 0)", Math.sqrt(13.0));
+  }
   
   private static final double TOLERANCE = 0.00001;
 

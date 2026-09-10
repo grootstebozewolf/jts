@@ -14,6 +14,7 @@ package org.locationtech.jts.algorithm;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.locationtech.jts.densify.Densifier;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
@@ -80,7 +81,16 @@ public class InteriorPointArea {
    * or <code>null</code> if the geometry has no polygonal components
    */
   public static Coordinate getInteriorPoint(Geometry geom) {
-    InteriorPointArea intPt = new InteriorPointArea(geom);
+    Geometry src = geom;
+    if (geom != null && geom.getClass().getName().indexOf(".geom.curve.") >= 0) {
+      // C-IP (#1195): use densified rings so the interior point lies
+      // inside the curved area, not the control polygon.
+      Envelope env = geom.getEnvelopeInternal();
+      double extent = Math.max(env.getWidth(), env.getHeight());
+      double tol = (extent > 0.0 ? extent : 1.0) * 1.0e-6;
+      src = Densifier.densify(geom, tol);
+    }
+    InteriorPointArea intPt = new InteriorPointArea(src);
     return intPt.getInteriorPoint();
   }
   

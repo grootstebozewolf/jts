@@ -1,0 +1,55 @@
+{
+  "id": "Construction.boundary.polygon.upstream",
+  "claimId": "TB-AP-CONSTRUCTION-BOUNDARY",
+  "category": "Construction",
+  "function": "boundary",
+  "branch": "upstream",
+  "tags": [
+    "tb-appium",
+    "Construction",
+    "boundary",
+    "polygon"
+  ],
+  "golden": true,
+  "skipped": false,
+  "fixtureFile": "_fixtures/upstream-polygon.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "Construction",
+        "boundary"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "boundary",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "resultWktContainsAny": [
+      "LINESTRING",
+      "MULTILINESTRING",
+      "LINEARRING"
+    ]
+  },
+  "notes": "Construction.boundary"
+}

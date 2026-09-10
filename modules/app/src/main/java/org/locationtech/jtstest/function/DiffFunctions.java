@@ -155,9 +155,35 @@ public class DiffFunctions {
     return factory.createMultiLineString( lines );
   }
 
+  /**
+   * The single place the segment-based functions get their segments, so
+   * linearising here makes {@code diffSegments}, {@code diffSegmentsBoth},
+   * {@code duplicateSegments} and {@code singleSegments} arc-aware at once.
+   * <p>
+   * {@code getCoordinates()} on a curve returns its control points, so without
+   * this the segments are chords of the control polygon: for
+   * {@code CIRCULARSTRING (-5 0, 0 5, 5 0, 0 -5, -5 0)} the four sides of the
+   * inscribed square, each with its midpoint {@code r(1 - cos(45deg))} = 1.4645
+   * off the circle. The set logic was never wrong -- the segments were.
+   * <p>
+   * A segment of a curve only exists once the curve is sampled, so unlike the
+   * writers there is no lossless alternative to compare against. The
+   * consequence, measured in {@code DiffFunctionsCurveTest}: the tolerance is a
+   * fraction of each geometry's own extent, so two curves are recognised as
+   * sharing segments only when they densify to the same vertices. A circle and
+   * its own half-arc share the same extent and match exactly; a quarter arc has
+   * a smaller extent and matches nothing. The chord version had the same
+   * property, more coarsely.
+   * <p>
+   * {@code diffVertices} deliberately does not come through here. Its control
+   * points lie exactly <em>on</em> the curve, so it returns a subset rather than
+   * wrong geometry, and reporting ~1570 densified vertices would be less useful
+   * than the handful of structural ones.
+   */
   private static List<LineSegment> extractSegmentsNorm(Geometry geom) {
     List<LineSegment> segs = new ArrayList<LineSegment>();
-    List<LineString> lines = LinearComponentExtracter.getLines(geom);
+    List<LineString> lines = LinearComponentExtracter.getLines(
+        CurveFunctions.linearizeForOps(geom));
     for (LineString line : lines ) {
       Coordinate[] pts = line.getCoordinates();
       for (int i = 0; i < pts.length - 1; i++) {

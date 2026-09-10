@@ -56,6 +56,13 @@ public class DouglasPeuckerSimplifier
    */
   public static Geometry simplify(Geometry geom, double distanceTolerance)
   {
+    // S-DP (#1195): a 3-control CircularString is the arc identity —
+    // do not collapse it to LineString(start, end).
+    if (geom != null
+        && "CircularString".equals(geom.getGeometryType())
+        && geom.getNumPoints() <= 3) {
+      return geom.copy();
+    }
     DouglasPeuckerSimplifier tss = new DouglasPeuckerSimplifier(geom);
     tss.setDistanceTolerance(distanceTolerance);
     return tss.getResultGeometry();
@@ -135,13 +142,14 @@ static class DPTransformer
 	
   protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent)
   {
+    boolean isPreserveEndpoint = ! (parent instanceof LinearRing);
     Coordinate[] inputPts = coords.toCoordinateArray();
     Coordinate[] newPts = null;
     if (inputPts.length == 0) {
       newPts = new Coordinate[0];
     }
     else {
-      newPts = DouglasPeuckerLineSimplifier.simplify(inputPts, distanceTolerance);
+      newPts = DouglasPeuckerLineSimplifier.simplify(inputPts, distanceTolerance, isPreserveEndpoint);
     }
     return factory.getCoordinateSequenceFactory().create(newPts);
   }

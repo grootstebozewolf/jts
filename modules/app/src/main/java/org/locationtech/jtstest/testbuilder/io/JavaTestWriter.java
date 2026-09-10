@@ -15,6 +15,7 @@ import java.util.List;
 
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.WKTWriter;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 import org.locationtech.jtstest.test.Testable;
 import org.locationtech.jtstest.testbuilder.model.TestBuilderModel;
 import org.locationtech.jtstest.util.StringUtil;
@@ -52,7 +53,7 @@ public class JavaTestWriter {
     }
 
 
-    private WKTWriter writer = new WKTWriter();
+    private WKTWriter writer = new CurveWKTWriter();
 
     public JavaTestWriter() {}
 

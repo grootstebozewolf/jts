@@ -138,6 +138,30 @@ public class GeoJsonWriterTest extends GeometryTestCase {
     runTest(wkt, 0, false, false, expectedGeojson);
   }
 
+  /**
+   * GeoJSON cannot carry SQL/MM ISO/IEC 13249-3 arcs. An unexpected
+   * LineString subclass must not flatten to a coord array.
+   */
+  public void testUnexpectedLineStringSubclassRefused() {
+    org.locationtech.jts.geom.GeometryFactory gf =
+        new org.locationtech.jts.geom.GeometryFactory();
+    Geometry fake = new org.locationtech.jts.geom.LineString(
+        gf.getCoordinateSequenceFactory().create(new org.locationtech.jts.geom.Coordinate[] {
+            new org.locationtech.jts.geom.Coordinate(0, 0),
+            new org.locationtech.jts.geom.Coordinate(1, 1)
+        }), gf) {
+      private static final long serialVersionUID = 1L;
+      public String getGeometryType() { return "FakeCurve"; }
+    };
+    try {
+      new GeoJsonWriter().write(fake);
+      fail("GeoJsonWriter must not flatten an unexpected LineString subclass");
+    }
+    catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().indexOf("ISO/IEC 13249-3") >= 0);
+    }
+  }
+
   private void runTest(String wkt, int srid, String expectedGeojson) throws ParseException {
     runTest(wkt, srid, true, false, expectedGeojson);
   }

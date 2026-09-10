@@ -1,0 +1,55 @@
+{
+  "id": "Validation.invalidLocations.polygon.upstream",
+  "claimId": "TB-AP-VALIDATION-INVALIDLOCATIONS",
+  "category": "Validation",
+  "function": "invalidLocations",
+  "branch": "upstream",
+  "tags": [
+    "tb-appium",
+    "Validation",
+    "invalidLocations",
+    "polygon"
+  ],
+  "golden": true,
+  "skipped": false,
+  "fixtureFile": "_fixtures/upstream-polygon.wkt",
+  "params": [],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "Validation",
+        "invalidLocations"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "invalidLocations",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "resultWktContainsAny": [
+      "MULTIPOINT",
+      "POINT",
+      "GEOMETRYCOLLECTION"
+    ]
+  },
+  "notes": "invalidLocations"
+}

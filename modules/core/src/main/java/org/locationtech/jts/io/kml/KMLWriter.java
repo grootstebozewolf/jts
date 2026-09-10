@@ -24,6 +24,7 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.SqlMmTypes;
 import org.locationtech.jts.util.StringUtil;
 
 
@@ -217,6 +218,7 @@ public class KMLWriter
   }
 
   private void writeGeometry(Geometry g, int level, StringBuffer buf) {
+    SqlMmTypes.refuseFlatten(g, "KMLWriter");
     String attributes = "";
     if (g instanceof Point) {
       writePoint((Point) g, attributes, level, buf);

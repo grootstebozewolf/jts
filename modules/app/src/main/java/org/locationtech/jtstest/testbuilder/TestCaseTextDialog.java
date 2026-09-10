@@ -15,17 +15,21 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.event.ActionEvent;
+import javax.swing.BoxLayout;
+import javax.swing.ButtonGroup;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JDialog;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 
-import javax.swing.*;
-
-import org.locationtech.jts.geom.*;
-import org.locationtech.jts.io.*;
-import org.locationtech.jts.io.gml2.*;
 import org.locationtech.jtstest.testbuilder.io.IOUtil;
 import org.locationtech.jtstest.testbuilder.io.JavaTestWriter;
 import org.locationtech.jtstest.testbuilder.io.SVGTestWriter;
 import org.locationtech.jtstest.testbuilder.io.XMLTestWriter;
-import org.locationtech.jtstest.testbuilder.model.*;
+import org.locationtech.jtstest.testbuilder.model.TestCaseEdit;
 
 
 
@@ -259,9 +263,9 @@ public class TestCaseTextDialog extends JDialog {
   private void writeView(String a, String b, String result)
   {
   	txtGeomView.setText("");
-  	writeViewGeometry("A", a);
-  	writeViewGeometry("B", b);
-  	writeViewGeometry("Result", result);
+  	writeViewGeometry(AppStrings.GEOM_LABEL_A, a);
+  	writeViewGeometry(AppStrings.GEOM_LABEL_B, b);
+  	writeViewGeometry(AppStrings.GEOM_LABEL_RESULT, result);
   }
   
   private void writeViewGeometry(String tag, String str)

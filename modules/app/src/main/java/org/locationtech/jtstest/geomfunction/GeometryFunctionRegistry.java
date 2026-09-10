@@ -28,21 +28,28 @@ import org.locationtech.jtstest.function.BufferByUnionFunctions;
 import org.locationtech.jtstest.function.BufferFunctions;
 import org.locationtech.jtstest.function.ConstructionFunctions;
 import org.locationtech.jtstest.function.ConversionFunctions;
+import org.locationtech.jtstest.function.CoverageFunctions;
 import org.locationtech.jtstest.function.CreateFractalShapeFunctions;
 import org.locationtech.jtstest.function.CreateRandomShapeFunctions;
 import org.locationtech.jtstest.function.CreateShapeFunctions;
+import org.locationtech.jtstest.function.CurveExampleFunctions;
+import org.locationtech.jtstest.function.CurveFunctions;
+import org.locationtech.jtstest.function.OverlayNGCurveFunctions;
 import org.locationtech.jtstest.function.DiffFunctions;
 import org.locationtech.jtstest.function.DissolveFunctions;
 import org.locationtech.jtstest.function.DistanceFunctions;
 import org.locationtech.jtstest.function.DoubleKeyMap;
 import org.locationtech.jtstest.function.EditFunctions;
 import org.locationtech.jtstest.function.GeometryFunctions;
+import org.locationtech.jtstest.function.HullFunctions;
 import org.locationtech.jtstest.function.JTSFunctions;
 import org.locationtech.jtstest.function.LineHandlingFunctions;
 import org.locationtech.jtstest.function.LineSegmentFunctions;
 import org.locationtech.jtstest.function.LinearReferencingFunctions;
+import org.locationtech.jtstest.function.MetricFunctions;
 import org.locationtech.jtstest.function.NodingFunctions;
 import org.locationtech.jtstest.function.OffsetCurveFunctions;
+import org.locationtech.jtstest.function.OrientationFPFunctions;
 import org.locationtech.jtstest.function.OrientationFunctions;
 import org.locationtech.jtstest.function.OverlayFunctions;
 import org.locationtech.jtstest.function.OverlayNGFunctions;
@@ -59,14 +66,17 @@ import org.locationtech.jtstest.function.PolygonizeFunctions;
 import org.locationtech.jtstest.function.PrecisionFunctions;
 import org.locationtech.jtstest.function.PreparedGeometryFunctions;
 import org.locationtech.jtstest.function.SelectionFunctions;
+import org.locationtech.jtstest.function.SelectionNGFunctions;
 import org.locationtech.jtstest.function.SimplificationFunctions;
 import org.locationtech.jtstest.function.SnappingFunctions;
 import org.locationtech.jtstest.function.SortingFunctions;
 import org.locationtech.jtstest.function.SpatialIndexFunctions;
 import org.locationtech.jtstest.function.SpatialPredicateFunctions;
+import org.locationtech.jtstest.function.SpatialPredicateNGFunctions;
 import org.locationtech.jtstest.function.TriangleFunctions;
 import org.locationtech.jtstest.function.TriangulatePolyFunctions;
 import org.locationtech.jtstest.function.TriangulationFunctions;
+import org.locationtech.jtstest.function.UserDataFunctions;
 import org.locationtech.jtstest.function.ValidationFunctions;
 import org.locationtech.jtstest.function.WriterFunctions;
 
@@ -89,14 +99,20 @@ public class GeometryFunctionRegistry
     funcRegistry.add(BufferByUnionFunctions.class);
     funcRegistry.add(ConstructionFunctions.class);
     funcRegistry.add(ConversionFunctions.class);
+    funcRegistry.add(CoverageFunctions.class);
+    funcRegistry.add(CurveFunctions.class);
+    funcRegistry.add(OverlayNGCurveFunctions.class);
     funcRegistry.add(EditFunctions.class);
+    funcRegistry.add(HullFunctions.class);
     funcRegistry.add(LinearReferencingFunctions.class);
     funcRegistry.add(LineHandlingFunctions.class);
+    funcRegistry.add(MetricFunctions.class);
     funcRegistry.add(NodingFunctions.class);
     funcRegistry.add(PolygonizeFunctions.class);
     funcRegistry.add(PrecisionFunctions.class);
     funcRegistry.add(PreparedGeometryFunctions.class);
     funcRegistry.add(SelectionFunctions.class);
+    funcRegistry.add(SelectionNGFunctions.class);
     funcRegistry.add(SimplificationFunctions.class);
     funcRegistry.add(AffineTransformationFunctions.class);
     funcRegistry.add(DiffFunctions.class);
@@ -105,12 +121,15 @@ public class GeometryFunctionRegistry
     funcRegistry.add(CreateShapeFunctions.class);
     funcRegistry.add(CreateFractalShapeFunctions.class);
     funcRegistry.add(CreateRandomShapeFunctions.class);
+    funcRegistry.add(CurveExampleFunctions.class);
     funcRegistry.add(SpatialIndexFunctions.class);
     funcRegistry.add(SpatialPredicateFunctions.class);
+    funcRegistry.add(SpatialPredicateNGFunctions.class);
     funcRegistry.add(JTSFunctions.class);
     //funcRegistry.add(MemoryFunctions.class);
     funcRegistry.add(OffsetCurveFunctions.class);
     funcRegistry.add(OrientationFunctions.class);
+    funcRegistry.add(OrientationFPFunctions.class);
     funcRegistry.add(LineSegmentFunctions.class);
     funcRegistry.add(OverlayFunctions.class);
     
@@ -134,6 +153,7 @@ public class GeometryFunctionRegistry
     funcRegistry.add(TriangulationFunctions.class);
     funcRegistry.add(TriangulatePolyFunctions.class);
     funcRegistry.add(TriangleFunctions.class);
+    funcRegistry.add(UserDataFunctions.class);
     funcRegistry.add(ValidationFunctions.class);
     funcRegistry.add(WriterFunctions.class);
     
@@ -149,8 +169,8 @@ public class GeometryFunctionRegistry
     return "<html>" + txt + "</html>";
   }
   
-	private List functions = new ArrayList();
-	private Map sortedFunctions = new TreeMap();
+	private List<GeometryFunction> functions = new ArrayList<GeometryFunction>();
+	private Map<String, GeometryFunction> sortedFunctions = new TreeMap<String, GeometryFunction>();
 	private DoubleKeyMap categorizedFunctions = new DoubleKeyMap();
 	private DoubleKeyMap categorizedGeometryFunctions = new DoubleKeyMap();
   private DoubleKeyMap categorizedScalarFunctions = new DoubleKeyMap();
@@ -159,20 +179,20 @@ public class GeometryFunctionRegistry
 	{
 	}
 	
-	public GeometryFunctionRegistry(Class clz)
+	public GeometryFunctionRegistry(Class<?> clz)
 	{
 		add(clz);
 	}
 	  
-	public List getFunctions()
+	public List<GeometryFunction> getFunctions()
 	{
 		return functions;
 	}
 
-	public List getGeometryFunctions()
+	public List<GeometryFunction> getGeometryFunctions()
 	{
-		List funList = new ArrayList();
-		for (Iterator i = sortedFunctions.values().iterator(); i.hasNext(); )
+		List<GeometryFunction> funList = new ArrayList<GeometryFunction>();
+		for (Iterator<GeometryFunction> i = sortedFunctions.values().iterator(); i.hasNext(); )
 		{
 			GeometryFunction fun = (GeometryFunction) i.next();
 			if (hasGeometryResult(fun))
@@ -186,10 +206,10 @@ public class GeometryFunctionRegistry
 		return Geometry.class.isAssignableFrom(func.getReturnType());
 	}
 	
-	public List getScalarFunctions()
+	public List<GeometryFunction> getScalarFunctions()
 	{
-		List scalarFun = new ArrayList();
-		for (Iterator i = sortedFunctions.values().iterator(); i.hasNext(); )
+		List<GeometryFunction> scalarFun = new ArrayList<GeometryFunction>();
+		for (Iterator<GeometryFunction> i = sortedFunctions.values().iterator(); i.hasNext(); )
 		{
 			GeometryFunction fun = (GeometryFunction) i.next();
 			if (! hasGeometryResult(fun))
@@ -203,9 +223,10 @@ public class GeometryFunctionRegistry
 	 * 
 	 * @param geomFuncClass
 	 */
-	public void add(Class geomFuncClass)
+	@SuppressWarnings("unchecked")
+  public void add(Class<?> geomFuncClass)
 	{
-		List funcs = createFunctions(geomFuncClass);
+		List<StaticMethodGeometryFunction> funcs = createFunctions(geomFuncClass);
 		// sort list of functions so they appear nicely in the UI list
 		Collections.sort(funcs);
 		add(funcs);
@@ -219,15 +240,15 @@ public class GeometryFunctionRegistry
 	public void add(String geomFuncClassname)
 	 throws ClassNotFoundException
 	{
-		Class geomFuncClass = null;
+		Class<?> geomFuncClass = null;
 		geomFuncClass = this.getClass().getClassLoader().loadClass(geomFuncClassname);
 		add(geomFuncClass);
 	}
 	
 
-	public void add(Collection funcs)
+	public void add(Collection<StaticMethodGeometryFunction> funcs)
 	{
-		for (Iterator i = funcs.iterator(); i.hasNext(); ) {
+		for (Iterator<StaticMethodGeometryFunction> i = funcs.iterator(); i.hasNext(); ) {
 			GeometryFunction f = (GeometryFunction) i.next();
 			add(f);
 		}
@@ -240,8 +261,8 @@ public class GeometryFunctionRegistry
 	 * @param functionClass
 	 * @return a list of the functions created
 	 */
-	public List createFunctions(Class functionClass) {
-		List funcs = new ArrayList();
+	public List<StaticMethodGeometryFunction> createFunctions(Class<?> functionClass) {
+		List<StaticMethodGeometryFunction> funcs = new ArrayList<StaticMethodGeometryFunction>();
 		Method[] method = functionClass.getMethods();
 		for (int i = 0; i < method.length; i++) {
 			int mod = method[i].getModifiers();
@@ -289,12 +310,12 @@ public class GeometryFunctionRegistry
     return categorizedScalarFunctions;
   }
   
-	public Collection getCategories()
+	public Collection<?> getCategories()
 	{
 		return categorizedFunctions.keySet();
 	}
 	
-	public Collection getFunctions(String category)
+	public Collection<?> getFunctions(String category)
 	{
 		return categorizedFunctions.values(category);
 	}
@@ -318,7 +339,7 @@ public class GeometryFunctionRegistry
    * @param paramTypes
    * @return a matching function, or null
    */
-  public GeometryFunction find(String name, Class[] paramTypes)
+  public GeometryFunction find(String name, Class<Object>[] paramTypes)
   {
     return null;
   }
@@ -331,7 +352,7 @@ public class GeometryFunctionRegistry
    */
   public GeometryFunction find(String name, int argCount)
   {
-    for (Iterator i = functions.iterator(); i.hasNext(); ) {
+    for (Iterator<GeometryFunction> i = functions.iterator(); i.hasNext(); ) {
       GeometryFunction func = (GeometryFunction) i.next();
       String funcName = func.getName();
       if (funcName.equalsIgnoreCase(name) 
@@ -348,7 +369,7 @@ public class GeometryFunctionRegistry
    */
   public GeometryFunction find(String name)
   {
-    for (Iterator i = functions.iterator(); i.hasNext(); ) {
+    for (Iterator<GeometryFunction> i = functions.iterator(); i.hasNext(); ) {
       GeometryFunction func = (GeometryFunction) i.next();
       String funcName = func.getName();
       if (funcName.equalsIgnoreCase(name))
@@ -364,7 +385,7 @@ public class GeometryFunctionRegistry
    */
   public GeometryFunction find(String category, String name)
   {
-    for (Iterator i = functions.iterator(); i.hasNext(); ) {
+    for (Iterator<GeometryFunction> i = functions.iterator(); i.hasNext(); ) {
       GeometryFunction func = (GeometryFunction) i.next();
       String funcName = func.getName();
       if (category.equalsIgnoreCase(func.getCategory()) && funcName.equalsIgnoreCase(name))

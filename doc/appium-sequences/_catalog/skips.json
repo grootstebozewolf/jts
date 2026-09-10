@@ -1,0 +1,54 @@
+[
+  {
+    "category": "Diff",
+    "reason": "no public static Geometry method"
+  },
+  {
+    "category": "Orientation",
+    "reason": "predicates only (boolean)"
+  },
+  {
+    "category": "OrientationFP",
+    "reason": "predicates only (boolean)"
+  },
+  {
+    "category": "PointLocation",
+    "reason": "no Geometry return"
+  },
+  {
+    "category": "PreparedGeometry",
+    "reason": "boolean/prepared API"
+  },
+  {
+    "category": "SpatialPredicate",
+    "reason": "boolean predicates"
+  },
+  {
+    "category": "SpatialPredicateNG",
+    "reason": "boolean predicates"
+  },
+  {
+    "category": "Writer",
+    "reason": "string/IO writers"
+  },
+  {
+    "category": "CreateShape",
+    "reason": "fontGlyphSerif needs string; grid uncertain \u2014 deferred"
+  },
+  {
+    "category": "Edit",
+    "reason": "addHole needs second geometry hole"
+  },
+  {
+    "category": "Metric",
+    "reason": "segmentLengths sampling \u2014 nonstandard return"
+  },
+  {
+    "category": "SpatialIndex",
+    "reason": "kdTreeQuery needs pts+query env"
+  },
+  {
+    "category": "UserData",
+    "reason": "length may not return Geometry"
+  }
+]

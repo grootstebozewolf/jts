@@ -25,6 +25,7 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.SqlMmTypes;
 import org.locationtech.jts.util.Assert;
 
 
@@ -205,6 +206,7 @@ public class GMLWriter {
 			throws IOException 
 			{
 		isRootTag = true;
+		SqlMmTypes.refuseFlatten(geom, "GMLWriter");
 		if (geom instanceof Point) {
 			writePoint((Point) geom, writer, level);
 		} else if (geom instanceof LineString) {

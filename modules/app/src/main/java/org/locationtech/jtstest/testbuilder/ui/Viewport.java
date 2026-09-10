@@ -12,8 +12,11 @@
 
 package org.locationtech.jtstest.testbuilder.ui;
 
-import java.awt.*; 
-import java.awt.geom.*; 
+import java.awt.Dimension;
+import java.awt.Point;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.NoninvertibleTransformException;
+import java.awt.geom.Point2D;
 import java.text.NumberFormat;
 
 import org.locationtech.jts.awt.PointTransformation;
@@ -21,7 +24,6 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.math.MathUtil;
-import org.locationtech.jts.util.Assert;
 import org.locationtech.jtstest.testbuilder.GeometryEditPanel;
 
 
@@ -54,12 +56,30 @@ public class Viewport implements PointTransformation
   private PrecisionModel scalePM = new PrecisionModel(scale);
   private NumberFormat scaleFormat;
   
-  private Envelope viewEnvInModel;
+  /**
+   * Initialised empty for the same reason {@link #viewSize} is: the render
+   * worker can paint before the first layout, and fixing the viewSize NPE let
+   * that pre-layout pass run far enough to hit this field instead
+   * (GridElement.drawLinedGrid, "modelEnv is null"). An empty envelope draws a
+   * degenerate grid into a 0x0 view -- invisible -- and the first real
+   * update() replaces it.
+   */
+  private Envelope viewEnvInModel = new Envelope();
   private AffineTransform modelToViewTransform;
   private java.awt.geom.Point2D.Double srcPt = new java.awt.geom.Point2D.Double(0, 0);
   private java.awt.geom.Point2D.Double destPt = new java.awt.geom.Point2D.Double(0, 0);
 
-  private Dimension viewSize;
+  /**
+   * The panel's laid-out size. Initialised empty rather than left null: the
+   * render worker runs on a background thread and can request the
+   * model-to-view transform before Swing has laid the panel out (before
+   * {@link #update(Dimension)} has ever run), which crashed the render pass
+   * with an NPE from {@link #updateModelToViewTransform()}. An empty dimension
+   * makes every pre-layout transform and query well-defined -- a render into a
+   * 0x0 view draws nothing, which is what a pre-layout render should draw --
+   * and the first real layout replaces it.
+   */
+  private Dimension viewSize = new Dimension(0, 0);
 
   public Viewport(GeometryEditPanel panel) {
     this.panel = panel;

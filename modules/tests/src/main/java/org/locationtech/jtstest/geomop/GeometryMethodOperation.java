@@ -11,9 +11,10 @@
  */
 package org.locationtech.jtstest.geomop;
 
-import java.lang.reflect.*;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
-import org.locationtech.jts.geom.*;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jtstest.testrunner.BooleanResult;
 import org.locationtech.jtstest.testrunner.DoubleResult;
 import org.locationtech.jtstest.testrunner.GeometryResult;
@@ -162,7 +163,7 @@ public class GeometryMethodOperation
     if (destClass == Integer.class || destClass == int.class) {
       // try as an int
       try {
-        convArg[0] = new Integer(srcStr);
+        convArg[0] = Integer.valueOf(srcStr);
         return true;
       }
       catch (NumberFormatException e) {

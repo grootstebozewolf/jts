@@ -1,0 +1,144 @@
+% Shared style for the rebuilt 2003--2005 JTS manuals.
+% Technical-manual layout: letter paper, numbered sections, no marketing chrome.
+\ProvidesPackage{jtsguide}[2026/08/16 JTS guide shared style]
+
+\RequirePackage[letterpaper,margin=1in]{geometry}
+\RequirePackage[T1]{fontenc}
+\RequirePackage[utf8]{inputenc}
+\RequirePackage{lmodern}
+\RequirePackage{microtype}
+\RequirePackage{booktabs}
+\RequirePackage{longtable}
+\RequirePackage{array}
+\RequirePackage{tabularx}
+\RequirePackage{enumitem}
+\RequirePackage{fancyhdr}
+\RequirePackage{listings}
+\RequirePackage{xcolor}
+\RequirePackage{framed}
+\RequirePackage{graphicx}
+\RequirePackage{setspace}
+\RequirePackage[hidelinks]{hyperref}
+
+\definecolor{codebg}{gray}{0.96}
+\definecolor{rulegray}{gray}{0.45}
+
+\lstset{
+  language=Java,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\bfseries,
+  commentstyle=\itshape\color{black!55},
+  stringstyle=\ttfamily,
+  showstringspaces=false,
+  breaklines=true,
+  breakatwhitespace=false,
+  frame=single,
+  rulecolor=\color{rulegray},
+  backgroundcolor=\color{codebg},
+  framesep=5pt,
+  xleftmargin=6pt,
+  xrightmargin=6pt,
+  columns=fullflexible,
+  keepspaces=true,
+  tabsize=2,
+  aboveskip=0.7em,
+  belowskip=0.7em
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\sffamily JTS Topology Suite}
+\fancyhead[R]{\small\sffamily\docshorttitle}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\setlength{\parskip}{0.45em}
+\setlength{\parindent}{0pt}
+\setlist[itemize]{leftmargin=1.4em,itemsep=0.2em,topsep=0.3em}
+\setlist[enumerate]{leftmargin=1.4em,itemsep=0.2em,topsep=0.3em}
+
+\newcommand{\docshorttitle}{Guide}
+\newcommand{\setshorttitle}[1]{\renewcommand{\docshorttitle}{#1}}
+
+% Guide-shot hole (DG-1..4, TS-1..6, UG-1..8): 4:3 at 1600x1200,
+% full TestBuilder window. Slot id only -- no caption on unshot work.
+% MKT-1 is 16:9 1920x1080 canvas-only and is not a manual figure.
+\graphicspath{{figures/}}
+\newlength{\figholewidth}
+\newlength{\figholeheight}
+\newcommand{\fighole}[1]{%
+  \par\medskip
+  \noindent
+  \begin{center}
+    \setlength{\figholewidth}{0.92\linewidth}%
+    \setlength{\figholeheight}{0.75\figholewidth}% 3/4 of width = 4:3
+    \setlength{\fboxsep}{0pt}%
+    \fbox{%
+      \begin{minipage}[c][\figholeheight][c]{\figholewidth}
+        \centering
+        \sffamily\footnotesize #1
+      \end{minipage}%
+    }%
+  \end{center}
+  \par\medskip
+}
+
+% Signed 4:3 1600x1200 full TestBuilder window.
+\newcommand{\figshot}[2]{%
+  \par\medskip
+  \noindent
+  \begin{center}
+    \includegraphics[width=0.92\linewidth]{#1}\\[0.35em]
+    \sffamily\footnotesize #2
+  \end{center}
+  \par\medskip
+}
+
+% Two signed 4:3 shots in one slot (UG-2 A-blue / B-red).
+\newcommand{\figshotpair}[3]{%
+  \par\medskip
+  \noindent
+  \begin{center}
+    \includegraphics[width=0.455\linewidth]{#1}\hfill
+    \includegraphics[width=0.455\linewidth]{#2}\\[0.35em]
+    \sffamily\footnotesize #3
+  \end{center}
+  \par\medskip
+}
+
+\newenvironment{amendment}{%
+  \par\medskip
+  \begin{leftbar}
+  \noindent\textbf{Amendment.}\ 
+}{%
+  \end{leftbar}
+  \par\medskip
+}
+
+\newcommand{\jtscover}[3]{%
+  \thispagestyle{empty}
+  \vspace*{1.6cm}
+  {\centering
+    {\Large\sffamily JTS Topology Suite}\\[1.1em]
+    {\LARGE\sffamily\bfseries #1}\\[1.4em]
+    {\large #2}\\[0.8em]
+    {\normalsize #3}\\
+  }
+  \vspace{1.2cm}
+}
+
+\newcommand{\changectrl}[1]{%
+  \section*{Document change control}
+  \begin{center}
+  \begin{tabular}{llp{3.2cm}p{6.4cm}}
+    \toprule
+    \textbf{Revision} & \textbf{Date} & \textbf{Author} & \textbf{Change} \\
+    \midrule
+    #1
+    \bottomrule
+  \end{tabular}
+  \end{center}
+}
+
+\newcommand{\predrow}[2]{#1 & #2 \\}

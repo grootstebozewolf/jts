@@ -3,26 +3,49 @@ JTS Topology Suite
 
 The JTS Topology Suite is a Java library for creating and manipulating vector geometry.  It also provides a comprehensive set of geometry test cases, and the TestBuilder GUI application for working with and visualizing geometry and JTS functions.
 
-![JTS logo](jts_logo.png)
+![JTS wordmark as curves plus a buffer halo](jts_logo.png)
 
-[![Travis Build Status](https://api.travis-ci.org/locationtech/jts.svg)](http://travis-ci.org/locationtech/jts) [![GitHub Action Status](https://github.com/locationtech/jts/workflows/GitHub%20CI/badge.svg)](https://github.com/locationtech/jts/actions) 
+JTS wordmark as curves plus a buffer halo (`logoLines` + `logoBuffer`: `toLinear` + `BufferOp`). Named linear fallback / CHORD-PATH. Not a laser.
+
+<!-- HERO: 2017 jts_logo.png is the door image. It is logoLines +
+     logoBuffer (toLinear + BufferOp): named linear fallback / CHORD-PATH,
+     not a laser. Do not caption a clothoid halo. #55 clothoidHalo is not
+     this door. Do not commit mkt1_1920x1080.png as a clothoid. -->
+
+This fork treats SQL/MM ISO/IEC 13249-3 curve types 8–12 (`CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON`, `MULTICURVE`, `MULTISURFACE`) as the signed I/O set. Cite 13249-3 for 8–12 only. No DOI. DIS is not the 2016 IS. ISO Z/M/ZM is `+1000/+2000/+3000` (`CircularStringZ=1008`, …); EWKB default is not ISO ([#51](https://github.com/grootstebozewolf/jts/pull/51)). Preview fork map 18 Clothoid / 19 Bézier / 20 Ellipse / 21 NURBS is not SIGNED I/O and is not the curve SoT (HOLD type 18–20; HOLD JTS I/O 21; Bézier is a named fallback, not type 19). HOLD 13/14. HOLD GEO-TIN 15–17. leftover 1000001–1000005 HOLD. Core `WKBWriter` refuses to flatten curve types. TestBuilder lives in `modules/app`.
+
+### User path
+
+Build this tree and run TestBuilder. Load a `CIRCULARSTRING` — it must stay a `CIRCULARSTRING` (smooth arc), not a flattened `LINESTRING`. There is no Maven Central curve artifact for this work.
+
+* [User Guide](USING.md)
+* [JTS TestBuilder](doc/JTSTestBuilder.md)
+
+### Developer path
+
+Working branch / source of truth: [`feature/sfa-curve-rgr`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-rgr). `mvn clean install` from the [Developing Guide](DEVELOPING.md). Curve work lives in the curve module. Do not silently flatten. Named linear fallback only if named. MMF Option B quality gate: [doc/MMF_OPTION_B.md](doc/MMF_OPTION_B.md) (draft [PR #61](https://github.com/grootstebozewolf/jts/pull/61)).
+
+* [Developing Guide](DEVELOPING.md)
+* [Contributing Guide](CONTRIBUTING.md)
+
+[![GitHub Action Status](https://github.com/locationtech/jts/workflows/GitHub%20CI/badge.svg)](https://github.com/locationtech/jts/actions) 
 
 [![Join the chat at https://gitter.im/locationtech/jts](https://badges.gitter.im/locationtech/jts.svg)](https://gitter.im/locationtech/jts?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-
-JTS is a project in the [LocationTech](http://www.locationtech.org) working group of the Eclipse Foundation.
+JTS is a project in the [LocationTech](https://www.locationtech.org) working group of the Eclipse Foundation.
 
 ![LocationTech](locationtech_mark.png) 
 
 ## Requirements
 
-Currently JTS targets Java 1.8 and above.
+Currently JTS targets Java 8 and above.
 
 ## Resources
 
 ### Code
-* [GitHub Repo](https://github.com/locationtech/jts)
-* [Maven Central group](https://mvnrepository.com/artifact/org.locationtech.jts)
+* [This fork](https://github.com/grootstebozewolf/jts) — working branch [`feature/sfa-curve-rgr`](https://github.com/grootstebozewolf/jts/tree/feature/sfa-curve-rgr)
+* [Upstream LocationTech](https://github.com/locationtech/jts)
+* [Maven Central group](https://mvnrepository.com/artifact/org.locationtech.jts) (upstream releases; this fork has no curve artifact there)
 
 ### Websites
 * [LocationTech Home](https://locationtech.org/projects/technology.jts)
@@ -32,12 +55,16 @@ Currently JTS targets Java 1.8 and above.
 * [Mailing List](https://accounts.eclipse.org/mailing-list/jts-dev)
 * [Gitter Channel](https://gitter.im/locationtech/jts)
 
+### Forums
+* [Stack Overflow](https://stackoverflow.com/questions/tagged/jts)
+* [GIS Stack Exchange](https://gis.stackexchange.com/questions/tagged/jts-topology-suite)
+
 ## License
 
 JTS is open source software.  It is dual-licensed under:
 
 * [Eclipse Public License 2.0](https://www.eclipse.org/legal/epl-v20.html)
-* [Eclipse Distribution License 1.0](http://www.eclipse.org/org/documents/edl-v10.php) (a BSD Style License)
+* [Eclipse Distribution License 1.0](https://www.eclipse.org/org/documents/edl-v10.php) (a BSD Style License)
 
 See also:
 
@@ -70,6 +97,7 @@ If you are interested in contributing to JTS please read the [**Contributing Gui
 * [**GEOS**](https://trac.osgeo.org/geos) - C++
 * [**NetTopologySuite**](https://github.com/NetTopologySuite/NetTopologySuite) - .NET
 * [**JSTS**](https://github.com/bjornharrtell/jsts) - JavaScript
+* [**dart_jts**](https://github.com/moovida/dart_jts) - Dart
 
 ### Via GEOS
 * [**Shapely**](https://github.com/Toblerity/Shapely) - Python wrapper of GEOS

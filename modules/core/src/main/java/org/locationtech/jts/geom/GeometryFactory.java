@@ -139,17 +139,6 @@ public class GeometryFactory
   /**
    *  Converts the <code>List</code> to an array.
    *
-   *@param  CircularStrings  the <code>List</code> of CircularStrings to convert
-   *@return              the <code>List</code> in array format
-   */
-  public static CircularString[] toCircularStringArray(Collection CircularStrings) {
-    CircularString[] CircularStringArray = new CircularString[CircularStrings.size()];
-    return (CircularString[]) CircularStrings.toArray(CircularStringArray);
-  }
-
-  /**
-   *  Converts the <code>List</code> to an array.
-   *
    *@param  lineStrings  the <code>List</code> of LineStrings to convert
    *@return              the <code>List</code> in array format
    */
@@ -293,26 +282,6 @@ public class GeometryFactory
   	return new Point(coordinates, this);
   }
   
-  /**
-   * Constructs an empty {@link MultiCircularString} geometry.
-   * 
-   * @return an empty MultiCircularString
-   */
-  public MultiCircularString createMultiCircularString() {
-    return new MultiCircularString(null, this);
-  }
-
-  /**
-   * Creates a MultiCircularString using the given CircularStrings; a null or empty
-   * array will create an empty MultiCircularString.
-   * 
-   * @param CircularStrings CircularStrings, each of which may be empty but not null
-   * @return the created MultiCircularString
-   */
-  public MultiCircularString createMultiCircularString(CircularString[] CircularStrings) {
-  	return new MultiCircularString(CircularStrings, this);
-  }
-
   /**
    * Constructs an empty {@link MultiLineString} geometry.
    * 
@@ -613,9 +582,6 @@ public class GeometryFactory
       if (geom0 instanceof Polygon) {
         return createMultiPolygon(toPolygonArray(geomList));
       }
-      else if (geom0 instanceof CircularString) {
-        return createMultiCircularString(toCircularStringArray(geomList));
-      }
       else if (geom0 instanceof LineString) {
         return createMultiLineString(toLineStringArray(geomList));
       }
@@ -656,31 +622,139 @@ public class GeometryFactory
   }
 
   /**
-   * Constructs an empty {@link CircularString} geometry.
-   * 
-   * @return an empty CircularString
+   * Creates a CircularString from control points.
+   * The default factory cannot construct curve types; a curve-capable
+   * factory (CurveGeometryFactory in jts-curve) overrides this.
+   * Do not implement by calling {@link #createLineString} — that would
+   * linearise.
+   *
+   * @param points the CircularString control points
+   * @return a CircularString (as a LineString)
    */
-  public CircularString createCircularString() {
-    return createCircularString(getCoordinateSequenceFactory().create(new Coordinate[]{}));
+  public LineString createCircularString(CoordinateSequence points) {
+    throw unsupportedCurve();
   }
 
   /**
-   * Creates a CircularString using the given Coordinates.
-   * A null or empty array creates an empty CircularString. 
-   * 
-   * @param coordinates an array without null elements, or an empty array, or null
+   * Creates a CompoundCurve from SimpleCurve members.
+   * The default factory cannot construct curve types; a curve-capable
+   * factory (CurveGeometryFactory in jts-curve) overrides this.
+   * Do not implement by calling {@link #createLineString} — that would
+   * linearise.
+   *
+   * @param members the CompoundCurve members (CircularString or LineString)
+   * @return a CompoundCurve (as a LineString)
    */
-  public CircularString createCircularString(Coordinate[] coordinates) {
-    return createCircularString(coordinates != null ? getCoordinateSequenceFactory().create(coordinates) : null);
+  public LineString createCompoundCurve(LineString[] members) {
+    throw unsupportedCurve();
   }
+
   /**
-   * Creates a CircularString using the given CoordinateSequence.
-   * A null or empty CoordinateSequence creates an empty CircularString. 
-   * 
-   * @param coordinates a CoordinateSequence (possibly empty), or null
+   * Creates an empty CurvePolygon.
+   * The default factory cannot construct curve types; a curve-capable
+   * factory (CurveGeometryFactory in jts-curve) overrides this.
+   * Do not implement by calling {@link #createPolygon} — that would
+   * linearise.
+   *
+   * @return an empty CurvePolygon (as a Polygon)
    */
-  public CircularString createCircularString(CoordinateSequence coordinates) {
-	return new CircularString(coordinates, this);
+  public Polygon createCurvePolygon() {
+    throw unsupportedCurve();
+  }
+
+  /**
+   * Creates a CurvePolygon whose rings are LineStrings (CircularString,
+   * CompoundCurve, or LinearRing). GEOS uses this shape for WKB.
+   * The default factory cannot construct curve types; a curve-capable
+   * factory (CurveGeometryFactory in jts-curve) overrides this.
+   * Do not implement by calling {@link #createPolygon} — that would
+   * linearise.
+   *
+   * @param shell the exterior ring
+   * @param holes the interior rings, or {@code null}
+   * @return a CurvePolygon (as a Polygon)
+   */
+  public Polygon createCurvePolygon(LineString shell, LineString[] holes) {
+    throw unsupportedCurve();
+  }
+
+  /**
+   * Creates a MultiCurve from lineal members.
+   * The default factory cannot construct curve types; a curve-capable
+   * factory (CurveGeometryFactory in jts-curve) overrides this.
+   * Do not implement by calling {@link #createMultiLineString} — that
+   * would linearise.
+   *
+   * @param members the MultiCurve members
+   * @return a MultiCurve (as a MultiLineString)
+   */
+  public MultiLineString createMultiCurve(LineString[] members) {
+    throw unsupportedCurve();
+  }
+
+  /**
+   * Creates a MultiSurface from polygonal members.
+   * The default factory cannot construct curve types; a curve-capable
+   * factory (CurveGeometryFactory in jts-curve) overrides this.
+   * Do not implement by calling {@link #createMultiPolygon} — that
+   * would linearise.
+   *
+   * @param members the MultiSurface members
+   * @return a MultiSurface (as a MultiPolygon)
+   */
+  public MultiPolygon createMultiSurface(Polygon[] members) {
+    throw unsupportedCurve();
+  }
+
+  /**
+   * Creates a preview Clothoid from start pose and spiral parameters.
+   * HOLD type 18 — not SIGNED I/O, not Circle-as-18, not Clothoid-as-22.
+   * Default factory cannot construct curve types; {@code CurveGeometryFactory}
+   * overrides. Do not implement by densifying to a LineString.
+   *
+   * @param start start point (Z/M preserved when present)
+   * @param startTangent heading at start (radians, XY-up CCW)
+   * @param startKappa curvature κ₀
+   * @param endKappa curvature κ₁ ({@code !=} startKappa)
+   * @param length arc length L {@code > 0}
+   * @return a clothoid (as a LineString)
+   */
+  public LineString createClothoid(Coordinate start, double startTangent,
+      double startKappa, double endKappa, double length) {
+    throw unsupportedCurve();
+  }
+
+  /**
+   * Creates a named Bézier fallback from cubic control points ({@code 3k+1}).
+   * Not type 19. HOLD type 19. Default factory cannot construct;
+   * {@code CurveGeometryFactory} overrides.
+   */
+  public LineString createBezierCurve(CoordinateSequence controls) {
+    throw unsupportedCurve();
+  }
+
+  /**
+   * Creates a preview Ellipse. HOLD type 20 — not SIGNED I/O.
+   * Default factory cannot construct; {@code CurveGeometryFactory} overrides.
+   */
+  public LineString createEllipseCurve(double centreX, double centreY,
+      double centreZ, double semiMajor, double semiMinor, double rotation,
+      double startAngle, double endAngle) {
+    throw unsupportedCurve();
+  }
+
+  /**
+   * Creates a preview NURBS. HOLD JTS I/O 21 — not SIGNED I/O.
+   * Default factory cannot construct; {@code CurveGeometryFactory} overrides.
+   */
+  public LineString createNurbsCurve(CoordinateSequence controls, int degree,
+      double[] weights, double[] knots) {
+    throw unsupportedCurve();
+  }
+
+  private static UnsupportedOperationException unsupportedCurve() {
+    return new UnsupportedOperationException(
+        "requires a GeometryFactory that can construct curve types (CurveGeometryFactory).");
   }
 
   /**

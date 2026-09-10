@@ -12,10 +12,12 @@
 
 package org.locationtech.jtstest.testbuilder.geom;
 
-import java.util.*;
-
-import org.locationtech.jts.geom.*;
-import org.locationtech.jts.geom.util.*;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.curve.CircularString;
+import org.locationtech.jts.geom.util.GeometryEditor;
 
 public class GeometryVertexDeleter 
 {
@@ -45,6 +47,10 @@ public class GeometryVertexDeleter
         Geometry geometry)
     {
       if (geometry != line) return coords;
+
+      if (geometry instanceof CircularString) {
+        return deleteOnCircularString(coords);
+      }
       
       int minLen = 2;
       if (geometry instanceof LinearRing) minLen = 4;
@@ -72,6 +78,49 @@ public class GeometryVertexDeleter
       }
       
       return newPts; 
+    }
+
+    /**
+     * Inverse of insert +2: drop two controls so the count stays odd
+     * and ≥ 3. A one-point delete leaves an even leftover that draws as
+     * a dangling vertex (RC3 phantom).
+     */
+    private Coordinate[] deleteOnCircularString(Coordinate[] coords)
+    {
+      int n = coords.length;
+      if (n <= 3 || n % 2 == 0) {
+        return coords;
+      }
+      int i = vertexIndex;
+      if (i < 0 || i >= n) {
+        return coords;
+      }
+      int a;
+      int b;
+      if (i % 2 == 1) {
+        a = i - 1;
+        b = i;
+      }
+      else if (i == 0) {
+        a = 0;
+        b = 1;
+      }
+      else if (i == n - 1) {
+        a = n - 2;
+        b = n - 1;
+      }
+      else {
+        a = i;
+        b = i + 1;
+      }
+      Coordinate[] newPts = new Coordinate[n - 2];
+      int j = 0;
+      for (int k = 0; k < n; k++) {
+        if (k != a && k != b) {
+          newPts[j++] = coords[k];
+        }
+      }
+      return newPts;
     }
   }
 

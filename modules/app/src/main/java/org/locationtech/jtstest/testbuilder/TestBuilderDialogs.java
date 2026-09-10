@@ -12,7 +12,6 @@
 package org.locationtech.jtstest.testbuilder;
 
 import java.io.File;
-
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 
@@ -179,6 +178,14 @@ public class TestBuilderDialogs {
       geomInspectorDlg = new GeometryInspectorDialog(tbFrame);
     }
     geomInspectorDlg.setGeometry(geomIndex, geometry);
+    geomInspectorDlg.setVisible(true);
+  }
+  
+  public static void inspectGeometry(JTSTestBuilderFrame tbFrame, String tag, Geometry geometry) {
+    if (geomInspectorDlg == null) {
+      geomInspectorDlg = new GeometryInspectorDialog(tbFrame);
+    }
+    geomInspectorDlg.setGeometry(tag, geometry, 0, false);
     geomInspectorDlg.setVisible(true);
   }
   

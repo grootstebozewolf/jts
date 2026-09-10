@@ -1,0 +1,69 @@
+{
+  "id": "OverlayNGSnapping.union.disc.pr7",
+  "claimId": "TB-AP-OVERLAYNGSNAPPING-UNION",
+  "category": "OverlayNGSnapping",
+  "function": "union",
+  "branch": "pr7",
+  "tags": [
+    "tb-appium",
+    "OverlayNGSnapping",
+    "union",
+    "disc"
+  ],
+  "golden": false,
+  "skipped": true,
+  "playbackOf": "OverlayNGSnapping.union.polygon.upstream",
+  "fixtureFile": "_fixtures/pr7-disc.wkt",
+  "fixtureFileB": "_fixtures/pr7-disc.wkt",
+  "params": [
+    "0.1"
+  ],
+  "steps": [
+    {
+      "id": "jts.tb.toolbar.case.new",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.a",
+      "action": "setText",
+      "valueFromFixture": "a"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.wkt.b",
+      "action": "setText",
+      "valueFromFixture": "b"
+    },
+    {
+      "id": "jts.tb.wkt.load",
+      "action": "click"
+    },
+    {
+      "id": "jts.tb.fn.tree",
+      "action": "selectPath",
+      "path": [
+        "OverlayNGSnapping",
+        "union"
+      ]
+    },
+    {
+      "id": "jts.tb.fn.param.0",
+      "action": "setText",
+      "value": "0.1"
+    },
+    {
+      "id": "jts.tb.fn.exec",
+      "action": "click"
+    }
+  ],
+  "expect": {
+    "fnName": "union",
+    "aNotEmpty": true,
+    "resultNotEmpty": true,
+    "preserveCurveAware": true
+  },
+  "notes": "union tol 0.1 \u00b7 pr7 disc | PROMOTE SKIP: polygon=OK;disc=EXC:TopologyException;circle=OK;half-moon=OK;"
+}

@@ -22,7 +22,6 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
-import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.util.Assert;
 
 /**
@@ -351,9 +350,21 @@ class OverlayUtil {
    */
   public static Coordinate round(Point pt, PrecisionModel pm) {
     if (pt.isEmpty()) return null;
-    Coordinate p = pt.getCoordinate().copy();
+    return round( pt.getCoordinate(), pm );
+  }
+  
+  /**
+   * Rounds a coordinate if precision model is fixed.
+   * Note: return value is only copied if rounding is performed.
+   * 
+   * @param p the coordinate to round
+   * @return the rounded coordinate
+   */
+  public static Coordinate round(Coordinate p, PrecisionModel pm) {
     if (! isFloating(pm)) {
-      pm.makePrecise(p);
+      Coordinate pRound = p.copy();
+      pm.makePrecise(pRound);
+      return pRound;
     }
     return p;
   }
@@ -380,6 +391,8 @@ class OverlayUtil {
     if (geom0 == null || geom1 == null) 
       return true;
     
+    if (result.getDimension() < 2) return true;
+    
     double areaResult = result.getArea();
     double areaA = geom0.getArea();
     double areaB = geom1.getArea();
@@ -391,8 +404,7 @@ class OverlayUtil {
                   && isLess(areaResult, areaB, AREA_HEURISTIC_TOLERANCE);
       break;
     case OverlayNG.DIFFERENCE:
-      isConsistent = isLess(areaResult, areaA, AREA_HEURISTIC_TOLERANCE)
-                  && isGreater(areaResult, areaA - areaB, AREA_HEURISTIC_TOLERANCE);
+      isConsistent = isDifferenceAreaConsistent(areaA, areaB, areaResult, AREA_HEURISTIC_TOLERANCE);
       break;
     case OverlayNG.SYMDIFFERENCE:
       isConsistent = isLess(areaResult, areaA + areaB, AREA_HEURISTIC_TOLERANCE);
@@ -404,6 +416,23 @@ class OverlayUtil {
       break;
     }
     return isConsistent;
+  }
+  
+  /**
+   * Tests if the area of a difference is greater than the minimum possible difference area.
+   * This is a heuristic which will only detect gross overlay errors.
+   * @param areaA the area of A
+   * @param areaB the area of B
+   * @param areaResult the result area
+   * @param tolFrac the area tolerance fraction
+   * 
+   * @return true if the difference area is consistent.
+   */
+  private static boolean isDifferenceAreaConsistent(double areaA, double areaB, double areaResult, double tolFrac) {
+    if (! isLess(areaResult, areaA, tolFrac))
+      return false;
+    double areaDiffMin = areaA - areaB - tolFrac * areaA;
+    return areaResult > areaDiffMin;
   }
 
   private static boolean isLess(double v1, double v2, double tol) {

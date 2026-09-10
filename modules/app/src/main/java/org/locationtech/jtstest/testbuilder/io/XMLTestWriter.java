@@ -14,9 +14,16 @@ package org.locationtech.jtstest.testbuilder.io;
 import java.io.File;
 import java.util.Iterator;
 
-import org.locationtech.jts.geom.*;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.Lineal;
+import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.io.WKBWriter;
 import org.locationtech.jts.io.WKTWriter;
+import org.locationtech.jts.io.curve.CurveWKBWriter;
+import org.locationtech.jts.io.curve.CurveWKTWriter;
 import org.locationtech.jts.util.Assert;
 import org.locationtech.jtstest.test.TestCase;
 import org.locationtech.jtstest.test.TestCaseList;
@@ -40,8 +47,8 @@ public class XMLTestWriter
          + precisionModel.getScale() + "\"/>";
   }
 
-  private WKTWriter wktWriter = new WKTWriter();
-  private WKBWriter wkbWriter = new WKBWriter();
+  private WKTWriter wktWriter = new CurveWKTWriter();
+  private WKBWriter wkbWriter = new CurveWKBWriter();
 
   public XMLTestWriter() {
   }
