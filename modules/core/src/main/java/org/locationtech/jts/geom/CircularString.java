@@ -209,13 +209,13 @@ public class CircularString extends LineString {
       return getFactory().createLineString();
     }
     if (linearized != null && doubleEquals(linearizedTolerance, tolerance)) {
-      return linearized.copy();
+      return (LineString) linearized.copy();
     }
     CoordinateSequence seq = createLinearizedSequence(tolerance);
     LineString result = getFactory().createLineString(seq);
     linearized = result;
     linearizedTolerance = tolerance;
-    return result.copy();
+    return (LineString) result.copy();
   }
 
   /**
