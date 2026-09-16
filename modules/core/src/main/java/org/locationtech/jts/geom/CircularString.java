@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Martin Davis and others.
+ * Copyright (c) 2026 Jeroen Bloemscheer.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -46,7 +46,7 @@ import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
  * {@code SegmentString} stays linear. This class is a geometry type,
  * not a noding type.
  *
- * @author Martin Davis
+ * @author Jeroen Bloemscheer
  * @see ExactCircularArc
  */
 public class CircularString extends LineString {

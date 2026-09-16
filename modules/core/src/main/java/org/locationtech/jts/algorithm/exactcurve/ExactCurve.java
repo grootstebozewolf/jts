@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Martin Davis and others.
+ * Copyright (c) 2026 Jeroen Bloemscheer.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -20,7 +20,7 @@ import org.locationtech.jts.geom.Envelope;
  * {@link org.locationtech.jts.geom.CircularString} can compose
  * {@link ExactCircularArc} windows. Do not grow extra curve kinds here.
  *
- * @author Martin Davis
+ * @author Jeroen Bloemscheer
  */
 public interface ExactCurve {
 
