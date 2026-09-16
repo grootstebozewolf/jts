@@ -22,26 +22,29 @@ import org.locationtech.jts.algorithm.exactcurve.ExactCircularArc;
  * The end of window {@code N} is the start of window {@code N+1}.
  * A CircularString is closed when the first control equals the last.
  * <p>
- * This type follows the GeoTools model (Jody Garnett, jts-dev 2019):
- * it subclasses {@link LineString} and produces a linearized
- * {@link CoordinateSequence} on demand for LineString-speaking operations.
- * It is <em>not</em> the “densify at parse time into LineString only”
- * alternative. Alignment:
+ * Control points <em>are</em> the stored {@link LineString} sequence.
+ * {@link #getCoordinates()}, {@link #getNumPoints()},
+ * {@link #getCoordinateN(int)} and {@link #getCoordinateSequence()}
+ * speak those controls. Densify only via the named
+ * {@link #toLinear(double)} path ({@link #linearize(double)} /
+ * {@link #getLinearized(double)} are one-line aliases).
+ * <p>
+ * Alignment:
  * <ul>
  * <li>GeoTools {@code org.geotools.geometry.jts.CircularString} —
- *     subclass LineString; {@code linearize(tolerance)};
- *     control-point WKT via curved text</li>
+ *     subclass {@link LineString}; named {@code linearize(tolerance)}</li>
  * <li>GEOS {@code geos::geom::CircularString} — exact
  *     {@code getLength()} from composed arcs;
- *     {@code getLinearized(params)} for densify</li>
+ *     named {@code getLinearized}</li>
  * <li>PostGIS {@code CIRCULARSTRING} WKT</li>
  * </ul>
- * Each 3-point window is an {@link ExactCircularArc}. Collinear windows
- * become a chord. Length and envelope use those exact windows;
- * densification happens only through the named
- * {@link #toLinear(double)} / {@link #getLinearized(double)} /
- * {@link #linearize(double)} path (and the LineString-speaking
- * accessors that document themselves as on-demand linearizations).
+ * Each window is a cached {@link ExactCircularArc}. Collinear windows
+ * are exact chords ({@link ExactCircularArc#isExact()} stays true).
+ * Length and envelope use those windows; they do not densify.
+ * <p>
+ * Full-circle convention: {@code CIRCULARSTRING(s, m, s)} is a circle
+ * whose diameter is the segment {@code s–m} (center = midpoint of
+ * {@code s} and {@code m}, radius = {@code |s-m|/2}).
  * <p>
  * {@code SegmentString} stays linear. This class is a geometry type,
  * not a noding type.
@@ -67,6 +70,7 @@ public class CircularString extends LineString {
 
   private transient LineString linearized;
   private transient double linearizedTolerance = Double.NaN;
+  private transient ExactCircularArc[] windows;
 
   /**
    * Constructs a CircularString from control points.
@@ -93,7 +97,7 @@ public class CircularString extends LineString {
   }
 
   /**
-   * Returns a copy of the SQL/MM control points (not the linearized vertices).
+   * Returns a copy of the SQL/MM control points (not linearized vertices).
    *
    * @return a deep copy of the control-point array
    */
@@ -111,12 +115,12 @@ public class CircularString extends LineString {
   }
 
   /**
-   * Gets the number of control points.
+   * Gets the number of control points (same as {@link #getNumPoints()}).
    *
    * @return the control-point count
    */
   public int getNumControlPoints() {
-    return points.size();
+    return getNumPoints();
   }
 
   /**
@@ -132,33 +136,48 @@ public class CircularString extends LineString {
   }
 
   /**
-   * Returns the exact circular-arc window at {@code arcIndex}.
+   * Returns the composed {@link ExactCircularArc} window at {@code arcIndex}.
+   * Windows are cached; this does not allocate a new arc per call.
    *
    * @param arcIndex 0-based window index
    * @return the composed {@link ExactCircularArc}
    */
   public ExactCircularArc getArcN(int arcIndex) {
-    if (arcIndex < 0 || arcIndex >= getNumArcs()) {
+    ExactCircularArc[] arcs = windows();
+    if (arcIndex < 0 || arcIndex >= arcs.length) {
       throw new IllegalArgumentException("arcIndex out of range: " + arcIndex);
     }
-    int i = arcIndex * 2;
-    return new ExactCircularArc(
-        points.getCoordinate(i),
-        points.getCoordinate(i + 1),
-        points.getCoordinate(i + 2));
+    return arcs[arcIndex];
+  }
+
+  private ExactCircularArc[] windows() {
+    if (windows != null) {
+      return windows;
+    }
+    int n = getNumArcs();
+    ExactCircularArc[] arcs = new ExactCircularArc[n];
+    for (int i = 0; i < n; i++) {
+      int k = i * 2;
+      arcs[i] = new ExactCircularArc(
+          points.getCoordinate(k),
+          points.getCoordinate(k + 1),
+          points.getCoordinate(k + 2));
+    }
+    windows = arcs;
+    return arcs;
   }
 
   /**
-   * GeoTools-aligned linearize using {@link #DEFAULT_LINEARIZATION_TOLERANCE}.
+   * GeoTools-aligned alias of {@link #toLinear()}.
    *
    * @return a newly created LineString
    */
   public LineString linearize() {
-    return toLinear(DEFAULT_LINEARIZATION_TOLERANCE);
+    return toLinear();
   }
 
   /**
-   * GeoTools-aligned linearize at the given tolerance.
+   * GeoTools-aligned alias of {@link #toLinear(double)}.
    *
    * @param tolerance max distance from the true arcs
    * @return a newly created LineString
@@ -173,7 +192,7 @@ public class CircularString extends LineString {
    * @return a newly created LineString
    */
   public LineString getLinearized() {
-    return toLinear(DEFAULT_LINEARIZATION_TOLERANCE);
+    return toLinear();
   }
 
   /**
@@ -187,18 +206,18 @@ public class CircularString extends LineString {
   }
 
   /**
-   * Densifies this CircularString to a {@link LineString}.
-   * This is the named Year-1 densify path (GeoTools {@code linearize},
-   * GEOS {@code getLinearized}).
+   * Densifies this CircularString to a {@link LineString}
+   * at {@link #DEFAULT_LINEARIZATION_TOLERANCE}.
    *
-   * @return a newly created LineString at the default tolerance
+   * @return a newly created LineString
    */
   public LineString toLinear() {
     return toLinear(DEFAULT_LINEARIZATION_TOLERANCE);
   }
 
   /**
-   * Densifies this CircularString to a {@link LineString} at {@code tolerance}.
+   * Named Year-1 densify path (primary name). GeoTools {@code linearize}
+   * and GEOS {@code getLinearized} delegate here.
    *
    * @param tolerance max distance from the true arcs; {@code 0} uses the
    *        maximum segment count; non-finite uses the default quadrant count
@@ -234,9 +253,9 @@ public class CircularString extends LineString {
       return getFactory().getCoordinateSequenceFactory().create(new Coordinate[] {});
     }
     List<Coordinate> coords = new ArrayList<Coordinate>();
-    int nArcs = getNumArcs();
-    for (int i = 0; i < nArcs; i++) {
-      getArcN(i).appendLinearized(coords, tolerance, i == 0);
+    ExactCircularArc[] arcs = windows();
+    for (int i = 0; i < arcs.length; i++) {
+      arcs[i].appendLinearized(coords, tolerance, i == 0);
     }
     return getFactory().getCoordinateSequenceFactory().create(
         coords.toArray(new Coordinate[coords.size()]));
@@ -280,38 +299,40 @@ public class CircularString extends LineString {
   }
 
   /**
-   * Exact circular length (GEOS-style): sum of {@link ExactCircularArc#getLength()}.
-   * Collinear windows contribute the chord path, not a densified polyline.
+   * Exact circular length: sum of composed {@link ExactCircularArc#length()}.
+   * Collinear windows contribute the chord path. Does not densify.
    */
   public double getLength() {
     if (isEmpty()) {
       return 0.0;
     }
     double tot = 0.0;
-    int nArcs = getNumArcs();
-    for (int i = 0; i < nArcs; i++) {
-      tot += getArcN(i).getLength();
+    ExactCircularArc[] arcs = windows();
+    for (int i = 0; i < arcs.length; i++) {
+      tot += arcs[i].length();
     }
     return tot;
   }
 
   /**
-   * On-demand linearized vertices (GeoTools LineString-speaking contract).
-   * The returned array and its {@link Coordinate}s are copies.
+   * Control points (deep copy). Does not linearize.
    */
   public Coordinate[] getCoordinates() {
-    return CoordinateArrays.copyDeep(linearize().getCoordinates());
+    return CoordinateArrays.copyDeep(points.toCoordinateArray());
   }
 
   /**
-   * On-demand linearized sequence (a copy; caller mutation is safe).
+   * Control-point sequence (copy). Does not linearize.
    */
   public CoordinateSequence getCoordinateSequence() {
-    return getLinearizedCoordinateSequence(DEFAULT_LINEARIZATION_TOLERANCE);
+    return points.copy();
   }
 
+  /**
+   * Control point at index {@code n} (copy). Does not linearize.
+   */
   public Coordinate getCoordinateN(int n) {
-    return getCoordinateSequence().getCoordinate(n);
+    return points.getCoordinate(n).copy();
   }
 
   public Coordinate getCoordinate() {
@@ -321,11 +342,11 @@ public class CircularString extends LineString {
     return points.getCoordinate(0).copy();
   }
 
+  /**
+   * Number of control points. Does not linearize.
+   */
   public int getNumPoints() {
-    if (isEmpty()) {
-      return 0;
-    }
-    return getCoordinateSequence().size();
+    return points.size();
   }
 
   public Point getPointN(int n) {
@@ -343,9 +364,9 @@ public class CircularString extends LineString {
 
   protected Envelope computeEnvelopeInternal() {
     Envelope env = new Envelope();
-    int nArcs = getNumArcs();
-    for (int i = 0; i < nArcs; i++) {
-      getArcN(i).expandEnvelope(env);
+    ExactCircularArc[] arcs = windows();
+    for (int i = 0; i < arcs.length; i++) {
+      arcs[i].expandEnvelope(env);
     }
     return env;
   }
@@ -391,6 +412,7 @@ public class CircularString extends LineString {
     super.geometryChangedAction();
     linearized = null;
     linearizedTolerance = Double.NaN;
+    windows = null;
   }
 
   public CircularString reverse() {

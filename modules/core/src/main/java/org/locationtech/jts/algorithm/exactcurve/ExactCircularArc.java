@@ -11,6 +11,7 @@
  */
 package org.locationtech.jts.algorithm.exactcurve;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.locationtech.jts.algorithm.Angle;
@@ -26,7 +27,13 @@ import org.locationtech.jts.geom.Envelope;
  * Collinear or degenerate windows degrade to the control-point chord
  * (start–mid–end), never a bogus huge circle. Length is the true
  * arc length ({@code radius * sweep}) when circular, and the chord
- * path length when collinear.
+ * path length when collinear. {@link #isExact()} is {@code true} for
+ * both the circular and the exact-chord cases.
+ * <p>
+ * Full-circle convention: {@code CIRCULARSTRING(s, m, s)} is a circle
+ * whose <em>diameter</em> is the segment {@code s–m}
+ * (center = midpoint of {@code s} and {@code m},
+ * radius = {@code |s-m|/2}, sweep = 2π).
  *
  * @author Jeroen Bloemscheer
  */
@@ -204,11 +211,72 @@ public class ExactCircularArc implements ExactCurve {
     return collinear;
   }
 
-  public double getLength() {
+  /**
+   * Signed sweep angle in radians ({@code 0} if collinear).
+   *
+   * @return the sweep magnitude
+   */
+  public double getSweep() {
+    return sweep;
+  }
+
+  public boolean isExact() {
+    return true;
+  }
+
+  public double length() {
     if (collinear) {
       return p0.distance(p1) + p1.distance(p2);
     }
     return radius * sweep;
+  }
+
+  /**
+   * Alias of {@link #length()}.
+   *
+   * @return the exact length
+   */
+  public double getLength() {
+    return length();
+  }
+
+  public Coordinate pointAt(double t) {
+    if (t < 0.0) {
+      t = 0.0;
+    }
+    else if (t > 1.0) {
+      t = 1.0;
+    }
+    if (collinear || sweep <= ANGLE_EPS) {
+      return pointAtChord(t);
+    }
+    double dir = ccw ? 1.0 : -1.0;
+    double a0 = Math.atan2(p0.y - center.y, p0.x - center.x);
+    return pointOnCircle(a0 + dir * t * sweep);
+  }
+
+  private Coordinate pointAtChord(double t) {
+    double d1 = p0.distance(p1);
+    double d2 = p1.distance(p2);
+    double tot = d1 + d2;
+    if (tot == 0.0) {
+      return p0.copy();
+    }
+    double s = t * tot;
+    if (s <= d1) {
+      return interpolate(p0, p1, d1 == 0.0 ? 0.0 : s / d1);
+    }
+    return interpolate(p1, p2, d2 == 0.0 ? 0.0 : (s - d1) / d2);
+  }
+
+  private static Coordinate interpolate(Coordinate a, Coordinate b, double f) {
+    return new Coordinate(a.x + f * (b.x - a.x), a.y + f * (b.y - a.y));
+  }
+
+  public Coordinate[] toLinear(double tolerance) {
+    List<Coordinate> dest = new ArrayList<Coordinate>();
+    appendLinearized(dest, tolerance, true);
+    return dest.toArray(new Coordinate[dest.size()]);
   }
 
   public void expandEnvelope(Envelope envelope) {

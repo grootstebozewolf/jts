@@ -76,13 +76,19 @@ public class CircularStringTest extends GeometryTestCase {
     assertTrue(controls[0].equals2D(controls[controls.length - 1]));
   }
 
-  public void testClosedSingleArcCircle() throws Exception {
+  public void testClosedSingleArcCircleDiameterConvention() throws Exception {
+    // CIRCULARSTRING(s, m, s) is a full circle with diameter s–m.
     CircularString cs = (CircularString) reader.read("CIRCULARSTRING (0 0, 1 0, 0 0)");
     assertTrue(cs.isClosed());
+    assertEquals(3, cs.getNumPoints());
     ExactCircularArc arc = cs.getArcN(0);
     assertTrue(arc.isFullCircle());
+    assertTrue(arc.isExact());
     assertFalse(arc.isCollinear());
+    assertEquals(0.5, arc.getRadius(), 1e-12);
+    assertTrue(arc.getCenter().equals2D(new Coordinate(0.5, 0)));
     assertEquals(Math.PI, cs.getLength(), 1e-10);
+    assertSame("windows are composed, not rebuilt", arc, cs.getArcN(0));
   }
 
   public void testCollinearDegradesToChord() throws Exception {
@@ -138,7 +144,11 @@ public class CircularStringTest extends GeometryTestCase {
     assertEquals("CIRCULARSTRING (0 0, 1 1, 1 0)", writer.write(cs));
 
     Coordinate[] coords = cs.getCoordinates();
-    assertTrue(coords.length >= 3);
+    assertEquals("getCoordinates speaks controls, not linearized vertices", 3, coords.length);
+    assertEquals(3, cs.getNumPoints());
+    assertTrue(cs.getCoordinateN(1).equals2D(new Coordinate(1, 1)));
+    assertEquals(3, cs.getCoordinateSequence().size());
+    assertTrue(cs.toLinear().getNumPoints() >= 3);
     double origX = coords[0].x;
     coords[0].x = 12345;
     coords[1] = new Coordinate(-99, -99);

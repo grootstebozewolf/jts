@@ -14,6 +14,9 @@
  * Thin exact-curve primitives used internally by SQL/MM curve geometries.
  * <p>
  * Year-1 contains only {@link org.locationtech.jts.algorithm.exactcurve.ExactCircularArc}.
- * This package is not a noding API and is not a rich curve-type zoo.
+ * {@link org.locationtech.jts.algorithm.exactcurve.ExactCurve} is the six-method
+ * protocol ({@code getStart}, {@code getEnd}, {@code length}, {@code pointAt},
+ * {@code toLinear}, {@code isExact}). This package is not a noding API
+ * and is not a rich curve-type zoo.
  */
 package org.locationtech.jts.algorithm.exactcurve;

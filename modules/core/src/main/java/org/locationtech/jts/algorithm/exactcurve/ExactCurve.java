@@ -11,41 +11,68 @@
  */
 package org.locationtech.jts.algorithm.exactcurve;
 
-import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Coordinate;
 
 /**
- * Thin Year-1 contract for an exact curve primitive.
+ * Thin Year-1 exact-curve protocol (six methods only).
  * <p>
- * This is intentionally not a rich abstract base: it exists so
- * {@link org.locationtech.jts.geom.CircularString} can compose
- * {@link ExactCircularArc} windows. Do not grow extra curve kinds here.
+ * {@link org.locationtech.jts.geom.CircularString} composes
+ * {@link ExactCircularArc} windows. Analytic extras (radius, sweep,
+ * center, collinear, envelope, append-linearize) live on
+ * {@code ExactCircularArc}, not here. Java 8; no {@code sealed}.
+ * Do not grow a Year-2 Exact* zoo.
  *
  * @author Jeroen Bloemscheer
  */
 public interface ExactCurve {
 
   /**
-   * Returns the exact length of this primitive.
-   * Collinear / degenerate windows use the control-point chord path,
-   * not a densified approximation.
+   * Start of this primitive (copy).
+   *
+   * @return the start control
+   */
+  Coordinate getStart();
+
+  /**
+   * End of this primitive (copy).
+   *
+   * @return the end control
+   */
+  Coordinate getEnd();
+
+  /**
+   * Exact length. Collinear windows use the control-point chord path,
+   * not a densified approximation. {@link #isExact()} is true in both cases.
    *
    * @return the length
    */
-  double getLength();
+  double length();
 
   /**
-   * Tests whether this primitive degenerates to a straight chord
-   * (collinear or otherwise non-circular controls).
+   * Point at parameter {@code t} in {@code [0, 1]} along this primitive
+   * (arc-length fraction). Endpoints: {@code t=0} is {@link #getStart()},
+   * {@code t=1} is {@link #getEnd()}.
    *
-   * @return {@code true} if the window is a chord
+   * @param t parameter in {@code [0, 1]} (clamped)
+   * @return a new coordinate on the primitive
    */
-  boolean isCollinear();
+  Coordinate pointAt(double t);
 
   /**
-   * Expands {@code envelope} to include this primitive
-   * (arc extrema, not only control points).
+   * Named densify path. Does not mutate this primitive.
    *
-   * @param envelope the envelope to expand
+   * @param tolerance max distance from the exact curve; {@code 0} uses
+   *        the maximum segment count; non-finite uses the default
+   * @return a new linearized vertex array
    */
-  void expandEnvelope(Envelope envelope);
+  Coordinate[] toLinear(double tolerance);
+
+  /**
+   * Whether {@link #length()} / {@link #pointAt(double)} are exact
+   * (not a densified stand-in). Collinear 3-control windows stay
+   * {@code true}: they are exact chords.
+   *
+   * @return {@code true} if this primitive is exact
+   */
+  boolean isExact();
 }

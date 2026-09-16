@@ -40,8 +40,16 @@ public class ExactCircularArcTest extends TestCase {
     ExactCircularArc arc = new ExactCircularArc(
         new Coordinate(0, 0), new Coordinate(1, 0), new Coordinate(2, 0));
     assertTrue(arc.isCollinear());
+    assertTrue(arc.isExact());
     assertNull(arc.getCenter());
-    assertEquals(2.0, arc.getLength(), 1e-15);
+    assertEquals(2.0, arc.length(), 1e-15);
+    assertTrue(arc.getStart().equals2D(new Coordinate(0, 0)));
+    assertTrue(arc.getEnd().equals2D(new Coordinate(2, 0)));
+    assertTrue(arc.pointAt(0.0).equals2D(new Coordinate(0, 0)));
+    assertTrue(arc.pointAt(0.5).equals2D(new Coordinate(1, 0)));
+    assertTrue(arc.pointAt(1.0).equals2D(new Coordinate(2, 0)));
+    Coordinate[] linear = arc.toLinear(0.001);
+    assertEquals(3, linear.length);
 
     List<Coordinate> pts = new ArrayList<Coordinate>();
     arc.appendLinearized(pts, 0.001, true);
@@ -56,7 +64,10 @@ public class ExactCircularArcTest extends TestCase {
         new Coordinate(1, 0), new Coordinate(0, 1), new Coordinate(-1, 0));
     assertFalse(arc.isCollinear());
     assertEquals(1.0, arc.getRadius(), 1e-10);
-    assertEquals(Math.PI, arc.getLength(), 1e-10);
+    assertTrue(arc.isExact());
+    assertEquals(Math.PI, arc.length(), 1e-10);
+    assertTrue(arc.pointAt(0.0).equals2D(new Coordinate(1, 0)));
+    assertTrue(arc.pointAt(1.0).equals2D(new Coordinate(-1, 0)));
 
     Envelope env = new Envelope();
     arc.expandEnvelope(env);
@@ -72,13 +83,16 @@ public class ExactCircularArcTest extends TestCase {
     assertTrue(arc.isFullCircle());
     assertFalse(arc.isCollinear());
     assertEquals(0.5, arc.getRadius(), 1e-12);
-    assertEquals(Math.PI, arc.getLength(), 1e-12);
+    assertTrue(arc.isExact());
+    assertTrue(arc.getCenter().equals2D(new Coordinate(0.5, 0)));
+    assertEquals(Math.PI, arc.length(), 1e-12);
   }
 
   public void testDegeneratePoint() {
     ExactCircularArc arc = new ExactCircularArc(
         new Coordinate(3, 4), new Coordinate(3, 4), new Coordinate(3, 4));
     assertTrue(arc.isCollinear());
-    assertEquals(0.0, arc.getLength(), 0.0);
+    assertTrue(arc.isExact());
+    assertEquals(0.0, arc.length(), 0.0);
   }
 }
