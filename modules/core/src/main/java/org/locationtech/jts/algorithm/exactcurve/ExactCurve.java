@@ -8,6 +8,13 @@
  * and the Eclipse Distribution License is available at
  *
  * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * AI Disclosure: This file was largely AI-generated.
+ * The AI-generated portions are made available under CC0-1.0 and not subject to the project's licence.
+ * The human contributor has reviewed and verified that the code is correct.
+ * SPDX-License-Identifier: EPL-2.0 OR EDL-1.0 and CC0-1.0
+ * Assisted-by: Cursor Agent
+ * Assisted-by: xAI Grok
  */
 package org.locationtech.jts.algorithm.exactcurve;
 
