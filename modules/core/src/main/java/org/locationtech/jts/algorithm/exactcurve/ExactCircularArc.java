@@ -241,11 +241,11 @@ public class ExactCircularArc implements ExactCurve {
   }
 
   public Coordinate pointAt(double t) {
-    if (t < 0.0) {
-      t = 0.0;
+    if (t <= 0.0) {
+      return p0.copy();
     }
-    else if (t > 1.0) {
-      t = 1.0;
+    if (t >= 1.0) {
+      return p2.copy();
     }
     if (collinear || sweep <= ANGLE_EPS) {
       return pointAtChord(t);
