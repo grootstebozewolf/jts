@@ -8,7 +8,8 @@
  * and the Eclipse Distribution License is available at
  *
  * http://www.eclipse.org/org/documents/edl-v10.php.
- *
+ */
+/*
  * AI Disclosure: This file was largely AI-generated.
  * The AI-generated portions are made available under CC0-1.0 and not subject to the project's licence.
  * The human contributor has reviewed and verified that the code is correct.
