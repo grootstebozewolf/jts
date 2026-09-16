@@ -35,7 +35,7 @@ import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
 
 /**
- * Shelf-a / Proofs Oracle harden for {@code CIRCULARSTRING (5 0, 3 4, 0 5)}.
+ * Shelf-a fixtures / golden round-trips for {@code CIRCULARSTRING (5 0, 3 4, 0 5)}.
  * κ=8; centre (0,0) r=5; exact length = 5·π/2 =
  * {@code 0x1.f6a7a2955385fp+2}.
  * <p>
@@ -44,7 +44,7 @@ import test.jts.GeometryTestCase;
  *
  * @author Jeroen Bloemscheer
  */
-public class CircularStringOracleTest extends GeometryTestCase {
+public class CircularStringShelfATest extends GeometryTestCase {
 
   /** ADR-0006 LENGTH_UNIFIED hex-float for the shelf-a quarter window. */
   public static final String ORACLE_LENGTH_HEX = "0x1.f6a7a2955385fp+2";
@@ -58,12 +58,12 @@ public class CircularStringOracleTest extends GeometryTestCase {
     TestRunner.run(suite());
   }
 
-  public CircularStringOracleTest(String name) {
+  public CircularStringShelfATest(String name) {
     super(name);
   }
 
   public static Test suite() {
-    return new TestSuite(CircularStringOracleTest.class);
+    return new TestSuite(CircularStringShelfATest.class);
   }
 
   public void testShelfAWktRoundTripAndControlsNotDensify() throws Exception {
@@ -115,7 +115,7 @@ public class CircularStringOracleTest extends GeometryTestCase {
     CircularString cs = (CircularString) reader.read(SHELF_WKT);
     double jtsLen = cs.getLength();
     if (bin == null) {
-      // Fixtures + certified hex are the CI path; oracle_bin is optional.
+      // Fixtures + certified hex are the CI path; proofs oracle_bin is optional.
       assertEquals(Double.valueOf(ORACLE_LENGTH_HEX).doubleValue(), jtsLen, 1e-12);
       return;
     }
@@ -137,6 +137,7 @@ public class CircularStringOracleTest extends GeometryTestCase {
     assertEquals(oracle, jtsLen, 1e-12);
   }
 
+  /** Optional proofs LENGTH_UNIFIED checker (not Oracle Database). */
   private static File findOracleBin() {
     String[] candidates = new String[] {
         System.getProperty("jts.oracle.bin"),
@@ -156,7 +157,7 @@ public class CircularStringOracleTest extends GeometryTestCase {
   }
 
   private static String readResource(String path) throws Exception {
-    InputStream in = CircularStringOracleTest.class.getClassLoader().getResourceAsStream(path);
+    InputStream in = CircularStringShelfATest.class.getClassLoader().getResourceAsStream(path);
     assertNotNull("missing resource " + path, in);
     BufferedReader r = new BufferedReader(new InputStreamReader(in, Charset.forName("UTF-8")));
     StringBuilder sb = new StringBuilder();
